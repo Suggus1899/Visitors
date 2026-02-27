@@ -1,0 +1,297 @@
+import { IVisitRepository, VisitFilters } from '../../../domain/repositories/IVisitRepository';
+import { Visit, VisitEntity, VisitStatus } from '../../../domain/entities/Visit.entity';
+import VisitModel from '../../../models/Visit';
+import VisitorModel from '../../../models/Visitor';
+import { Op } from 'sequelize';
+import Encryption from '../../../utils/Encryption';
+
+/**
+ * Sequelize implementation of IVisitRepository
+ * Adapts between domain entities and Sequelize models
+ */
+export class SequelizeVisitRepository implements IVisitRepository {
+  async findById(id: number): Promise<Visit | null> {
+    const model = await VisitModel.findByPk(id, {
+        include: [{ model: VisitorModel }]
+    });
+    return model ? this.toDomain(model) : null;
+  }
+
+  async findAll(filters?: VisitFilters): Promise<Visit[]> {
+    const where: any = {};
+
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+
+    if (filters?.visitorCedula) {
+      // Hash the cedula to match FK in DB
+      where.visitor_cedula = Encryption.hash(filters.visitorCedula);
+    }
+
+    if (filters?.personToVisit) {
+      where.person_to_visit = { [Op.like]: `%${filters.personToVisit}%` };
+    }
+
+    if (filters?.search) {
+      const search = filters.search.trim();
+      if (search.length > 0) {
+        const orConditions: any[] = [
+          { person_to_visit: { [Op.like]: `%${search}%` } },
+          { purpose: { [Op.like]: `%${search}%` } },
+          { notes: { [Op.like]: `%${search}%` } }
+        ];
+
+        if (/^\d{6,10}$/.test(search)) {
+          orConditions.push({ visitor_cedula: Encryption.hash(search) });
+        }
+
+        where[Op.and] = [...(where[Op.and] || []), { [Op.or]: orConditions }];
+      }
+    }
+
+    if (filters?.startDate && filters?.endDate) {
+      where.check_in_time = {
+        [Op.between]: [filters.startDate, filters.endDate]
+      };
+    } else if (filters?.startDate) {
+      where.check_in_time = { [Op.gte]: filters.startDate };
+    } else if (filters?.endDate) {
+      where.check_in_time = { [Op.lte]: filters.endDate };
+    }
+
+    const limit = filters?.limit || 50;
+    const offset = filters?.page ? (filters.page - 1) * limit : 0;
+
+    const models = await VisitModel.findAll({
+      where,
+      limit,
+      offset,
+      order: [['check_in_time', 'DESC']],
+      include: [{ model: VisitorModel }]
+    });
+
+    return models.map(m => this.toDomain(m));
+  }
+
+  async findActive(): Promise<Visit[]> {
+    const models = await VisitModel.findAll({
+      where: { status: VisitStatus.ACTIVE },
+      order: [['check_in_time', 'DESC']],
+      include: [{ model: VisitorModel }]
+    });
+
+    return models.map(m => this.toDomain(m));
+  }
+
+  async findByVisitor(visitorCedula: string): Promise<Visit[]> {
+    const hashedFn = Encryption.hash(visitorCedula);
+    const models = await VisitModel.findAll({
+      where: { visitor_cedula: hashedFn },
+      order: [['check_in_time', 'DESC']],
+      include: [{ model: VisitorModel }]
+    });
+
+    return models.map(m => this.toDomain(m));
+  }
+
+  async findByDateRange(startDate: Date, endDate: Date): Promise<Visit[]> {
+    const models = await VisitModel.findAll({
+      where: {
+        check_in_time: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      order: [['check_in_time', 'DESC']],
+      include: [{ model: VisitorModel }]
+    });
+
+    return models.map(m => this.toDomain(m));
+  }
+
+  async create(visit: Visit): Promise<Visit> {
+    const hashedCedula = Encryption.hash(visit.visitorCedula);
+    
+    // Check if visitor exists (integrity check might fail if not found)
+    // But repository just inserts. FK constraint handles it.
+    
+    const model = await VisitModel.create({
+      visitor_cedula: hashedCedula,
+      check_in_time: visit.checkInTime,
+      check_out_time: visit.checkOutTime || null,
+      purpose: visit.purpose,
+      person_to_visit: visit.personToVisit,
+      status: visit.status,
+      notes: visit.notes || null,
+      // We don't have 'include' here so toDomain might fail to get real name/ID.
+      // But we can fallback to input 'visit' data if needed? 
+      // Or we can reload.
+    });
+    
+    // Reload to get visitor details (name, etc) for the returned entity
+    // This adds an extra query but ensures consistency
+    await model.reload({ include: [VisitorModel] });
+
+    return this.toDomain(model);
+  }
+
+  async update(id: number, data: Partial<VisitEntity>): Promise<Visit> {
+    const model = await VisitModel.findByPk(id);
+    
+    if (!model) {
+      throw new Error('Visit not found');
+    }
+
+    await model.update({
+      check_out_time: data.checkOutTime,
+      status: data.status,
+      notes: data.notes
+    });
+    
+    // Reload to get visitor
+    await model.reload({ include: [VisitorModel] });
+
+    return this.toDomain(model);
+  }
+
+  async delete(id: number): Promise<void> {
+    await VisitModel.destroy({ where: { id } });
+  }
+
+  async count(filters?: VisitFilters): Promise<number> {
+    const where: any = {};
+
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+
+    if (filters?.visitorCedula) {
+      where.visitor_cedula = Encryption.hash(filters.visitorCedula);
+    }
+
+    if (filters?.personToVisit) {
+      where.person_to_visit = { [Op.like]: `%${filters.personToVisit}%` };
+    }
+
+    if (filters?.search) {
+      const search = filters.search.trim();
+      if (search.length > 0) {
+        const orConditions: any[] = [
+          { person_to_visit: { [Op.like]: `%${search}%` } },
+          { purpose: { [Op.like]: `%${search}%` } },
+          { notes: { [Op.like]: `%${search}%` } }
+        ];
+
+        if (/^\d{6,10}$/.test(search)) {
+          orConditions.push({ visitor_cedula: Encryption.hash(search) });
+        }
+
+        where[Op.and] = [...(where[Op.and] || []), { [Op.or]: orConditions }];
+      }
+    }
+
+    if (filters?.startDate && filters?.endDate) {
+      where.check_in_time = {
+        [Op.between]: [filters.startDate, filters.endDate]
+      };
+    } else if (filters?.startDate) {
+      where.check_in_time = { [Op.gte]: filters.startDate };
+    } else if (filters?.endDate) {
+      where.check_in_time = { [Op.lte]: filters.endDate };
+    }
+
+    return await VisitModel.count({ where });
+  }
+
+  async deleteOlderThan(date: Date): Promise<number> {
+    const result = await VisitModel.destroy({
+      where: {
+        check_out_time: {
+          [Op.lt]: date
+        },
+        status: VisitStatus.COMPLETED
+      }
+    });
+
+    return result;
+  }
+
+  async countByStatus(status: VisitStatus): Promise<number> {
+    return await VisitModel.count({
+      where: { status }
+    });
+  }
+
+  async countByDateRange(startDate: Date, endDate: Date): Promise<number> {
+    return await VisitModel.count({
+      where: {
+        check_in_time: {
+          [Op.between]: [startDate, endDate]
+        }
+      }
+    });
+  }
+
+  async findMissedCheckouts(thresholdDate: Date): Promise<Visit[]> {
+    const models = await VisitModel.findAll({
+      where: {
+        status: VisitStatus.ACTIVE,
+        check_in_time: {
+          [Op.lt]: thresholdDate
+        },
+        check_out_time: null
+      },
+      include: [VisitorModel],
+      order: [['check_in_time', 'ASC']]
+    });
+
+    return models.map(m => this.toDomain(m));
+  }
+
+  async findForReport(startDate: Date, endDate: Date): Promise<Visit[]> {
+    const models = await VisitModel.findAll({
+      where: {
+        check_in_time: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      order: [['check_in_time', 'ASC']],
+      include: [VisitorModel] // Include visitor for name
+    });
+
+    return models.map(m => this.toDomain(m));
+  }
+
+  /**
+   * Convert Sequelize model to domain entity
+   */
+  private toDomain(model: InstanceType<typeof VisitModel> | any): Visit {
+    let visitorName = undefined;
+    let visitorCompany = undefined;
+    let visitorCedula = model.visitor_cedula;
+
+    if (model.Visitor) {
+        // Since we are fetching via Include, we can assume it's a Model instance if not 'raw: true'
+        // And VisitorModel has getDecrypted()
+        if (typeof model.Visitor.getDecrypted === 'function') {
+            const decrypted = model.Visitor.getDecrypted();
+            visitorName = `${decrypted.first_name || ''} ${decrypted.last_name || ''}`.trim();
+            visitorCompany = decrypted.company;
+            visitorCedula = decrypted.cedula; // Get Real Cedula from Encrypted
+        }
+    }
+
+    return new Visit(
+      visitorCedula,
+      model.check_in_time,
+      model.purpose,
+      model.person_to_visit,
+      model.status as VisitStatus,
+      model.id,
+      model.check_out_time || undefined,
+      model.notes || undefined,
+      visitorName,
+      visitorCompany
+    );
+  }
+}

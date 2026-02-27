@@ -1,0 +1,58 @@
+{
+  "name": "visitor-system",
+  "version": "1.0.0",
+  "description": "Visitor Access Control System",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "install-all": "npm install && cd server && npm install && cd client && npm install",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron:start\"",
+    "electron:start": "tsc -p tsconfig.electron.json && electron dist-electron/main.js",
+    "dist": "cd client && npm run build && cd .. && npm run build:server && tsc -p tsconfig.electron.json && electron-builder",
+    "build:server": "cd server && npm install && npx tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.1",
+    "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
+    "electron": "^40.2.1",
+    "electron-builder": "^26.7.0",
+    "typescript": "^5.9.3",
+    "wait-on": "^9.0.3"
+  },
+  "author": "",
+  "license": "ISC",
+  "build": {
+    "appId": "com.visits.system",
+    "productName": "Visitor System",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "client/dist/**/*",
+      "server/dist/**/*",
+      "server/package.json",
+      "server/node_modules/**/*"
+    ],
+    "win": {
+      "target": "zip"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "",
+      "repo": "Visitors"
+    },
+    "asarUnpack": [
+      "server/dist/**/*",
+      "server/node_modules/**/*"
+    ]
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "electron-updater": "^6.7.3"
+  }
+}
