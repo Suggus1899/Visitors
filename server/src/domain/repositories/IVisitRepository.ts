@@ -42,6 +42,7 @@ export interface IVisitRepository {
    * @returns Promise of the updated visit
    */
   update(id: number, data: {
+    checkInTime?: Date;
     checkOutTime?: Date;
     status?: VisitStatus;
     notes?: string;

@@ -10,11 +10,14 @@ import ResetPassword from './components/ResetPassword';
 import AdminDashboard from './components/AdminDashboard';
 import VisitForm from './components/VisitForm';
 import ActiveVisits from './components/ActiveVisits';
+import WaitingVisits from './components/WaitingVisits';
 import AuditDashboard from './components/AuditDashboard';
 import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
 import HelpCircle from 'lucide-react/dist/esm/icons/help-circle';
 import Keyboard from 'lucide-react/dist/esm/icons/keyboard';
 import Shield from 'lucide-react/dist/esm/icons/shield';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import Activity from 'lucide-react/dist/esm/icons/activity';
 import { Visit } from './types';
 import { startGuidedTour } from './utils/guidedTour';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
@@ -29,15 +32,18 @@ const OperationsView = () => {
     const [visits, setVisits] = useState<Visit[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [showShortcuts, setShowShortcuts] = useState(false);
+    const [activeTab, setActiveTab] = useState<'active' | 'waiting'>('active');
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const { logout, user } = useAuth();
     const { showWarning, timeLeft, extendSession, logout: sessionLogout } = useSessionTimeout();
     const navigate = useNavigate();
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    const fetchVisits = async () => {
+    const fetchAllVisits = async () => {
         try {
             const data = await VisitService.getActiveVisits();
             setVisits(data);
+            setRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error(error);
         }
@@ -64,8 +70,8 @@ const OperationsView = () => {
     });
 
     useEffect(() => {
-        fetchVisits();
-        const interval = setInterval(fetchVisits, 3000);
+        fetchAllVisits();
+        const interval = setInterval(fetchAllVisits, 3000);
 
         if (user?.username === 'demo') {
             setTimeout(() => startGuidedTour(), 500);
@@ -133,46 +139,76 @@ const OperationsView = () => {
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="flex flex-col xl:flex-row gap-8">
                     <div className="w-full xl:w-1/3" data-tour="visit-form">
-                        <VisitForm onVisitAdded={fetchVisits} />
+                        <VisitForm onVisitAdded={fetchAllVisits} />
                     </div>
                     <div className="w-full xl:w-2/3" data-tour="active-visits">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                            <h2 className="text-lg font-display uppercase tracking-[0.18em] text-[color:var(--text-1)] border-l-2 border-[color:var(--accent-0)] pl-3">
-                                Visitas Activas
-                                <span className="ml-2 text-xs font-semibold text-[color:var(--text-3)]">
-                                    ({filteredVisits.length})
-                                </span>
-                            </h2>
-
-                            <div className="relative">
-                                <input
-                                    ref={searchInputRef}
-                                    type="text"
-                                    placeholder="Buscar... (Ctrl+K)"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="input-tech text-sm pl-10 sm:w-72"
-                                />
-                                <svg
-                                    className="absolute left-3 top-2.5 h-4 w-4 text-[color:var(--text-3)]"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                                {searchQuery && (
-                                    <button
-                                        onClick={() => setSearchQuery('')}
-                                        className="absolute right-3 top-2.5 text-[color:var(--text-3)] hover:text-[color:var(--text-1)]"
-                                    >
-                                        ×
-                                    </button>
-                                )}
-                            </div>
+                        
+                        {/* Tabs Navigation */}
+                        <div className="flex gap-4 mb-6 border-b border-[color:var(--border-1)]">
+                            <button
+                                onClick={() => setActiveTab('active')}
+                                className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'active' ? 'text-[color:var(--accent-0)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
+                            >
+                                <Activity size={16} /> Activas
+                                {activeTab === 'active' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--accent-0)]" />}
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('waiting')}
+                                className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'waiting' ? 'text-[color:var(--status-warning)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
+                            >
+                                <Clock size={16} /> En Espera
+                                {activeTab === 'waiting' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--status-warning)]" />}
+                            </button>
                         </div>
 
-                        <ActiveVisits visits={filteredVisits} onCheckout={fetchVisits} />
+                        {activeTab === 'active' ? (
+                            <>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                    <h2 className="text-lg font-display uppercase tracking-[0.18em] text-[color:var(--text-1)] border-l-2 border-[color:var(--accent-0)] pl-3">
+                                        Visitas Activas
+                                        <span className="ml-2 text-xs font-semibold text-[color:var(--text-3)]">
+                                            ({filteredVisits.length})
+                                        </span>
+                                    </h2>
+
+                                    <div className="relative">
+                                        <input
+                                            ref={searchInputRef}
+                                            type="text"
+                                            placeholder="Buscar... (Ctrl+K)"
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            className="input-tech text-sm pl-10 sm:w-72"
+                                        />
+                                        <svg
+                                            className="absolute left-3 top-2.5 h-4 w-4 text-[color:var(--text-3)]"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        {searchQuery && (
+                                            <button
+                                                onClick={() => setSearchQuery('')}
+                                                className="absolute right-3 top-2.5 text-[color:var(--text-3)] hover:text-[color:var(--text-1)]"
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                <ActiveVisits visits={filteredVisits} onCheckout={fetchAllVisits} />
+                            </>
+                        ) : (
+                            <WaitingVisits 
+                                refreshTrigger={refreshTrigger} 
+                                onVisitAdmitted={() => {
+                                    setActiveTab('active');
+                                    fetchAllVisits();
+                                }} 
+                            />
+                        )}
                     </div>
                 </div>
             </main>

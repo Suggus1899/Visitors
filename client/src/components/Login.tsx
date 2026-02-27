@@ -106,7 +106,7 @@ const Login = () => {
 
                     <div className="flex flex-col items-center mb-8 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
                         <div className="p-3 mb-4 rounded-xl border border-[color:var(--border-1)] bg-[color:var(--surface-2)]">
-                            <img src="./logo.png" alt="Galletas Puig" className="h-20 w-auto object-contain" />
+                            <img src="./logo.png" alt="Industrias de Alimentos el Trébol" className="h-20 w-auto object-contain" />
                         </div>
                         <h2 className="text-3xl font-display font-semibold text-[color:var(--text-1)]">Bienvenido</h2>
                         <p className="text-[color:var(--text-2)] text-xs uppercase tracking-[0.2em] mt-2">
@@ -200,7 +200,7 @@ const Login = () => {
 
                     <div className="mt-8 text-center animate-fadeIn" style={{ animationDelay: '0.4s' }}>
                         <p className="text-[10px] text-[color:var(--text-3)] uppercase tracking-[0.3em] font-medium">
-                            Galletas Puig © System Control v1.0
+                            Industrias de Alimentos el Trébol © System Control v1.0
                         </p>
                     </div>
                 </div>

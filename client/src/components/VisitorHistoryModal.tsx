@@ -115,18 +115,18 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
                                             }`}>
                                             <div className="flex items-center gap-2 text-sm text-[color:var(--text-3)] mb-1">
                                                 <Calendar size={14} />
-                                                {formatDate(visit.check_in)}
+                                                {formatDate(visit.check_in || visit.check_in_time || '')}
                                             </div>
 
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3 text-sm">
                                                     <span className="flex items-center gap-1 text-[color:var(--accent-0)]">
                                                         <Clock size={14} />
-                                                        {formatTime(visit.check_in)}
+                                                        {formatTime(visit.check_in || visit.check_in_time || '')}
                                                     </span>
-                                                    {visit.check_out && (
+                                                    {(visit.check_out || visit.check_out_time) && (
                                                         <span className="flex items-center gap-1 text-red-400">
-                                                            → {formatTime(visit.check_out)}
+                                                            → {formatTime(visit.check_out || visit.check_out_time || '')}
                                                         </span>
                                                     )}
                                                 </div>

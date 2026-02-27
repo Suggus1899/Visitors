@@ -22,12 +22,20 @@ export class CheckInVisitorUseCase {
     if (!visitor && dto.visitorData) {
       // Create new visitor
       let photoUrl: string | undefined;
+      let idPhotoUrl: string | undefined;
 
       // Save photo to filesystem if provided
       if (dto.visitorData.photoBase64) {
         photoUrl = await PhotoStorage.savePhoto(
           dto.visitorData.photoBase64,
           dto.visitorCedula
+        );
+      }
+
+      if (dto.visitorData.idPhotoBase64) {
+        idPhotoUrl = await PhotoStorage.savePhoto(
+          dto.visitorData.idPhotoBase64,
+          `${dto.visitorCedula}_id`
         );
       }
 
@@ -38,7 +46,8 @@ export class CheckInVisitorUseCase {
         dto.visitorData.company,
         dto.visitorData.jobTitle,
         photoUrl,
-        dto.visitorData.email,
+        idPhotoUrl,
+        undefined, // email removed
         dto.visitorData.phone
       );
 
@@ -56,15 +65,26 @@ export class CheckInVisitorUseCase {
     }
 
     // 3. Create new visit
+    const visitStatus = dto.status || VisitStatus.ACTIVE;
     const visit = new Visit(
       dto.visitorCedula,
       new Date(),
       dto.purpose,
       dto.personToVisit,
-      VisitStatus.ACTIVE,
+      visitStatus,
       undefined,
       undefined,
-      dto.notes
+      dto.notes,
+      undefined, // visitorName (inherited)
+      undefined, // visitorCompany
+      dto.companionName,
+      dto.companionCedula,
+      dto.vehicleBrand,
+      dto.vehicleModel,
+      dto.vehiclePlate,
+      dto.area,
+      dto.action,
+      dto.department
     );
 
     const createdVisit = await this.visitRepository.create(visit);
@@ -84,7 +104,15 @@ export class CheckInVisitorUseCase {
       personToVisit: visit.personToVisit,
       status: visit.status,
       durationMinutes: visit.getDurationMinutes() || undefined,
-      notes: visit.notes
+      notes: visit.notes,
+      companionName: visit.companionName,
+      companionCedula: visit.companionCedula,
+      vehicleBrand: visit.vehicleBrand,
+      vehicleModel: visit.vehicleModel,
+      vehiclePlate: visit.vehiclePlate,
+      area: visit.area,
+      action: visit.action,
+      department: visit.department
     };
   }
 }

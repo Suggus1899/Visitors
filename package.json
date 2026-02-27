@@ -4,14 +4,14 @@
   "description": "Visitor Access Control System",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "cross-env NODE_OPTIONS=--no-warnings concurrently \"npm run server\" \"npm run client\"",
+    "start": "cross-env NODE_OPTIONS=--no-warnings concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm run dev",
     "install-all": "npm install && cd server && npm install && cd client && npm install",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron:start\"",
-    "electron:start": "tsc -p tsconfig.electron.json && electron dist-electron/main.js",
-    "dist": "cd client && npm run build && cd .. && npm run build:server && tsc -p tsconfig.electron.json && electron-builder",
+    "electron:dev": "cross-env NODE_OPTIONS=--no-warnings concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron:start\"",
+    "electron:start": "cross-env NODE_OPTIONS=--no-warnings tsc -p tsconfig.electron.json && electron dist-electron/main.js",
+    "dist": "cross-env NODE_OPTIONS=--no-warnings cd client && npm run build && cd .. && npm run build:server && tsc -p tsconfig.electron.json && electron-builder",
     "build:server": "cd server && npm install && npx tsc"
   },
   "devDependencies": {

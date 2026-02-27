@@ -123,6 +123,14 @@ export class SequelizeVisitRepository implements IVisitRepository {
       person_to_visit: visit.personToVisit,
       status: visit.status,
       notes: visit.notes || null,
+      companion_name: visit.companionName || null,
+      companion_cedula: visit.companionCedula || null,
+      vehicle_brand: visit.vehicleBrand || null,
+      vehicle_model: visit.vehicleModel || null,
+      vehicle_plate: visit.vehiclePlate || null,
+      area: visit.area || 'Ninguna',
+      action: visit.action || 'Ninguna',
+      department: visit.department || null,
       // We don't have 'include' here so toDomain might fail to get real name/ID.
       // But we can fallback to input 'visit' data if needed? 
       // Or we can reload.
@@ -143,9 +151,18 @@ export class SequelizeVisitRepository implements IVisitRepository {
     }
 
     await model.update({
+      check_in_time: data.checkInTime,
       check_out_time: data.checkOutTime,
       status: data.status,
-      notes: data.notes
+      notes: data.notes,
+      companion_name: data.companionName,
+      companion_cedula: data.companionCedula,
+      vehicle_brand: data.vehicleBrand,
+      vehicle_model: data.vehicleModel,
+      vehicle_plate: data.vehiclePlate,
+      area: data.area,
+      action: data.action,
+      department: data.department
     });
     
     // Reload to get visitor
@@ -291,7 +308,15 @@ export class SequelizeVisitRepository implements IVisitRepository {
       model.check_out_time || undefined,
       model.notes || undefined,
       visitorName,
-      visitorCompany
+      visitorCompany,
+      model.companion_name || undefined,
+      model.companion_cedula || undefined,
+      model.vehicle_brand || undefined,
+      model.vehicle_model || undefined,
+      model.vehicle_plate || undefined,
+      model.area,
+      model.action,
+      model.department || undefined
     );
   }
 }

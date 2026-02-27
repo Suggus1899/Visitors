@@ -35,12 +35,12 @@ type SeedLoadOptions = {
 };
 
 export const ensureBaseUsers = async () => {
-    const adminEmail = 'Admin@puig.com';
+    const adminEmail = 'Admin@trebol.com';
     const adminExists = await User.findOne({ where: { username: adminEmail } });
 
     if (!adminExists) {
         console.log('Seeding database with Enterprise Admin...');
-        const hashedAdmin = await bcrypt.hash('Puig123*', 8);
+        const hashedAdmin = await bcrypt.hash('Trebol123*', 8);
         const hashedGuard = await bcrypt.hash('guard123', 8);
 
         await User.create({ username: adminEmail, password: hashedAdmin, role: 'admin' });
@@ -52,7 +52,7 @@ export const ensureBaseUsers = async () => {
             await User.create({ username: 'admin', password: await bcrypt.hash('admin123', 8), role: 'admin' });
         }
 
-        console.log('✅ Users Created: Admin@puig.com, guard, admin');
+        console.log('✅ Users Created: Admin@trebol.com, guard, admin');
     }
 
     // Always ensure demo user exists (separate check)

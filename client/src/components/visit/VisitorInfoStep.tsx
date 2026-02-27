@@ -2,7 +2,6 @@ import React from 'react';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
-import Mail from 'lucide-react/dist/esm/icons/mail';
 import Phone from 'lucide-react/dist/esm/icons/phone';
 
 const COUNTRY_CODES = [
@@ -18,20 +17,18 @@ interface VisitorInfoStepProps {
     formData: {
         company: string;
         job_title: string;
-        email: string;
         phone: string;
     };
     phoneCode: string;
     companySuggestions: string[];
     showSuggestions: boolean;
-    validation: { company: boolean | null; email: boolean | null; phone: boolean | null };
+    validation: { company: boolean | null; phone: boolean | null };
     canProceed: boolean;
     onCompanyChange: (value: string) => void;
     onCompanyFocus: () => void;
     onCompanyBlur: () => void;
     onSelectCompany: (company: string) => void;
     onFormDataChange: (field: string, value: string) => void;
-    onEmailChange: (value: string) => void;
     onPhoneCodeChange: (code: string) => void;
     onNext: () => void;
     onPrev: () => void;
@@ -41,7 +38,7 @@ interface VisitorInfoStepProps {
 const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
     formData, phoneCode, companySuggestions, showSuggestions,
     validation, canProceed, onCompanyChange, onCompanyFocus,
-    onCompanyBlur, onSelectCompany, onFormDataChange, onEmailChange,
+    onCompanyBlur, onSelectCompany, onFormDataChange,
     onPhoneCodeChange, onNext, onPrev, getInputClass
 }) => {
     const filteredSuggestions = companySuggestions
@@ -90,21 +87,6 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
                     onChange={(e) => onFormDataChange('job_title', e.target.value)}
                     className={getInputClass(null)}
                 />
-            </div>
-
-            {/* Email */}
-            <div>
-                <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">Email</label>
-                <div className="relative">
-                    <Mail className="absolute left-3 top-3 text-[color:var(--text-3)]" size={18} />
-                    <input
-                        type="email"
-                        placeholder="email@empresa.com"
-                        value={formData.email}
-                        onChange={(e) => onEmailChange(e.target.value)}
-                        className={`${getInputClass(validation.email)} pl-10 lowercase`}
-                    />
-                </div>
             </div>
 
             {/* Phone */}

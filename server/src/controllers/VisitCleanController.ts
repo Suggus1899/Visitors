@@ -56,17 +56,60 @@ export const checkOut = async (req: Request, res: Response) => {
 };
 
 /**
+ * Admit a waiting visitor
+ * POST /api/v1/visits/:id/admit
+ */
+export const admitVisitor = async (req: Request, res: Response) => {
+  try {
+    const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const visitId = parseInt(idParam);
+    
+    if (isNaN(visitId)) {
+      return res.status(400).json(ResponseBuilder.error('INVALID_ID', 'Invalid visit ID'));
+    }
+
+    const useCase = container.createAdmitVisitorUseCase();
+    const result = await useCase.execute(visitId);
+    
+    res.json(ResponseBuilder.success(result));
+  } catch (error) {
+    console.error('Admit visitor error:', error);
+    res.status(400).json(ResponseBuilder.error(
+      'ADMIT_FAILED',
+      error instanceof Error ? error.message : 'Failed to admit visitor'
+    ));
+  }
+};
+
+/**
  * Get all active visits
  * GET /api/v1/visits/active
  */
 export const getActiveVisits = async (_req: Request, res: Response) => {
   try {
     const useCase = container.createGetActiveVisitsUseCase();
-    const result = await useCase.execute();
-    return res.json(ResponseBuilder.success(result));
+    const visits = await useCase.execute();
+    
+    res.json(ResponseBuilder.success(visits));
   } catch (error) {
-    console.error('Checkout error:', error);
-    res.status(500).json(ResponseBuilder.error('CHECKOUT_FAILED', 'Failed to check out visitor'));
+    console.error('Get active visits error:', error);
+    res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch active visits'));
+  }
+};
+
+/**
+ * Get all waiting visits
+ * GET /api/v1/visits/waiting
+ */
+export const getWaitingVisits = async (_req: Request, res: Response) => {
+  try {
+    const useCase = container.createGetWaitingVisitsUseCase();
+    const visits = await useCase.execute();
+    
+    res.json(ResponseBuilder.success(visits));
+  } catch (error) {
+    console.error('Get waiting visits error:', error);
+    res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch waiting visits'));
   }
 };
 

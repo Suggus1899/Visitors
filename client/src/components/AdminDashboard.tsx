@@ -109,7 +109,7 @@ const AdminDashboard = () => {
             let comparison = 0;
             switch (sortField) {
                 case 'visitor': comparison = `${a.Visitor?.first_name || ''} ${a.Visitor?.last_name || ''}`.toLowerCase().localeCompare(`${b.Visitor?.first_name || ''} ${b.Visitor?.last_name || ''}`.toLowerCase()); break;
-                case 'check_in': comparison = new Date(a.check_in).getTime() - new Date(b.check_in).getTime(); break;
+                case 'check_in': comparison = new Date(a.check_in || a.check_in_time || '').getTime() - new Date(b.check_in || b.check_in_time || '').getTime(); break;
                 case 'check_out': comparison = (a.check_out ? new Date(a.check_out).getTime() : 0) - (b.check_out ? new Date(b.check_out).getTime() : 0); break;
                 case 'reason': comparison = (a.reason || '').localeCompare(b.reason || ''); break;
                 case 'status': comparison = a.status.localeCompare(b.status); break;
@@ -123,8 +123,8 @@ const AdminDashboard = () => {
     const calendarEvents: CalendarEvent[] = useMemo(() => visits.map(visit => ({
         id: visit.id,
         title: `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''} - ${visit.reason || 'Visita'}`,
-        start: new Date(visit.check_in),
-        end: visit.check_out ? new Date(visit.check_out) : new Date(visit.check_in),
+        start: new Date(visit.check_in || visit.check_in_time || ''),
+        end: (visit.check_out || visit.check_out_time) ? new Date(visit.check_out || visit.check_out_time!) : new Date(visit.check_in || visit.check_in_time || ''),
         resource: visit
     })), [visits]);
 

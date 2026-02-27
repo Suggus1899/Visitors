@@ -9,8 +9,18 @@ class VisitModel extends Model<InferAttributes<VisitModel>, InferCreationAttribu
     declare person_to_visit: string;
     declare check_in_time: CreationOptional<Date>;
     declare check_out_time: CreationOptional<Date | null>;
-    declare status: CreationOptional<'active' | 'completed'>;
+    declare status: CreationOptional<'waiting' | 'active' | 'completed'>;
     declare notes: CreationOptional<string | null>;
+    
+    // New fields for 'Pase de Entrada'
+    declare companion_name: CreationOptional<string | null>;
+    declare companion_cedula: CreationOptional<string | null>;
+    declare vehicle_brand: CreationOptional<string | null>;
+    declare vehicle_model: CreationOptional<string | null>;
+    declare vehicle_plate: CreationOptional<string | null>;
+    declare area: CreationOptional<'Oficina' | 'Planta' | 'Almacén' | 'Ninguna'>;
+    declare action: CreationOptional<'Carga' | 'Descarga' | 'Ninguna'>;
+    declare department: CreationOptional<string | null>;
 
     // Associations
     declare Visitor?: VisitorModel;
@@ -43,11 +53,43 @@ VisitModel.init({
         allowNull: true
     },
     status: {
-        type: DataTypes.ENUM('active', 'completed'),
+        type: DataTypes.ENUM('waiting', 'active', 'completed'),
         defaultValue: 'active'
     },
     notes: {
         type: DataTypes.TEXT,
+        allowNull: true
+    },
+    companion_name: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    companion_cedula: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    vehicle_brand: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    vehicle_model: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    vehicle_plate: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    area: {
+        type: DataTypes.ENUM('Oficina', 'Planta', 'Almacén', 'Ninguna'),
+        defaultValue: 'Ninguna'
+    },
+    action: {
+        type: DataTypes.ENUM('Carga', 'Descarga', 'Ninguna'),
+        defaultValue: 'Ninguna'
+    },
+    department: {
+        type: DataTypes.STRING,
         allowNull: true
     }
 }, {

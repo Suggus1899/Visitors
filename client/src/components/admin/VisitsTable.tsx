@@ -63,7 +63,7 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
         doc.rect(0, 0, 220, 25, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(18).setFont('helvetica', 'bold');
-        doc.text('Galletas Puig - Reporte de Visitas', 14, 17);
+        doc.text('Industrias de Alimentos el Trébol - Reporte de Visitas', 14, 17);
         doc.setTextColor(31, 41, 55);
         doc.setFontSize(10).setFont('helvetica', 'normal');
         doc.text(`Generado por: ${username} el ${new Date().toLocaleString()}`, 14, 35);
@@ -72,8 +72,8 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
             `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''}`.trim(),
             visit.Visitor?.company || '',
             visit.reason || '',
-            new Date(visit.check_in).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }),
-            visit.check_out ? new Date(visit.check_out).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-',
+            new Date(visit.check_in || visit.check_in_time || '').toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }),
+            (visit.check_out || visit.check_out_time) ? new Date(visit.check_out || visit.check_out_time!).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-',
             visit.status === 'active' ? 'Activo' : 'Completado'
         ]));
         autoTable(doc, {
@@ -88,8 +88,8 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
         const workSheet = XLSX.utils.json_to_sheet(visits.map(v => ({
             Nombre: `${v.Visitor?.first_name || ''} ${v.Visitor?.last_name || ''}`.trim(),
             Empresa: v.Visitor?.company || '',
-            Entrada: new Date(v.check_in).toLocaleString(),
-            Salida: v.check_out ? new Date(v.check_out).toLocaleString() : '-',
+            Entrada: new Date(v.check_in || v.check_in_time || '').toLocaleString(),
+            Salida: (v.check_out || v.check_out_time) ? new Date(v.check_out || v.check_out_time!).toLocaleString() : '-',
             Estado: v.status === 'active' ? 'Activo' : 'Completado',
             Motivo: v.reason || ''
         })));
@@ -153,8 +153,8 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                                     <div className="font-semibold text-[color:var(--text-1)]">{`${vis.Visitor?.first_name || ''} ${vis.Visitor?.last_name || ''}`.trim()}</div>
                                     <div className="text-xs text-[color:var(--text-3)]">{vis.Visitor?.company || ''} - {vis.Visitor?.cedula || ''}</div>
                                 </td>
-                                <td className="p-4 text-[color:var(--text-2)]">{new Date(vis.check_in).toLocaleString()}</td>
-                                <td className="p-4 text-[color:var(--text-2)]">{vis.check_out ? new Date(vis.check_out).toLocaleString() : '-'}</td>
+                                <td className="p-4 text-[color:var(--text-2)]">{new Date(vis.check_in || vis.check_in_time || '').toLocaleString()}</td>
+                                <td className="p-4 text-[color:var(--text-2)]">{(vis.check_out || vis.check_out_time) ? new Date(vis.check_out || vis.check_out_time!).toLocaleString() : '-'}</td>
                                 <td className="p-4 text-[color:var(--text-2)]">{vis.reason}</td>
                                 <td className="p-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${vis.status === 'active' ? 'border-[color:var(--accent-0)] text-[color:var(--accent-0)]' : 'border-[color:var(--border-1)] text-[color:var(--text-3)]'}`}>

@@ -13,9 +13,20 @@ export interface VisitEntity {
   notes?: string;
   visitorName?: string;
   visitorCompany?: string;
+  
+  // Pase de Entrada
+  companionName?: string;
+  companionCedula?: string;
+  vehicleBrand?: string;
+  vehicleModel?: string;
+  vehiclePlate?: string;
+  area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+  action?: 'Carga' | 'Descarga' | 'Ninguna';
+  department?: string;
 }
 
 export enum VisitStatus {
+  WAITING = 'waiting',
   ACTIVE = 'active',
   COMPLETED = 'completed'
 }
@@ -34,7 +45,15 @@ export class Visit {
     public readonly checkOutTime?: Date,
     public readonly notes?: string,
     public readonly visitorName?: string,
-    public readonly visitorCompany?: string
+    public readonly visitorCompany?: string,
+    public readonly companionName?: string,
+    public readonly companionCedula?: string,
+    public readonly vehicleBrand?: string,
+    public readonly vehicleModel?: string,
+    public readonly vehiclePlate?: string,
+    public readonly area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna',
+    public readonly action?: 'Carga' | 'Descarga' | 'Ninguna',
+    public readonly department?: string
   ) {
     this.validate();
   }
@@ -101,7 +120,45 @@ export class Visit {
       checkOutTime,
       notes || this.notes,
       this.visitorName,
-      this.visitorCompany
+      this.visitorCompany,
+      this.companionName,
+      this.companionCedula,
+      this.vehicleBrand,
+      this.vehicleModel,
+      this.vehiclePlate,
+      this.area,
+      this.action,
+      this.department
+    );
+  }
+
+  /**
+   * Admit a waiting visit (mark as active and update check-in time)
+   */
+  admit(checkInTime: Date): Visit {
+    if (this.status !== VisitStatus.WAITING) {
+      throw new Error('Only visits in waiting status can be admitted');
+    }
+
+    return new Visit(
+      this.visitorCedula,
+      checkInTime,
+      this.purpose,
+      this.personToVisit,
+      VisitStatus.ACTIVE,
+      this.id,
+      this.checkOutTime,
+      this.notes,
+      this.visitorName,
+      this.visitorCompany,
+      this.companionName,
+      this.companionCedula,
+      this.vehicleBrand,
+      this.vehicleModel,
+      this.vehiclePlate,
+      this.area,
+      this.action,
+      this.department
     );
   }
 
@@ -119,7 +176,15 @@ export class Visit {
       obj.checkOutTime,
       obj.notes,
       obj.visitorName,
-      obj.visitorCompany
+      obj.visitorCompany,
+      obj.companionName,
+      obj.companionCedula,
+      obj.vehicleBrand,
+      obj.vehicleModel,
+      obj.vehiclePlate,
+      obj.area,
+      obj.action,
+      obj.department
     );
   }
 
@@ -137,7 +202,15 @@ export class Visit {
       status: this.status,
       notes: this.notes,
       visitorName: this.visitorName,
-      visitorCompany: this.visitorCompany
+      visitorCompany: this.visitorCompany,
+      companionName: this.companionName,
+      companionCedula: this.companionCedula,
+      vehicleBrand: this.vehicleBrand,
+      vehicleModel: this.vehicleModel,
+      vehiclePlate: this.vehiclePlate,
+      area: this.area,
+      action: this.action,
+      department: this.department
     };
   }
 }

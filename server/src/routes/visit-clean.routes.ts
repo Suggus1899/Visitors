@@ -83,6 +83,30 @@ router.post('/v1/visits/:id/checkout', verifyToken, denyAuditorOnly, asyncHandle
 
 /**
  * @swagger
+ * /visits/{id}/admit:
+ *   post:
+ *     summary: Admit a waiting visitor
+ *     tags: [Visits]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Admit successful
+ *       404:
+ *         description: Visit not found or not in waiting status
+ *       400:
+ *         description: Bad request
+ */
+router.post('/v1/visits/:id/admit', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.admitVisitor));
+
+/**
+ * @swagger
  * /visits/active:
  *   get:
  *     summary: Get all active visits

@@ -7,7 +7,8 @@ import FileText from 'lucide-react/dist/esm/icons/file-text';
 const STEPS = [
     { id: 1, title: 'Identificación', icon: UserPlus },
     { id: 2, title: 'Información', icon: Building2 },
-    { id: 3, title: 'Visita', icon: FileText }
+    { id: 3, title: 'Extra', icon: FileText },
+    { id: 4, title: 'Visita', icon: FileText }
 ];
 
 interface WizardProgressProps {

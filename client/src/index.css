@@ -17,9 +17,9 @@
     --text-1: #e5edf5;
     --text-2: #b1bcc6;
     --text-3: #7c8a97;
-    --accent-0: #f87171;
-    --accent-1: #ef4444;
-    --accent-2: #b91c1c;
+    --accent-0: #4ade80;
+    --accent-1: #22c55e;
+    --accent-2: #15803d;
   }
 
   [data-theme="light"] {
@@ -32,9 +32,9 @@
     --text-1: #1e293b;
     --text-2: #475569;
     --text-3: #64748b;
-    --accent-0: #ef4444;
-    --accent-1: #dc2626;
-    --accent-2: #991b1b;
+    --accent-0: #22c55e;
+    --accent-1: #16a34a;
+    --accent-2: #166534;
   }
 
   body {

@@ -11,6 +11,7 @@ export interface Visitor {
     company: string;
     job_title?: string;
     photo_url?: string;
+    id_photo_url?: string;
     email?: string;
     phone?: string;
 }
@@ -18,12 +19,27 @@ export interface Visitor {
 export interface Visit {
     id: number;
     visitor_cedula: string;
-    reason: string;
-    check_in: string;
+    reason?: string; 
+    purpose?: string;
+    check_in?: string;
+    check_in_time?: string;
     check_out?: string;
-    status: 'active' | 'completed';
+    check_out_time?: string;
+    status: 'waiting' | 'active' | 'completed';
     personToVisit?: string;
+    person_to_visit?: string;
     notes?: string;
+    
+    // Pase de Entrada
+    companionName?: string;
+    companionCedula?: string;
+    vehicleBrand?: string;
+    vehicleModel?: string;
+    vehiclePlate?: string;
+    area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+    action?: 'Carga' | 'Descarga' | 'Ninguna';
+    department?: string;
+
     Visitor?: Visitor;
 }
 

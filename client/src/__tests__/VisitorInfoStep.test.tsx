@@ -1,15 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import VisitorInfoStep from '../../components/visit/VisitorInfoStep';
+import VisitorInfoStep from '../components/visit/VisitorInfoStep';
 
 const baseProps = {
-  formData: { company: '', job_title: '', email: '', phone: '' },
+  formData: { company: '', job_title: '', phone: '' },
   phoneCode: '+58',
   companySuggestions: [],
   showSuggestions: false,
   validation: {
     company: null as boolean | null,
-    email: null as boolean | null,
     phone: null as boolean | null,
   },
   canProceed: false,
@@ -18,7 +17,6 @@ const baseProps = {
   onCompanyBlur: vi.fn(),
   onSelectCompany: vi.fn(),
   onFormDataChange: vi.fn(),
-  onEmailChange: vi.fn(),
   onPhoneCodeChange: vi.fn(),
   onNext: vi.fn(),
   onPrev: vi.fn(),
@@ -26,11 +24,10 @@ const baseProps = {
 };
 
 describe('VisitorInfoStep', () => {
-  it('renders company, job title, email, and phone fields', () => {
+  it('renders company, job title, and phone fields', () => {
     render(<VisitorInfoStep {...baseProps} />);
     expect(screen.getByPlaceholderText('Nombre de la empresa')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Ej: Gerente, Técnico, etc.')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('email@empresa.com')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('4121234567')).toBeInTheDocument();
   });
 
@@ -41,17 +38,10 @@ describe('VisitorInfoStep', () => {
     expect(onCompanyChange).toHaveBeenCalledWith('Acme');
   });
 
-  it('calls onEmailChange when email input changes', () => {
-    const onEmailChange = vi.fn();
-    render(<VisitorInfoStep {...baseProps} onEmailChange={onEmailChange} />);
-    fireEvent.change(screen.getByPlaceholderText('email@empresa.com'), { target: { value: 'test@test.com' } });
-    expect(onEmailChange).toHaveBeenCalledWith('test@test.com');
-  });
-
   it('calls onPhoneCodeChange when phone code select changes', () => {
     const onPhoneCodeChange = vi.fn();
     render(<VisitorInfoStep {...baseProps} onPhoneCodeChange={onPhoneCodeChange} />);
-    fireEvent.change(screen.getByDisplayValue('+58'), { target: { value: '+1' } });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '+1' } });
     expect(onPhoneCodeChange).toHaveBeenCalledWith('+1');
   });
 

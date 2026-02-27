@@ -10,7 +10,9 @@ import { SequelizeUserRepository } from '../infrastructure/database/repositories
 import { JwtAuthService } from '../infrastructure/services/JwtAuthService';
 import { CheckInVisitorUseCase } from '../application/usecases/CheckInVisitor.usecase';
 import { CheckOutVisitorUseCase } from '../application/usecases/CheckOutVisitor.usecase';
+import { AdmitVisitorUseCase } from '../application/usecases/AdmitVisitor.usecase';
 import { GetActiveVisitsUseCase } from '../application/usecases/GetActiveVisits.usecase';
+import { GetWaitingVisitsUseCase } from '../application/usecases/GetWaitingVisits.usecase';
 import { GetVisitStatsUseCase } from '../application/usecases/GetVisitStats.usecase';
 import { GetVisitorByCedulaUseCase } from '../application/usecases/GetVisitorByCedula.usecase';
 import { GetCompaniesUseCase } from '../application/usecases/GetCompanies.usecase';
@@ -98,8 +100,21 @@ class Container {
     );
   }
 
+  createAdmitVisitorUseCase(): AdmitVisitorUseCase {
+    return new AdmitVisitorUseCase(
+      this.visitRepository
+    );
+  }
+
   createGetActiveVisitsUseCase(): GetActiveVisitsUseCase {
     return new GetActiveVisitsUseCase(
+      this.visitRepository,
+      this.visitorRepository
+    );
+  }
+
+  createGetWaitingVisitsUseCase(): GetWaitingVisitsUseCase {
+    return new GetWaitingVisitsUseCase(
       this.visitRepository,
       this.visitorRepository
     );

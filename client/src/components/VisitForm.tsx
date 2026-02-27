@@ -10,6 +10,7 @@ import WizardProgress from './visit/WizardProgress';
 import VisitorLookupStep from './visit/VisitorLookupStep';
 import VisitorInfoStep from './visit/VisitorInfoStep';
 import VisitDetailsStep from './visit/VisitDetailsStep';
+import VehicleInfoStep from './visit/VehicleInfoStep';
 
 interface VisitFormProps {
     onVisitAdded: () => void;
@@ -20,7 +21,6 @@ interface ValidationState {
     first_name: boolean | null;
     last_name: boolean | null;
     company: boolean | null;
-    email: boolean | null;
     phone: boolean | null;
 }
 
@@ -29,15 +29,27 @@ const INITIAL_FORM_DATA = {
     last_name: '',
     company: '',
     job_title: '',
-    email: '',
     phone: '',
     photo_url: '',
-    reason: ''
+    id_photo_url: '',
+    reason: 'Ninguna', // Re-used for purpose mapping in DB momentarily or just map Area
+    
+    // Pase de Entrada
+    has_companion: false,
+    companion_name: '',
+    companion_cedula: '',
+    has_vehicle: false,
+    vehicle_brand: '',
+    vehicle_model: '',
+    vehicle_plate: '',
+    area: 'Ninguna' as 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna',
+    action: 'Ninguna' as 'Carga' | 'Descarga' | 'Ninguna',
+    department: ''
 };
 
 const INITIAL_VALIDATION: ValidationState = {
     cedula: null, first_name: null, last_name: null,
-    company: null, email: null, phone: null
+    company: null, phone: null
 };
 
 const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
@@ -81,10 +93,6 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             case 'company':
                 setValidation(v => ({ ...v, company: value.trim().length >= 2 ? true : value.length === 0 ? null : false }));
                 break;
-            case 'email':
-                if (value.length === 0) { setValidation(v => ({ ...v, email: null })); break; }
-                setValidation(v => ({ ...v, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) }));
-                break;
             case 'phone':
                 setValidation(v => ({ ...v, phone: value.length === 0 ? null : value.length >= 7 }));
                 break;
@@ -97,8 +105,16 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         try {
             const visitor = await VisitService.getVisitorByCedula(cedula) as Visitor;
             if (visitor) {
-                setFormData({ ...formData, first_name: visitor.first_name || '', last_name: visitor.last_name || '', company: visitor.company, job_title: visitor.job_title || '', email: visitor.email || '', phone: visitor.phone || '', photo_url: visitor.photo_url || '', reason: '' });
-                setValidation({ cedula: true, first_name: !!visitor.first_name, last_name: !!visitor.last_name, company: !!visitor.company, email: null, phone: null });
+                setFormData({ 
+                    ...formData, 
+                    first_name: visitor.first_name || '', 
+                    last_name: visitor.last_name || '', 
+                    company: visitor.company, 
+                    job_title: visitor.job_title || '', 
+                    phone: visitor.phone || '', 
+                    photo_url: visitor.photo_url || '' 
+                });
+                setValidation({ cedula: true, first_name: !!visitor.first_name, last_name: !!visitor.last_name, company: !!visitor.company, phone: null });
                 toast.success('Visitante encontrado');
             } else {
                 toast.error('Visitante no encontrado');
@@ -112,8 +128,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (status: 'active' | 'waiting') => {
         if (!formData.first_name || !formData.last_name || !cedula) {
             toast.error('Complete los campos obligatorios'); return;
         }
@@ -122,10 +137,19 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             const fullPhone = formData.phone ? `${phoneCode}${formData.phone}` : '';
             await VisitService.checkIn({
                 visitorCedula: cedula,
-                visitorData: { firstName: formData.first_name, lastName: formData.last_name, company: formData.company, jobTitle: formData.job_title, email: formData.email, phone: fullPhone, photoBase64: formData.photo_url },
-                purpose: formData.reason,
-                personToVisit: 'Recepcion',
-                notes: ''
+                visitorData: { firstName: formData.first_name, lastName: formData.last_name, company: formData.company, jobTitle: formData.job_title, phone: fullPhone, photoBase64: formData.photo_url, idPhotoBase64: formData.id_photo_url },
+                purpose: `Área: ${formData.area} | Dpto: ${formData.department} | Acción: ${formData.action}`,
+                personToVisit: formData.department || 'Recepcion',
+                notes: '',
+                status,
+                companionName: formData.has_companion ? formData.companion_name : undefined,
+                companionCedula: formData.has_companion ? formData.companion_cedula : undefined,
+                vehicleBrand: formData.has_vehicle ? formData.vehicle_brand : undefined,
+                vehicleModel: formData.has_vehicle ? formData.vehicle_model : undefined,
+                vehiclePlate: formData.has_vehicle ? formData.vehicle_plate : undefined,
+                area: formData.area,
+                action: formData.action,
+                department: formData.department
             });
             playSuccess();
             toast.success('¡Entrada registrada correctamente!');
@@ -149,7 +173,13 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
 
     const canProceedStep1 = validation.cedula === true && validation.first_name === true && validation.last_name === true;
     const canProceedStep2 = validation.company === true;
-    const canSubmit = canProceedStep1 && canProceedStep2 && formData.photo_url.length > 0 && formData.reason.trim().length > 0;
+    
+    // Step 3 (Info Extra: Companion & Vehicle toggles/details)
+    const canProceedStep3 = (!formData.has_companion || (formData.has_companion && formData.companion_name.length > 2)) && 
+                            (!formData.has_vehicle || (formData.has_vehicle && formData.vehicle_plate.length > 2 && formData.vehicle_brand.length > 2));
+    
+    // Step 4 (Photos & Area/Action)
+    const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3 && formData.photo_url.length > 0 && formData.id_photo_url.length > 0 && formData.area !== 'Ninguna' && formData.department.trim().length > 0;
 
     return (
         <div className="panel-tech p-6 rounded-2xl relative overflow-hidden">
@@ -177,7 +207,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
 
             <WizardProgress currentStep={currentStep} />
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={(e) => e.preventDefault()}>
                 {currentStep === 1 && (
                     <VisitorLookupStep
                         cedula={cedula}
@@ -221,27 +251,34 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                             setFormData(prev => ({ ...prev, [field]: value }));
                             validateField(field, value);
                         }}
-                        onEmailChange={(value) => {
-                            const lower = value.toLowerCase();
-                            setFormData(prev => ({ ...prev, email: lower }));
-                            validateField('email', lower);
-                        }}
                         onPhoneCodeChange={setPhoneCode}
-                        onNext={() => setCurrentStep(s => Math.min(s + 1, 3))}
+                        onNext={() => setCurrentStep(s => Math.min(s + 1, 4))}
                         onPrev={() => setCurrentStep(s => Math.max(s - 1, 1))}
                         getInputClass={getInputClass}
                     />
                 )}
                 {currentStep === 3 && (
+                    <VehicleInfoStep
+                        formData={formData}
+                        onFormDataChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
+                        canProceed={canProceedStep3}
+                        onNext={() => setCurrentStep(s => Math.min(s + 1, 4))}
+                        onPrev={() => setCurrentStep(s => Math.max(s - 1, 1))}
+                        getInputClass={getInputClass}
+                    />
+                )}
+                {currentStep === 4 && (
                     <VisitDetailsStep
-                        reason={formData.reason}
-                        photoUrl={formData.photo_url}
+                        formData={formData}
                         loading={loading}
                         canSubmit={canSubmit}
-                        onReasonChange={(value) => setFormData(prev => ({ ...prev, reason: value }))}
+                        onFormDataChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
                         onPhotoCapture={(img) => setFormData(prev => ({ ...prev, photo_url: img }))}
                         onPhotoRetake={() => setFormData(prev => ({ ...prev, photo_url: '' }))}
+                        onIdPhotoCapture={(img) => setFormData(prev => ({ ...prev, id_photo_url: img }))}
+                        onIdPhotoRetake={() => setFormData(prev => ({ ...prev, id_photo_url: '' }))}
                         onPrev={() => setCurrentStep(s => Math.max(s - 1, 1))}
+                        onSaveStatus={handleSubmit}
                         getInputClass={getInputClass}
                     />
                 )}

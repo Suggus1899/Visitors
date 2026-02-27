@@ -19,13 +19,14 @@ export interface VisitorEntity {
 export class Visitor {
   constructor(
     public readonly cedula: string,
-    public readonly firstName: string,
-    public readonly lastName: string,
-    public readonly company: string,
-    public readonly jobTitle?: string,
-    public readonly photoUrl?: string,
-    public readonly email?: string,
-    public readonly phone?: string
+    public firstName: string,
+    public lastName: string,
+    public company: string,
+    public jobTitle?: string,
+    public photoUrl?: string,
+    public idPhotoUrl?: string,
+    public email?: string,
+    public phone?: string
   ) {
     this.validate();
   }

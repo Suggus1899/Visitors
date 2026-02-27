@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import VisitorLookupStep from '../../components/visit/VisitorLookupStep';
+import VisitorLookupStep from '../components/visit/VisitorLookupStep';
 
 const baseProps = {
   cedula: '',

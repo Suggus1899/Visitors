@@ -7,6 +7,8 @@ import Clock from 'lucide-react/dist/esm/icons/clock';
 import FileText from 'lucide-react/dist/esm/icons/file-text';
 import Phone from 'lucide-react/dist/esm/icons/phone';
 import Mail from 'lucide-react/dist/esm/icons/mail';
+import Car from 'lucide-react/dist/esm/icons/car';
+import Users from 'lucide-react/dist/esm/icons/users';
 import { Visit } from '../types';
 
 interface VisitDetailsModalProps {
@@ -89,24 +91,26 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
 
                     <div className="mt-6 grid grid-cols-2 gap-4 text-left">
                         <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
-                            <label className="text-xs font-semibold text-[color:var(--text-3)] uppercase block mb-1">Motivo</label>
+                            <label className="text-xs font-semibold text-[color:var(--text-3)] uppercase block mb-1">Área / Acción</label>
                             <div className="flex items-center text-[color:var(--text-1)] font-medium">
                                 <FileText size={16} className="mr-2 text-[color:var(--accent-0)]" />
-                                {visit.reason}
+                                <span className="text-sm">
+                                    {visit.area ? `${visit.area} - ${visit.action !== 'Ninguna' ? visit.action : ''}` : visit.reason}
+                                </span>
                             </div>
                         </div>
                         <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
                             <label className="text-xs font-semibold text-[color:var(--text-3)] uppercase block mb-1">A quien visita</label>
-                            <div className="flex items-center text-[color:var(--text-1)] font-medium">
+                            <div className="flex items-center text-[color:var(--text-1)] font-medium text-sm">
                                 <User size={16} className="mr-2 text-[color:var(--accent-0)]" />
-                                {visit.personToVisit || 'Recepcion'}
+                                {visit.department || visit.personToVisit || 'Recepcion'}
                             </div>
                         </div>
                         <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
                             <label className="text-xs font-semibold text-[color:var(--text-3)] uppercase block mb-1">Entrada</label>
                             <div className="flex items-center text-[color:var(--text-1)] font-medium">
                                 <Clock size={16} className="mr-2 text-[color:var(--accent-1)]" />
-                                {new Date(visit.check_in).toLocaleString()}
+                                {new Date(visit.check_in || visit.check_in_time || '').toLocaleString()}
                             </div>
                         </div>
                         <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
@@ -122,6 +126,33 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
                             </div>
                         </div>
                     </div>
+
+                    {(visit.companionName || visit.vehiclePlate) && (
+                        <div className="mt-4 grid grid-cols-2 gap-4 text-left">
+                            {visit.companionName && (
+                                <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
+                                    <label className="text-xs font-semibold text-[color:var(--text-3)] uppercase block mb-1">Acompañante</label>
+                                    <div className="flex flex-col text-sm text-[color:var(--text-2)]">
+                                        <span className="flex items-center font-medium text-[color:var(--text-1)] mb-1">
+                                            <Users size={14} className="mr-2 text-[color:var(--accent-0)]" /> {visit.companionName}
+                                        </span>
+                                        {visit.companionCedula && <span className="font-mono text-xs opacity-75">C.I. {visit.companionCedula}</span>}
+                                    </div>
+                                </div>
+                            )}
+                            {visit.vehiclePlate && (
+                                <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
+                                    <label className="text-xs font-semibold text-[color:var(--text-3)] uppercase block mb-1">Vehículo</label>
+                                    <div className="flex flex-col text-sm text-[color:var(--text-2)]">
+                                        <span className="flex items-center font-medium text-[color:var(--text-1)] mb-1">
+                                            <Car size={14} className="mr-2 text-[color:var(--accent-0)]" /> {visit.vehicleBrand} {visit.vehicleModel}
+                                        </span>
+                                        <span className="font-mono text-xs opacity-75 bg-[color:var(--surface-3)] px-1 rounded uppercase">{visit.vehiclePlate}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {visit.notes && (
                         <div className="mt-4 bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)] text-left">

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import WizardProgress from '../../components/visit/WizardProgress';
+import WizardProgress from '../components/visit/WizardProgress';
 
 describe('WizardProgress', () => {
   it('shows step 1 as active and steps 2-3 as pending when currentStep=1', () => {

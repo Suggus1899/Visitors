@@ -25,8 +25,8 @@ const runTests = async () => {
     // 2. Test Login
     try {
         const res = await axios.post(`${API_URL}/auth/login`, {
-            username: 'Admin@puig.com',
-            password: 'Puig123*' // Default seed credential
+            username: 'Admin@trebol.com',
+            password: 'Trebol123*' // Default seed credential
         });
         
         if (res.data?.success && res.data?.data?.token) {

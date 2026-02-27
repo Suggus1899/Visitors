@@ -104,18 +104,33 @@ export const VisitService = {
         };
     },
 
+    getWaitingVisits: async () => {
+        const response = await api.get('/visits/waiting');
+        const data = unwrapResponse<VisitDTO[]>(response.data);
+        return Array.isArray(data) ? data.map(adaptVisit) : [];
+    },
+
     checkIn: async (data: {
         visitorCedula: string;
         purpose: string;
         personToVisit: string;
         notes?: string;
+        status?: string;
+        companionName?: string;
+        companionCedula?: string;
+        vehicleBrand?: string;
+        vehicleModel?: string;
+        vehiclePlate?: string;
+        area?: string;
+        action?: string;
+        department?: string;
         visitorData?: {
             firstName?: string;
             lastName?: string;
             company?: string;
-            email?: string;
             phone?: string;
             photoBase64?: string;
+            idPhotoBase64?: string;
             jobTitle?: string;
         };
     }) => {
@@ -125,6 +140,11 @@ export const VisitService = {
 
     checkOut: async (id: number, notes?: string) => {
         const response = await api.post(`/visits/${id}/checkout`, { notes });
+        return unwrapResponse(response.data);
+    },
+
+    admitVisitor: async (id: number) => {
+        const response = await api.post(`/visits/${id}/admit`);
         return unwrapResponse(response.data);
     },
 

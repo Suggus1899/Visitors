@@ -11,12 +11,21 @@ export interface CheckInDto {
     company: string;
     jobTitle?: string;
     photoBase64?: string;
-    email?: string;
+    idPhotoBase64?: string;
     phone?: string;
   };
   purpose: string;
   personToVisit: string;
   notes?: string;
+  status?: VisitStatus;
+  companionName?: string;
+  companionCedula?: string;
+  vehicleBrand?: string;
+  vehicleModel?: string;
+  vehiclePlate?: string;
+  area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+  action?: 'Carga' | 'Descarga' | 'Ninguna';
+  department?: string;
 }
 
 /**
@@ -56,4 +65,12 @@ export interface VisitResponseDto {
   status: VisitStatus;
   durationMinutes?: number;
   notes?: string;
+  companionName?: string;
+  companionCedula?: string;
+  vehicleBrand?: string;
+  vehicleModel?: string;
+  vehiclePlate?: string;
+  area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+  action?: 'Carga' | 'Descarga' | 'Ninguna';
+  department?: string;
 }

@@ -1,10 +1,6 @@
 import React from 'react';
-import X from 'lucide-react/dist/esm/icons/x';
-import Clock from 'lucide-react/dist/esm/icons/clock';
-import Building2 from 'lucide-react/dist/esm/icons/building-2';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import LogOut from 'lucide-react/dist/esm/icons/log-out';
-import { Visit } from '../types';
+import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, LogOut } from 'lucide-react';
+import type { Visit } from '../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -23,8 +19,13 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
 
     // Calculate duration
     const getDuration = () => {
-        const start = new Date(visit.check_in);
-        const end = visit.check_out ? new Date(visit.check_out) : new Date();
+        const checkInDate = visit.check_in || visit.check_in_time || '';
+        const checkOutDate = visit.check_out || visit.check_out_time || '';
+        
+        if (!checkInDate) return '0 minutos';
+        
+        const start = new Date(checkInDate);
+        const end = checkOutDate ? new Date(checkOutDate) : new Date();
         const diff = end.getTime() - start.getTime();
         const hours = Math.floor(diff / 3600000);
         const minutes = Math.floor((diff % 3600000) / 60000);
@@ -32,103 +33,179 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
         return `${minutes} minutos`;
     };
 
-    // Get visit type color
-    const getTypeColor = (reason: string) => {
-        const r = reason?.toLowerCase() || '';
-        if (r.includes('reunión') || r.includes('reunion') || r.includes('meeting')) return 'border-blue-400 text-blue-300';
-        if (r.includes('entrega') || r.includes('delivery') || r.includes('paquete')) return 'border-emerald-400 text-emerald-300';
-        if (r.includes('mantenimiento') || r.includes('reparación') || r.includes('técnico')) return 'border-amber-400 text-amber-300';
-        if (r.includes('emergencia') || r.includes('urgente')) return 'border-red-400 text-red-300';
-        return 'border-[color:var(--accent-0)] text-[color:var(--accent-0)]';
-    };
+    const displayCheckIn = visit.check_in || visit.check_in_time || '';
+    const displayCheckOut = visit.check_out || visit.check_out_time || '';
 
     return (
-        <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={onClose}
-        >
-            <div
-                className="panel-tech rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-slideUp"
-                onClick={e => e.stopPropagation()}
-            >
-                <div className="bg-[color:var(--surface-2)] border-b border-[color:var(--border-1)] p-4">
-                    <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                            {visit.Visitor?.photo_url ? (
-                                <img
-                                    src={visit.Visitor.photo_url}
-                                    alt={visitorName}
-                                    className="w-16 h-16 rounded-full object-cover border-2 border-[color:var(--border-1)] shadow-lg"
-                                    onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?background=1b232a&color=e5edf5&name=${encodeURIComponent(visitorName)}` }}
-                                />
-                            ) : (
-                                <div className="w-16 h-16 rounded-full bg-[color:var(--surface-1)] border border-[color:var(--border-1)] flex items-center justify-center text-2xl font-bold text-[color:var(--text-2)]">
-                                    {visitorName.charAt(0).toUpperCase()}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
+                    <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                        <UserCircle2 className="w-6 h-6 mr-2 text-blue-600" />
+                        Detalles de la Visita (Calendario)
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-700"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        
+                        {/* Left Column: Photos */}
+                        <div className="space-y-6">
+                            
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Fotografía del Visitante</h3>
+                                {visit.Visitor?.photo_url ? (
+                                    <div className="aspect-square w-full sm:w-64 max-w-full rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
+                                        <img 
+                                            src={visit.Visitor.photo_url} 
+                                            alt={`Foto de ${visitorName}`} 
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="aspect-square w-full sm:w-64 rounded-lg bg-gray-100 flex items-center justify-center border border-dashed border-gray-300">
+                                        <span className="text-gray-400 text-sm">Sin foto</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Identificación (Cédula/Carnet)</h3>
+                                {visit.Visitor?.id_photo_url ? (
+                                    <div className="aspect-video w-full rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
+                                        <img 
+                                            src={visit.Visitor.id_photo_url} 
+                                            alt={`ID de ${visitorName}`} 
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="aspect-video w-full rounded-lg bg-gray-100 flex items-center justify-center border border-dashed border-gray-300">
+                                        <span className="text-gray-400 text-sm">Sin identificación</span>
+                                    </div>
+                                )}
+                            </div>
+
+                        </div>
+
+                        {/* Right Column: Info Details */}
+                        <div className="space-y-6">
+                            
+                            {/* Visitor Information block */}
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-500 mb-4 uppercase tracking-wider border-b pb-2">Datos del Visitante</h3>
+                                <div className="space-y-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-sm text-gray-500">Nombre Completo</span>
+                                        <span className="font-semibold text-gray-900 text-lg">
+                                            {visitorName}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex flex-col">
+                                        <span className="text-sm text-gray-500">Documento (Cédula)</span>
+                                        <span className="font-medium text-gray-900">{visit.visitor_cedula}</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="flex items-start space-x-2">
+                                            <Building2 className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                                            <div>
+                                                <span className="text-xs text-gray-500 block">Empresa</span>
+                                                <span className="text-sm font-medium text-gray-900">{visit.Visitor?.company || 'Independiente'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start space-x-2">
+                                            <Briefcase className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                                            <div>
+                                                <span className="text-xs text-gray-500 block">Cargo</span>
+                                                <span className="text-sm font-medium text-gray-900">{visit.Visitor?.job_title || 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+                            </div>
+
+                            {/* Visit Information block */}
                             <div>
-                                <h3 className="text-xl font-display text-[color:var(--text-1)]">{visitorName}</h3>
-                                <p className="text-[color:var(--text-3)] text-sm font-mono">C.I. {visit.Visitor?.cedula}</p>
-                                <span className={`inline-flex items-center px-2 py-0.5 mt-2 rounded-full text-[10px] font-semibold border ${getTypeColor(visit.reason || '')}`}>
-                                    {visit.reason || 'Visita General'}
-                                </span>
+                                <h3 className="text-sm font-medium text-gray-500 mb-4 uppercase tracking-wider border-b pb-2 mt-8">Detalles de la Visita</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-start space-x-2">
+                                        <UserCheck className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                                        <div>
+                                            <span className="text-xs text-gray-500 block">Persona a Visitar</span>
+                                            <span className="text-sm font-medium text-gray-900">{visit.person_to_visit || visit.personToVisit}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-start space-x-2">
+                                        <Clock className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />
+                                        <div>
+                                            <span className="text-xs text-gray-500 block">Entrada</span>
+                                            <span className="text-sm font-medium text-gray-900">
+                                                {displayCheckIn ? format(new Date(displayCheckIn), "dd MMM yyyy 'a las' HH:mm", { locale: es }) : 'N/A'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {displayCheckOut ? (
+                                        <div className="flex items-start space-x-2">
+                                            <Clock className="w-4 h-4 text-red-500 mt-1 flex-shrink-0" />
+                                            <div>
+                                                <span className="text-xs text-gray-500 block">Salida</span>
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    {format(new Date(displayCheckOut), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-start space-x-2">
+                                            <div className="w-4 h-4 bg-green-500 rounded-full mt-1 flex-shrink-0 animate-pulse" />
+                                            <div>
+                                                <span className="text-xs text-gray-500 block">Estado</span>
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    Visita Activa ({getDuration()})
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-start space-x-2">
+                                        <FileText className="w-4 h-4 text-purple-500 mt-1 flex-shrink-0" />
+                                        <div>
+                                            <span className="text-xs text-gray-500 block">Motivo de Visita</span>
+                                            <span className="text-sm font-medium text-gray-900 block mt-1 bg-gray-50 p-2 rounded border border-gray-100">
+                                                {visit.purpose || visit.reason}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {visit.notes && (
+                                        <div className="mt-3">
+                                            <span className="text-xs text-gray-500 block mb-1">Notas adicionales</span>
+                                            <p className="text-sm text-gray-700 bg-yellow-50 p-3 rounded-md border border-yellow-100 italic">
+                                                "{visit.notes}"
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-1 text-[color:var(--text-2)] hover:text-[color:var(--text-1)] hover:bg-[color:var(--surface-1)] rounded-full transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
                     </div>
                 </div>
 
-                <div className="p-5 space-y-4">
-                    <div className="flex items-center gap-3 text-[color:var(--text-2)]">
-                        <Building2 size={18} className="text-[color:var(--text-3)]" />
-                        <span className="font-medium">{visit.Visitor?.company || 'Sin empresa'}</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-[color:var(--text-2)]">
-                        <FileText size={18} className="text-[color:var(--text-3)]" />
-                        <span>{visit.reason || 'Visita General'}</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-[color:var(--text-2)]">
-                        <Clock size={18} className="text-[color:var(--accent-1)]" />
-                        <div>
-                            <span className="text-sm text-[color:var(--text-3)]">Entrada:</span>
-                            <span className="ml-2 font-medium text-[color:var(--text-1)]">
-                                {format(new Date(visit.check_in), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
-                            </span>
-                        </div>
-                    </div>
-
-                    {visit.check_out ? (
-                        <div className="flex items-center gap-3 text-[color:var(--text-2)]">
-                            <Clock size={18} className="text-red-400" />
-                            <div>
-                                <span className="text-sm text-[color:var(--text-3)]">Salida:</span>
-                                <span className="ml-2 font-medium text-[color:var(--text-1)]">
-                                    {format(new Date(visit.check_out), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
-                                </span>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3 text-[color:var(--accent-0)]">
-                            <div className="w-2 h-2 bg-[color:var(--accent-0)] rounded-full animate-pulse" />
-                            <span className="font-medium">Visita activa</span>
-                        </div>
-                    )}
-
-                    <div className="bg-[color:var(--surface-2)] rounded-lg p-3 text-center border border-[color:var(--border-1)]">
-                        <span className="text-sm text-[color:var(--text-3)]">Duración {isActive ? '(hasta ahora)' : 'total'}:</span>
-                        <span className="ml-2 font-semibold text-[color:var(--text-1)]">{getDuration()}</span>
-                    </div>
-                </div>
-
-                {isActive && onCheckout && (
-                    <div className="border-t border-[color:var(--border-1)] p-4">
+                {/* Footer Actions */}
+                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center rounded-b-xl">
+                    {isActive && onCheckout ? (
                         <button
                             onClick={() => {
                                 if (window.confirm(`¿Confirmar salida de ${visitorName}?`)) {
@@ -136,13 +213,23 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
                                     onClose();
                                 }
                             }}
-                            className="w-full border border-red-400 text-red-300 hover:text-red-200 hover:border-red-300 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all"
+                            className="px-6 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg transition-colors font-medium flex items-center shadow-sm"
                         >
-                            <LogOut size={18} />
+                            <LogOut className="w-4 h-4 mr-2" />
                             Registrar Salida
                         </button>
-                    </div>
-                )}
+                    ) : (
+                        <div /> /* Spacer */
+                    )}
+                    
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium cursor-pointer"
+                    >
+                        Cerrar Detalles
+                    </button>
+                </div>
+
             </div>
         </div>
     );
