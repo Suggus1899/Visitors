@@ -8,6 +8,8 @@ import { IUserRepository } from '../domain/repositories/IUserRepository';
 import { IAuthService } from '../domain/services/IAuthService';
 import { SequelizeUserRepository } from '../infrastructure/database/repositories/SequelizeUserRepository';
 import { JwtAuthService } from '../infrastructure/services/JwtAuthService';
+import { PasswordPolicy } from '../domain/services/PasswordPolicy';
+import { EmailService } from '../infrastructure/services/EmailService';
 import { CheckInVisitorUseCase } from '../application/usecases/CheckInVisitor.usecase';
 import { CheckOutVisitorUseCase } from '../application/usecases/CheckOutVisitor.usecase';
 import { AdmitVisitorUseCase } from '../application/usecases/AdmitVisitor.usecase';
@@ -25,6 +27,8 @@ import { ListBackupsUseCase } from '../application/usecases/ListBackups.usecase'
 import { LoginUseCase } from '../application/usecases/auth/Login.usecase';
 import { ForgotPasswordUseCase } from '../application/usecases/auth/ForgotPassword.usecase';
 import { ResetPasswordUseCase } from '../application/usecases/auth/ResetPassword.usecase';
+import { RefreshTokenUseCase } from '../application/usecases/auth/RefreshToken.usecase';
+import { ChangePasswordUseCase } from '../application/usecases/auth/ChangePassword.usecase';
 
 /**
  * Simple Dependency Injection Container
@@ -32,16 +36,18 @@ import { ResetPasswordUseCase } from '../application/usecases/auth/ResetPassword
  */
 class Container {
   private static instance: Container;
-  
+
   // Repositories (singletons)
   private _visitorRepository?: IVisitorRepository;
   private _visitRepository?: IVisitRepository;
   private _userRepository?: IUserRepository;
   // Services
   private _backupService?: IBackupService;
-  private _authService?: IAuthService;
+  private _authService?: JwtAuthService;
+  private _passwordPolicy?: PasswordPolicy;
+  private _emailService?: EmailService;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): Container {
     if (!Container.instance) {
@@ -79,11 +85,25 @@ class Container {
     return this._backupService;
   }
 
-  get authService(): IAuthService {
+  get authService(): JwtAuthService {
     if (!this._authService) {
       this._authService = new JwtAuthService();
     }
     return this._authService;
+  }
+
+  get passwordPolicy(): PasswordPolicy {
+    if (!this._passwordPolicy) {
+      this._passwordPolicy = new PasswordPolicy();
+    }
+    return this._passwordPolicy;
+  }
+
+  get emailService(): EmailService {
+    if (!this._emailService) {
+      this._emailService = new EmailService();
+    }
+    return this._emailService;
   }
 
   // Use case factories (new instance each time)
@@ -184,14 +204,31 @@ class Container {
   createForgotPasswordUseCase(): ForgotPasswordUseCase {
     return new ForgotPasswordUseCase(
       this.userRepository,
-      this.authService
+      this.authService,
+      this.emailService
     );
   }
 
   createResetPasswordUseCase(): ResetPasswordUseCase {
     return new ResetPasswordUseCase(
       this.userRepository,
+      this.authService,
+      this.passwordPolicy,
+      this.emailService
+    );
+  }
+
+  createRefreshTokenUseCase(): RefreshTokenUseCase {
+    return new RefreshTokenUseCase(
       this.authService
+    );
+  }
+
+  createChangePasswordUseCase(): ChangePasswordUseCase {
+    return new ChangePasswordUseCase(
+      this.authService,
+      this.passwordPolicy,
+      this.emailService
     );
   }
 }

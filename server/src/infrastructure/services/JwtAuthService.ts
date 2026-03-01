@@ -5,9 +5,31 @@ import config from '../../config/AppConfig';
 import { IAuthService } from '../../domain/services/IAuthService';
 import { User } from '../../domain/entities/User.entity';
 
+// Interface for user-like objects that can be used for token generation
+interface TokenUser {
+  id?: number;
+  username: string;
+  role: string;
+}
+
+export interface TokenPayload {
+  id: number;
+  username: string;
+  role: string;
+}
+
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
 export class JwtAuthService implements IAuthService {
-  generateToken(user: User): string {
-    const payload: object = {
+  /**
+   * Generate access token (short-lived: 15 minutes)
+   * Requirements: 3.1, 3.4
+   */
+  generateAccessToken(user: TokenUser): string {
+    const payload: TokenPayload = {
       id: user.id!,
       username: user.username,
       role: user.role
@@ -19,15 +41,118 @@ export class JwtAuthService implements IAuthService {
     );
   }
 
+  /**
+   * Generate refresh token (long-lived: 7 days)
+   * Requirements: 3.1, 3.5
+   */
+  generateRefreshToken(user: TokenUser): string {
+    const payload: TokenPayload = {
+      id: user.id!,
+      username: user.username,
+      role: user.role
+    };
+    return jwt.sign(
+      payload,
+      config.jwtSecret,
+      { expiresIn: config.jwtRefreshExpiration as jwt.SignOptions['expiresIn'] }
+    );
+  }
+
+  /**
+   * Generate both access and refresh tokens
+   * Requirements: 3.1
+   */
+  generateTokenPair(user: TokenUser): TokenPair {
+    return {
+      accessToken: this.generateAccessToken(user),
+      refreshToken: this.generateRefreshToken(user)
+    };
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   * @deprecated Use generateAccessToken or generateTokenPair instead
+   */
+  generateToken(user: TokenUser): string {
+    return this.generateAccessToken(user);
+  }
+
+  /**
+   * Verify access token
+   * Requirements: 3.1
+   */
+  verifyAccessToken(token: string): TokenPayload | null {
+    try {
+      const decoded = jwt.verify(token, config.jwtSecret) as TokenPayload;
+      return decoded;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Verify refresh token
+   * Requirements: 3.1
+   */
+  verifyRefreshToken(token: string): TokenPayload | null {
+    try {
+      const decoded = jwt.verify(token, config.jwtSecret) as TokenPayload;
+      return decoded;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Refresh access token using refresh token
+   * Requirements: 3.6
+   */
+  refreshAccessToken(refreshToken: string): string | null {
+    const payload = this.verifyRefreshToken(refreshToken);
+    if (!payload) {
+      return null;
+    }
+
+    // Create new payload without exp/iat fields
+    const newPayload: TokenPayload = {
+      id: payload.id,
+      username: payload.username,
+      role: payload.role
+    };
+
+    // Generate new access token with fresh expiration
+    return jwt.sign(
+      newPayload,
+      config.jwtSecret,
+      { expiresIn: config.jwtAccessExpiration as jwt.SignOptions['expiresIn'] }
+    );
+  }
+
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     return await bcrypt.compare(password, hash);
   }
 
+  /**
+   * Hash password with configurable bcrypt rounds
+   * Requirements: 8.1, 8.4
+   */
   async hashPassword(password: string): Promise<string> {
-    return await bcrypt.hash(password, 8);
+    return await bcrypt.hash(password, config.bcryptRounds);
   }
 
+  /**
+   * Generate secure password reset token (32 bytes)
+   * Requirements: 11.3
+   */
   generateResetToken(): string {
-    return crypto.randomBytes(20).toString('hex');
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Hash reset token with SHA-256
+   * Requirements: 11.4
+   */
+  hashResetToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 }

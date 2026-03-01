@@ -16,6 +16,17 @@ class ActivityLog extends Model<InferAttributes<ActivityLog>, InferCreationAttri
     declare ipAddress: CreationOptional<string | null>;
     declare userAgent: CreationOptional<string | null>;
     declare createdAt: CreationOptional<Date>;
+
+    // Extended audit fields (Requirements: 10.5)
+    declare method: CreationOptional<string | null>;
+    declare path: CreationOptional<string | null>;
+    declare statusCode: CreationOptional<number | null>;
+    declare duration: CreationOptional<number | null>;
+    declare severity: CreationOptional<'low' | 'medium' | 'high' | 'critical'>;
+    declare role: CreationOptional<string | null>;
+    declare resource: CreationOptional<string | null>;
+    declare resourceId: CreationOptional<number | null>;
+    declare status: CreationOptional<'success' | 'failure'>;
 }
 
 ActivityLog.init({
@@ -59,6 +70,42 @@ ActivityLog.init({
     createdAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
+    },
+    method: {
+        type: DataTypes.STRING(10),
+        allowNull: true
+    },
+    path: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    statusCode: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    duration: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    severity: {
+        type: DataTypes.ENUM('low', 'medium', 'high', 'critical'),
+        defaultValue: 'low'
+    },
+    role: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+    },
+    resource: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    resourceId: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    status: {
+        type: DataTypes.ENUM('success', 'failure'),
+        defaultValue: 'success'
     }
 }, {
     sequelize,

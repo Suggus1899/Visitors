@@ -5,6 +5,7 @@ import { errorHandler } from "./middleware/error";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { apiLimiter } from "./middleware/rateLimiter";
+import { mustChangePassword } from "./middleware/mustChangePassword";
 
 // Clean Architecture routes
 import visitCleanRoutes from "./routes/visit-clean.routes";
@@ -68,6 +69,9 @@ app.get("/", (req, res) => {
 
 // Global Rate Limiting
 app.use("/api", apiLimiter);
+
+// Must Change Password Middleware (applies to all protected routes)
+app.use("/api", mustChangePassword);
 
 // Swagger Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

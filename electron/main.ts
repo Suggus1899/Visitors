@@ -280,21 +280,30 @@ function createWindow() {
     });
 }
 
-// ============================================
-// SERVER MANAGEMENT
-// ============================================
 function startServer() {
     if (serverProcess) return;
 
-    const scriptPath = isDev
-        ? path.join(__dirname, '../server/src/server.ts')
-        : path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'dist', 'server.js');
+    if (!app.isPackaged) {
+        console.log('Running in dev mode. Assuming server is started externally.');
+        return;
+    }
 
+    const scriptPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'dist', 'server.js');
     console.log('Starting server from:', scriptPath);
 
-    if (!isDev) {
+    try {
         serverProcess = fork(scriptPath, [], {
-            env: { ...process.env, PORT: SERVER_PORT.toString(), DB_PATH: app.getPath('userData') }
+            env: { 
+                ...process.env, 
+                NODE_ENV: 'production',
+                PORT: SERVER_PORT.toString(), 
+                DB_PATH: path.join(app.getPath('userData'), 'database'),
+                DB_ENCRYPTION_KEY: 'e44719f04d5a961af39f640854d985396e8178daf4c9300fdbca6848840eeb52',
+                ENCRYPTION_KEY: '301f7eae998b3bcddc49173a819699ef521b2bc7402da2d70f52a078b9b30d36',
+                JWT_SECRET: '42f2934ddb4d4ab6f4fed97053a35143bc6406204c28857b12ae5eea6ede23bd7b6227c19e6ceb120a4f2bc938b52f66edd9ac1497fbb38379799470b7d11eb1',
+                BACKUP_PASSWORD: '2333815119ad6a3b50ba48bd394f5e77e20557482815631c85c442af5572469d'
+            },
+            stdio: ['pipe', 'pipe', 'pipe', 'ipc']
         });
 
         serverProcess.stdout?.on('data', (data) => {
@@ -303,11 +312,24 @@ function startServer() {
 
         serverProcess.stderr?.on('data', (data) => {
             console.error(`[SERVER ERROR]: ${data}`);
-            // Optional: Show dialog on fatal error
-            if (data.toString().includes('Error')) {
-                dialog.showErrorBox('Error del Servidor', data.toString());
+            if (data.toString().toLowerCase().includes('error:') && !data.toString().includes('DeprecationWarning')) {
+                dialog.showErrorBox('Error del Servidor Backend', data.toString());
             }
         });
+
+        serverProcess.on('error', (err) => {
+            dialog.showErrorBox('Error fatal al iniciar servidor', err.message || String(err));
+        });
+
+        serverProcess.on('exit', (code) => {
+            console.log(`Server child process exited with code ${code}`);
+            if (code !== 0) {
+                 dialog.showErrorBox('Servidor Detenido', `El servidor local de base de datos se detuvo con código ${code}`);
+            }
+            serverProcess = null;
+        });
+    } catch (e: any) {
+        dialog.showErrorBox('Excepción al lanzar servidor', e.message || String(e));
     }
 }
 

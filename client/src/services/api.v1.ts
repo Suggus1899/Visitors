@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { Visit, Visitor, StatsData, ComparisonStats } from '../types';
 
-
 const API_URL = 'http://localhost:3000/api/v1';
 
 // Configure axios instance
@@ -12,14 +11,135 @@ const api = axios.create({
     }
 });
 
-// Add auth token intercepter if needed (assuming token is stored in localStorage)
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+// Import AuthService for token management
+// Note: We use dynamic import to avoid circular dependencies
+let authServicePromise: Promise<any> | null = null;
+const getAuthService = async () => {
+    if (!authServicePromise) {
+        authServicePromise = import('./AuthService').then(module => module.default);
     }
-    return config;
-});
+    return authServicePromise;
+};
+
+/**
+ * Request interceptor to inject Access Token
+ * Requirement 3.8: Add Access Token to all authenticated requests
+ */
+api.interceptors.request.use(
+    async (config) => {
+        const authService = await getAuthService();
+        const token = authService.getAccessToken();
+
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+/**
+ * Response interceptor for automatic token refresh and error handling
+ * Requirements:
+ * - 3.6: Automatic token refresh on 401
+ * - 3.7: Retry original request with new token
+ * - 3.8: Redirect to login if refresh fails
+ * - 5.3: Handle PASSWORD_CHANGE_REQUIRED error
+ * - 9.4: Handle ACCOUNT_LOCKED error with remaining time
+ */
+api.interceptors.response.use(
+    (response) => {
+        // Pass through successful responses
+        return response;
+    },
+    async (error) => {
+        const originalRequest = error.config;
+
+        // Handle specific error codes from backend
+        if (error.response) {
+            const errorCode = error.response.data?.error?.code;
+            const errorData = error.response.data?.error?.data;
+
+            // Handle PASSWORD_CHANGE_REQUIRED (Requirement 5.3)
+            if (errorCode === 'PASSWORD_CHANGE_REQUIRED') {
+                // Dispatch custom event for password change modal
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('password-change-required', {
+                        detail: {
+                            message: error.response.data?.error?.message
+                        }
+                    });
+                    window.dispatchEvent(event);
+                }
+                return Promise.reject(error);
+            }
+
+            // Handle ACCOUNT_LOCKED (Requirement 9.4)
+            if (errorCode === 'ACCOUNT_LOCKED') {
+                const minutesRemaining = errorData?.minutesRemaining;
+                const lockedUntil = errorData?.lockedUntil;
+
+                // Dispatch custom event with lockout details
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('account-locked', {
+                        detail: {
+                            message: error.response.data?.error?.message,
+                            minutesRemaining,
+                            lockedUntil
+                        }
+                    });
+                    window.dispatchEvent(event);
+                }
+                return Promise.reject(error);
+            }
+
+            // Handle VALIDATION_ERROR with specific messages
+            if (errorCode === 'VALIDATION_ERROR') {
+                // Pass through validation errors with details
+                return Promise.reject(error);
+            }
+        }
+
+        // Handle 401 Unauthorized - attempt token refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+
+            try {
+                const authService = await getAuthService();
+
+                // Try to refresh the access token (Requirement 3.6)
+                const newAccessToken = await authService.refreshAccessToken();
+
+                // Update the failed request with new token
+                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+                // Retry the original request (Requirement 3.7)
+                return api(originalRequest);
+            } catch (refreshError) {
+                // Refresh failed - redirect to login (Requirement 3.8)
+                const authService = await getAuthService();
+                authService.logout();
+
+                // Redirect to login page
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/login';
+                }
+
+                return Promise.reject(refreshError);
+            }
+        }
+
+        // Handle network errors
+        if (!error.response) {
+            console.error('Network error:', error.message);
+        }
+
+        return Promise.reject(error);
+    }
+);
 
 // Standardized API response helper
 const unwrapResponse = <T>(payload: { success?: boolean; data?: T; error?: { message: string } }): T => {
@@ -52,7 +172,7 @@ const adaptVisit = (v: VisitDTO): Visit => {
         if (!url) return null;
         if (url.startsWith('http')) return url;
         // Remove /api/v1 from API_URL to get base
-        const baseUrl = 'http://127.0.0.1:3000'; 
+        const baseUrl = 'http://127.0.0.1:3000';
         const cleanUrl = url.startsWith('/') ? url : `/${url}`;
         const finalUrl = `${baseUrl}${cleanUrl}?t=${new Date().getTime()}`;
         return finalUrl;
@@ -92,12 +212,12 @@ export const VisitService = {
         Object.entries(filters).forEach(([key, val]) => {
             if (val !== undefined) cleanFilters[key] = String(val);
         });
-        
+
         const params = new URLSearchParams(cleanFilters).toString();
         const response = await api.get(`/visits?${params}`);
         const result = unwrapResponse<{ visits: VisitDTO[]; total: number }>(response.data);
         const metaTotal = response.data?.meta?.total;
-        
+
         return {
             visits: Array.isArray(result.visits) ? result.visits.map(adaptVisit) : [],
             total: (metaTotal ?? result.total ?? 0)
@@ -182,6 +302,18 @@ export const VisitService = {
     getAlerts: async (threshold?: number) => {
         const query = threshold ? `?threshold=${threshold}` : '';
         const response = await api.get(`/reports/alerts${query}`);
+        return unwrapResponse(response.data);
+    }
+};
+
+// Auth Service
+export const AuthAPI = {
+    changePassword: async (data: {
+        currentPassword: string;
+        newPassword: string;
+        confirmPassword: string;
+    }) => {
+        const response = await api.post('/auth/change-password', data);
         return unwrapResponse(response.data);
     }
 };

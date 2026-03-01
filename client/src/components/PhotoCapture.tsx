@@ -5,6 +5,8 @@ import RefreshCcw from 'lucide-react/dist/esm/icons/refresh-ccw';
 import X from 'lucide-react/dist/esm/icons/x';
 import Upload from 'lucide-react/dist/esm/icons/upload';
 import ImageIcon from 'lucide-react/dist/esm/icons/image';
+import toast from 'react-hot-toast';
+import { validateImage } from '../utils/photoValidator';
 
 interface PhotoCaptureProps {
     onCapture: (imageSrc: string) => void;
@@ -24,6 +26,13 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
         if (webcamRef.current) {
             const imageSrc = webcamRef.current.getScreenshot();
             if (imageSrc) {
+                // Validate the captured image
+                const validation = validateImage(imageSrc);
+                if (!validation.isValid) {
+                    toast.error(validation.error || 'Imagen inválida');
+                    return;
+                }
+
                 setImage(imageSrc);
                 onCapture(imageSrc);
                 setIsActive(false);
@@ -76,6 +85,14 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
             const reader = new FileReader();
             reader.onloadend = () => {
                 const result = reader.result as string;
+
+                // Validate the uploaded image
+                const validation = validateImage(result);
+                if (!validation.isValid) {
+                    toast.error(validation.error || 'Imagen inválida');
+                    return;
+                }
+
                 setImage(result);
                 onCapture(result);
             };
@@ -123,7 +140,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                 <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png"
                     onChange={handleFileUpload}
                     className="hidden"
                 />

@@ -2,8 +2,9 @@ import express from 'express';
 import * as AuthCleanController from '../controllers/AuthCleanController';
 import { authLimiter } from '../middleware/rateLimiter';
 import { validate } from '../middleware/validate';
-import { loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../schemas/auth.schema';
+import { loginSchema, forgotPasswordSchema, resetPasswordSchema, refreshTokenSchema, changePasswordSchema } from '../schemas/auth.schema';
 import { asyncHandler } from '../utils/asyncHandler';
+import { verifyToken } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -117,5 +118,76 @@ router.post('/v1/auth/forgot-password', authLimiter, validate(forgotPasswordSche
  *         description: Invalid or expired token
  */
 router.post('/v1/auth/reset-password', authLimiter, validate(resetPasswordSchema), asyncHandler(AuthCleanController.resetPassword));
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh access token using refresh token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: New access token generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     accessToken:
+ *                       type: string
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
+router.post('/v1/auth/refresh', authLimiter, validate(refreshTokenSchema), asyncHandler(AuthCleanController.refreshToken));
+
+/**
+ * @swagger
+ * /auth/change-password:
+ *   post:
+ *     summary: Change user password (requires authentication)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *               confirmPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Validation error or password policy violation
+ *       401:
+ *         description: Invalid current password
+ */
+router.post('/v1/auth/change-password', verifyToken, validate(changePasswordSchema), asyncHandler(AuthCleanController.changePassword));
 
 export default router;

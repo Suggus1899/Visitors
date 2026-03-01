@@ -1,0 +1,9 @@
+Error
+    at Database.<anonymous> (C:\Users\Gusgus\Documents\Proyectos\Visitors\server\node_modules\sequelize\src\dialects\sqlite\query.js:236:27)
+    at C:\Users\Gusgus\Documents\Proyectos\Visitors\server\node_modules\sequelize\src\dialects\sqlite\query.js:234:50
+    at new Promise (<anonymous>)
+    at Query.run (C:\Users\Gusgus\Documents\Proyectos\Visitors\server\node_modules\sequelize\src\dialects\sqlite\query.js:234:12)
+    at C:\Users\Gusgus\Documents\Proyectos\Visitors\server\node_modules\sequelize\src\sequelize.js:650:28
+    at async SQLiteQueryInterface.select (C:\Users\Gusgus\Documents\Proyectos\Visitors\server\node_modules\sequelize\src\dialects\abstract\query-interface.js:1001:12)
+    at async User.findAll (C:\Users\Gusgus\Documents\Proyectos\Visitors\server\node_modules\sequelize\src\model.js:1824:21)
+    at async User.findOne (C:\Users\Gusgus\Documents\Proyectos\Visitors\server\node_modules\sequelize\src\model.js:1998:12)

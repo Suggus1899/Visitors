@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { VisitService } from '../services/api.v1';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
@@ -9,6 +9,7 @@ import { SkeletonVisitCard } from './ui/Skeleton';
 import { useSoundFeedback } from '../hooks/useSoundFeedback';
 import toast from 'react-hot-toast';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
+import { sanitizeInput } from '../utils/sanitizer';
 
 interface ActiveVisitsProps {
     visits: Visit[];
@@ -80,6 +81,11 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                     const isCheckingOut = checkingOut === visit.id;
                     const timeInSite = getTimeInSite(visit.check_in || visit.check_in_time || ''); // Handle both formats
 
+                    // Sanitize user-generated content for XSS protection
+                    const sanitizedName = useMemo(() => sanitizeInput(visitorName), [visitorName]);
+                    const sanitizedCompany = useMemo(() => sanitizeInput(visitorCompany), [visitorCompany]);
+                    const sanitizedReason = useMemo(() => sanitizeInput(visit.reason || visit.purpose || 'Visita General'), [visit.reason, visit.purpose]);
+
                     return (
                         <div
                             key={visit.id}
@@ -106,24 +112,24 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                 <div className="flex-1 min-w-0 pt-0.5">
                                     <div className="flex justify-between items-start">
                                         <h3 className="text-base font-semibold text-[color:var(--text-1)] pr-2 group-hover:text-[color:var(--accent-0)] transition-colors leading-snug">
-                                            {visitorName}
+                                            {sanitizedName}
                                         </h3>
                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[color:var(--surface-2)] text-[color:var(--accent-0)] border border-[color:var(--border-1)] whitespace-nowrap ml-2">
                                             {timeInSite}
                                         </span>
                                     </div>
-                                    
+
                                     <div className="flex items-start text-xs text-[color:var(--text-2)] mt-1 mb-0.5">
                                         <Briefcase size={12} className="mr-1.5 opacity-70 mt-0.5 flex-shrink-0" />
-                                        <span className="font-medium leading-normal">{visitorCompany}</span>
+                                        <span className="font-medium leading-normal">{sanitizedCompany}</span>
                                     </div>
                                     <div className="flex items-center text-xs text-[color:var(--text-3)] font-mono">
                                         C.I. {cedula}
                                     </div>
 
                                     <div className="mt-3 flex flex-wrap gap-2">
-                                         <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-[color:var(--surface-2)] text-[color:var(--text-2)] border border-[color:var(--border-1)]">
-                                            {visit.reason || visit.purpose || 'Visita General'}
+                                        <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-[color:var(--surface-2)] text-[color:var(--text-2)] border border-[color:var(--border-1)]">
+                                            {sanitizedReason}
                                         </span>
                                     </div>
                                 </div>
@@ -135,7 +141,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                     <Clock size={13} className="mr-1.5" />
                                     {new Date(visit.check_in || visit.check_in_time || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </div>
-                                
+
                                 <button
                                     onClick={(e) => handleCheckout(e, visit.id, visitorName)}
                                     disabled={isCheckingOut}
@@ -155,10 +161,10 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                 })}
             </div>
 
-            <VisitorDetailsModal 
-                visit={selectedVisit} 
-                isOpen={!!selectedVisit} 
-                onClose={() => setSelectedVisit(null)} 
+            <VisitorDetailsModal
+                visit={selectedVisit}
+                isOpen={!!selectedVisit}
+                onClose={() => setSelectedVisit(null)}
             />
         </>
     );

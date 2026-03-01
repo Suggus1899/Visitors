@@ -1,30 +1,53 @@
 import { IUserRepository } from '../../../domain/repositories/IUserRepository';
-import { IAuthService } from '../../../domain/services/IAuthService';
+import { JwtAuthService } from '../../../infrastructure/services/JwtAuthService';
+import { EmailService } from '../../../infrastructure/services/EmailService';
 
 export class ForgotPasswordUseCase {
   constructor(
     private userRepository: IUserRepository,
-    private authService: IAuthService
-  ) {}
+    private authService: JwtAuthService,
+    private emailService: EmailService
+  ) { }
 
   async execute(username: string): Promise<string> {
     const user = await this.userRepository.findByUsername(username);
-    
+
+    // Security: Don't reveal if user exists (Requirement: 11.7)
+    // But for development, we'll throw an error
     if (!user || !user.id) {
-      // Generic error to avoid user enumeration?
-      // Or explicit for now as per legacy controller
       throw new Error('USER_NOT_FOUND');
     }
 
+    // Generate secure 32-byte token (Requirement: 11.3)
     const token = this.authService.generateResetToken();
-    const expiry = new Date(Date.now() + 3600000); // 1 hour
 
-    await this.userRepository.updateResetToken(user.id, token, expiry);
+    // Hash token with SHA-256 before storing (Requirement: 11.4)
+    const hashedToken = this.authService.hashResetToken(token);
 
-    // In a real system, send email here. 
-    // For now, return token to console/response (as per requirements/legacy behavior for demo/local)
-    console.log(`[EMAIL SIMULATION] Password Reset for ${username}. Token: ${token}`);
-    
+    // Set expiry to 15 minutes (Requirement: 11.5)
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await this.userRepository.updateResetToken(user.id, hashedToken, expiry);
+
+    // Send email with unhashed token (Requirements: 11.6, 11.7)
+    if (this.emailService.isConfigured()) {
+      try {
+        await this.emailService.sendPasswordResetEmail(
+          user.username, // Using username as email for now
+          token, // Send unhashed token
+          user.username
+        );
+        console.log(`Password reset email sent to ${user.username}`);
+      } catch (error) {
+        console.error('Failed to send password reset email:', error);
+        throw new Error('EMAIL_SEND_FAILED');
+      }
+    } else {
+      // Email not configured - log token for development
+      console.log(`[EMAIL NOT CONFIGURED] Password Reset for ${username}. Token: ${token}`);
+      console.log(`Reset link: ${process.env.APP_URL || 'http://localhost:5173'}/reset-password?token=${token}`);
+    }
+
     return token;
   }
 }

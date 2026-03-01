@@ -1,6 +1,8 @@
 
 import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck } from 'lucide-react';
 import type { Visit } from '../../types';
+import { useMemo } from 'react';
+import { sanitizeInput, sanitizeHTML } from '../../utils/sanitizer';
 
 interface VisitorDetailsModalProps {
   visit: Visit | null;
@@ -11,10 +13,19 @@ interface VisitorDetailsModalProps {
 export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsModalProps) {
   if (!isOpen || !visit) return null;
 
+  // Sanitize all user-generated content for XSS protection
+  const sanitizedFirstName = useMemo(() => sanitizeInput(visit.Visitor?.first_name || ''), [visit.Visitor?.first_name]);
+  const sanitizedLastName = useMemo(() => sanitizeInput(visit.Visitor?.last_name || ''), [visit.Visitor?.last_name]);
+  const sanitizedCompany = useMemo(() => sanitizeInput(visit.Visitor?.company || 'Independiente'), [visit.Visitor?.company]);
+  const sanitizedJobTitle = useMemo(() => sanitizeInput(visit.Visitor?.job_title || 'N/A'), [visit.Visitor?.job_title]);
+  const sanitizedPersonToVisit = useMemo(() => sanitizeInput(visit.person_to_visit || ''), [visit.person_to_visit]);
+  const sanitizedPurpose = useMemo(() => sanitizeInput(visit.purpose || ''), [visit.purpose]);
+  const sanitizedNotes = useMemo(() => sanitizeHTML(visit.notes || ''), [visit.notes]);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h2 className="text-xl font-semibold text-gray-800 flex items-center">
@@ -32,17 +43,17 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
         {/* Content */}
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            
+
             {/* Left Column: Photos */}
             <div className="space-y-6">
-              
+
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Fotografía del Visitante</h3>
                 {visit.Visitor?.photo_url ? (
                   <div className="aspect-square w-full sm:w-64 max-w-full rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
-                    <img 
-                      src={visit.Visitor.photo_url} 
-                      alt={`Foto de ${visit.Visitor?.first_name}`} 
+                    <img
+                      src={visit.Visitor.photo_url}
+                      alt={`Foto de ${visit.Visitor?.first_name}`}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -57,9 +68,9 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                 <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Identificación (Cédula/Carnet)</h3>
                 {visit.Visitor?.id_photo_url ? (
                   <div className="aspect-video w-full rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
-                    <img 
-                      src={visit.Visitor.id_photo_url} 
-                      alt={`ID de ${visit.Visitor?.first_name}`} 
+                    <img
+                      src={visit.Visitor.id_photo_url}
+                      alt={`ID de ${visit.Visitor?.first_name}`}
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -74,7 +85,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
 
             {/* Right Column: Info Details */}
             <div className="space-y-6">
-              
+
               {/* Visitor Information block */}
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-4 uppercase tracking-wider border-b pb-2">Datos del Visitante</h3>
@@ -82,7 +93,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                   <div className="flex flex-col">
                     <span className="text-sm text-gray-500">Nombre Completo</span>
                     <span className="font-semibold text-gray-900 text-lg">
-                      {visit.Visitor?.first_name} {visit.Visitor?.last_name}
+                      {sanitizedFirstName} {sanitizedLastName}
                     </span>
                   </div>
 
@@ -96,14 +107,14 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                       <Building2 className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
                       <div>
                         <span className="text-xs text-gray-500 block">Empresa</span>
-                        <span className="text-sm font-medium text-gray-900">{visit.Visitor?.company || 'Independiente'}</span>
+                        <span className="text-sm font-medium text-gray-900">{sanitizedCompany}</span>
                       </div>
                     </div>
                     <div className="flex items-start space-x-2">
                       <Briefcase className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
                       <div>
                         <span className="text-xs text-gray-500 block">Cargo</span>
-                        <span className="text-sm font-medium text-gray-900">{visit.Visitor?.job_title || 'N/A'}</span>
+                        <span className="text-sm font-medium text-gray-900">{sanitizedJobTitle}</span>
                       </div>
                     </div>
                   </div>
@@ -118,7 +129,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                     <UserCheck className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
                     <div>
                       <span className="text-xs text-gray-500 block">Persona a Visitar</span>
-                      <span className="text-sm font-medium text-gray-900">{visit.person_to_visit}</span>
+                      <span className="text-sm font-medium text-gray-900">{sanitizedPersonToVisit}</span>
                     </div>
                   </div>
 
@@ -137,7 +148,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                     <div>
                       <span className="text-xs text-gray-500 block">Motivo de Visita</span>
                       <span className="text-sm font-medium text-gray-900 block mt-1 bg-gray-50 p-2 rounded border border-gray-100">
-                        {visit.purpose}
+                        {sanitizedPurpose}
                       </span>
                     </div>
                   </div>
@@ -145,9 +156,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                   {visit.notes && (
                     <div className="mt-3">
                       <span className="text-xs text-gray-500 block mb-1">Notas adicionales</span>
-                      <p className="text-sm text-gray-700 bg-yellow-50 p-3 rounded-md border border-yellow-100 italic">
-                        "{visit.notes}"
-                      </p>
+                      <p className="text-sm text-gray-700 bg-yellow-50 p-3 rounded-md border border-yellow-100 italic" dangerouslySetInnerHTML={{ __html: sanitizedNotes }} />
                     </div>
                   )}
                 </div>

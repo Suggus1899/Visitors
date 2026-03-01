@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { VisitService } from '../services/api.v1';
 import { Visit } from '../types';
 import toast from 'react-hot-toast';
@@ -6,6 +6,7 @@ import Clock from 'lucide-react/dist/esm/icons/clock';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
+import { sanitizeInput } from '../utils/sanitizer';
 
 interface WaitingVisitsProps {
     refreshTrigger: number;
@@ -79,69 +80,77 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ refreshTrigger, onVisitAd
             <h2 className="text-lg font-display uppercase tracking-[0.2em] mb-4 flex items-center text-[color:var(--text-1)]">
                 <Clock className="mr-2 text-[color:var(--status-warning)]" /> Visitas en Espera
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {visits.map((visit) => (
-                    <div 
-                        key={visit.id} 
-                        onClick={() => setSelectedVisit(visit)}
-                        className="panel-tech p-5 rounded-xl border border-[color:var(--border-1)] bg-[color:var(--surface-1)] flex flex-col relative overflow-hidden group hover:border-[color:var(--status-warning)] transition-colors cursor-pointer hover:shadow-md"
-                    >
-                        <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-[color:var(--status-warning)]/20 to-transparent -z-10" />
-                        
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="flex gap-3">
-                                {visit.Visitor?.photo_url ? (
-                                    <img src={visit.Visitor.photo_url} alt="Foto" className="w-12 h-12 rounded-lg object-cover border border-[color:var(--border-1)]" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-1)] flex items-center justify-center">
-                                        <Clock className="text-[color:var(--text-3)]" size={20} />
+                {visits.map((visit) => {
+                    // Sanitize user-generated content for XSS protection
+                    const visitorName = `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''}`.trim();
+                    const sanitizedName = useMemo(() => sanitizeInput(visitorName), [visitorName]);
+                    const sanitizedCompany = useMemo(() => sanitizeInput(visit.Visitor?.company || 'Independiente'), [visit.Visitor?.company]);
+                    const sanitizedReason = useMemo(() => sanitizeInput(visit.reason || visit.purpose || visit.personToVisit || visit.person_to_visit || 'Visita General'), [visit.reason, visit.purpose, visit.personToVisit, visit.person_to_visit]);
+
+                    return (
+                        <div
+                            key={visit.id}
+                            onClick={() => setSelectedVisit(visit)}
+                            className="panel-tech p-5 rounded-xl border border-[color:var(--border-1)] bg-[color:var(--surface-1)] flex flex-col relative overflow-hidden group hover:border-[color:var(--status-warning)] transition-colors cursor-pointer hover:shadow-md"
+                        >
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-[color:var(--status-warning)]/20 to-transparent -z-10" />
+
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex gap-3">
+                                    {visit.Visitor?.photo_url ? (
+                                        <img src={visit.Visitor.photo_url} alt="Foto" className="w-12 h-12 rounded-lg object-cover border border-[color:var(--border-1)]" />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-1)] flex items-center justify-center">
+                                            <Clock className="text-[color:var(--text-3)]" size={20} />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h3 className="font-bold text-[color:var(--text-1)] line-clamp-1">
+                                            {sanitizedName}
+                                        </h3>
+                                        <p className="text-xs text-[color:var(--text-2)] font-mono">{visit.visitor_cedula}</p>
+                                        <p className="text-xs text-[color:var(--text-2)] flex items-center mt-1">
+                                            <Building2 size={12} className="mr-1" />
+                                            {sanitizedCompany}
+                                        </p>
                                     </div>
-                                )}
-                                <div>
-                                    <h3 className="font-bold text-[color:var(--text-1)] line-clamp-1">
-                                        {visit.Visitor?.first_name} {visit.Visitor?.last_name}
-                                    </h3>
-                                    <p className="text-xs text-[color:var(--text-2)] font-mono">{visit.visitor_cedula}</p>
-                                    <p className="text-xs text-[color:var(--text-2)] flex items-center mt-1">
-                                        <Building2 size={12} className="mr-1" />
-                                        {visit.Visitor?.company || 'Independiente'}
-                                    </p>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="mt-auto space-y-3">
-                            <div className="text-sm bg-[color:var(--surface-0)] p-2 rounded border border-[color:var(--border-1)]">
-                                <span className="text-[color:var(--text-3)] text-xs uppercase tracking-wider block mb-1">Motivo / Visita a:</span>
-                                <span className="text-[color:var(--text-1)] font-medium block truncate">
-                                    {visit.reason || visit.purpose || visit.personToVisit || visit.person_to_visit || 'Visita General'}
-                                </span>
+                            <div className="mt-auto space-y-3">
+                                <div className="text-sm bg-[color:var(--surface-0)] p-2 rounded border border-[color:var(--border-1)]">
+                                    <span className="text-[color:var(--text-3)] text-xs uppercase tracking-wider block mb-1">Motivo / Visita a:</span>
+                                    <span className="text-[color:var(--text-1)] font-medium block truncate">
+                                        {sanitizedReason}
+                                    </span>
+                                </div>
+
+                                <button
+                                    onClick={(e) => handleAdmit(e, visit.id)}
+                                    disabled={admittingId === visit.id}
+                                    className="w-full btn-tech !bg-[color:var(--status-success)]/10 !text-[color:var(--status-success)] !border-[color:var(--status-success)]/50 hover:!bg-[color:var(--status-success)]/20 flex justify-center items-center gap-2 z-10 relative"
+                                >
+                                    {admittingId === visit.id ? (
+                                        <div className="animate-spin w-4 h-4 border-2 border-[color:var(--status-success)] border-t-transparent rounded-full" />
+                                    ) : (
+                                        <>
+                                            <CheckCircle size={18} />
+                                            ADMITIR ENTRADA
+                                        </>
+                                    )}
+                                </button>
                             </div>
-
-                            <button
-                                onClick={(e) => handleAdmit(e, visit.id)}
-                                disabled={admittingId === visit.id}
-                                className="w-full btn-tech !bg-[color:var(--status-success)]/10 !text-[color:var(--status-success)] !border-[color:var(--status-success)]/50 hover:!bg-[color:var(--status-success)]/20 flex justify-center items-center gap-2 z-10 relative"
-                            >
-                                {admittingId === visit.id ? (
-                                    <div className="animate-spin w-4 h-4 border-2 border-[color:var(--status-success)] border-t-transparent rounded-full" />
-                                ) : (
-                                    <>
-                                        <CheckCircle size={18} />
-                                        ADMITIR ENTRADA
-                                    </>
-                                )}
-                            </button>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
-            <VisitorDetailsModal 
-                visit={selectedVisit} 
-                isOpen={!!selectedVisit} 
-                onClose={() => setSelectedVisit(null)} 
+            <VisitorDetailsModal
+                visit={selectedVisit}
+                isOpen={!!selectedVisit}
+                onClose={() => setSelectedVisit(null)}
             />
         </div>
     );

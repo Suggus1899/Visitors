@@ -33,6 +33,7 @@ interface AppConfig {
   lockoutDurationMinutes: number;
   rateLimitWindowMs: number;
   rateLimitMaxRequests: number;
+  bcryptRounds: number;
 }
 
 class Config implements AppConfig {
@@ -64,6 +65,7 @@ class Config implements AppConfig {
   lockoutDurationMinutes = parseInt(process.env.LOCKOUT_DURATION_MINUTES || '15', 10);
   rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
   rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10);
+  bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
 
   validate() {
     const errors: string[] = [];

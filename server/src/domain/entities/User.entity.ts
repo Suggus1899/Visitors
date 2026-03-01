@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'guard';
+export type UserRole = 'admin' | 'guard' | 'auditor';
 
 export interface UserEntity {
   id?: number;
@@ -7,6 +7,12 @@ export interface UserEntity {
   role: UserRole;
   resetToken?: string | null;
   resetTokenExpiry?: Date | null;
+  // Password policy fields
+  mustChangePassword?: boolean;
+  passwordChangedAt?: Date | null;
+  // Account lockout fields
+  loginAttempts?: number;
+  lockedUntil?: Date | null;
 }
 
 export class User {
@@ -16,8 +22,12 @@ export class User {
     public readonly password?: string,
     public readonly id?: number,
     public readonly resetToken?: string | null,
-    public readonly resetTokenExpiry?: Date | null
-  ) {}
+    public readonly resetTokenExpiry?: Date | null,
+    public readonly mustChangePassword?: boolean,
+    public readonly passwordChangedAt?: Date | null,
+    public readonly loginAttempts?: number,
+    public readonly lockedUntil?: Date | null
+  ) { }
 
   isAdmin(): boolean {
     return this.role === 'admin';
@@ -31,7 +41,11 @@ export class User {
       obj.password,
       obj.id,
       obj.resetToken,
-      obj.resetTokenExpiry
+      obj.resetTokenExpiry,
+      obj.mustChangePassword,
+      obj.passwordChangedAt,
+      obj.loginAttempts,
+      obj.lockedUntil
     );
   }
 }

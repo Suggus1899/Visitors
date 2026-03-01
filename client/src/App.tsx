@@ -22,6 +22,7 @@ import { Visit } from './types';
 import { startGuidedTour } from './utils/guidedTour';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
 import { SessionWarningModal } from './components/SessionWarningModal';
+import { PasswordChangeModal } from './components/PasswordChangeModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
 import { Toaster } from 'react-hot-toast';
@@ -142,7 +143,7 @@ const OperationsView = () => {
                         <VisitForm onVisitAdded={fetchAllVisits} />
                     </div>
                     <div className="w-full xl:w-2/3" data-tour="active-visits">
-                        
+
                         {/* Tabs Navigation */}
                         <div className="flex gap-4 mb-6 border-b border-[color:var(--border-1)]">
                             <button
@@ -201,12 +202,12 @@ const OperationsView = () => {
                                 <ActiveVisits visits={filteredVisits} onCheckout={fetchAllVisits} />
                             </>
                         ) : (
-                            <WaitingVisits 
-                                refreshTrigger={refreshTrigger} 
+                            <WaitingVisits
+                                refreshTrigger={refreshTrigger}
                                 onVisitAdmitted={() => {
                                     setActiveTab('active');
                                     fetchAllVisits();
-                                }} 
+                                }}
                             />
                         )}
                     </div>
@@ -243,35 +244,62 @@ const OperationsRoute = ({ children }: { children: JSX.Element }) => {
     const { user, loading } = useAuth();
     if (loading) return <div>Loading...</div>;
     if (!user) return <Navigate to="/login" />;
-    
+
     // Si es auditor, redirigir a su dashboard
     if (user.role === 'auditor') return <Navigate to="/audit" />;
-    
+
     return children;
 };
 
 function AppRoutes() {
+    const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
+
+    useEffect(() => {
+        // Listen for password-change-required event globally
+        const handlePasswordChangeRequired = () => {
+            setShowPasswordChangeModal(true);
+        };
+
+        window.addEventListener('password-change-required', handlePasswordChangeRequired);
+
+        return () => {
+            window.removeEventListener('password-change-required', handlePasswordChangeRequired);
+        };
+    }, []);
+
     return (
-        <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/" element={
-                <OperationsRoute>
-                    <OperationsView />
-                </OperationsRoute>
-            } />
-            <Route path="/audit" element={
-                <AuditRoute>
-                    <AuditDashboard />
-                </AuditRoute>
-            } />
-            <Route path="/admin" element={
-                <AdminRoute>
-                    <AdminDashboard />
-                </AdminRoute>
-            } />
-        </Routes>
+        <>
+            <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/" element={
+                    <OperationsRoute>
+                        <OperationsView />
+                    </OperationsRoute>
+                } />
+                <Route path="/audit" element={
+                    <AuditRoute>
+                        <AuditDashboard />
+                    </AuditRoute>
+                } />
+                <Route path="/admin" element={
+                    <AdminRoute>
+                        <AdminDashboard />
+                    </AdminRoute>
+                } />
+            </Routes>
+
+            {/* Global Password Change Modal */}
+            <PasswordChangeModal
+                show={showPasswordChangeModal}
+                onPasswordChanged={() => {
+                    setShowPasswordChangeModal(false);
+                    // Reload the page to refresh all data
+                    window.location.reload();
+                }}
+            />
+        </>
     );
 }
 

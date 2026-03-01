@@ -40,42 +40,84 @@ export const ensureBaseUsers = async () => {
 
     if (!adminExists) {
         console.log('Seeding database with Enterprise Admin...');
-        const hashedAdmin = await bcrypt.hash('Trebol123*', 8);
-        const hashedGuard = await bcrypt.hash('guard123', 8);
+        // Using bcrypt 12 rounds for security (Requirement: A-3)
+        const hashedAdmin = await bcrypt.hash('Trebol123*', 12);
+        const hashedGuard = await bcrypt.hash('Guard123!@#', 12);
 
-        await User.create({ username: adminEmail, password: hashedAdmin, role: 'admin' });
-        await User.create({ username: 'guard', password: hashedGuard, role: 'guard' });
+        await User.create({
+            username: adminEmail,
+            password: hashedAdmin,
+            role: 'admin',
+            mustChangePassword: false, // Admin doesn't need to change password
+            passwordChangedAt: new Date()
+        });
+        await User.create({
+            username: 'guard',
+            password: hashedGuard,
+            role: 'guard',
+            mustChangePassword: true, // Guard must change password on first login
+            loginAttempts: 0,
+            lockedUntil: null
+        });
 
         // Legacy admin fallback
         const legacyAdmin = await User.findOne({ where: { username: 'admin' } });
         if (!legacyAdmin) {
-            await User.create({ username: 'admin', password: await bcrypt.hash('admin123', 8), role: 'admin' });
+            await User.create({
+                username: 'admin',
+                password: await bcrypt.hash('Admin123!@#', 12),
+                role: 'admin',
+                mustChangePassword: true, // Must change password on first login
+                loginAttempts: 0,
+                lockedUntil: null
+            });
         }
 
         console.log('✅ Users Created: Admin@trebol.com, guard, admin');
+        console.log('   ⚠️  guard and admin MUST change password on first login');
     }
 
     // Always ensure demo user exists (separate check)
     const demoUser = await User.findOne({ where: { username: 'demo' } });
     if (!demoUser) {
         console.log('Creating demo user...');
-        const hashedDemo = await bcrypt.hash('demo123', 8);
-        await User.create({ username: 'demo', password: hashedDemo, role: 'admin' });
-        console.log('✅ Demo user created: demo/demo123');
+        const hashedDemo = await bcrypt.hash('Demo123!@#', 12);
+        await User.create({
+            username: 'demo',
+            password: hashedDemo,
+            role: 'admin',
+            mustChangePassword: true, // Demo user must change password
+            loginAttempts: 0,
+            lockedUntil: null
+        });
+        console.log('✅ Demo user created: demo/Demo123!@#');
+        console.log('   ⚠️  demo MUST change password on first login');
     }
 
     const auditorUser = await User.findOne({ where: { username: 'auditor' } });
     if (!auditorUser) {
         console.log('Creating auditor user...');
-        const hashedAuditor = await bcrypt.hash('audit2026', 8);
-        await User.create({ username: 'auditor', password: hashedAuditor, role: 'auditor' });
-        console.log('✅ Auditor user created: auditor/audit2026');
+        const hashedAuditor = await bcrypt.hash('Audit2026!@#', 12);
+        await User.create({
+            username: 'auditor',
+            password: hashedAuditor,
+            role: 'auditor',
+            mustChangePassword: true, // Auditor must change password
+            loginAttempts: 0,
+            lockedUntil: null
+        });
+        console.log('✅ Auditor user created: auditor/Audit2026!@#');
+        console.log('   ⚠️  auditor MUST change password on first login');
     } else if (auditorUser.role !== 'auditor') {
-        const hashedAuditor = await bcrypt.hash('audit2026', 8);
+        const hashedAuditor = await bcrypt.hash('Audit2026!@#', 12);
         auditorUser.role = 'auditor';
         auditorUser.password = hashedAuditor;
+        auditorUser.mustChangePassword = true;
+        auditorUser.loginAttempts = 0;
+        auditorUser.lockedUntil = null;
         await auditorUser.save();
-        console.log('✅ Auditor user updated: auditor/audit2026');
+        console.log('✅ Auditor user updated: auditor/Audit2026!@#');
+        console.log('   ⚠️  auditor MUST change password on first login');
     }
 };
 
@@ -86,17 +128,25 @@ export const seedDatabase = async () => {
         // Check if extended seed already exists
         const visitCount = await VisitModel.count();
         if (visitCount < 50) {
-            console.log('Seeding extended demo data (90 visits in January)...');
+            console.log('Seeding comprehensive demo data with all visit states...');
 
-            // Generate 30 unique visitors
+            // Generate 40 unique visitors with diverse profiles
             const visitors = [];
-            for (let i = 1; i <= 30; i++) {
+            const jobTitles = ['Gerente', 'Supervisor', 'Técnico', 'Contador', 'Abogado', 'Ingeniero', 'Consultor', 'Director', 'Analista', 'Coordinador'];
+            const departments = ['Administración', 'Ventas', 'Logística', 'Finanzas', 'Recursos Humanos', 'IT', 'Operaciones', 'Legal'];
+            const areas = ['Oficina', 'Planta', 'Almacén', 'Ninguna'] as const;
+            const actions = ['Carga', 'Descarga', 'Ninguna'] as const;
+            const vehicleBrands = ['Toyota', 'Ford', 'Chevrolet', 'Nissan', 'Honda', 'Hyundai', 'Kia', 'Mazda'];
+            const vehicleModels = ['Corolla', 'F-150', 'Silverado', 'Sentra', 'Civic', 'Tucson', 'Sportage', 'CX-5'];
+
+            for (let i = 1; i <= 40; i++) {
                 const cedula = (10000000 + i * 123456 + Math.floor(Math.random() * 100000)).toString().substring(0, 8);
                 visitors.push({
                     cedula,
                     first_name: firstNames[Math.floor(Math.random() * firstNames.length)],
                     last_name: lastNames[Math.floor(Math.random() * lastNames.length)],
                     company: companies[Math.floor(Math.random() * companies.length)],
+                    job_title: jobTitles[Math.floor(Math.random() * jobTitles.length)],
                     email: `visitor${i}@example.com`,
                     phone: `+5841${Math.floor(1000000 + Math.random() * 9000000)}`
                 });
@@ -110,7 +160,7 @@ export const seedDatabase = async () => {
                 }
             }
 
-            // Generate 90 visits distributed across January 2026
+            // Generate 90 visits distributed across January 2026 (all completed)
             const visitsToCreate = [];
             for (let i = 0; i < 90; i++) {
                 const day = Math.floor(Math.random() * 31) + 1; // 1-31
@@ -118,34 +168,113 @@ export const seedDatabase = async () => {
                 const visitorIndex = Math.floor(Math.random() * visitors.length);
                 const checkIn = randomJanuaryDate(day, hour);
                 const checkOut = new Date(checkIn.getTime() + (1 + Math.random() * 4) * 3600000); // 1-5 hours later
+                const hasVehicle = Math.random() > 0.6;
+                const hasCompanion = Math.random() > 0.7;
 
-                visitsToCreate.push({
-                    visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
-                    purpose: reasons[Math.floor(Math.random() * reasons.length)],
-                    person_to_visit: `Admin User`, // Default host for demo
-                    check_in_time: checkIn,
-                    check_out_time: checkOut,
-                    status: 'completed'
-                });
-            }
-
-            // Add February visits (current month) - 30 visits with 25 active
-            const now = new Date();
-            for (let i = 0; i < 30; i++) {
-                const day = Math.min(now.getDate(), 1 + Math.floor(Math.random() * 6)); // First days of Feb
-                const hour = 8 + Math.floor(Math.random() * 9);
-                const visitorIndex = Math.floor(Math.random() * visitors.length);
-                const checkIn = new Date(2026, 1, day, hour, Math.floor(Math.random() * 60));
-
-                // 25 active, 5 completed
-                const isActive = i < 25;
                 visitsToCreate.push({
                     visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
                     purpose: reasons[Math.floor(Math.random() * reasons.length)],
                     person_to_visit: `Admin User`,
                     check_in_time: checkIn,
-                    check_out_time: isActive ? null : new Date(checkIn.getTime() + (1 + Math.random() * 3) * 3600000),
-                    status: isActive ? 'active' : 'completed'
+                    check_out_time: checkOut,
+                    status: 'completed',
+                    notes: Math.random() > 0.7 ? 'Visita completada sin novedades' : null,
+                    companion_name: hasCompanion ? `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}` : null,
+                    companion_cedula: hasCompanion ? (20000000 + Math.floor(Math.random() * 10000000)).toString().substring(0, 8) : null,
+                    vehicle_brand: hasVehicle ? vehicleBrands[Math.floor(Math.random() * vehicleBrands.length)] : null,
+                    vehicle_model: hasVehicle ? vehicleModels[Math.floor(Math.random() * vehicleModels.length)] : null,
+                    vehicle_plate: hasVehicle ? `ABC${Math.floor(100 + Math.random() * 900)}` : null,
+                    area: areas[Math.floor(Math.random() * areas.length)],
+                    action: actions[Math.floor(Math.random() * actions.length)],
+                    department: departments[Math.floor(Math.random() * departments.length)]
+                });
+            }
+
+            // Add February visits (current month) with diverse states
+            const now = new Date();
+
+            // 1. WAITING visits (8 visitors waiting to be admitted)
+            console.log('Creating WAITING visits...');
+            for (let i = 0; i < 8; i++) {
+                const visitorIndex = Math.floor(Math.random() * visitors.length);
+                const checkIn = new Date(now.getTime() - (Math.floor(Math.random() * 30) + 5) * 60000); // 5-35 minutes ago
+                const hasVehicle = Math.random() > 0.5;
+                const hasCompanion = Math.random() > 0.6;
+
+                visitsToCreate.push({
+                    visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
+                    purpose: reasons[Math.floor(Math.random() * reasons.length)],
+                    person_to_visit: `Admin User`,
+                    check_in_time: checkIn,
+                    check_out_time: null,
+                    status: 'waiting',
+                    notes: 'Esperando autorización de ingreso',
+                    companion_name: hasCompanion ? `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}` : null,
+                    companion_cedula: hasCompanion ? (20000000 + Math.floor(Math.random() * 10000000)).toString().substring(0, 8) : null,
+                    vehicle_brand: hasVehicle ? vehicleBrands[Math.floor(Math.random() * vehicleBrands.length)] : null,
+                    vehicle_model: hasVehicle ? vehicleModels[Math.floor(Math.random() * vehicleModels.length)] : null,
+                    vehicle_plate: hasVehicle ? `WTG${Math.floor(100 + Math.random() * 900)}` : null,
+                    area: areas[Math.floor(Math.random() * areas.length)],
+                    action: actions[Math.floor(Math.random() * actions.length)],
+                    department: departments[Math.floor(Math.random() * departments.length)]
+                });
+            }
+
+            // 2. ACTIVE visits (20 visitors currently inside)
+            console.log('Creating ACTIVE visits...');
+            for (let i = 0; i < 20; i++) {
+                const visitorIndex = Math.floor(Math.random() * visitors.length);
+                const hoursAgo = Math.floor(Math.random() * 6) + 1; // 1-6 hours ago
+                const checkIn = new Date(now.getTime() - hoursAgo * 3600000);
+                const hasVehicle = Math.random() > 0.5;
+                const hasCompanion = Math.random() > 0.7;
+
+                visitsToCreate.push({
+                    visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
+                    purpose: reasons[Math.floor(Math.random() * reasons.length)],
+                    person_to_visit: `Admin User`,
+                    check_in_time: checkIn,
+                    check_out_time: null,
+                    status: 'active',
+                    notes: Math.random() > 0.8 ? 'Visita en progreso' : null,
+                    companion_name: hasCompanion ? `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}` : null,
+                    companion_cedula: hasCompanion ? (20000000 + Math.floor(Math.random() * 10000000)).toString().substring(0, 8) : null,
+                    vehicle_brand: hasVehicle ? vehicleBrands[Math.floor(Math.random() * vehicleBrands.length)] : null,
+                    vehicle_model: hasVehicle ? vehicleModels[Math.floor(Math.random() * vehicleModels.length)] : null,
+                    vehicle_plate: hasVehicle ? `ACT${Math.floor(100 + Math.random() * 900)}` : null,
+                    area: areas[Math.floor(Math.random() * areas.length)],
+                    action: actions[Math.floor(Math.random() * actions.length)],
+                    department: departments[Math.floor(Math.random() * departments.length)]
+                });
+            }
+
+            // 3. COMPLETED visits in February (12 visits)
+            console.log('Creating COMPLETED visits for February...');
+            for (let i = 0; i < 12; i++) {
+                const day = Math.min(now.getDate(), 1 + Math.floor(Math.random() * Math.max(1, now.getDate() - 1)));
+                const hour = 8 + Math.floor(Math.random() * 9);
+                const visitorIndex = Math.floor(Math.random() * visitors.length);
+                const checkIn = new Date(2026, 1, day, hour, Math.floor(Math.random() * 60));
+                const checkOut = new Date(checkIn.getTime() + (1 + Math.random() * 4) * 3600000);
+                const hasVehicle = Math.random() > 0.6;
+                const hasCompanion = Math.random() > 0.7;
+
+                visitsToCreate.push({
+                    visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
+                    purpose: reasons[Math.floor(Math.random() * reasons.length)],
+                    person_to_visit: `Admin User`,
+                    check_in_time: checkIn,
+                    check_out_time: checkOut,
+                    status: 'completed',
+                    notes: Math.random() > 0.6 ? 'Visita finalizada exitosamente' : null,
+                    companion_name: hasCompanion ? `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}` : null,
+                    companion_cedula: hasCompanion ? (20000000 + Math.floor(Math.random() * 10000000)).toString().substring(0, 8) : null,
+                    vehicle_brand: hasVehicle ? vehicleBrands[Math.floor(Math.random() * vehicleBrands.length)] : null,
+                    vehicle_model: hasVehicle ? vehicleModels[Math.floor(Math.random() * vehicleModels.length)] : null,
+                    vehicle_plate: hasVehicle ? `CMP${Math.floor(100 + Math.random() * 900)}` : null,
+                    area: areas[Math.floor(Math.random() * areas.length)],
+                    action: actions[Math.floor(Math.random() * actions.length)],
+                    department: departments[Math.floor(Math.random() * departments.length)]
                 });
             }
 
@@ -154,7 +283,12 @@ export const seedDatabase = async () => {
                 await VisitModel.create(visitData as any);
             }
 
-            console.log(`✅ Extended seed complete: ${visitors.length} visitors, ${visitsToCreate.length} visits`);
+            console.log(`✅ Comprehensive seed complete:`);
+            console.log(`   - ${visitors.length} visitors created`);
+            console.log(`   - ${visitsToCreate.length} total visits`);
+            console.log(`   - 8 WAITING visits (pending admission)`);
+            console.log(`   - 20 ACTIVE visits (currently inside)`);
+            console.log(`   - ${90 + 12} COMPLETED visits (historical data)`);
         } else {
             console.log('✅ Database already has sufficient data.');
         }

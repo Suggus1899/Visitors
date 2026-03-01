@@ -96,7 +96,7 @@ describe('POST /api/v1/auth/forgot-password', () => {
 // ──────────────────────────────────────────────────
 describe('POST /api/v1/auth/reset-password', () => {
   it('returns 200 with valid token and password', async () => {
-    const res = await request(app).post('/api/v1/auth/reset-password').send({ token: 'tok123', newPassword: 'newpass' });
+    const res = await request(app).post('/api/v1/auth/reset-password').send({ token: 'tok123', newPassword: 'ValidP@ssw0rd123' });
     expect(res.status).toBe(200);
   });
 
@@ -105,11 +105,11 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(res.status).toBe(400);
     const passErr = details(res).find((e: { field: string }) => e.field === 'newPassword');
     expect(passErr).toBeDefined();
-    expect(passErr.message).toMatch(/6/);
+    expect(passErr.message).toMatch(/12/);
   });
 
   it('returns 400 when token is empty', async () => {
-    const res = await request(app).post('/api/v1/auth/reset-password').send({ token: '', newPassword: 'supersecret' });
+    const res = await request(app).post('/api/v1/auth/reset-password').send({ token: '', newPassword: 'ValidP@ssw0rd123' });
     expect(res.status).toBe(400);
     expect(details(res).some((e: { field: string }) => e.field === 'token')).toBe(true);
   });

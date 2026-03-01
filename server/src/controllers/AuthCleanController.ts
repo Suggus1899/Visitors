@@ -14,10 +14,10 @@ export const login = async (req: Request, res: Response) => {
     const credentials: LoginDto = req.body;
     const useCase = container.createLoginUseCase();
     const result = await useCase.execute(credentials);
-    
+
     // Capturar información del cliente para auditoría
     const clientInfo = getClientInfo(req);
-    
+
     // Registrar login en log de actividad
     await logActivity(
       0, // userId temporal, se actualiza luego
@@ -29,12 +29,28 @@ export const login = async (req: Request, res: Response) => {
       clientInfo.ip,
       clientInfo.userAgent
     );
-    
+
     res.json(ResponseBuilder.success(result));
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    if (errorMessage === 'INVALID_CREDENTIALS') {
-      res.status(401).json(ResponseBuilder.error('AUTH_FAILED', 'Invalid credentials'));
+
+    if (errorMessage === 'ACCOUNT_LOCKED') {
+      const err = error as any;
+      res.status(403).json(ResponseBuilder.error(
+        'ACCOUNT_LOCKED',
+        'Account locked due to multiple failed login attempts',
+        {
+          minutesRemaining: err.minutesRemaining,
+          lockedUntil: err.lockedUntil
+        }
+      ));
+    } else if (errorMessage === 'INVALID_CREDENTIALS') {
+      const err = error as any;
+      const data = err.attemptsRemaining !== undefined ? {
+        attemptsRemaining: err.attemptsRemaining
+      } : undefined;
+
+      res.status(401).json(ResponseBuilder.error('AUTH_FAILED', 'Invalid credentials', data));
     } else {
       console.error('Login error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Login failed'));
@@ -47,9 +63,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const { username } = req.body;
     const useCase = container.createForgotPasswordUseCase();
     const token = await useCase.execute(username);
-    
-    res.json(ResponseBuilder.success({ 
-      message: 'Reset token generated (Check console)', 
+
+    res.json(ResponseBuilder.success({
+      message: 'Reset token generated (Check console)',
       token // Exposed for demo/local purposes
     }));
   } catch (error: any) {
@@ -67,14 +83,62 @@ export const resetPassword = async (req: Request, res: Response) => {
     const { token, newPassword } = req.body;
     const useCase = container.createResetPasswordUseCase();
     await useCase.execute(token, newPassword);
-    
+
     res.json(ResponseBuilder.success({ message: 'Password reset successful' }));
   } catch (error: any) {
     if (error.message === 'INVALID_TOKEN' || error.message === 'TOKEN_EXPIRED') {
       res.status(400).json(ResponseBuilder.error('INVALID_TOKEN', 'Invalid or expired token'));
+    } else if (error.message === 'PASSWORD_POLICY_VIOLATION') {
+      res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', error.details || 'Password does not meet security requirements', error.errors));
     } else {
       console.error('Reset password error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to reset password'));
+    }
+  }
+};
+
+/**
+ * Refresh access token using refresh token
+ * Requirements: 3.6, 3.10
+ */
+export const refreshToken = async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+    const useCase = container.createRefreshTokenUseCase();
+    const result = await useCase.execute(refreshToken);
+
+    res.json(ResponseBuilder.success(result));
+  } catch (error: any) {
+    if (error.message === 'INVALID_REFRESH_TOKEN' || error.message === 'TOKEN_EXPIRED') {
+      res.status(401).json(ResponseBuilder.error('INVALID_TOKEN', 'Invalid or expired refresh token'));
+    } else {
+      console.error('Refresh token error:', error);
+      res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to refresh token'));
+    }
+  }
+};
+
+/**
+ * Change user password
+ * Requirements: 5.4, 5.5, 5.7, 5.8, 5.10
+ */
+export const changePassword = async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = (req as any).user.id; // From verifyToken middleware
+
+    const useCase = container.createChangePasswordUseCase();
+    await useCase.execute(userId, currentPassword, newPassword);
+
+    res.json(ResponseBuilder.success({ message: 'Password changed successfully' }));
+  } catch (error: any) {
+    if (error.message === 'INVALID_CURRENT_PASSWORD') {
+      res.status(401).json(ResponseBuilder.error('INVALID_PASSWORD', 'Current password is incorrect'));
+    } else if (error.message === 'PASSWORD_POLICY_VIOLATION') {
+      res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', error.details || 'Password does not meet security requirements', error.errors));
+    } else {
+      console.error('Change password error:', error);
+      res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to change password'));
     }
   }
 };

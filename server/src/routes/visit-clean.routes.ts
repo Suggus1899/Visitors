@@ -107,6 +107,20 @@ router.post('/v1/visits/:id/admit', verifyToken, denyAuditorOnly, asyncHandler(V
 
 /**
  * @swagger
+ * /visits/waiting:
+ *   get:
+ *     summary: Get all waiting visits
+ *     tags: [Visits]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of waiting visits
+ */
+router.get('/v1/visits/waiting', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.getWaitingVisits));
+
+/**
+ * @swagger
  * /visits/active:
  *   get:
  *     summary: Get all active visits

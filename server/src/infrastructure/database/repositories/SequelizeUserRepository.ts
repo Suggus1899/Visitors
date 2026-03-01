@@ -9,6 +9,10 @@ export class SequelizeUserRepository implements IUserRepository {
     return this.toDomain(userModel);
   }
 
+  async findByUsernameModel(username: string): Promise<typeof UserModel.prototype | null> {
+    return await UserModel.findOne({ where: { username } });
+  }
+
   async findByResetToken(token: string): Promise<User | null> {
     const userModel = await UserModel.findOne({ where: { resetToken: token } });
     if (!userModel) return null;
@@ -19,6 +23,10 @@ export class SequelizeUserRepository implements IUserRepository {
     const userModel = await UserModel.findByPk(id);
     if (!userModel) return null;
     return this.toDomain(userModel);
+  }
+
+  async findByIdModel(id: number): Promise<typeof UserModel.prototype | null> {
+    return await UserModel.findByPk(id);
   }
 
   async save(user: User): Promise<User> {
@@ -62,7 +70,11 @@ export class SequelizeUserRepository implements IUserRepository {
       model.password,
       model.id,
       model.resetToken,
-      model.resetTokenExpiry
+      model.resetTokenExpiry,
+      model.mustChangePassword,
+      model.passwordChangedAt,
+      model.loginAttempts,
+      model.lockedUntil
     );
   }
 }

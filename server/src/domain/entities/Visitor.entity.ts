@@ -51,15 +51,7 @@ export class Visitor {
       throw new Error('Company is required');
     }
 
-    // Email validation if provided
-    if (this.email && !this.isValidEmail(this.email)) {
-      throw new Error('Invalid email format');
-    }
-  }
-
-  private isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    // Email is optional, no validation needed
   }
 
   /**

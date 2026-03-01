@@ -52,19 +52,19 @@ describe('forgotPasswordSchema', () => {
 
 describe('resetPasswordSchema', () => {
   it('accepts valid token and password', () => {
-    const result = resetPasswordSchema.safeParse({ token: 'abc123', newPassword: 'newpass' });
+    const result = resetPasswordSchema.safeParse({ token: 'abc123', newPassword: 'ValidP@ssw0rd123' });
     expect(result.success).toBe(true);
   });
 
-  it('rejects password shorter than 6 chars', () => {
+  it('rejects password shorter than 12 chars', () => {
     const result = resetPasswordSchema.safeParse({ token: 'tok', newPassword: '123' });
     expect(result.success).toBe(false);
     const msg = result.error?.issues[0].message;
-    expect(msg).toMatch(/6/);
+    expect(msg).toMatch(/12/);
   });
 
   it('rejects empty token', () => {
-    const result = resetPasswordSchema.safeParse({ token: '', newPassword: 'secret123' });
+    const result = resetPasswordSchema.safeParse({ token: '', newPassword: 'ValidP@ssw0rd123' });
     expect(result.success).toBe(false);
   });
 });

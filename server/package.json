@@ -9,7 +9,10 @@
     "test:coverage": "vitest run --coverage",
     "start": "ts-node src/server.ts",
     "dev": "nodemon",
-    "migrate:sqlcipher": "ts-node src/scripts/migrate-sqlcipher.ts"
+    "migrate:sqlcipher": "ts-node src/scripts/migrate-sqlcipher.ts",
+    "seed": "ts-node src/scripts/seed-comprehensive.ts",
+    "seed:clean": "ts-node src/scripts/seed-comprehensive.ts --clean",
+    "db:reset": "ts-node src/scripts/reset-db.ts"
   },
   "dependencies": {
     "@journeyapps/sqlcipher": "^5.1.8",
