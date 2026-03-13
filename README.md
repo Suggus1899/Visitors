@@ -73,9 +73,10 @@ ENCRYPTION_KEY=tu_clave_de_cifrado_de_64_caracteres_aqui
 ## 📚 Documentación
 
 - **[Arquitectura](docs/ARCHITECTURE.md)**: Estructura del sistema y patrones de diseño
-- **[Seguridad](docs/SECURITY.md)**: Implementación de seguridad y mejores prácticas
+- **[Seguridad](docs/SECURITY_AUDIT_REPORT.md)**: Hallazgos y estado de hardening de seguridad
 - **[Guía de Instalación](docs/SETUP.md)**: Instrucciones detalladas de instalación y configuración
 - **[API](docs/API.md)**: Documentación completa de endpoints REST
+- **[Manual de Usuario](docs/USER_MANUAL.md)**: Guía operativa por rol
 
 ## 🏗️ Stack Tecnológico
 

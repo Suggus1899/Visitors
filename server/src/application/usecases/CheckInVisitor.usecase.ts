@@ -13,9 +13,16 @@ export class CheckInVisitorUseCase {
   constructor(
     private visitorRepository: IVisitorRepository,
     private visitRepository: IVisitRepository
-  ) {}
+  ) { }
 
   async execute(dto: CheckInDto): Promise<VisitResponseDto> {
+    if (!dto.consent?.accepted) {
+      throw new Error('Consent is required before processing check-in');
+    }
+
+    const consentAuditNote = `[consent:${dto.consent.policyVersion}|${dto.consent.acceptedAt}]`;
+    const mergedNotes = [dto.notes, consentAuditNote].filter(Boolean).join(' ');
+
     // 1. Check if visitor exists, if not create new visitor
     let visitor = await this.visitorRepository.findByCedula(dto.visitorCedula);
 
@@ -74,7 +81,7 @@ export class CheckInVisitorUseCase {
       visitStatus,
       undefined,
       undefined,
-      dto.notes,
+      mergedNotes,
       undefined, // visitorName (inherited)
       undefined, // visitorCompany
       dto.companionName,
@@ -98,6 +105,8 @@ export class CheckInVisitorUseCase {
       id: visit.id!,
       visitorCedula: visit.visitorCedula,
       visitorName: visitor.fullName,
+      firstName: visitor.firstName,
+      lastName: visitor.lastName,
       checkInTime: visit.checkInTime.toISOString(),
       checkOutTime: visit.checkOutTime?.toISOString(),
       purpose: visit.purpose,

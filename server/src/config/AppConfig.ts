@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 // Load environment variables from workspace .env file
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
 interface AppConfig {
   // Server

@@ -34,7 +34,16 @@ const buildTestApp = () => {
 /** Extract error.details from response */
 const details = (res: request.Response) => res.body?.error?.details ?? [];
 
-const VALID_PAYLOAD = { visitorCedula: '12345678', purpose: 'Reunión', personToVisit: 'Recepcion' };
+const VALID_PAYLOAD = {
+  visitorCedula: '12345678',
+  consent: {
+    accepted: true,
+    policyVersion: '1.0',
+    acceptedAt: '2026-03-11T10:00:00.000Z'
+  },
+  purpose: 'Reunión',
+  personToVisit: 'Recepcion'
+};
 
 let app: ReturnType<typeof buildTestApp>;
 beforeAll(() => { app = buildTestApp(); });
@@ -65,7 +74,11 @@ describe('POST /api/v1/visits/checkin', () => {
   it('returns 400 when visitorCedula is missing', async () => {
     const res = await request(app).post('/api/v1/visits/checkin')
       .set('Authorization', 'Bearer valid-token')
-      .send({ purpose: 'Reunión', personToVisit: 'Recepcion' });
+      .send({
+        consent: VALID_PAYLOAD.consent,
+        purpose: 'Reunión',
+        personToVisit: 'Recepcion'
+      });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
     expect(details(res).some((e: { field: string }) => e.field === 'visitorCedula')).toBe(true);
@@ -74,7 +87,11 @@ describe('POST /api/v1/visits/checkin', () => {
   it('returns 400 when purpose is missing', async () => {
     const res = await request(app).post('/api/v1/visits/checkin')
       .set('Authorization', 'Bearer valid-token')
-      .send({ visitorCedula: '12345678', personToVisit: 'Recepcion' });
+      .send({
+        visitorCedula: '12345678',
+        consent: VALID_PAYLOAD.consent,
+        personToVisit: 'Recepcion'
+      });
     expect(res.status).toBe(400);
     expect(details(res).some((e: { field: string }) => e.field === 'purpose')).toBe(true);
   });

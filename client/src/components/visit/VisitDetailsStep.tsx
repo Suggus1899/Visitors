@@ -10,10 +10,11 @@ interface VisitDetailsStepProps {
         department: string;
         photo_url: string;
         id_photo_url: string;
+        consent_accepted: boolean;
     };
     loading: boolean;
     canSubmit: boolean;
-    onFormDataChange: (field: string, value: string) => void;
+    onFormDataChange: (field: string, value: string | boolean) => void;
     onPhotoCapture: (img: string) => void;
     onPhotoRetake: () => void;
     onIdPhotoCapture: (img: string) => void;
@@ -78,6 +79,19 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                     required
                 />
             </div>
+
+            <label className={`flex items-start gap-3 rounded-lg border p-3 ${formData.consent_accepted ? 'border-[color:var(--accent-0)] bg-[color:var(--surface-2)]' : 'border-red-400 bg-[color:var(--surface-2)]'}`}>
+                <input
+                    type="checkbox"
+                    checked={formData.consent_accepted}
+                    onChange={(e) => onFormDataChange('consent_accepted', e.target.checked)}
+                    className="mt-1 h-4 w-4"
+                />
+                <span className="text-xs text-[color:var(--text-2)] leading-relaxed">
+                    Confirmo que el visitante otorgo consentimiento expreso e informado para el tratamiento de datos personales y captura de fotografias segun el aviso de privacidad vigente.
+                    <span className="text-red-500"> *</span>
+                </span>
+            </label>
 
             {/* Photo Section - REQUIRED */}
             <div className={`border-2 rounded-lg p-4 ${hasPhoto ? 'border-[color:var(--accent-0)] bg-[color:var(--surface-2)]' : 'border-red-400 bg-[color:var(--surface-2)]'}`}>

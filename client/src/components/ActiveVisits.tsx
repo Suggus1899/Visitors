@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { VisitService } from '../services/api.v1';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
@@ -82,9 +82,9 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                     const timeInSite = getTimeInSite(visit.check_in || visit.check_in_time || ''); // Handle both formats
 
                     // Sanitize user-generated content for XSS protection
-                    const sanitizedName = useMemo(() => sanitizeInput(visitorName), [visitorName]);
-                    const sanitizedCompany = useMemo(() => sanitizeInput(visitorCompany), [visitorCompany]);
-                    const sanitizedReason = useMemo(() => sanitizeInput(visit.reason || visit.purpose || 'Visita General'), [visit.reason, visit.purpose]);
+                    const sanitizedName = sanitizeInput(visitorName);
+                    const sanitizedCompany = sanitizeInput(visitorCompany);
+                    const sanitizedReason = sanitizeInput(visit.reason || visit.purpose || 'Visita General');
 
                     return (
                         <div

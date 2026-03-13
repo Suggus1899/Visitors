@@ -5,6 +5,11 @@ import { VisitStatus } from '../../domain/entities/Visit.entity';
  */
 export interface CheckInDto {
   visitorCedula: string;
+  consent: {
+    accepted: boolean;
+    policyVersion: string;
+    acceptedAt: string;
+  };
   visitorData?: {
     firstName: string;
     lastName: string;
@@ -35,6 +40,8 @@ export interface ActiveVisitDto {
   id: number;
   visitorCedula: string;
   visitorName: string;
+  firstName?: string;
+  lastName?: string;
   company: string;
   checkInTime: string;
   purpose: string;
@@ -58,6 +65,8 @@ export interface VisitResponseDto {
   id: number;
   visitorCedula: string;
   visitorName?: string;
+  firstName?: string;
+  lastName?: string;
   checkInTime: string; // ISO string
   checkOutTime?: string; // ISO string
   purpose: string;

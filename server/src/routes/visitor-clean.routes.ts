@@ -45,5 +45,6 @@ router.get('/v1/visitors/:cedula', verifyToken, VisitorCleanController.getVisito
  *       200:
  *         description: List of companies
  */
+router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getCompanies);
 
 export default router;

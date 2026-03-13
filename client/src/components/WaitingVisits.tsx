@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { VisitService } from '../services/api.v1';
 import { Visit } from '../types';
 import toast from 'react-hot-toast';
@@ -85,9 +85,9 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ refreshTrigger, onVisitAd
                 {visits.map((visit) => {
                     // Sanitize user-generated content for XSS protection
                     const visitorName = `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''}`.trim();
-                    const sanitizedName = useMemo(() => sanitizeInput(visitorName), [visitorName]);
-                    const sanitizedCompany = useMemo(() => sanitizeInput(visit.Visitor?.company || 'Independiente'), [visit.Visitor?.company]);
-                    const sanitizedReason = useMemo(() => sanitizeInput(visit.reason || visit.purpose || visit.personToVisit || visit.person_to_visit || 'Visita General'), [visit.reason, visit.purpose, visit.personToVisit, visit.person_to_visit]);
+                    const sanitizedName = sanitizeInput(visitorName);
+                    const sanitizedCompany = sanitizeInput(visit.Visitor?.company || 'Independiente');
+                    const sanitizedReason = sanitizeInput(visit.reason || visit.purpose || visit.personToVisit || visit.person_to_visit || 'Visita General');
 
                     return (
                         <div

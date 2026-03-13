@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, dialog } from 'electron';
 import path from 'path';
 import { fork, ChildProcess } from 'child_process';
 import { autoUpdater } from 'electron-updater';
@@ -15,6 +15,7 @@ let isQuitting = false;
 
 const SERVER_PORT = 3000;
 const isDev = !app.isPackaged;
+const ALLOWED_RENDERER_ORIGINS = ['http://localhost:5173', 'file://'];
 
 // ============================================
 // HELPERS (Lazy Loading)
@@ -250,6 +251,9 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
+            sandbox: true,
+            webSecurity: true,
+            allowRunningInsecureContent: false,
         },
         title: 'Visitor Access Control System',
         icon: path.join(__dirname, '../client/public/logo.png'),
@@ -266,6 +270,15 @@ function createWindow() {
     } else {
         mainWindow.loadFile(path.join(__dirname, '../client/dist/index.html'));
     }
+
+    // Prevent untrusted navigation/popups in renderer context.
+    mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        const isAllowed = ALLOWED_RENDERER_ORIGINS.some((origin) => url.startsWith(origin));
+        if (!isAllowed) {
+            event.preventDefault();
+        }
+    });
 
     // Minimize to tray instead of closing
     mainWindow.on('close', (event) => {
@@ -292,16 +305,27 @@ function startServer() {
     console.log('Starting server from:', scriptPath);
 
     try {
+        const requiredEnvKeys = ['DB_ENCRYPTION_KEY', 'ENCRYPTION_KEY', 'JWT_SECRET', 'BACKUP_PASSWORD'];
+        const missing = requiredEnvKeys.filter((key) => !process.env[key] || String(process.env[key]).trim().length === 0);
+
+        if (missing.length > 0) {
+            dialog.showErrorBox(
+                'Configuracion insegura',
+                `Faltan variables de entorno criticas: ${missing.join(', ')}. Configure estas claves antes de iniciar la app empaquetada.`
+            );
+            return;
+        }
+
         serverProcess = fork(scriptPath, [], {
             env: { 
                 ...process.env, 
                 NODE_ENV: 'production',
                 PORT: SERVER_PORT.toString(), 
                 DB_PATH: path.join(app.getPath('userData'), 'database'),
-                DB_ENCRYPTION_KEY: 'e44719f04d5a961af39f640854d985396e8178daf4c9300fdbca6848840eeb52',
-                ENCRYPTION_KEY: '301f7eae998b3bcddc49173a819699ef521b2bc7402da2d70f52a078b9b30d36',
-                JWT_SECRET: '42f2934ddb4d4ab6f4fed97053a35143bc6406204c28857b12ae5eea6ede23bd7b6227c19e6ceb120a4f2bc938b52f66edd9ac1497fbb38379799470b7d11eb1',
-                BACKUP_PASSWORD: '2333815119ad6a3b50ba48bd394f5e77e20557482815631c85c442af5572469d'
+                DB_ENCRYPTION_KEY: process.env.DB_ENCRYPTION_KEY,
+                ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+                JWT_SECRET: process.env.JWT_SECRET,
+                BACKUP_PASSWORD: process.env.BACKUP_PASSWORD
             },
             stdio: ['pipe', 'pipe', 'pipe', 'ipc']
         });

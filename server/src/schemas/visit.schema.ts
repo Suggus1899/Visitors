@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 export const checkInSchema = z.object({
   visitorCedula: z.string().min(1, 'Visitor cedula is required').max(20, 'Cedula too long'),
+  consent: z.object({
+    accepted: z.literal(true),
+    policyVersion: z.string().min(1, 'Policy version is required').max(20, 'Policy version too long'),
+    acceptedAt: z.string().datetime('Invalid consent timestamp')
+  }),
   purpose: z.string().min(1, 'Purpose is required').max(500, 'Purpose too long'),
   personToVisit: z.string().min(1, 'Person to visit is required').max(200, 'Name too long'),
   notes: z.string().max(1000, 'Notes too long').optional(),

@@ -3,6 +3,11 @@ import { checkInSchema } from '../../schemas/visit.schema';
 
 const validPayload = {
   visitorCedula: '12345678',
+  consent: {
+    accepted: true,
+    policyVersion: '1.0',
+    acceptedAt: '2026-03-11T10:00:00.000Z',
+  },
   purpose: 'Reunión de negocios',
   personToVisit: 'Recepcion',
 };
@@ -36,13 +41,21 @@ describe('checkInSchema', () => {
   });
 
   it('rejects missing purpose', () => {
-    const result = checkInSchema.safeParse({ visitorCedula: '12345678', personToVisit: 'Rec' });
+    const result = checkInSchema.safeParse({
+      visitorCedula: '12345678',
+      consent: validPayload.consent,
+      personToVisit: 'Rec'
+    });
     expect(result.success).toBe(false);
     expect(result.error?.issues[0].path).toContain('purpose');
   });
 
   it('rejects missing personToVisit', () => {
-    const result = checkInSchema.safeParse({ visitorCedula: '12345678', purpose: 'Reunión' });
+    const result = checkInSchema.safeParse({
+      visitorCedula: '12345678',
+      consent: validPayload.consent,
+      purpose: 'Reunión'
+    });
     expect(result.success).toBe(false);
     expect(result.error?.issues[0].path).toContain('personToVisit');
   });

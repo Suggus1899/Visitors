@@ -68,13 +68,13 @@ const Login = () => {
 
     const handleDemoMode = () => {
         setUsername('demo');
-        setPassword('demo123');
+        setPassword('Demo123!@#');
         toast('Credenciales demo cargadas');
     };
 
     const handleAuditMode = () => {
         setUsername('auditor');
-        setPassword('audit2026');
+        setPassword('Audit2026!@#');
         toast('Credenciales de auditor cargadas');
     };
 

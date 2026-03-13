@@ -4,10 +4,17 @@ import config from '../config/AppConfig';
 import { ResponseBuilder } from '../shared/ApiResponse';
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'No token provided'));
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'No Bearer token provided'));
+    }
 
-    jwt.verify(token.split(' ')[1], config.jwtSecret, (err, decoded) => {
+    const token = authHeader.slice(7).trim();
+    if (!token) {
+        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Empty token'));
+    }
+
+    jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }, (err, decoded) => {
         if (err || !decoded) return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
         req.user = decoded;
         next();
@@ -17,7 +24,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
     // req.user logic depends on how you type the decoded token.
     // Assuming decoded token has { role: string }
-    const userRole = (req.user as any)?.role;
+    const userRole = (req.user as jwt.JwtPayload)?.role;
 
     if (userRole !== 'admin') {
         return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Admin Role'));

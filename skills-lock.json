@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "express-backend-starter": {
+      "source": "codewithhashim/express-backend-starter-skill",
+      "sourceType": "github",
+      "computedHash": "496316d566006c8f36034ac0eeb6af95e461650da0aea5b6bc5f2743bc815d51"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import app from './app';
 import sequelize, { initializeDatabaseEncryption } from './database';
 import { seedLoad, ensureBaseUsers } from './utils/seeder';
+import { initRetentionScheduler } from './utils/retention';
 
 // import { initScheduler } from './utils/scheduler'; // Legacy - commented out
 import config from './config/AppConfig';
@@ -29,9 +30,13 @@ const startServer = async () => {
         const useAlter = process.env.DB_SYNC_ALTER === '1';
         if (useAlter) {
             try {
+                // For SQLite, alter sync often fails with FK constraints because it tries to drop and recreate tables.
+                await sequelize.query('PRAGMA foreign_keys = OFF;');
                 await sequelize.sync({ alter: true });
+                await sequelize.query('PRAGMA foreign_keys = ON;');
             } catch (syncError) {
                 console.error("Alter sync failed:", syncError);
+                await sequelize.query('PRAGMA foreign_keys = ON;'); // ensure it's re-enabled
                 await sequelize.sync(); // fallback
             }
         } else {
@@ -42,6 +47,9 @@ const startServer = async () => {
         
         // Ensure base users (admin, guard, auditor, demo) always exist
         await ensureBaseUsers();
+
+        // Start daily retention cleanup (logs + photos)
+        initRetentionScheduler();
 
         app.listen(PORT, () => {
             console.log(`\n Server running on http://localhost:${PORT}`);

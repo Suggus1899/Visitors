@@ -1,0 +1,19 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+
+# Agent directories
+.agent/
+.agents/
+
+# Archives
+*.zip
+
+# Environment
+.env
+.env.local

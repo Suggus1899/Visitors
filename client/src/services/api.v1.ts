@@ -13,6 +13,7 @@ const api = axios.create({
 
 // Import AuthService for token management
 // Note: We use dynamic import to avoid circular dependencies
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let authServicePromise: Promise<any> | null = null;
 const getAuthService = async () => {
     if (!authServicePromise) {
@@ -23,12 +24,10 @@ const getAuthService = async () => {
 
 /**
  * Request interceptor to inject Access Token
- * Requirement 3.8: Add Access Token to all authenticated requests
  */
 api.interceptors.request.use(
     async (config) => {
-        const authService = await getAuthService();
-        const token = authService.getAccessToken();
+        const token = localStorage.getItem('token');
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -125,7 +124,7 @@ api.interceptors.response.use(
 
                 // Redirect to login page
                 if (typeof window !== 'undefined') {
-                    window.location.href = '/login';
+                    window.location.href = '#/login';
                 }
 
                 return Promise.reject(refreshError);
@@ -155,6 +154,7 @@ interface VisitDTO {
     visitorCedula: string;
     purpose: string;
     checkInTime: string;
+    arrivalTime: string;
     checkOutTime?: string;
     status?: string;
     personToVisit?: string;
@@ -163,7 +163,20 @@ interface VisitDTO {
     visitorCompany?: string;
     company?: string;
     photoUrl?: string;
+    idPhotoUrl?: string;
     visitorPhoto?: string;
+    visitorIdPhoto?: string;
+    firstName?: string;
+    lastName?: string;
+    jobTitle?: string;
+    companionName?: string;
+    companionCedula?: string;
+    vehicleBrand?: string;
+    vehicleModel?: string;
+    vehiclePlate?: string;
+    area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+    action?: 'Carga' | 'Descarga' | 'Ninguna';
+    department?: string;
 }
 
 const adaptVisit = (v: VisitDTO): Visit => {
@@ -183,17 +196,29 @@ const adaptVisit = (v: VisitDTO): Visit => {
         visitor_cedula: v.visitorCedula,
         reason: v.purpose,
         check_in: v.checkInTime,
+        check_in_time: v.checkInTime,
+        arrival_time: v.arrivalTime,
         check_out: v.checkOutTime,
         status: (v.status ? v.status.toLowerCase() : 'active') as 'active' | 'completed',
         personToVisit: v.personToVisit,
+        person_to_visit: v.personToVisit,
         notes: v.notes,
+        companionName: v.companionName,
+        companionCedula: v.companionCedula,
+        vehicleBrand: v.vehicleBrand,
+        vehicleModel: v.vehicleModel,
+        vehiclePlate: v.vehiclePlate,
+        area: v.area,
+        action: v.action,
+        department: v.department,
         Visitor: {
             cedula: v.visitorCedula,
-            first_name: v.visitorName || 'Visitante',
-            last_name: '',
+            first_name: v.firstName || v.visitorName || 'Visitante',
+            last_name: v.lastName || '',
             company: v.visitorCompany || v.company || 'Sin empresa',
+            job_title: v.jobTitle,
             photo_url: getPhotoUrl(v.photoUrl || v.visitorPhoto) || undefined,
-            // Other fields might be missing in simple lists
+            id_photo_url: getPhotoUrl(v.idPhotoUrl || v.visitorIdPhoto) || undefined
         }
     };
 };
@@ -232,6 +257,11 @@ export const VisitService = {
 
     checkIn: async (data: {
         visitorCedula: string;
+        consent: {
+            accepted: boolean;
+            policyVersion: string;
+            acceptedAt: string;
+        };
         purpose: string;
         personToVisit: string;
         notes?: string;
