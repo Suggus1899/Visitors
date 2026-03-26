@@ -75,7 +75,7 @@ class AuthService {
             localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
 
             return user;
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Clear any existing tokens on login failure
             this.clearTokens();
             throw error;

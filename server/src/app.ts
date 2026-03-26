@@ -15,6 +15,7 @@ import backupCleanRoutes from "./routes/backup-clean.routes";
 import authCleanRoutes from "./routes/auth-clean.routes";
 import auditCleanRoutes from "./routes/audit-clean.routes";
 import privacyCleanRoutes from "./routes/privacy-clean.routes";
+import superadminRoutes from "./routes/superadmin.routes";
 import { captureClientInfo } from "./middleware/ipCapture";
 
 const app = express();
@@ -86,6 +87,7 @@ app.use("/api", backupCleanRoutes);
 app.use("/api", authCleanRoutes);
 app.use("/api", auditCleanRoutes);
 app.use("/api", privacyCleanRoutes);
+app.use("/api", superadminRoutes);
 
 // Global error handler - must be last middleware
 app.use(errorHandler);

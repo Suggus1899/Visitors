@@ -3,6 +3,15 @@ import { User, UserEntity } from '../../../domain/entities/User.entity';
 import UserModel from '../../../models/User';
 
 export class SequelizeUserRepository implements IUserRepository {
+  async findAll(): Promise<User[]> {
+    const users = await UserModel.findAll();
+    return users.map(user => this.toDomain(user));
+  }
+
+  async delete(id: number): Promise<void> {
+    await UserModel.destroy({ where: { id } });
+  }
+
   async findByUsername(username: string): Promise<User | null> {
     const userModel = await UserModel.findOne({ where: { username } });
     if (!userModel) return null;
@@ -34,8 +43,8 @@ export class SequelizeUserRepository implements IUserRepository {
     if (user.id) {
       await UserModel.update({
         username: user.username,
-        role: user.role,
-        password: user.password, // Only if changed? Usually handled by separate method or careful mapping
+        role: user.role as any,
+        password: user.password,
         resetToken: user.resetToken,
         resetTokenExpiry: user.resetTokenExpiry
       }, { where: { id: user.id } });
@@ -43,8 +52,8 @@ export class SequelizeUserRepository implements IUserRepository {
     } else {
       const newUser = await UserModel.create({
         username: user.username,
-        role: user.role,
-        password: user.password!, // Password required for new user
+        role: user.role as any,
+        password: user.password!,
         resetToken: user.resetToken,
         resetTokenExpiry: user.resetTokenExpiry
       });

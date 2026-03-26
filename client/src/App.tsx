@@ -8,6 +8,7 @@ import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import AdminDashboard from './components/AdminDashboard';
+import SuperAdminDashboard from './components/SuperAdminDashboard';
 import VisitForm from './components/VisitForm';
 import ActiveVisits from './components/ActiveVisits';
 import WaitingVisits from './components/WaitingVisits';
@@ -233,10 +234,17 @@ const AdminRoute = ({ children }: { children: JSX.Element }) => {
     return children;
 };
 
+const SuperAdminRoute = ({ children }: { children: JSX.Element }) => {
+    const { user, loading } = useAuth();
+    if (loading) return <div>Loading...</div>;
+    if (user?.role !== 'superadmin') return <Navigate to="/" />;
+    return children;
+};
+
 const AuditRoute = ({ children }: { children: JSX.Element }) => {
     const { user, loading } = useAuth();
     if (loading) return <div>Loading...</div>;
-    if (user?.role !== 'admin' && user?.role !== 'auditor') return <Navigate to="/" />;
+    if (user?.role !== 'admin' && user?.role !== 'auditor' && user?.role !== 'superadmin') return <Navigate to="/" />;
     return children;
 };
 
@@ -287,6 +295,11 @@ function AppRoutes() {
                     <AdminRoute>
                         <AdminDashboard />
                     </AdminRoute>
+                } />
+                <Route path="/superadmin" element={
+                    <SuperAdminRoute>
+                        <SuperAdminDashboard />
+                    </SuperAdminRoute>
                 } />
             </Routes>
 

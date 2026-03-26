@@ -84,9 +84,10 @@ export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeM
 
             // Close modal and allow navigation
             onPasswordChanged();
-        } catch (error: any) {
-            const serverErrors = error.response?.data?.error?.details || [
-                error.response?.data?.error?.message || 'Error al cambiar la contraseña'
+        } catch (error: unknown) {
+            const axiosError = error as { response?: { data?: { error?: { details?: string[]; message?: string } } } };
+            const serverErrors = axiosError.response?.data?.error?.details || [
+                axiosError.response?.data?.error?.message || 'Error al cambiar la contraseña'
             ];
             setErrors(Array.isArray(serverErrors) ? serverErrors : [serverErrors]);
         } finally {

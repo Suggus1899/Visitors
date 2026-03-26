@@ -20,7 +20,7 @@ export interface VisitEntity {
   vehicleBrand?: string;
   vehicleModel?: string;
   vehiclePlate?: string;
-  area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+  area?: string;
   action?: 'Carga' | 'Descarga' | 'Ninguna';
   department?: string;
 }
@@ -51,7 +51,7 @@ export class Visit {
     public readonly vehicleBrand?: string,
     public readonly vehicleModel?: string,
     public readonly vehiclePlate?: string,
-    public readonly area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna',
+    public readonly area?: string,
     public readonly action?: 'Carga' | 'Descarga' | 'Ninguna',
     public readonly department?: string
   ) {

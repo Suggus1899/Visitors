@@ -42,7 +42,9 @@ const Login = () => {
             toast.success(`¡Bienvenido, ${user.username}!`);
             login(token, { username: user.username, role: user.role });
 
-            if (user.role === 'auditor') {
+            if (user.role === 'superadmin') {
+                setTimeout(() => navigate('/superadmin'), 500);
+            } else if (user.role === 'auditor') {
                 setTimeout(() => navigate('/audit'), 500);
             } else {
                 setTimeout(() => navigate('/'), 500);

@@ -11,14 +11,23 @@ class VisitModel extends Model<InferAttributes<VisitModel>, InferCreationAttribu
     declare check_out_time: CreationOptional<Date | null>;
     declare status: CreationOptional<'waiting' | 'active' | 'completed'>;
     declare notes: CreationOptional<string | null>;
+
+    // Timestamp lifecycle fields (ISO 8601)
+    declare arrival_time: CreationOptional<Date | null>;  // When visitor arrives at reception
+    declare entry_time: CreationOptional<Date | null>;    // When visitor enters the premises
+    declare exit_time: CreationOptional<Date | null>;     // When visitor fully departs
+
+    // Explicit relational fields (complements department / person_to_visit)
+    declare target_department: CreationOptional<string | null>;  // Area/Department to visit
+    declare host_person: CreationOptional<string | null>;        // Specific person to visit
     
-    // New fields for 'Pase de Entrada'
+    // Pase de Entrada fields
     declare companion_name: CreationOptional<string | null>;
     declare companion_cedula: CreationOptional<string | null>;
     declare vehicle_brand: CreationOptional<string | null>;
     declare vehicle_model: CreationOptional<string | null>;
     declare vehicle_plate: CreationOptional<string | null>;
-    declare area: CreationOptional<'Oficina' | 'Planta' | 'Almacén' | 'Ninguna'>;
+    declare area: CreationOptional<string | null>;
     declare action: CreationOptional<'Carga' | 'Descarga' | 'Ninguna'>;
     declare department: CreationOptional<string | null>;
 
@@ -60,6 +69,34 @@ VisitModel.init({
         type: DataTypes.TEXT,
         allowNull: true
     },
+    // --- Timestamp Lifecycle ---
+    arrival_time: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'ISO 8601 — when the visitor arrived at the reception gate'
+    },
+    entry_time: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'ISO 8601 — when the visitor was authorized and entered the premises'
+    },
+    exit_time: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'ISO 8601 — when the visitor fully departed the premises'
+    },
+    // --- Relational Fields ---
+    target_department: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: 'The department or area the visitor is heading to'
+    },
+    host_person: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: 'The specific person the visitor has an appointment with'
+    },
+    // --- Pase de Entrada ---
     companion_name: {
         type: DataTypes.STRING,
         allowNull: true
@@ -81,8 +118,8 @@ VisitModel.init({
         allowNull: true
     },
     area: {
-        type: DataTypes.ENUM('Oficina', 'Planta', 'Almacén', 'Ninguna'),
-        defaultValue: 'Ninguna'
+        type: DataTypes.STRING,
+        allowNull: true
     },
     action: {
         type: DataTypes.ENUM('Carga', 'Descarga', 'Ninguna'),

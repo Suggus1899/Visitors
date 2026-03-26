@@ -5,8 +5,11 @@ import Clock from 'lucide-react/dist/esm/icons/clock';
 import FolderOpen from 'lucide-react/dist/esm/icons/folder-open';
 import Play from 'lucide-react/dist/esm/icons/play';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
+import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import XCircle from 'lucide-react/dist/esm/icons/x-circle';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import Lock from 'lucide-react/dist/esm/icons/lock';
 
 interface Backup {
     name: string;
@@ -24,6 +27,14 @@ const BackupPanel = () => {
     const [loading, setLoading] = useState(true);
     const [running, setRunning] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    
+    // Restore modal state
+    const [restoreModal, setRestoreModal] = useState<{ open: boolean; backupName: string; password: string }>({ 
+        open: false, 
+        backupName: '', 
+        password: '' 
+    });
+    const [restoring, setRestoring] = useState(false);
 
     const fetchBackups = useCallback(async () => {
         try {
@@ -53,7 +64,11 @@ const BackupPanel = () => {
             });
 
             if (response.data?.success) {
-                setMessage({ type: 'success', text: 'Backup completado exitosamente' });
+                const restorePassword = response.data?.data?.restorePassword;
+                setMessage({ 
+                    type: 'success', 
+                    text: `Backup completado. Contraseña de restauración: ${restorePassword}. ¡Guárdela en un lugar seguro!` 
+                });
                 fetchBackups();
             }
         } catch (err: unknown) {
@@ -64,6 +79,50 @@ const BackupPanel = () => {
             setMessage({ type: 'error', text: errorMsg });
         } finally {
             setRunning(false);
+        }
+    };
+
+    const openRestoreModal = (backupName: string) => {
+        setRestoreModal({ open: true, backupName, password: '' });
+    };
+
+    const closeRestoreModal = () => {
+        setRestoreModal({ open: false, backupName: '', password: '' });
+    };
+
+    const handleRestore = async () => {
+        if (!restoreModal.password.trim()) {
+            setMessage({ type: 'error', text: 'Ingrese la contraseña de restauración' });
+            return;
+        }
+
+        try {
+            setRestoring(true);
+            setMessage(null);
+            const token = localStorage.getItem('token');
+            
+            const response = await axios.post(
+                `http://localhost:3000/api/v1/backups/${encodeURIComponent(restoreModal.backupName)}/restore`,
+                { restorePassword: restoreModal.password },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (response.data?.success) {
+                setMessage({ type: 'success', text: 'Backup restaurado exitosamente. La página se recargará...' });
+                closeRestoreModal();
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        } catch (err: unknown) {
+            let errorMsg = 'Error al restaurar el backup';
+            if (axios.isAxiosError(err) && err.response?.data?.error?.message) {
+                errorMsg = err.response.data.error.message;
+                if (err.response.status === 401) {
+                    errorMsg = 'Contraseña de restauración incorrecta';
+                }
+            }
+            setMessage({ type: 'error', text: errorMsg });
+        } finally {
+            setRestoring(false);
         }
     };
 
@@ -123,6 +182,70 @@ const BackupPanel = () => {
                 </div>
             )}
 
+            {/* Restore Modal */}
+            {restoreModal.open && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-[color:var(--surface-0)] rounded-lg p-6 max-w-md w-full mx-4 border border-[color:var(--border-1)]">
+                        <div className="flex items-center gap-2 mb-4 text-amber-400">
+                            <AlertTriangle size={24} />
+                            <h3 className="text-lg font-semibold">Restaurar Backup</h3>
+                        </div>
+                        
+                        <p className="text-[color:var(--text-2)] mb-4 text-sm">
+                            Está a punto de restaurar: <strong>{restoreModal.backupName}</strong>
+                        </p>
+                        
+                        <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-3 mb-4">
+                            <p className="text-red-300 text-sm">
+                                <strong>Advertencia:</strong> Esto sobrescribirá toda la base de datos actual. 
+                                Los datos actuales se perderán.
+                            </p>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm text-[color:var(--text-2)] mb-2">
+                                <Lock size={14} className="inline mr-1" />
+                                Contraseña de restauración (formato: trebol-XXXX-XXXX)
+                            </label>
+                            <input
+                                type="text"
+                                value={restoreModal.password}
+                                onChange={(e) => setRestoreModal({ ...restoreModal, password: e.target.value })}
+                                placeholder="trebol-..."
+                                className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
+                            />
+                        </div>
+
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={closeRestoreModal}
+                                className="btn-ghost px-4 py-2"
+                                disabled={restoring}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleRestore}
+                                disabled={restoring || !restoreModal.password.trim()}
+                                className="btn-tech px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                            >
+                                {restoring ? (
+                                    <>
+                                        <RefreshCw size={16} className="animate-spin mr-1" />
+                                        Restaurando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RotateCcw size={16} className="mr-1" />
+                                        Restaurar
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Message */}
             {message && (
                 <div className={`p-3 rounded-lg mb-4 flex items-center gap-2 border ${message.type === 'success' ? 'border-[color:var(--accent-0)] text-[color:var(--accent-0)]' : 'border-red-400 text-red-300'} bg-[color:var(--surface-2)]`}>
@@ -150,6 +273,14 @@ const BackupPanel = () => {
                                     <div className="text-xs text-[color:var(--text-3)]">Creado: {formatDate(backup.date)}</div>
                                 </div>
                             </div>
+                            <button
+                                onClick={() => openRestoreModal(backup.name)}
+                                className="btn-ghost px-3 py-1.5 text-sm flex items-center gap-1.5 hover:text-[color:var(--accent-0)]"
+                                title="Restaurar este backup"
+                            >
+                                <RotateCcw size={14} />
+                                Restaurar
+                            </button>
                         </div>
                     ))}
                 </div>

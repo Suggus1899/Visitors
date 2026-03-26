@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
 import config from '../../config/AppConfig';
-import { IBackupService, BackupFile } from '../../domain/services/IBackupService';
+import { IBackupService, BackupFile, BackupResult } from '../../domain/services/IBackupService';
 
 export class SqliteBackupService implements IBackupService {
   private dbPath: string;
@@ -19,6 +19,35 @@ export class SqliteBackupService implements IBackupService {
     }
   }
 
+  /**
+   * Genera contraseña única en formato: trebol-[8 aleatorios]-[PIN 4 dígitos]
+   * Ejemplo: trebol-X7kM9pQ2-4829
+   */
+  private generateRestorePassword(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let randomPart = '';
+    for (let i = 0; i < 8; i++) {
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const pin = Math.floor(1000 + Math.random() * 9000).toString(); // 1000-9999
+    return `trebol-${randomPart}-${pin}`;
+  }
+
+  /**
+   * Genera hash SHA-256 de la contraseña para almacenamiento seguro
+   */
+  private hashPassword(password: string): string {
+    return crypto.createHash('sha256').update(password).digest('hex');
+  }
+
+  /**
+   * Obtiene la ruta del archivo .meta asociado a un backup
+   */
+  private getMetaPath(backupName: string): string {
+    const baseName = backupName.replace('.sqlite.enc', '').replace('.sqlite', '');
+    return path.join(this.backupPath, `${baseName}.meta`);
+  }
+
   private getKey(): Buffer {
     const password = config.backupPassword || config.dbEncryptionKey || config.encryptionKey;
     if (!password) {
@@ -29,10 +58,14 @@ export class SqliteBackupService implements IBackupService {
     return crypto.scryptSync(password, 'backup-salt', 32);
   }
 
-  async createBackup(): Promise<string> {
+  async createBackup(): Promise<BackupResult> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupName = `backup-${timestamp}.sqlite.enc`;
     const targetPath = path.join(this.backupPath, backupName);
+
+    // Generar contraseña única de restauración
+    const restorePassword = this.generateRestorePassword();
+    const passwordHash = this.hashPassword(restorePassword);
 
     const key = this.getKey();
     const iv = crypto.randomBytes(16);
@@ -46,12 +79,6 @@ export class SqliteBackupService implements IBackupService {
     output.write(iv);
 
     return new Promise((resolve, reject) => {
-      // Stream: DB -> Gzip -> Encrypt -> File
-      // Note: GCM auth tag handling in streams is tricky. 
-      // Cipher.getAuthTag() is only available after final().
-      // Can we append AuthTag at the end?
-      // Yes.
-      
       const pipe = input.pipe(gzip).pipe(cipher);
       
       pipe.pipe(output, { end: false });
@@ -60,7 +87,20 @@ export class SqliteBackupService implements IBackupService {
         const authTag = (cipher as any).getAuthTag();
         output.write(authTag);
         output.end();
-        resolve(targetPath);
+        
+        // Guardar metadata con hash de contraseña
+        const metaPath = this.getMetaPath(backupName);
+        const metaData = {
+          createdAt: new Date().toISOString(),
+          passwordHash: passwordHash,
+          originalName: backupName
+        };
+        fs.writeFileSync(metaPath, JSON.stringify(metaData, null, 2));
+        
+        resolve({
+          filePath: targetPath,
+          restorePassword: restorePassword
+        });
       });
 
       pipe.on('error', (err) => reject(err));
@@ -97,10 +137,34 @@ export class SqliteBackupService implements IBackupService {
     return backupFiles.sort((a, b) => b.date.getTime() - a.date.getTime());
   }
 
-  async restoreBackup(filename: string): Promise<void> {
+  /**
+   * Verifica si la contraseña de restauración es válida para un backup
+   */
+  async verifyRestorePassword(filename: string, password: string): Promise<boolean> {
+    const metaPath = this.getMetaPath(filename);
+    
+    if (!fs.existsSync(metaPath)) {
+      // Si no hay archivo .meta, es un backup antiguo - no requiere contraseña adicional
+      return true;
+    }
+
+    const metaContent = await fs.promises.readFile(metaPath, 'utf-8');
+    const metaData = JSON.parse(metaContent);
+    
+    const providedHash = this.hashPassword(password);
+    return providedHash === metaData.passwordHash;
+  }
+
+  async restoreBackup(filename: string, restorePassword: string): Promise<void> {
     const sourcePath = path.join(this.backupPath, filename);
     if (!fs.existsSync(sourcePath)) {
         throw new Error('Backup file not found');
+    }
+
+    // Verificar contraseña de restauración
+    const isValid = await this.verifyRestorePassword(filename, restorePassword);
+    if (!isValid) {
+      throw new Error('Invalid restore password');
     }
 
     if (filename.endsWith('.enc')) {
@@ -146,6 +210,12 @@ export class SqliteBackupService implements IBackupService {
       const targetPath = path.join(this.backupPath, filename);
       if (fs.existsSync(targetPath)) {
           await fs.promises.unlink(targetPath);
+      }
+      
+      // También eliminar el archivo .meta asociado
+      const metaPath = this.getMetaPath(filename);
+      if (fs.existsSync(metaPath)) {
+          await fs.promises.unlink(metaPath);
       }
   }
 }

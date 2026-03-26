@@ -13,11 +13,14 @@ vi.mock('../components/PhotoCapture', () => ({
 
 const baseProps = {
   formData: {
-    area: 'Ninguna',
-    action: 'Ninguna',
+    target_department: '',
+    host_person: '',
+    area: '',
     department: '',
+    reason: '',
     photo_url: '',
-    id_photo_url: ''
+    id_photo_url: '',
+    consent_accepted: false
   },
   loading: false,
   canSubmit: false,
@@ -32,16 +35,40 @@ const baseProps = {
 };
 
 describe('VisitDetailsStep', () => {
-  it('renders the department input', () => {
+  it('renders the target_department input', () => {
     render(<VisitDetailsStep {...baseProps} />);
-    expect(screen.getByPlaceholderText(/RRHH, Ing\. Carlos/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Recursos Humanos, Finanzas/i)).toBeInTheDocument();
   });
 
-  it('calls onFormDataChange when department input changes', () => {
+  it('renders the host_person input', () => {
+    render(<VisitDetailsStep {...baseProps} />);
+    expect(screen.getByPlaceholderText(/Ing\. Carlos Machado/i)).toBeInTheDocument();
+  });
+
+  it('renders the area input', () => {
+    render(<VisitDetailsStep {...baseProps} />);
+    expect(screen.getByPlaceholderText(/Oficina Principal, Almacén 2/i)).toBeInTheDocument();
+  });
+
+  it('calls onFormDataChange when target_department input changes', () => {
     const onFormDataChange = vi.fn();
     render(<VisitDetailsStep {...baseProps} onFormDataChange={onFormDataChange} />);
-    fireEvent.change(screen.getByPlaceholderText(/RRHH, Ing\. Carlos/), { target: { value: 'Gerencia' } });
-    expect(onFormDataChange).toHaveBeenCalledWith('department', 'Gerencia');
+    fireEvent.change(screen.getByPlaceholderText(/Recursos Humanos, Finanzas/i), { target: { value: 'Gerencia' } });
+    expect(onFormDataChange).toHaveBeenCalledWith('target_department', 'Gerencia');
+  });
+
+  it('calls onFormDataChange when host_person input changes', () => {
+    const onFormDataChange = vi.fn();
+    render(<VisitDetailsStep {...baseProps} onFormDataChange={onFormDataChange} />);
+    fireEvent.change(screen.getByPlaceholderText(/Ing\. Carlos Machado/i), { target: { value: 'Carlos López' } });
+    expect(onFormDataChange).toHaveBeenCalledWith('host_person', 'Carlos López');
+  });
+
+  it('calls onFormDataChange when reason input changes', () => {
+    const onFormDataChange = vi.fn();
+    render(<VisitDetailsStep {...baseProps} onFormDataChange={onFormDataChange} />);
+    fireEvent.change(screen.getByPlaceholderText(/Indique el motivo de la visita/i), { target: { value: 'Reunión comercial' } });
+    expect(onFormDataChange).toHaveBeenCalledWith('reason', 'Reunión comercial');
   });
 
   it('shows required photo message when photo_url is empty', () => {

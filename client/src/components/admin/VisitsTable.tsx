@@ -13,7 +13,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-type SortField = 'visitor' | 'check_in' | 'check_out' | 'reason' | 'status';
+type SortField = 'visitor' | 'check_in' | 'check_out' | 'arrival_time' | 'entry_time' | 'exit_time' | 'reason' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 interface Filters {
@@ -68,16 +68,18 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
         doc.setFontSize(10).setFont('helvetica', 'normal');
         doc.text(`Generado por: ${username} el ${new Date().toLocaleString()}`, 14, 35);
         doc.text(`Total visitas (filtrado): ${visits.length}`, 14, 42);
+        const ts = (dt?: string | null) => dt ? new Date(dt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-';
         const tableData = visits.map(visit => ([
             `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''}`.trim(),
             visit.Visitor?.company || '',
-            visit.reason || '',
-            new Date(visit.check_in || visit.check_in_time || '').toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }),
-            (visit.check_out || visit.check_out_time) ? new Date(visit.check_out || visit.check_out_time!).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-',
+            visit.reason || visit.purpose || '',
+            ts(visit.arrival_time),
+            ts(visit.entry_time || visit.check_in || visit.check_in_time),
+            ts(visit.exit_time || visit.check_out || visit.check_out_time),
             visit.status === 'active' ? 'Activo' : 'Completado'
         ]));
         autoTable(doc, {
-            startY: 50, head: [['Nombre', 'Empresa', 'Motivo', 'Entrada', 'Salida', 'Estado']],
+            startY: 50, head: [['Nombre', 'Empresa', 'Motivo', 'Llegada', 'Entrada', 'Salida Final', 'Estado']],
             body: tableData, theme: 'striped',
             headStyles: { fillColor: [45, 212, 191], textColor: 255 }, styles: { fontSize: 8, cellPadding: 2 }
         });
@@ -85,13 +87,15 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
     };
 
     const exportExcel = () => {
+        const ts = (dt?: string | null) => dt ? new Date(dt).toLocaleString('es-ES') : '-';
         const workSheet = XLSX.utils.json_to_sheet(visits.map(v => ({
             Nombre: `${v.Visitor?.first_name || ''} ${v.Visitor?.last_name || ''}`.trim(),
             Empresa: v.Visitor?.company || '',
-            Entrada: new Date(v.check_in || v.check_in_time || '').toLocaleString(),
-            Salida: (v.check_out || v.check_out_time) ? new Date(v.check_out || v.check_out_time!).toLocaleString() : '-',
-            Estado: v.status === 'active' ? 'Activo' : 'Completado',
-            Motivo: v.reason || ''
+            Motivo: v.reason || v.purpose || '',
+            Llegada: ts(v.arrival_time),
+            Entrada: ts(v.entry_time || v.check_in || v.check_in_time),
+            'Salida Final': ts(v.exit_time || v.check_out || v.check_out_time),
+            Estado: v.status === 'active' ? 'Activo' : 'Completado'
         })));
         const workBook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workBook, workSheet, 'Visitas');
@@ -136,10 +140,17 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-[color:var(--surface-2)] text-[color:var(--text-3)] uppercase text-xs">
-                            {(['visitor', 'check_in', 'check_out', 'reason', 'status'] as SortField[]).map(field => (
+                            {([
+                                'visitor', 'arrival_time', 'entry_time', 'exit_time', 'reason', 'status'
+                            ] as SortField[]).map(field => (
                                 <th key={field} className="p-4 border-b border-[color:var(--border-1)] cursor-pointer hover:bg-[color:var(--surface-1)] transition-colors" onClick={() => onSort(field)}>
                                     <div className="flex items-center gap-2">
-                                        {field === 'visitor' ? 'Visitante' : field === 'check_in' ? 'Entrada' : field === 'check_out' ? 'Salida' : field === 'reason' ? 'Motivo' : 'Estado'}
+                                        {field === 'visitor' ? 'Visitante'
+                                            : field === 'arrival_time' ? 'Llegada'
+                                            : field === 'entry_time' ? 'Entrada'
+                                            : field === 'exit_time' ? 'Salida'
+                                            : field === 'reason' ? 'Motivo'
+                                            : 'Estado'}
                                         <SortIcon field={field} sortField={sortField} sortDirection={sortDirection} />
                                     </div>
                                 </th>
@@ -147,24 +158,28 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                         </tr>
                     </thead>
                     <tbody className="text-sm">
-                        {sortedVisits.length > 0 ? sortedVisits.map((vis) => (
+                        {sortedVisits.length > 0 ? sortedVisits.map((vis) => {
+                            const ts = (dt?: string | null) => dt ? new Date(dt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+                            return (
                             <tr key={vis.id} className="hover:bg-[color:var(--surface-2)] border-b border-[color:var(--border-1)] last:border-0 transition-colors">
                                 <td className="p-4">
                                     <div className="font-semibold text-[color:var(--text-1)]">{`${vis.Visitor?.first_name || ''} ${vis.Visitor?.last_name || ''}`.trim()}</div>
-                                    <div className="text-xs text-[color:var(--text-3)]">{vis.Visitor?.company || ''} - {vis.Visitor?.cedula || ''}</div>
+                                    <div className="text-xs text-[color:var(--text-3)]">{vis.Visitor?.company || ''} · {vis.Visitor?.cedula || ''}</div>
                                 </td>
-                                <td className="p-4 text-[color:var(--text-2)]">{new Date(vis.check_in || vis.check_in_time || '').toLocaleString()}</td>
-                                <td className="p-4 text-[color:var(--text-2)]">{(vis.check_out || vis.check_out_time) ? new Date(vis.check_out || vis.check_out_time!).toLocaleString() : '-'}</td>
-                                <td className="p-4 text-[color:var(--text-2)]">{vis.reason}</td>
+                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(vis.arrival_time)}</td>
+                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(vis.entry_time || vis.check_in || vis.check_in_time)}</td>
+                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(vis.exit_time || vis.check_out || vis.check_out_time)}</td>
+                                <td className="p-4 text-[color:var(--text-2)] text-sm max-w-[12rem] truncate">{vis.reason || vis.purpose}</td>
                                 <td className="p-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${vis.status === 'active' ? 'border-[color:var(--accent-0)] text-[color:var(--accent-0)]' : 'border-[color:var(--border-1)] text-[color:var(--text-3)]'}`}>
                                         {vis.status === 'active' ? 'ACTIVO' : 'COMPLETADO'}
                                     </span>
                                 </td>
                             </tr>
-                        )) : (
+                            );
+                        }) : (
                             <tr>
-                                <td colSpan={5} className="p-8 text-center text-[color:var(--text-3)]">
+                                <td colSpan={6} className="p-8 text-center text-[color:var(--text-3)]">
                                     <Search size={32} className="mx-auto mb-2 opacity-30" />
                                     No se encontraron visitas con los filtros seleccionados
                                 </td>

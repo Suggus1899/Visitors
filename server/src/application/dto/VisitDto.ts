@@ -28,7 +28,7 @@ export interface CheckInDto {
   vehicleBrand?: string;
   vehicleModel?: string;
   vehiclePlate?: string;
-  area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+  area?: string;
   action?: 'Carga' | 'Descarga' | 'Ninguna';
   department?: string;
 }
@@ -79,7 +79,7 @@ export interface VisitResponseDto {
   vehicleBrand?: string;
   vehicleModel?: string;
   vehiclePlate?: string;
-  area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+  area?: string;
   action?: 'Carga' | 'Descarga' | 'Ninguna';
   department?: string;
 }

@@ -13,11 +13,14 @@ const api = axios.create({
 
 // Import AuthService for token management
 // Note: We use dynamic import to avoid circular dependencies
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let authServicePromise: Promise<any> | null = null;
-const getAuthService = async () => {
+type AuthServiceType = {
+    refreshAccessToken: () => Promise<string>;
+    logout: () => void;
+};
+let authServicePromise: Promise<AuthServiceType> | null = null;
+const getAuthService = async (): Promise<AuthServiceType> => {
     if (!authServicePromise) {
-        authServicePromise = import('./AuthService').then(module => module.default);
+        authServicePromise = import('./AuthService').then(module => module.default as AuthServiceType);
     }
     return authServicePromise;
 };
@@ -154,10 +157,14 @@ interface VisitDTO {
     visitorCedula: string;
     purpose: string;
     checkInTime: string;
-    arrivalTime: string;
+    arrivalTime?: string;
+    entryTime?: string;
+    exitTime?: string;
     checkOutTime?: string;
     status?: string;
     personToVisit?: string;
+    targetDepartment?: string;
+    hostPerson?: string;
     notes?: string;
     visitorName?: string;
     visitorCompany?: string;
@@ -174,7 +181,7 @@ interface VisitDTO {
     vehicleBrand?: string;
     vehicleModel?: string;
     vehiclePlate?: string;
-    area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+    area?: string;
     action?: 'Carga' | 'Descarga' | 'Ninguna';
     department?: string;
 }
@@ -195,13 +202,19 @@ const adaptVisit = (v: VisitDTO): Visit => {
         id: v.id,
         visitor_cedula: v.visitorCedula,
         reason: v.purpose,
+        purpose: v.purpose,
         check_in: v.checkInTime,
         check_in_time: v.checkInTime,
         arrival_time: v.arrivalTime,
+        entry_time: v.entryTime,
+        exit_time: v.exitTime,
         check_out: v.checkOutTime,
-        status: (v.status ? v.status.toLowerCase() : 'active') as 'active' | 'completed',
+        check_out_time: v.checkOutTime,
+        status: (v.status ? v.status.toLowerCase() : 'active') as 'waiting' | 'active' | 'completed',
         personToVisit: v.personToVisit,
         person_to_visit: v.personToVisit,
+        target_department: v.targetDepartment,
+        host_person: v.hostPerson,
         notes: v.notes,
         companionName: v.companionName,
         companionCedula: v.companionCedula,
@@ -264,6 +277,8 @@ export const VisitService = {
         };
         purpose: string;
         personToVisit: string;
+        targetDepartment?: string;
+        hostPerson?: string;
         notes?: string;
         status?: string;
         companionName?: string;

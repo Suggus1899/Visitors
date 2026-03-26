@@ -31,3 +31,12 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
     }
     next();
 };
+
+export const isSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
+    const userRole = (req.user as jwt.JwtPayload)?.role;
+
+    if (userRole !== 'superadmin') {
+        return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Super Admin Role'));
+    }
+    next();
+};

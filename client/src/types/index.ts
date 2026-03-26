@@ -16,6 +16,20 @@ export interface Visitor {
     phone?: string;
 }
 
+/**
+ * Represents a temporary exit/re-entry event during an active visit.
+ * Stored in the IntermittentLogs relational table.
+ */
+export interface IntermittentLog {
+    id: number;
+    visit_id: number;
+    /** ISO 8601 — timestamp of temporary exit */
+    check_out: string;
+    /** ISO 8601 — timestamp of re-entry; undefined/null means visitor is still outside */
+    re_entry?: string | null;
+    notes?: string | null;
+}
+
 export interface Visit {
     id: number;
     visitor_cedula: string;
@@ -29,6 +43,15 @@ export interface Visit {
     personToVisit?: string;
     person_to_visit?: string;
     notes?: string;
+
+    // --- ISO 8601 Timestamp Lifecycle ---
+    arrival_time?: string;    // When visitor arrived at reception gate
+    entry_time?: string;      // When visitor entered the premises
+    exit_time?: string;       // When visitor fully departed
+
+    // --- Explicit Relational Fields ---
+    target_department?: string;  // Area/Department being visited
+    host_person?: string;        // Specific person being visited
     
     // Pase de Entrada
     companionName?: string;
@@ -36,9 +59,12 @@ export interface Visit {
     vehicleBrand?: string;
     vehicleModel?: string;
     vehiclePlate?: string;
-    area?: 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna';
+    area?: string;
     action?: 'Carga' | 'Descarga' | 'Ninguna';
     department?: string;
+
+    // Intermittent access log sub-collection
+    intermittent_logs?: IntermittentLog[];
 
     Visitor?: Visitor;
 }

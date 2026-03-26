@@ -61,9 +61,10 @@ const verify = async () => {
 
         // 5. Backup
         console.log('--- TEST 5: Backup ---');
-        const backupPath = await backupService.createBackup();
-        console.log('Backup created at:', backupPath);
-        if (!backupPath.endsWith('.enc')) throw new Error('Backup file extension not .enc');
+        const backupResult = await backupService.createBackup();
+        console.log('Backup created at:', backupResult.filePath);
+        console.log('Restore password:', backupResult.restorePassword);
+        if (!backupResult.filePath.endsWith('.enc')) throw new Error('Backup file extension not .enc');
 
         // 6. Restore (Optional - risky to run on dev DB if valid data exists, but okay for test env)
         // console.log('--- TEST 6: Restore ---');

@@ -10,7 +10,7 @@ import WizardProgress from './visit/WizardProgress';
 import VisitorLookupStep from './visit/VisitorLookupStep';
 import VisitorInfoStep from './visit/VisitorInfoStep';
 import VisitDetailsStep from './visit/VisitDetailsStep';
-import VehicleInfoStep from './visit/VehicleInfoStep';
+import VehicleInfoStep, { Companion } from './visit/VehicleInfoStep';
 
 interface VisitFormProps {
     onVisitAdded: () => void;
@@ -32,19 +32,22 @@ const INITIAL_FORM_DATA = {
     phone: '',
     photo_url: '',
     id_photo_url: '',
-    reason: 'Ninguna', // Re-used for purpose mapping in DB momentarily or just map Area
-    
+    reason: '',
+
+    // New mandatory Step 4 fields
+    target_department: '',
+    host_person: '',
+
     // Pase de Entrada
     has_companion: false,
-    companion_name: '',
-    companion_cedula: '',
+    companions: [{ name: '', cedula: '' }] as Companion[],
     has_vehicle: false,
     vehicle_brand: '',
     vehicle_model: '',
     vehicle_plate: '',
-    area: 'Ninguna' as 'Oficina' | 'Planta' | 'Almacén' | 'Ninguna',
-    action: 'Ninguna' as 'Carga' | 'Descarga' | 'Ninguna',
-    department: ''
+    area: '',
+    department: '',
+    consent_accepted: false
 };
 
 const INITIAL_VALIDATION: ValidationState = {
@@ -105,14 +108,14 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         try {
             const visitor = await VisitService.getVisitorByCedula(cedula) as Visitor;
             if (visitor) {
-                setFormData({ 
-                    ...formData, 
-                    first_name: visitor.first_name || '', 
-                    last_name: visitor.last_name || '', 
-                    company: visitor.company, 
-                    job_title: visitor.job_title || '', 
-                    phone: visitor.phone || '', 
-                    photo_url: visitor.photo_url || '' 
+                setFormData({
+                    ...formData,
+                    first_name: visitor.first_name || '',
+                    last_name: visitor.last_name || '',
+                    company: visitor.company,
+                    job_title: visitor.job_title || '',
+                    phone: visitor.phone || '',
+                    photo_url: visitor.photo_url || ''
                 });
                 setValidation({ cedula: true, first_name: !!visitor.first_name, last_name: !!visitor.last_name, company: !!visitor.company, phone: null });
                 toast.success('Visitante encontrado');
@@ -129,27 +132,41 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     };
 
     const handleSubmit = async (status: 'active' | 'waiting') => {
-        if (!formData.first_name || !formData.last_name || !cedula) {
+        if (!formData.first_name || !formData.last_name || !cedula || !formData.reason.trim()) {
             toast.error('Complete los campos obligatorios'); return;
         }
         setLoading(true);
         try {
             const fullPhone = formData.phone ? `${phoneCode}${formData.phone}` : '';
+
+            // Serialize companions list into the single-value backend fields
+            const activeCompanions = formData.has_companion
+                ? formData.companions.filter(c => c.name.trim().length > 0)
+                : [];
+            const companionName  = activeCompanions.map(c => c.name.trim()).join(', ') || undefined;
+            const companionCedula = activeCompanions.map(c => c.cedula.trim()).filter(Boolean).join(', ') || undefined;
+
             await VisitService.checkIn({
                 visitorCedula: cedula,
+                consent: {
+                    accepted: formData.consent_accepted,
+                    policyVersion: '1.0',
+                    acceptedAt: new Date().toISOString()
+                },
                 visitorData: { firstName: formData.first_name, lastName: formData.last_name, company: formData.company, jobTitle: formData.job_title, phone: fullPhone, photoBase64: formData.photo_url, idPhotoBase64: formData.id_photo_url },
-                purpose: `Área: ${formData.area} | Dpto: ${formData.department} | Acción: ${formData.action}`,
-                personToVisit: formData.department || 'Recepcion',
+                purpose: formData.reason.trim(),
+                personToVisit: formData.host_person || formData.department || 'Recepcion',
+                targetDepartment: formData.target_department,
+                hostPerson: formData.host_person,
                 notes: '',
                 status,
-                companionName: formData.has_companion ? formData.companion_name : undefined,
-                companionCedula: formData.has_companion ? formData.companion_cedula : undefined,
+                companionName,
+                companionCedula,
                 vehicleBrand: formData.has_vehicle ? formData.vehicle_brand : undefined,
                 vehicleModel: formData.has_vehicle ? formData.vehicle_model : undefined,
                 vehiclePlate: formData.has_vehicle ? formData.vehicle_plate : undefined,
                 area: formData.area,
-                action: formData.action,
-                department: formData.department
+                department: formData.target_department || formData.department
             });
             playSuccess();
             toast.success('¡Entrada registrada correctamente!');
@@ -174,12 +191,20 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     const canProceedStep1 = validation.cedula === true && validation.first_name === true && validation.last_name === true;
     const canProceedStep2 = validation.company === true;
     
-    // Step 3 (Info Extra: Companion & Vehicle toggles/details)
-    const canProceedStep3 = (!formData.has_companion || (formData.has_companion && formData.companion_name.length > 2)) && 
-                            (!formData.has_vehicle || (formData.has_vehicle && formData.vehicle_plate.length > 2 && formData.vehicle_brand.length > 2));
+    // Step 3 validation: if has_companion, every companion must have a name
+    const canProceedStep3 =
+        (!formData.has_companion || formData.companions.every(c => c.name.trim().length > 2)) &&
+        (!formData.has_vehicle || (formData.vehicle_plate.length > 2 && formData.vehicle_brand.length > 2));
     
-    // Step 4 (Photos & Area/Action)
-    const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3 && formData.photo_url.length > 0 && formData.id_photo_url.length > 0 && formData.area !== 'Ninguna' && formData.department.trim().length > 0;
+    // Step 4 (Photos & Area/Action & Consent)
+    const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3 
+        && formData.photo_url.length > 0 
+        && formData.id_photo_url.length > 0 
+        && formData.area.trim().length > 0
+        && formData.target_department.trim().length > 0
+        && formData.host_person.trim().length > 0
+        && formData.reason.trim().length > 0
+        && formData.consent_accepted === true;
 
     return (
         <div className="panel-tech p-6 rounded-2xl relative overflow-hidden">

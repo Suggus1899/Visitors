@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'guard' | 'auditor';
+export type UserRole = 'admin' | 'guard' | 'auditor' | 'superadmin';
 
 export interface UserEntity {
   id?: number;

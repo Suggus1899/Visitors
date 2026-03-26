@@ -29,7 +29,7 @@ export async function migrateVisitSchema() {
         person_to_visit TEXT NOT NULL,
         check_in_time DATETIME DEFAULT CURRENT_TIMESTAMP,
         check_out_time DATETIME,
-        status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed')),
+        status TEXT DEFAULT 'active' CHECK(status IN ('waiting', 'active', 'completed')),
         notes TEXT,
         createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

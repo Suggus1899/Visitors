@@ -5,9 +5,11 @@ import PhotoCapture from '../PhotoCapture';
 
 interface VisitDetailsStepProps {
     formData: {
+        target_department: string;
+        host_person: string;
         area: string;
-        action: string;
         department: string;
+        reason: string;
         photo_url: string;
         id_photo_url: string;
         consent_accepted: boolean;
@@ -34,48 +36,61 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
 
     return (
         <div className="space-y-4 animate-slideUp">
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
-                        Área de Visita <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                        value={formData.area}
-                        onChange={(e) => onFormDataChange('area', e.target.value)}
-                        className={`${getInputClass(formData.area !== 'Ninguna' ? true : null)} bg-transparent appearance-none`}
-                    >
-                        <option value="Ninguna">Seleccione área...</option>
-                        <option value="Oficina">Oficina</option>
-                        <option value="Planta">Planta</option>
-                        <option value="Almacén">Almacén</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
-                        Acción a Realizar
-                    </label>
-                    <select
-                        value={formData.action}
-                        onChange={(e) => onFormDataChange('action', e.target.value)}
-                        className={`${getInputClass(null)} bg-transparent appearance-none`}
-                    >
-                        <option value="Ninguna">Ninguna acción</option>
-                        <option value="Carga">Carga de Mercancía</option>
-                        <option value="Descarga">Descarga de Mercancía</option>
-                    </select>
-                </div>
+
+            {/* ── Mandatory Step 4 fields ─────────────────────────────── */}
+            <div>
+                <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
+                    Área / Departamento a Visitar <span className="text-red-500">*</span>
+                </label>
+                <input
+                    type="text"
+                    placeholder="Ej: Recursos Humanos, Finanzas, Almacén..."
+                    value={formData.target_department}
+                    onChange={(e) => onFormDataChange('target_department', e.target.value)}
+                    className={getInputClass(formData.target_department.trim() ? true : null)}
+                    required
+                />
             </div>
 
             <div>
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
-                    Dpto / Persona a Visitar <span className="text-red-500">*</span>
+                    Persona a Visitar <span className="text-red-500">*</span>
                 </label>
                 <input
                     type="text"
-                    placeholder="Ej: RRHH, Ing. Carlos Machado..."
-                    value={formData.department}
-                    onChange={(e) => onFormDataChange('department', e.target.value)}
-                    className={getInputClass(formData.department.trim() ? true : null)}
+                    placeholder="Ej: Ing. Carlos Machado, Dra. Ana Rodríguez..."
+                    value={formData.host_person}
+                    onChange={(e) => onFormDataChange('host_person', e.target.value)}
+                    className={getInputClass(formData.host_person.trim() ? true : null)}
+                    required
+                />
+            </div>
+
+            {/* ── Existing fields ──────────────────────────────────────── */}
+            <div>
+                <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
+                    Área de Visita (Física) <span className="text-red-500">*</span>
+                </label>
+                <input
+                    type="text"
+                    placeholder="Ej: Oficina Principal, Almacén 2..."
+                    value={formData.area}
+                    onChange={(e) => onFormDataChange('area', e.target.value)}
+                    className={getInputClass(formData.area.trim() ? true : null)}
+                    required
+                />
+            </div>
+
+            <div>
+                <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
+                    Motivo de la Visita <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                    placeholder="Indique el motivo de la visita"
+                    value={formData.reason}
+                    onChange={(e) => onFormDataChange('reason', e.target.value)}
+                    className={getInputClass(formData.reason.trim() ? true : null)}
+                    rows={3}
                     required
                 />
             </div>

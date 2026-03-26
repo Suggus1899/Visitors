@@ -48,3 +48,8 @@ release/
 temp/
 tmp/
 *.tmp
+
+# Crash logs and debug files
+server_crash_log.txt
+electron_logs.txt
+debug_*.json

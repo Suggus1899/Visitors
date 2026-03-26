@@ -1,7 +1,9 @@
+import path from 'path';
 import cron from 'node-cron';
 import { Op } from 'sequelize';
 import config from '../config/AppConfig';
 import ActivityLog from '../models/ActivityLog';
+import VisitorModel from '../models/Visitor';
 import PhotoStorage from './PhotoStorage';
 
 export async function runRetentionCleanup(): Promise<void> {
@@ -19,10 +21,23 @@ export async function runRetentionCleanup(): Promise<void> {
       }
     });
 
-    const deletedPhotos = await PhotoStorage.cleanupOldPhotos(retentionDays);
+    // Build the set of photo filenames that belong to registered visitors.
+    // These are kept permanently regardless of the retention window.
+    const visitors = await VisitorModel.findAll({
+      attributes: ['photo_url', 'id_photo_url']
+    });
+
+    const protectedFilenames = new Set<string>();
+    for (const v of visitors) {
+      if (v.photo_url)    protectedFilenames.add(path.basename(v.photo_url));
+      if (v.id_photo_url) protectedFilenames.add(path.basename(v.id_photo_url));
+    }
+
+    const deletedPhotos = await PhotoStorage.cleanupOldPhotos(retentionDays, protectedFilenames);
 
     console.log(
-      `[Retention] Cleanup completed. Logs deleted: ${deletedLogs}, photos deleted: ${deletedPhotos}, retentionDays: ${retentionDays}`
+      `[Retention] Cleanup completed. Logs deleted: ${deletedLogs}, photos deleted: ${deletedPhotos}, ` +
+      `protected: ${protectedFilenames.size}, retentionDays: ${retentionDays}`
     );
   } catch (error) {
     console.error('[Retention] Cleanup failed:', error);

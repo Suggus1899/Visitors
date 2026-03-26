@@ -120,6 +120,21 @@ describe('POST /api/v1/visits/checkin', () => {
       .send({ ...VALID_PAYLOAD, notes: 'VIP', visitorData: { firstName: 'Juan', email: 'j@acme.com' } });
     expect(res.status).toBe(201);
   });
+
+  it('returns 201 when status is waiting', async () => {
+    const res = await request(app).post('/api/v1/visits/checkin')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ ...VALID_PAYLOAD, status: 'waiting' });
+    expect(res.status).toBe(201);
+  });
+
+  it('returns 400 when status is invalid', async () => {
+    const res = await request(app).post('/api/v1/visits/checkin')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ ...VALID_PAYLOAD, status: 'completed' });
+    expect(res.status).toBe(400);
+    expect(details(res).some((e: { field: string }) => e.field === 'status')).toBe(true);
+  });
 });
 
 // ──────────────────────────────────────────────────

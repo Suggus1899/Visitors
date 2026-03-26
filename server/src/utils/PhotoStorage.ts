@@ -107,16 +107,27 @@ export class PhotoStorage {
   }
 
   /**
-   * Clean up old photos (called by CRON job)
+   * Clean up old photos (called by CRON job).
+   * Photos whose filename is present in `protectedFilenames` are kept
+   * permanently regardless of age (e.g. photos linked to a registered Visitor).
    * @param daysOld - Delete photos older than this many days
+   * @param protectedFilenames - Set of filenames (basename only) that must never be deleted
    */
-  static async cleanupOldPhotos(daysOld: number): Promise<number> {
+  static async cleanupOldPhotos(
+    daysOld: number,
+    protectedFilenames: Set<string> = new Set()
+  ): Promise<number> {
     try {
       const files = fs.readdirSync(this.photosDir);
       const cutoffTime = Date.now() - (daysOld * 24 * 60 * 60 * 1000);
       let deletedCount = 0;
 
       for (const file of files) {
+        // Never delete photos that belong to a registered visitor
+        if (protectedFilenames.has(file)) {
+          continue;
+        }
+
         const filepath = path.join(this.photosDir, file);
         const stats = fs.statSync(filepath);
 
@@ -126,7 +137,7 @@ export class PhotoStorage {
         }
       }
 
-      console.log(`Cleaned up ${deletedCount} old photos (>${daysOld} days)`);
+      console.log(`Cleaned up ${deletedCount} old photos (>${daysOld} days), ${protectedFilenames.size} protected`);
       return deletedCount;
     } catch (error) {
       console.error('Error cleaning up photos:', error);

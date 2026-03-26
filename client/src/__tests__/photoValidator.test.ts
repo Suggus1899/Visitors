@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateImage, getImageType, getImageSize } from '../utils/photoValidator';
+import { validateImage, getImageType } from '../utils/photoValidator';
 
 describe('PhotoValidator', () => {
   describe('getImageType', () => {

@@ -34,6 +34,24 @@ describe('checkInSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('preserves idPhotoBase64 through schema validation', () => {
+    const idPhoto = 'data:image/jpeg;base64,/9j/fakedata==';
+    const result = checkInSchema.safeParse({
+      ...validPayload,
+      visitorData: {
+        firstName: 'Juan',
+        lastName: 'Pérez',
+        company: 'Acme',
+        photoBase64: 'data:image/jpeg;base64,/9j/facedata==',
+        idPhotoBase64: idPhoto,
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.visitorData?.idPhotoBase64).toBe(idPhoto);
+    }
+  });
+
   it('rejects missing visitorCedula', () => {
     const result = checkInSchema.safeParse({ purpose: 'Reunión', personToVisit: 'Rec' });
     expect(result.success).toBe(false);
@@ -78,5 +96,30 @@ describe('checkInSchema', () => {
   it('accepts optional notes', () => {
     const result = checkInSchema.safeParse({ ...validPayload, notes: 'VIP visitor' });
     expect(result.success).toBe(true);
+  });
+
+  it('accepts waiting status for queued visits', () => {
+    const result = checkInSchema.safeParse({ ...validPayload, status: 'waiting' });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts active status for immediate admission', () => {
+    const result = checkInSchema.safeParse({ ...validPayload, status: 'active' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects unsupported status values', () => {
+    const result = checkInSchema.safeParse({ ...validPayload, status: 'completed' });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts free-text area values', () => {
+    const result = checkInSchema.safeParse({ ...validPayload, area: 'Depósito norte' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects area longer than 200 chars', () => {
+    const result = checkInSchema.safeParse({ ...validPayload, area: 'x'.repeat(201) });
+    expect(result.success).toBe(false);
   });
 });

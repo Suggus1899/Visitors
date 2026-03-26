@@ -3,18 +3,24 @@ import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Users from 'lucide-react/dist/esm/icons/users';
 import Car from 'lucide-react/dist/esm/icons/car';
+import Plus from 'lucide-react/dist/esm/icons/plus';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
+
+export interface Companion {
+    name: string;
+    cedula: string;
+}
 
 interface VehicleInfoStepProps {
     formData: {
         has_companion: boolean;
-        companion_name: string;
-        companion_cedula: string;
+        companions: Companion[];
         has_vehicle: boolean;
         vehicle_brand: string;
         vehicle_model: string;
         vehicle_plate: string;
     };
-    onFormDataChange: (field: string, value: string | boolean) => void;
+    onFormDataChange: (field: string, value: string | boolean | Companion[]) => void;
     canProceed: boolean;
     onNext: () => void;
     onPrev: () => void;
@@ -24,9 +30,26 @@ interface VehicleInfoStepProps {
 const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
     formData, onFormDataChange, canProceed, onNext, onPrev, getInputClass
 }) => {
+
+    const updateCompanion = (index: number, field: keyof Companion, value: string) => {
+        const updated = formData.companions.map((c, i) =>
+            i === index ? { ...c, [field]: value } : c
+        );
+        onFormDataChange('companions', updated);
+    };
+
+    const addCompanion = () => {
+        onFormDataChange('companions', [...formData.companions, { name: '', cedula: '' }]);
+    };
+
+    const removeCompanion = (index: number) => {
+        const updated = formData.companions.filter((_, i) => i !== index);
+        onFormDataChange('companions', updated);
+    };
+
     return (
         <div className="space-y-6 animate-slideUp">
-            
+
             {/* Acompañante Section */}
             <div className="p-4 rounded-xl border border-[color:var(--border-0)] bg-[color:var(--surface-2)] shadow-sm relative overflow-hidden">
                 <div className="flex items-center justify-between mb-4">
@@ -35,8 +58,8 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                         ¿Viene con Acompañante?
                     </h3>
                     <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                            type="checkbox" 
+                        <input
+                            type="checkbox"
                             className="sr-only peer"
                             checked={formData.has_companion}
                             onChange={(e) => onFormDataChange('has_companion', e.target.checked)}
@@ -47,30 +70,58 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
 
                 {formData.has_companion && (
                     <div className="space-y-4 pt-2 border-t border-[color:var(--border-0)] animate-fadeIn">
-                        <div>
-                            <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
-                                Nombre del Acompañante <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.companion_name}
-                                onChange={(e) => onFormDataChange('companion_name', e.target.value)}
-                                placeholder="Ej: Juan Pérez"
-                                className={getInputClass(formData.companion_name.trim().length > 2 ? true : formData.companion_name.length === 0 ? null : false)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
-                                Cédula del Acompañante (Opcional)
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.companion_cedula}
-                                onChange={(e) => onFormDataChange('companion_cedula', e.target.value.replace(/\D/g, ''))}
-                                placeholder="Ej: 12345678"
-                                className={getInputClass(null)}
-                            />
-                        </div>
+
+                        {formData.companions.map((companion, index) => (
+                            <div key={index} className="space-y-3 p-3 rounded-lg bg-[color:var(--surface-1)] border border-[color:var(--border-0)]">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-[color:var(--accent-0)] uppercase tracking-widest">
+                                        Acompañante {index + 1}
+                                    </span>
+                                    {formData.companions.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeCompanion(index)}
+                                            className="text-red-400 hover:text-red-500 transition-colors p-1 rounded"
+                                            title="Eliminar acompañante"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
+                                        Nombre <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={companion.name}
+                                        onChange={(e) => updateCompanion(index, 'name', e.target.value)}
+                                        placeholder="Ej: Juan Pérez"
+                                        className={getInputClass(companion.name.trim().length > 2 ? true : companion.name.length === 0 ? null : false)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
+                                        Cédula (Opcional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={companion.cedula}
+                                        onChange={(e) => updateCompanion(index, 'cedula', e.target.value.replace(/\D/g, ''))}
+                                        placeholder="Ej: 12345678"
+                                        className={getInputClass(null)}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+
+                        <button
+                            type="button"
+                            onClick={addCompanion}
+                            className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border-2 border-dashed border-[color:var(--accent-0)] text-[color:var(--accent-0)] text-sm font-semibold hover:bg-[color:var(--accent-0)]/10 transition-colors"
+                        >
+                            <Plus size={16} /> Agregar Acompañante
+                        </button>
                     </div>
                 )}
             </div>
@@ -83,8 +134,8 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                         ¿Ingresa con Vehículo?
                     </h3>
                     <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                            type="checkbox" 
+                        <input
+                            type="checkbox"
                             className="sr-only peer"
                             checked={formData.has_vehicle}
                             onChange={(e) => onFormDataChange('has_vehicle', e.target.checked)}

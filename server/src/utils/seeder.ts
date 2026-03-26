@@ -119,6 +119,27 @@ export const ensureBaseUsers = async () => {
         console.log('✅ Auditor user updated: auditor/Audit2026!@#');
         console.log('   ⚠️  auditor MUST change password on first login');
     }
+
+    // Always ensure superadmin user exists
+    const superadminUser = await User.findOne({ where: { username: 'trebolmaster' } });
+    if (!superadminUser) {
+        console.log('Creating superadmin user...');
+        const hashedSuperAdmin = await bcrypt.hash('TrebolMaster2026!@#', 12);
+        await User.create({
+            username: 'trebolmaster',
+            password: hashedSuperAdmin,
+            role: 'superadmin',
+            mustChangePassword: false, // Superadmin doesn't need to change password
+            loginAttempts: 0,
+            lockedUntil: null
+        });
+        console.log('✅ SuperAdmin user created: trebolmaster/TrebolMaster2026!@#');
+        console.log('   🔐 SuperAdmin has full system access');
+    } else if (superadminUser.role !== 'superadmin') {
+        superadminUser.role = 'superadmin';
+        await superadminUser.save();
+        console.log('✅ SuperAdmin user updated: trebolmaster');
+    }
 };
 
 export const seedDatabase = async () => {

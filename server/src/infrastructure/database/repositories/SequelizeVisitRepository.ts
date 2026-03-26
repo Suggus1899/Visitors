@@ -128,7 +128,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
       vehicle_brand: visit.vehicleBrand || null,
       vehicle_model: visit.vehicleModel || null,
       vehicle_plate: visit.vehiclePlate || null,
-      area: visit.area || 'Ninguna',
+      area: visit.area || null,
       action: visit.action || 'Ninguna',
       department: visit.department || null,
       // We don't have 'include' here so toDomain might fail to get real name/ID.
