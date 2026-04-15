@@ -1,5 +1,6 @@
 import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional } from 'sequelize';
 import sequelize from '../database';
+import logger from '../config/logger';
 
 /**
  * ActivityLog model for audit trail
@@ -139,7 +140,7 @@ export async function logActivity(
             userAgent: userAgent || null
         });
     } catch (error) {
-        console.error('Failed to log activity:', error);
+        logger.error('Failed to log activity:', error);
         // Don't throw - logging failure shouldn't break the main operation
     }
 }

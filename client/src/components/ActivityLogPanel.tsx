@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../services/api.v1';
 import Activity from 'lucide-react/dist/esm/icons/activity';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import User from 'lucide-react/dist/esm/icons/user';
@@ -49,18 +49,15 @@ const ActivityLogPanel = () => {
     const fetchActivities = useCallback(async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
             const params = new URLSearchParams({ page: String(page), limit: '20' });
             if (filterAction) params.append('action', filterAction);
 
-            const response = await axios.get(`http://localhost:3000/api/v1/audit/logs?${params}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get(`/audit/logs?${params}`);
 
             setActivities(response.data.data.logs);
             setTotalPages(response.data.data.pagination.pages);
-        } catch (err) {
-            console.error('Failed to fetch activities:', err);
+        } catch {
+            // errors are handled by the interceptor in api.v1.ts
         } finally {
             setLoading(false);
         }

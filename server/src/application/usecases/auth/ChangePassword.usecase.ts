@@ -8,6 +8,7 @@ import { JwtAuthService } from '../../../infrastructure/services/JwtAuthService'
 import { PasswordPolicy } from '../../../domain/services/PasswordPolicy';
 import { EmailService } from '../../../infrastructure/services/EmailService';
 import UserModel from '../../../models/User';
+import logger from '../../../config/logger';
 
 export class ChangePasswordUseCase {
     constructor(
@@ -59,7 +60,7 @@ export class ChangePasswordUseCase {
                     user.username
                 );
             } catch (error) {
-                console.error('Failed to send password changed email:', error);
+                logger.error('Failed to send password changed email:', error);
                 // Don't throw - email failure shouldn't prevent password change
             }
         }

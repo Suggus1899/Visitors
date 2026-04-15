@@ -10,6 +10,7 @@ import config from '../config/AppConfig';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { getClientInfo } from '../middleware/ipCapture';
 import { logActivity } from '../models/ActivityLog';
+import logger from '../config/logger';
 
 interface TokenUser {
   id?: number;
@@ -99,7 +100,7 @@ export const createArcoRequest = async (req: Request, res: Response) => {
       createdAt: requestRecord.createdAt
     }));
   } catch (error) {
-    console.error('Create ARCO request error:', error);
+    logger.error('Create ARCO request error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'No se pudo crear la solicitud ARCO'));
   }
 };
@@ -153,7 +154,7 @@ export const listArcoRequests = async (req: Request, res: Response) => {
       }
     }));
   } catch (error) {
-    console.error('List ARCO requests error:', error);
+    logger.error('List ARCO requests error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'No se pudo obtener el listado ARCO'));
   }
 };
@@ -203,7 +204,7 @@ export const updateArcoRequestStatus = async (req: Request, res: Response) => {
       resolutionNotes: arcoRequest.resolutionNotes
     }));
   } catch (error) {
-    console.error('Update ARCO status error:', error);
+    logger.error('Update ARCO status error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'No se pudo actualizar el estado de la solicitud ARCO'));
   }
 };
@@ -257,7 +258,7 @@ export const accessSubjectData = async (req: Request, res: Response) => {
       }))
     }));
   } catch (error) {
-    console.error('ARCO access error:', error);
+    logger.error('ARCO access error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'No se pudo obtener la informacion del titular'));
   }
 };
@@ -304,7 +305,7 @@ export const rectifySubjectData = async (req: Request, res: Response) => {
       visitor: visitor.getDecrypted()
     }));
   } catch (error) {
-    console.error('ARCO rectification error:', error);
+    logger.error('ARCO rectification error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'No se pudo rectificar la informacion del titular'));
   }
 };
@@ -366,7 +367,7 @@ export const cancelSubjectData = async (req: Request, res: Response) => {
       message: 'Datos del titular anonimizados correctamente'
     }));
   } catch (error) {
-    console.error('ARCO cancellation error:', error);
+    logger.error('ARCO cancellation error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'No se pudo cancelar la informacion del titular'));
   }
 };
@@ -410,7 +411,7 @@ export const createOppositionRequest = async (req: Request, res: Response) => {
       requestType: requestRecord.requestType
     }));
   } catch (error) {
-    console.error('ARCO opposition error:', error);
+    logger.error('ARCO opposition error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'No se pudo registrar la oposicion'));
   }
 };

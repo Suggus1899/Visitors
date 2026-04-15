@@ -12,7 +12,8 @@
     "migrate:sqlcipher": "ts-node src/scripts/migrate-sqlcipher.ts",
     "seed": "ts-node src/scripts/seed-comprehensive.ts",
     "seed:clean": "ts-node src/scripts/seed-comprehensive.ts --clean",
-    "db:reset": "ts-node src/scripts/reset-db.ts"
+    "db:reset": "ts-node src/scripts/reset-db.ts",
+    "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@journeyapps/sqlcipher": "^5.1.8",
@@ -21,12 +22,16 @@
     "dotenv": "^17.2.4",
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.2.1",
     "pdfkit": "^0.17.2",
     "sequelize": "^6.37.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "umzug": "^3.8.2",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

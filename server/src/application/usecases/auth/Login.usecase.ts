@@ -6,6 +6,7 @@ import { logActivity } from '../../../models/ActivityLog';
 import UserModel from '../../../models/User';
 import config from '../../../config/AppConfig';
 import bcrypt from 'bcryptjs';
+import logger from '../../../config/logger';
 
 export class LoginUseCase {
   constructor(
@@ -64,7 +65,7 @@ export class LoginUseCase {
             undefined
           );
         } catch (error) {
-          console.error('Failed to log account lockout:', error);
+          logger.error('Failed to log account lockout:', error);
         }
 
         const error: any = new Error('ACCOUNT_LOCKED');
@@ -99,12 +100,12 @@ export class LoginUseCase {
     try {
       const currentRounds = bcrypt.getRounds(user.password);
       if (currentRounds < config.bcryptRounds) {
-        console.log(`Re-hashing password for user ${user.username} (${currentRounds} -> ${config.bcryptRounds} rounds)`);
+        logger.info(`Re-hashing password for user ${user.username} (${currentRounds} -> ${config.bcryptRounds} rounds)`);
         const newHash = await this.authService.hashPassword(credentials.password);
         await user.update({ password: newHash });
       }
     } catch (error) {
-      console.error('Failed to check/update bcrypt rounds:', error);
+      logger.error('Failed to check/update bcrypt rounds:', error);
       // Don't throw - this is not critical for login
     }
 

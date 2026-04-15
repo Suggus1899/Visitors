@@ -1,8 +1,33 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import User from '../models/User';
 import VisitorModel from '../models/Visitor';
 import VisitModel from '../models/Visit';
 import Encryption from './Encryption';
+import logger from '../config/logger';
+
+/**
+ * Generate a cryptographically secure random password
+ * Format: 16 chars with uppercase, lowercase, digits, and special chars
+ */
+const generateSecurePassword = (): string => {
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lower = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const special = '!@#$%&*';
+    const all = upper + lower + digits + special;
+    // Ensure at least one of each category
+    let password = '';
+    password += upper[crypto.randomInt(upper.length)];
+    password += lower[crypto.randomInt(lower.length)];
+    password += digits[crypto.randomInt(digits.length)];
+    password += special[crypto.randomInt(special.length)];
+    for (let i = 4; i < 16; i++) {
+        password += all[crypto.randomInt(all.length)];
+    }
+    // Shuffle the password
+    return password.split('').sort(() => crypto.randomInt(3) - 1).join('');
+};
 
 // Generate random date in January 2026
 const randomJanuaryDate = (day: number, hour: number = 9) => {
@@ -39,23 +64,28 @@ export const ensureBaseUsers = async () => {
     const adminExists = await User.findOne({ where: { username: adminEmail } });
 
     if (!adminExists) {
-        console.log('Seeding database with Enterprise Admin...');
-        // Using bcrypt 12 rounds for security (Requirement: A-3)
-        const hashedAdmin = await bcrypt.hash('Trebol123*', 12);
-        const hashedGuard = await bcrypt.hash('Guard123!@#', 12);
+        logger.info('Seeding database with Enterprise Admin...');
+
+        // T-02: Generate cryptographically random passwords for all seeded accounts
+        const adminPassword = generateSecurePassword();
+        const guardPassword = generateSecurePassword();
+        const legacyAdminPassword = generateSecurePassword();
+
+        const hashedAdmin = await bcrypt.hash(adminPassword, 12);
+        const hashedGuard = await bcrypt.hash(guardPassword, 12);
 
         await User.create({
             username: adminEmail,
             password: hashedAdmin,
             role: 'admin',
-            mustChangePassword: false, // Admin doesn't need to change password
-            passwordChangedAt: new Date()
+            mustChangePassword: true, // ALL accounts must change password on first login
+            passwordChangedAt: null
         });
         await User.create({
             username: 'guard',
             password: hashedGuard,
             role: 'guard',
-            mustChangePassword: true, // Guard must change password on first login
+            mustChangePassword: true,
             loginAttempts: 0,
             lockedUntil: null
         });
@@ -65,80 +95,90 @@ export const ensureBaseUsers = async () => {
         if (!legacyAdmin) {
             await User.create({
                 username: 'admin',
-                password: await bcrypt.hash('Admin123!@#', 12),
+                password: await bcrypt.hash(legacyAdminPassword, 12),
                 role: 'admin',
-                mustChangePassword: true, // Must change password on first login
+                mustChangePassword: true,
                 loginAttempts: 0,
                 lockedUntil: null
             });
         }
 
-        console.log('✅ Users Created: Admin@trebol.com, guard, admin');
-        console.log('   ⚠️  guard and admin MUST change password on first login');
+        // Security: Display initial passwords ONCE. These are never logged again.
+        logger.info('═══════════════════════════════════════════════════');
+        logger.info('  INITIAL CREDENTIALS (displayed ONCE — save them now)');
+        logger.info('═══════════════════════════════════════════════════');
+        logger.info(`  Admin@trebol.com : ${adminPassword}`);
+        logger.info(`  guard            : ${guardPassword}`);
+        logger.info(`  admin            : ${legacyAdminPassword}`);
+        logger.info('═══════════════════════════════════════════════════');
+        logger.info('  ⚠️  ALL accounts MUST change password on first login');
+        logger.info('═══════════════════════════════════════════════════');
     }
 
     // Always ensure demo user exists (separate check)
     const demoUser = await User.findOne({ where: { username: 'demo' } });
     if (!demoUser) {
-        console.log('Creating demo user...');
-        const hashedDemo = await bcrypt.hash('Demo123!@#', 12);
+        const demoPassword = generateSecurePassword();
+        const hashedDemo = await bcrypt.hash(demoPassword, 12);
         await User.create({
             username: 'demo',
             password: hashedDemo,
             role: 'admin',
-            mustChangePassword: true, // Demo user must change password
+            mustChangePassword: true,
             loginAttempts: 0,
             lockedUntil: null
         });
-        console.log('✅ Demo user created: demo/Demo123!@#');
-        console.log('   ⚠️  demo MUST change password on first login');
+        logger.info(`✅ Demo user created: demo / ${demoPassword}`);
+        logger.info('   ⚠️  demo MUST change password on first login');
     }
 
     const auditorUser = await User.findOne({ where: { username: 'auditor' } });
     if (!auditorUser) {
-        console.log('Creating auditor user...');
-        const hashedAuditor = await bcrypt.hash('Audit2026!@#', 12);
+        const auditorPassword = generateSecurePassword();
+        const hashedAuditor = await bcrypt.hash(auditorPassword, 12);
         await User.create({
             username: 'auditor',
             password: hashedAuditor,
             role: 'auditor',
-            mustChangePassword: true, // Auditor must change password
+            mustChangePassword: true,
             loginAttempts: 0,
             lockedUntil: null
         });
-        console.log('✅ Auditor user created: auditor/Audit2026!@#');
-        console.log('   ⚠️  auditor MUST change password on first login');
+        logger.info(`✅ Auditor user created: auditor / ${auditorPassword}`);
+        logger.info('   ⚠️  auditor MUST change password on first login');
     } else if (auditorUser.role !== 'auditor') {
-        const hashedAuditor = await bcrypt.hash('Audit2026!@#', 12);
+        const auditorPassword = generateSecurePassword();
+        const hashedAuditor = await bcrypt.hash(auditorPassword, 12);
         auditorUser.role = 'auditor';
         auditorUser.password = hashedAuditor;
         auditorUser.mustChangePassword = true;
         auditorUser.loginAttempts = 0;
         auditorUser.lockedUntil = null;
         await auditorUser.save();
-        console.log('✅ Auditor user updated: auditor/Audit2026!@#');
-        console.log('   ⚠️  auditor MUST change password on first login');
+        logger.info(`✅ Auditor user updated: auditor / ${auditorPassword}`);
+        logger.info('   ⚠️  auditor MUST change password on first login');
     }
 
     // Always ensure superadmin user exists
     const superadminUser = await User.findOne({ where: { username: 'trebolmaster' } });
     if (!superadminUser) {
-        console.log('Creating superadmin user...');
-        const hashedSuperAdmin = await bcrypt.hash('TrebolMaster2026!@#', 12);
+        const superadminPassword = generateSecurePassword();
+        const hashedSuperAdmin = await bcrypt.hash(superadminPassword, 12);
         await User.create({
             username: 'trebolmaster',
             password: hashedSuperAdmin,
             role: 'superadmin',
-            mustChangePassword: false, // Superadmin doesn't need to change password
+            mustChangePassword: true, // ALL accounts must change password
             loginAttempts: 0,
             lockedUntil: null
         });
-        console.log('✅ SuperAdmin user created: trebolmaster/TrebolMaster2026!@#');
-        console.log('   🔐 SuperAdmin has full system access');
+        logger.info(`✅ SuperAdmin user created: trebolmaster / ${superadminPassword}`);
+        logger.info('   🔐 SuperAdmin has full system access');
+        logger.info('   ⚠️  SuperAdmin MUST change password on first login');
     } else if (superadminUser.role !== 'superadmin') {
         superadminUser.role = 'superadmin';
         await superadminUser.save();
-        console.log('✅ SuperAdmin user updated: trebolmaster');
+        logger.info('✅ SuperAdmin user role updated: trebolmaster');
     }
 };
 
@@ -149,7 +189,7 @@ export const seedDatabase = async () => {
         // Check if extended seed already exists
         const visitCount = await VisitModel.count();
         if (visitCount < 50) {
-            console.log('Seeding comprehensive demo data with all visit states...');
+            logger.info('Seeding comprehensive demo data with all visit states...');
 
             // Generate 40 unique visitors with diverse profiles
             const visitors = [];
@@ -215,7 +255,7 @@ export const seedDatabase = async () => {
             const now = new Date();
 
             // 1. WAITING visits (8 visitors waiting to be admitted)
-            console.log('Creating WAITING visits...');
+            logger.info('Creating WAITING visits...');
             for (let i = 0; i < 8; i++) {
                 const visitorIndex = Math.floor(Math.random() * visitors.length);
                 const checkIn = new Date(now.getTime() - (Math.floor(Math.random() * 30) + 5) * 60000); // 5-35 minutes ago
@@ -242,7 +282,7 @@ export const seedDatabase = async () => {
             }
 
             // 2. ACTIVE visits (20 visitors currently inside)
-            console.log('Creating ACTIVE visits...');
+            logger.info('Creating ACTIVE visits...');
             for (let i = 0; i < 20; i++) {
                 const visitorIndex = Math.floor(Math.random() * visitors.length);
                 const hoursAgo = Math.floor(Math.random() * 6) + 1; // 1-6 hours ago
@@ -270,7 +310,7 @@ export const seedDatabase = async () => {
             }
 
             // 3. COMPLETED visits in February (12 visits)
-            console.log('Creating COMPLETED visits for February...');
+            logger.info('Creating COMPLETED visits for February...');
             for (let i = 0; i < 12; i++) {
                 const day = Math.min(now.getDate(), 1 + Math.floor(Math.random() * Math.max(1, now.getDate() - 1)));
                 const hour = 8 + Math.floor(Math.random() * 9);
@@ -304,17 +344,17 @@ export const seedDatabase = async () => {
                 await VisitModel.create(visitData as any);
             }
 
-            console.log(`✅ Comprehensive seed complete:`);
-            console.log(`   - ${visitors.length} visitors created`);
-            console.log(`   - ${visitsToCreate.length} total visits`);
-            console.log(`   - 8 WAITING visits (pending admission)`);
-            console.log(`   - 20 ACTIVE visits (currently inside)`);
-            console.log(`   - ${90 + 12} COMPLETED visits (historical data)`);
+            logger.info(`✅ Comprehensive seed complete:`);
+            logger.info(`   - ${visitors.length} visitors created`);
+            logger.info(`   - ${visitsToCreate.length} total visits`);
+            logger.info(`   - 8 WAITING visits (pending admission)`);
+            logger.info(`   - 20 ACTIVE visits (currently inside)`);
+            logger.info(`   - ${90 + 12} COMPLETED visits (historical data)`);
         } else {
-            console.log('✅ Database already has sufficient data.');
+            logger.info('✅ Database already has sufficient data.');
         }
     } catch (err) {
-        console.error('Seed Error:', err);
+        logger.error('Seed Error:', err);
     }
 };
 
@@ -327,7 +367,7 @@ export const seedLoad = async (options: SeedLoadOptions) => {
     try {
         await ensureBaseUsers();
 
-        console.log(
+        logger.info(
             `Seeding load data: ${visitorCount} visitors between ${startDate.toISOString()} and ${endDate.toISOString()}`
         );
 
@@ -388,8 +428,8 @@ export const seedLoad = async (options: SeedLoadOptions) => {
             await VisitModel.create(visitData as any);
         }
 
-        console.log(`✅ Load seed complete: ${visitorCount} visitors, ${visitsToCreate.length} visits`);
+        logger.info(`✅ Load seed complete: ${visitorCount} visitors, ${visitsToCreate.length} visits`);
     } catch (err) {
-        console.error('Seed Load Error:', err);
+        logger.error('Seed Load Error:', err);
     }
 };

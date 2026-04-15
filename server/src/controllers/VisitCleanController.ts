@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
+import logger from '../config/logger';
+import { eventEmitterService } from '../infrastructure/services/EventEmitterService';
 
 /**
  * Clean Architecture Visit Controller
@@ -15,10 +17,20 @@ export const checkIn = async (req: Request, res: Response) => {
   try {
     const useCase = container.createCheckInVisitorUseCase();
     const result = await useCase.execute(req.body);
-    
+
+    const visitId = typeof (result as { id?: unknown }).id === 'number'
+      ? (result as { id: number }).id
+      : undefined;
+
+    eventEmitterService.emitVisitEvent({
+      type: 'visit:checked-in',
+      timestamp: new Date().toISOString(),
+      visitId,
+    });
+
     res.status(201).json(ResponseBuilder.success(result));
   } catch (error) {
-    console.error('Check-in error:', error);
+    logger.error('Check-in error:', error);
     res.status(400).json(ResponseBuilder.error(
       'CHECKIN_FAILED',
       error instanceof Error ? error.message : 'Failed to check in visitor'
@@ -34,7 +46,7 @@ export const checkOut = async (req: Request, res: Response) => {
   try {
     const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const visitId = parseInt(idParam);
-    
+
     if (isNaN(visitId)) {
       return res.status(400).json(ResponseBuilder.error('INVALID_ID', 'Invalid visit ID'));
     }
@@ -44,10 +56,16 @@ export const checkOut = async (req: Request, res: Response) => {
       visitId,
       notes: req.body.notes
     });
-    
+
+    eventEmitterService.emitVisitEvent({
+      type: 'visit:checked-out',
+      timestamp: new Date().toISOString(),
+      visitId,
+    });
+
     res.json(ResponseBuilder.success(result));
   } catch (error) {
-    console.error('Check-out error:', error);
+    logger.error('Check-out error:', error);
     res.status(400).json(ResponseBuilder.error(
       'CHECKOUT_FAILED',
       error instanceof Error ? error.message : 'Failed to check out visitor'
@@ -63,17 +81,23 @@ export const admitVisitor = async (req: Request, res: Response) => {
   try {
     const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const visitId = parseInt(idParam);
-    
+
     if (isNaN(visitId)) {
       return res.status(400).json(ResponseBuilder.error('INVALID_ID', 'Invalid visit ID'));
     }
 
     const useCase = container.createAdmitVisitorUseCase();
     const result = await useCase.execute(visitId);
-    
+
+    eventEmitterService.emitVisitEvent({
+      type: 'visit:admitted',
+      timestamp: new Date().toISOString(),
+      visitId,
+    });
+
     res.json(ResponseBuilder.success(result));
   } catch (error) {
-    console.error('Admit visitor error:', error);
+    logger.error('Admit visitor error:', error);
     res.status(400).json(ResponseBuilder.error(
       'ADMIT_FAILED',
       error instanceof Error ? error.message : 'Failed to admit visitor'
@@ -89,10 +113,10 @@ export const getActiveVisits = async (_req: Request, res: Response) => {
   try {
     const useCase = container.createGetActiveVisitsUseCase();
     const visits = await useCase.execute();
-    
+
     res.json(ResponseBuilder.success(visits));
   } catch (error) {
-    console.error('Get active visits error:', error);
+    logger.error('Get active visits error:', error);
     res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch active visits'));
   }
 };
@@ -105,10 +129,10 @@ export const getWaitingVisits = async (_req: Request, res: Response) => {
   try {
     const useCase = container.createGetWaitingVisitsUseCase();
     const visits = await useCase.execute();
-    
+
     res.json(ResponseBuilder.success(visits));
   } catch (error) {
-    console.error('Get waiting visits error:', error);
+    logger.error('Get waiting visits error:', error);
     res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch waiting visits'));
   }
 };
@@ -138,7 +162,7 @@ export const getVisits = async (req: Request, res: Response) => {
       totalPages: Math.ceil(result.total / limit)
     }));
   } catch (error) {
-    console.error('Get visits error:', error);
+    logger.error('Get visits error:', error);
     res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch visits'));
   }
 };

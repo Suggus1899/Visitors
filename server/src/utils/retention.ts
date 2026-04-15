@@ -5,18 +5,25 @@ import config from '../config/AppConfig';
 import ActivityLog from '../models/ActivityLog';
 import VisitorModel from '../models/Visitor';
 import PhotoStorage from './PhotoStorage';
+import logger from '../config/logger';
 
 export async function runRetentionCleanup(): Promise<void> {
-  const retentionDays = config.dataRetentionDays;
+  const dataRetentionDays = config.dataRetentionDays;
+  const auditLogRetentionDays = config.auditLogRetentionDays;
 
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+  // C-04: Separate cutoff dates for personal data vs audit logs
+  const dataCutoffDate = new Date();
+  dataCutoffDate.setDate(dataCutoffDate.getDate() - dataRetentionDays);
+
+  const auditCutoffDate = new Date();
+  auditCutoffDate.setDate(auditCutoffDate.getDate() - auditLogRetentionDays);
 
   try {
+    // Audit logs use their own (longer) retention period — default 365 days
     const deletedLogs = await ActivityLog.destroy({
       where: {
         createdAt: {
-          [Op.lt]: cutoffDate
+          [Op.lt]: auditCutoffDate
         }
       }
     });
@@ -29,18 +36,19 @@ export async function runRetentionCleanup(): Promise<void> {
 
     const protectedFilenames = new Set<string>();
     for (const v of visitors) {
-      if (v.photo_url)    protectedFilenames.add(path.basename(v.photo_url));
+      if (v.photo_url) protectedFilenames.add(path.basename(v.photo_url));
       if (v.id_photo_url) protectedFilenames.add(path.basename(v.id_photo_url));
     }
 
-    const deletedPhotos = await PhotoStorage.cleanupOldPhotos(retentionDays, protectedFilenames);
+    const deletedPhotos = await PhotoStorage.cleanupOldPhotos(dataRetentionDays, protectedFilenames);
 
-    console.log(
-      `[Retention] Cleanup completed. Logs deleted: ${deletedLogs}, photos deleted: ${deletedPhotos}, ` +
-      `protected: ${protectedFilenames.size}, retentionDays: ${retentionDays}`
+    logger.info(
+      `[Retention] Cleanup completed. Logs deleted: ${deletedLogs} (>${auditLogRetentionDays}d), ` +
+      `photos deleted: ${deletedPhotos} (>${dataRetentionDays}d), ` +
+      `protected: ${protectedFilenames.size}`
     );
   } catch (error) {
-    console.error('[Retention] Cleanup failed:', error);
+    logger.error('[Retention] Cleanup failed:', error);
   }
 }
 
@@ -53,5 +61,5 @@ export function initRetentionScheduler(): void {
     void runRetentionCleanup();
   });
 
-  console.log('[Retention] Scheduler initialized (daily at 02:00)');
+  logger.info('[Retention] Scheduler initialized (daily at 02:00)');
 }

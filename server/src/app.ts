@@ -1,11 +1,14 @@
 import express from "express";
 import cors from "cors";
-// Clean Architecture routes
+import helmet from "helmet";
+import path from "path";
+import config from "./config/AppConfig";
 import { errorHandler } from "./middleware/error";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { apiLimiter } from "./middleware/rateLimiter";
 import { mustChangePassword } from "./middleware/mustChangePassword";
+import { verifyToken } from "./middleware/auth";
 
 // Clean Architecture routes
 import visitCleanRoutes from "./routes/visit-clean.routes";
@@ -16,9 +19,16 @@ import authCleanRoutes from "./routes/auth-clean.routes";
 import auditCleanRoutes from "./routes/audit-clean.routes";
 import privacyCleanRoutes from "./routes/privacy-clean.routes";
 import superadminRoutes from "./routes/superadmin.routes";
+import eventsRoutes from "./routes/events.routes";
 import { captureClientInfo } from "./middleware/ipCapture";
 
 const app = express();
+
+// T-14: Security headers via helmet
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP managed by Electron
+  crossOriginEmbedderPolicy: false,
+}));
 
 // Strict CORS - only allow local origins (Electron + dev)
 const allowedOrigins = [
@@ -37,18 +47,18 @@ app.use(
       }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-App-Source"],
     credentials: true,
   }),
 );
-app.use(express.json());
+
+// T-09: Set body size limit to prevent DoS via large payloads
+app.use(express.json({ limit: '5mb' }));
 app.use(captureClientInfo); // Captura IP y userAgent para auditoría
 
-// Serve Static Photos
-import path from "path";
-import config from "./config/AppConfig";
+// T-08: Serve photos behind authentication middleware
 const photosDir = path.join(config.dbPath, "photos");
-app.use("/data/photos", express.static(photosDir));
+app.use("/data/photos", verifyToken, express.static(photosDir));
 
 // Root Landing Page
 app.get("/", (req, res) => {
@@ -75,8 +85,10 @@ app.use("/api", apiLimiter);
 // Must Change Password Middleware (applies to all protected routes)
 app.use("/api", mustChangePassword);
 
-// Swagger Documentation
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// T-06: Swagger Documentation — disabled in production, protected in development
+if (config.nodeEnv !== 'production') {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 // Routes
 // Clean Architecture API v1
@@ -88,6 +100,7 @@ app.use("/api", authCleanRoutes);
 app.use("/api", auditCleanRoutes);
 app.use("/api", privacyCleanRoutes);
 app.use("/api", superadminRoutes);
+app.use("/api", eventsRoutes);
 
 // Global error handler - must be last middleware
 app.use(errorHandler);

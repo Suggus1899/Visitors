@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { VisitService } from '../services/api.v1';
 import { Visit } from '../types';
 import toast from 'react-hot-toast';
 import Clock from 'lucide-react/dist/esm/icons/clock';
@@ -7,47 +6,39 @@ import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
+import { useAdmitVisitorMutation, useWaitingVisitsQuery } from '../hooks/useVisitQueries';
 
 interface WaitingVisitsProps {
-    refreshTrigger: number;
     onVisitAdmitted: () => void;
+    fallbackPollingMs?: number | false;
 }
 
-const WaitingVisits: React.FC<WaitingVisitsProps> = ({ refreshTrigger, onVisitAdmitted }) => {
-    const [visits, setVisits] = useState<Visit[]>([]);
-    const [loading, setLoading] = useState(true);
+const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallbackPollingMs = false }) => {
     const [admittingId, setAdmittingId] = useState<number | null>(null);
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
-
-    const fetchVisits = async () => {
-        try {
-            setLoading(true);
-            const data = await VisitService.getWaitingVisits();
-            setVisits(data);
-        } catch (error) {
-            console.error('Error fetching waiting visits:', error);
-            toast.error('Error al cargar visitas en espera');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const admitMutation = useAdmitVisitorMutation();
+    const {
+        data: visits = [],
+        isLoading: loading,
+        isError,
+    } = useWaitingVisitsQuery({
+        refetchInterval: fallbackPollingMs,
+    });
 
     useEffect(() => {
-        fetchVisits();
-        const interval = setInterval(fetchVisits, 30000); // Auto-refresh every 30s
-        return () => clearInterval(interval);
-    }, [refreshTrigger]);
+        if (isError) {
+            toast.error('Error al cargar visitas en espera');
+        }
+    }, [isError]);
 
     const handleAdmit = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation(); // prevent modal
         try {
             setAdmittingId(id);
-            await VisitService.admitVisitor(id);
+            await admitMutation.mutateAsync(id);
             toast.success('Visitante admitido con éxito');
             onVisitAdmitted(); // Inform parent to refresh and maybe switch tabs
-            fetchVisits();
-        } catch (error) {
-            console.error('Error admitting visitor:', error);
+        } catch {
             toast.error('Error al admitir al visitante');
         } finally {
             setAdmittingId(null);

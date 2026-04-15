@@ -2,6 +2,9 @@ import express from 'express';
 import * as AuditCleanController from '../controllers/AuditCleanController';
 import { verifyToken } from '../middleware/auth';
 import { verifyAuditor } from '../middleware/auditor';
+import { validateQuery } from '../middleware/validate';
+import { getAuditLogsSchema } from '../schemas/audit.schema';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
 
@@ -48,7 +51,7 @@ const router = express.Router();
  *           type: string
  *           format: date
  */
-router.get('/v1/audit/logs', verifyToken, verifyAuditor, AuditCleanController.getLogs);
+router.get('/v1/audit/logs', verifyToken, verifyAuditor, validateQuery(getAuditLogsSchema), asyncHandler(AuditCleanController.getLogs));
 
 /**
  * @swagger
@@ -57,7 +60,7 @@ router.get('/v1/audit/logs', verifyToken, verifyAuditor, AuditCleanController.ge
  *     summary: Obtener estadísticas de auditoría
  *     tags: [Audit]
  */
-router.get('/v1/audit/stats', verifyToken, verifyAuditor, AuditCleanController.getStats);
+router.get('/v1/audit/stats', verifyToken, verifyAuditor, asyncHandler(AuditCleanController.getStats));
 
 /**
  * @swagger
@@ -66,7 +69,7 @@ router.get('/v1/audit/stats', verifyToken, verifyAuditor, AuditCleanController.g
  *     summary: Exportar logs a CSV
  *     tags: [Audit]
  */
-router.get('/v1/audit/export', verifyToken, verifyAuditor, AuditCleanController.exportLogs);
+router.get('/v1/audit/export', verifyToken, verifyAuditor, validateQuery(getAuditLogsSchema), asyncHandler(AuditCleanController.exportLogs));
 
 /**
  * @swagger
@@ -75,7 +78,7 @@ router.get('/v1/audit/export', verifyToken, verifyAuditor, AuditCleanController.
  *     summary: Obtener lista de acciones para filtros
  *     tags: [Audit]
  */
-router.get('/v1/audit/actions', verifyToken, verifyAuditor, AuditCleanController.getActions);
+router.get('/v1/audit/actions', verifyToken, verifyAuditor, asyncHandler(AuditCleanController.getActions));
 
 /**
  * @swagger
@@ -84,7 +87,7 @@ router.get('/v1/audit/actions', verifyToken, verifyAuditor, AuditCleanController
  *     summary: Obtener lista de usuarios para filtros
  *     tags: [Audit]
  */
-router.get('/v1/audit/users', verifyToken, verifyAuditor, AuditCleanController.getUsers);
+router.get('/v1/audit/users', verifyToken, verifyAuditor, asyncHandler(AuditCleanController.getUsers));
 
 /**
  * @swagger
@@ -93,6 +96,6 @@ router.get('/v1/audit/users', verifyToken, verifyAuditor, AuditCleanController.g
  *     summary: Obtener configuración de retención
  *     tags: [Audit]
  */
-router.get('/v1/audit/config', verifyToken, verifyAuditor, AuditCleanController.getRetentionPolicy);
+router.get('/v1/audit/config', verifyToken, verifyAuditor, asyncHandler(AuditCleanController.getRetentionPolicy));
 
 export default router;

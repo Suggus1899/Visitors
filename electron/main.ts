@@ -2,6 +2,43 @@ import { app, BrowserWindow, Menu, Tray, nativeImage, dialog } from 'electron';
 import path from 'path';
 import { fork, ChildProcess } from 'child_process';
 import { autoUpdater } from 'electron-updater';
+import fs from 'fs';
+
+// ============================================
+// MINIMAL ELECTRON LOGGER
+// ============================================
+const createElectronLogger = () => {
+    const getLogDir = () => app.isReady()
+        ? path.join(app.getPath('userData'), 'logs')
+        : path.join(__dirname, '../logs');
+
+    const write = (level: string, ...args: unknown[]) => {
+        const timestamp = new Date().toISOString();
+        const message = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+        const line = `${timestamp} [${level.toUpperCase()}] [electron] ${message}\n`;
+
+        // Always write to stderr/stdout so dev console shows it
+        if (level === 'error') process.stderr.write(line);
+        else process.stdout.write(line);
+
+        // Also persist to file when app is ready
+        try {
+            const logDir = getLogDir();
+            if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+            const logFile = path.join(logDir, `electron-${new Date().toISOString().split('T')[0]}.log`);
+            fs.appendFileSync(logFile, line);
+        } catch { /* ignore write errors */ }
+    };
+
+    return {
+        info:  (...args: unknown[]) => write('info', ...args),
+        warn:  (...args: unknown[]) => write('warn', ...args),
+        error: (...args: unknown[]) => write('error', ...args),
+        debug: (...args: unknown[]) => write('debug', ...args),
+    };
+};
+
+const logger = createElectronLogger();
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -20,9 +57,6 @@ const ALLOWED_RENDERER_ORIGINS = ['http://localhost:5173', 'file://'];
 // ============================================
 // HELPERS (Lazy Loading)
 // ============================================
-function getFs() {
-    return require('fs');
-}
 
 function getDbPath(): string {
     return isDev
@@ -64,7 +98,7 @@ function configureAutoUpdater() {
     });
 
     autoUpdater.on('error', (err) => {
-        console.error('Auto-Updater Error:', err);
+        logger.error('Auto-Updater Error:', err);
     });
 }
 
@@ -72,7 +106,6 @@ function configureAutoUpdater() {
 // BACKUP & RESTORE
 // ============================================
 async function createBackup() {
-    const fs = getFs();
     const dbPath = getDbPath();
 
     if (!fs.existsSync(dbPath)) {
@@ -104,7 +137,6 @@ async function createBackup() {
 }
 
 async function restoreBackup() {
-    const fs = getFs();
     const result = await dialog.showOpenDialog(mainWindow!, {
         title: 'Seleccionar Backup para Restaurar',
         filters: [{ name: 'SQLite Database', extensions: ['sqlite'] }],
@@ -215,9 +247,8 @@ function createMenu() {
 function createTray() {
     const iconPath = path.join(__dirname, '../client/public/logo.png');
     // Lazy load fs to check if icon exists, just in case, though nativeImage handles it gracefully usually
-    const fs = getFs();
     if (!fs.existsSync(iconPath)) {
-        console.warn('Tray icon not found at:', iconPath);
+        logger.warn('Tray icon not found at:', iconPath);
         return;
     }
 
@@ -297,12 +328,14 @@ function startServer() {
     if (serverProcess) return;
 
     if (!app.isPackaged) {
-        console.log('Running in dev mode. Assuming server is started externally.');
+        logger.debug('Running in dev mode. Assuming server is started externally.');
         return;
     }
 
-    const scriptPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'dist', 'server.js');
-    console.log('Starting server from:', scriptPath);
+    const serverDistPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'dist');
+    const serverNodeModulesPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'node_modules');
+    const scriptPath = path.join(serverDistPath, 'server.js');
+    logger.info('Starting server from:', scriptPath);
 
     try {
         const requiredEnvKeys = ['DB_ENCRYPTION_KEY', 'ENCRYPTION_KEY', 'JWT_SECRET', 'BACKUP_PASSWORD'];
@@ -317,9 +350,11 @@ function startServer() {
         }
 
         serverProcess = fork(scriptPath, [], {
+            cwd: serverDistPath,
             env: { 
                 ...process.env, 
                 NODE_ENV: 'production',
+                NODE_PATH: serverNodeModulesPath,
                 PORT: SERVER_PORT.toString(), 
                 DB_PATH: path.join(app.getPath('userData'), 'database'),
                 DB_ENCRYPTION_KEY: process.env.DB_ENCRYPTION_KEY,
@@ -331,13 +366,16 @@ function startServer() {
         });
 
         serverProcess.stdout?.on('data', (data) => {
-            console.log(`[SERVER]: ${data}`);
+            logger.info(`[SERVER]: ${data}`);
         });
 
         serverProcess.stderr?.on('data', (data) => {
-            console.error(`[SERVER ERROR]: ${data}`);
+            logger.error(`[SERVER ERROR]: ${data}`);
             if (data.toString().toLowerCase().includes('error:') && !data.toString().includes('DeprecationWarning')) {
-                dialog.showErrorBox('Error del Servidor Backend', data.toString());
+                // T-18: Sanitize error messages shown to end users — never expose stack traces
+                const rawMsg = data.toString();
+                const sanitized = rawMsg.split('\n')[0].replace(/\s+at\s+.*/g, '').substring(0, 200);
+                dialog.showErrorBox('Error del Servidor Backend', sanitized || 'An internal server error occurred.');
             }
         });
 
@@ -346,7 +384,7 @@ function startServer() {
         });
 
         serverProcess.on('exit', (code) => {
-            console.log(`Server child process exited with code ${code}`);
+            logger.info(`Server child process exited with code ${code}`);
             if (code !== 0) {
                  dialog.showErrorBox('Servidor Detenido', `El servidor local de base de datos se detuvo con código ${code}`);
             }
@@ -374,7 +412,7 @@ app.whenReady().then(() => {
     try {
         createTray();
     } catch (e) {
-        console.error("Error creating tray:", e);
+        logger.error('Error creating tray:', e);
     }
 
     if (app.isPackaged) {

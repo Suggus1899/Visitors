@@ -3,142 +3,143 @@
  * Handles sending emails for password reset and notifications
  * Requirements: 11.1, 11.2, 11.6, 11.7, 11.10, 11.12
  */
+import logger from '../../config/logger';
 
 // Note: nodemailer will be installed separately
 // import nodemailer from 'nodemailer';
 // import type { Transporter } from 'nodemailer';
 
 export interface IEmailService {
-    sendPasswordResetEmail(to: string, token: string, username: string): Promise<void>;
-    sendPasswordChangedEmail(to: string, username: string): Promise<void>;
-    isConfigured(): boolean;
+  sendPasswordResetEmail(to: string, token: string, username: string): Promise<void>;
+  sendPasswordChangedEmail(to: string, username: string): Promise<void>;
+  isConfigured(): boolean;
 }
 
 export class EmailService implements IEmailService {
-    private transporter: any | null = null;
-    private readonly appUrl: string;
-    private readonly emailFrom: string;
+  private transporter: any | null = null;
+  private readonly appUrl: string;
+  private readonly emailFrom: string;
 
-    constructor() {
-        this.appUrl = process.env.APP_URL || 'http://localhost:5173';
-        this.emailFrom = process.env.EMAIL_FROM || 'noreply@afvisitorsystem.com';
+  constructor() {
+    this.appUrl = process.env.APP_URL || 'http://localhost:5173';
+    this.emailFrom = process.env.EMAIL_FROM || 'noreply@afvisitorsystem.com';
 
-        if (this.isConfigured()) {
-            this.initializeTransporter();
+    if (this.isConfigured()) {
+      this.initializeTransporter();
+    }
+  }
+
+  /**
+   * Check if email service is properly configured
+   * Requirement: 11.2
+   */
+  isConfigured(): boolean {
+    return !!(
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASSWORD
+    );
+  }
+
+  /**
+   * Initialize nodemailer transporter
+   * Requirement: 11.1
+   */
+  private initializeTransporter(): void {
+    try {
+      // This will be uncommented when nodemailer is installed
+      /*
+      this.transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASSWORD
         }
+      });
+      */
+      logger.info('Email service configured successfully');
+    } catch (error) {
+      logger.error('Failed to initialize email transporter:', error);
+      this.transporter = null;
+    }
+  }
+
+  /**
+   * Send password reset email with token
+   * Requirements: 11.6, 11.7
+   */
+  async sendPasswordResetEmail(to: string, token: string, username: string): Promise<void> {
+    if (!this.isConfigured() || !this.transporter) {
+      throw new Error('Email service is not configured');
     }
 
-    /**
-     * Check if email service is properly configured
-     * Requirement: 11.2
-     */
-    isConfigured(): boolean {
-        return !!(
-            process.env.SMTP_HOST &&
-            process.env.SMTP_USER &&
-            process.env.SMTP_PASSWORD
-        );
+    const resetLink = `${this.appUrl}/reset-password?token=${token}`;
+
+    const subject = 'Password Reset Request - AF Visitor System';
+    const html = this.getPasswordResetTemplate(username, resetLink);
+    const text = this.getPasswordResetTextTemplate(username, resetLink);
+
+    try {
+      // This will be uncommented when nodemailer is installed
+      /*
+      await this.transporter.sendMail({
+        from: this.emailFrom,
+        to,
+        subject,
+        text,
+        html
+      });
+      */
+      logger.info(`Password reset email would be sent to ${to}`);
+      logger.debug(`Reset link: ${resetLink}`);
+    } catch (error) {
+      logger.error('Failed to send password reset email:', error);
+      // Requirement: 11.12 - Don't expose technical details
+      throw new Error('Failed to send email. Please try again later.');
+    }
+  }
+
+  /**
+   * Send password changed confirmation email
+   * Requirement: 11.10
+   */
+  async sendPasswordChangedEmail(to: string, username: string): Promise<void> {
+    if (!this.isConfigured() || !this.transporter) {
+      // Silently fail if email is not configured
+      logger.debug('Email service not configured, skipping password changed notification');
+      return;
     }
 
-    /**
-     * Initialize nodemailer transporter
-     * Requirement: 11.1
-     */
-    private initializeTransporter(): void {
-        try {
-            // This will be uncommented when nodemailer is installed
-            /*
-            this.transporter = nodemailer.createTransport({
-              host: process.env.SMTP_HOST,
-              port: parseInt(process.env.SMTP_PORT || '587', 10),
-              secure: process.env.SMTP_SECURE === 'true',
-              auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASSWORD
-              }
-            });
-            */
-            console.log('Email service configured successfully');
-        } catch (error) {
-            console.error('Failed to initialize email transporter:', error);
-            this.transporter = null;
-        }
+    const subject = 'Password Changed Successfully - AF Visitor System';
+    const html = this.getPasswordChangedTemplate(username);
+    const text = this.getPasswordChangedTextTemplate(username);
+
+    try {
+      // This will be uncommented when nodemailer is installed
+      /*
+      await this.transporter.sendMail({
+        from: this.emailFrom,
+        to,
+        subject,
+        text,
+        html
+      });
+      */
+      logger.info(`Password changed email would be sent to ${to}`);
+    } catch (error) {
+      logger.error('Failed to send password changed email:', error);
+      // Don't throw - this is a notification, not critical
     }
+  }
 
-    /**
-     * Send password reset email with token
-     * Requirements: 11.6, 11.7
-     */
-    async sendPasswordResetEmail(to: string, token: string, username: string): Promise<void> {
-        if (!this.isConfigured() || !this.transporter) {
-            throw new Error('Email service is not configured');
-        }
-
-        const resetLink = `${this.appUrl}/reset-password?token=${token}`;
-
-        const subject = 'Password Reset Request - AF Visitor System';
-        const html = this.getPasswordResetTemplate(username, resetLink);
-        const text = this.getPasswordResetTextTemplate(username, resetLink);
-
-        try {
-            // This will be uncommented when nodemailer is installed
-            /*
-            await this.transporter.sendMail({
-              from: this.emailFrom,
-              to,
-              subject,
-              text,
-              html
-            });
-            */
-            console.log(`Password reset email would be sent to ${to}`);
-            console.log(`Reset link: ${resetLink}`);
-        } catch (error) {
-            console.error('Failed to send password reset email:', error);
-            // Requirement: 11.12 - Don't expose technical details
-            throw new Error('Failed to send email. Please try again later.');
-        }
-    }
-
-    /**
-     * Send password changed confirmation email
-     * Requirement: 11.10
-     */
-    async sendPasswordChangedEmail(to: string, username: string): Promise<void> {
-        if (!this.isConfigured() || !this.transporter) {
-            // Silently fail if email is not configured
-            console.log('Email service not configured, skipping password changed notification');
-            return;
-        }
-
-        const subject = 'Password Changed Successfully - AF Visitor System';
-        const html = this.getPasswordChangedTemplate(username);
-        const text = this.getPasswordChangedTextTemplate(username);
-
-        try {
-            // This will be uncommented when nodemailer is installed
-            /*
-            await this.transporter.sendMail({
-              from: this.emailFrom,
-              to,
-              subject,
-              text,
-              html
-            });
-            */
-            console.log(`Password changed email would be sent to ${to}`);
-        } catch (error) {
-            console.error('Failed to send password changed email:', error);
-            // Don't throw - this is a notification, not critical
-        }
-    }
-
-    /**
-     * Get HTML template for password reset email
-     * Requirement: 11.7
-     */
-    private getPasswordResetTemplate(username: string, resetLink: string): string {
-        return `
+  /**
+   * Get HTML template for password reset email
+   * Requirement: 11.7
+   */
+  private getPasswordResetTemplate(username: string, resetLink: string): string {
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -192,13 +193,13 @@ export class EmailService implements IEmailService {
 </body>
 </html>
     `.trim();
-    }
+  }
 
-    /**
-     * Get plain text template for password reset email
-     */
-    private getPasswordResetTextTemplate(username: string, resetLink: string): string {
-        return `
+  /**
+   * Get plain text template for password reset email
+   */
+  private getPasswordResetTextTemplate(username: string, resetLink: string): string {
+    return `
 Password Reset Request - AF Visitor System
 
 Hello ${username},
@@ -221,14 +222,14 @@ For security reasons, we recommend:
 Best regards,
 AF Visitor System Team
     `.trim();
-    }
+  }
 
-    /**
-     * Get HTML template for password changed confirmation
-     * Requirement: 11.10
-     */
-    private getPasswordChangedTemplate(username: string): string {
-        return `
+  /**
+   * Get HTML template for password changed confirmation
+   * Requirement: 11.10
+   */
+  private getPasswordChangedTemplate(username: string): string {
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -263,13 +264,13 @@ AF Visitor System Team
 </body>
 </html>
     `.trim();
-    }
+  }
 
-    /**
-     * Get plain text template for password changed confirmation
-     */
-    private getPasswordChangedTextTemplate(username: string): string {
-        return `
+  /**
+   * Get plain text template for password changed confirmation
+   */
+  private getPasswordChangedTextTemplate(username: string): string {
+    return `
 Password Changed Successfully - AF Visitor System
 
 Hello ${username},
@@ -284,7 +285,7 @@ If you did not make this change, please contact your system administrator immedi
 Best regards,
 AF Visitor System Team
     `.trim();
-    }
+  }
 }
 
 // Export singleton instance

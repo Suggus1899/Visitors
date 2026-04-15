@@ -1,6 +1,9 @@
 import express from 'express';
 import * as ReportCleanController from '../controllers/ReportCleanController';
 import { verifyToken } from '../middleware/auth';
+import { validateQuery } from '../middleware/validate';
+import { getStatsSchema, getMonthlyReportSchema, getComparisonStatsSchema } from '../schemas/report.schema';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
 
@@ -34,7 +37,7 @@ const router = express.Router();
  *       200:
  *         description: Statistics object
  */
-router.get('/v1/reports/stats', verifyToken, ReportCleanController.getStats);
+router.get('/v1/reports/stats', verifyToken, validateQuery(getStatsSchema), asyncHandler(ReportCleanController.getStats));
 
 /**
  * @swagger
@@ -57,7 +60,7 @@ router.get('/v1/reports/stats', verifyToken, ReportCleanController.getStats);
  *       200:
  *         description: Monthly statistics
  */
-router.get('/v1/reports/stats/monthly', verifyToken, ReportCleanController.getMonthlyReport);
+router.get('/v1/reports/stats/monthly', verifyToken, validateQuery(getMonthlyReportSchema), asyncHandler(ReportCleanController.getMonthlyReport));
 
 /**
  * @swagger
@@ -71,7 +74,7 @@ router.get('/v1/reports/stats/monthly', verifyToken, ReportCleanController.getMo
  *       200:
  *         description: List of visits with missed checkout
  */
-router.get('/v1/reports/alerts', verifyToken, ReportCleanController.getMissedCheckouts);
+router.get('/v1/reports/alerts', verifyToken, asyncHandler(ReportCleanController.getMissedCheckouts));
 
 /**
  * @swagger
@@ -85,6 +88,6 @@ router.get('/v1/reports/alerts', verifyToken, ReportCleanController.getMissedChe
  *       200:
  *         description: Comparison data
  */
-router.get('/v1/reports/comparison', verifyToken, ReportCleanController.getComparisonStats);
+router.get('/v1/reports/comparison', verifyToken, validateQuery(getComparisonStatsSchema), asyncHandler(ReportCleanController.getComparisonStats));
 
 export default router;

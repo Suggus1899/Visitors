@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../services/api.v1';
 import Database from 'lucide-react/dist/esm/icons/database';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import FolderOpen from 'lucide-react/dist/esm/icons/folder-open';
@@ -39,14 +39,11 @@ const BackupPanel = () => {
     const fetchBackups = useCallback(async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await axios.get('http://localhost:3000/api/v1/backups', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get('/backups');
             setBackups(response.data.data || []);
             setScheduler(null);
-        } catch (err) {
-            console.error('Failed to fetch backups:', err);
+        } catch {
+            // handled silently; user sees empty state
         } finally {
             setLoading(false);
         }
@@ -58,10 +55,7 @@ const BackupPanel = () => {
         try {
             setRunning(true);
             setMessage(null);
-            const token = localStorage.getItem('token');
-            const response = await axios.post('http://localhost:3000/api/v1/backups', {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.post('/backups', {});
 
             if (response.data?.success) {
                 const restorePassword = response.data?.data?.restorePassword;
@@ -73,8 +67,9 @@ const BackupPanel = () => {
             }
         } catch (err: unknown) {
             let errorMsg = 'Error al crear el backup';
-            if (axios.isAxiosError(err) && err.response?.data?.error?.message) {
-                errorMsg = err.response.data.error.message;
+            if (err && typeof err === 'object' && 'response' in err) {
+                const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+                if (axiosErr.response?.data?.error?.message) errorMsg = axiosErr.response.data.error.message;
             }
             setMessage({ type: 'error', text: errorMsg });
         } finally {
@@ -99,12 +94,10 @@ const BackupPanel = () => {
         try {
             setRestoring(true);
             setMessage(null);
-            const token = localStorage.getItem('token');
             
-            const response = await axios.post(
-                `http://localhost:3000/api/v1/backups/${encodeURIComponent(restoreModal.backupName)}/restore`,
-                { restorePassword: restoreModal.password },
-                { headers: { Authorization: `Bearer ${token}` } }
+            const response = await api.post(
+                `/backups/${encodeURIComponent(restoreModal.backupName)}/restore`,
+                { restorePassword: restoreModal.password }
             );
 
             if (response.data?.success) {
@@ -114,11 +107,10 @@ const BackupPanel = () => {
             }
         } catch (err: unknown) {
             let errorMsg = 'Error al restaurar el backup';
-            if (axios.isAxiosError(err) && err.response?.data?.error?.message) {
-                errorMsg = err.response.data.error.message;
-                if (err.response.status === 401) {
-                    errorMsg = 'Contraseña de restauración incorrecta';
-                }
+            if (err && typeof err === 'object' && 'response' in err) {
+                const axiosErr = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
+                if (axiosErr.response?.data?.error?.message) errorMsg = axiosErr.response.data.error.message;
+                if (axiosErr.response?.status === 401) errorMsg = 'Contraseña de restauración incorrecta';
             }
             setMessage({ type: 'error', text: errorMsg });
         } finally {

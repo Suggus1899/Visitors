@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { Visit, Visitor, StatsData, ComparisonStats } from '../types';
-
-const API_URL = 'http://localhost:3000/api/v1';
+import { API_URL, API_BASE_URL } from '../config/env';
 
 // Configure axios instance
 const api = axios.create({
@@ -134,10 +133,7 @@ api.interceptors.response.use(
             }
         }
 
-        // Handle network errors
-        if (!error.response) {
-            console.error('Network error:', error.message);
-        }
+        // Network errors are passed to the caller via Promise.reject below
 
         return Promise.reject(error);
     }
@@ -191,8 +187,7 @@ const adaptVisit = (v: VisitDTO): Visit => {
     const getPhotoUrl = (url: string | null | undefined) => {
         if (!url) return null;
         if (url.startsWith('http')) return url;
-        // Remove /api/v1 from API_URL to get base
-        const baseUrl = 'http://127.0.0.1:3000';
+        const baseUrl = API_BASE_URL;
         const cleanUrl = url.startsWith('/') ? url : `/${url}`;
         const finalUrl = `${baseUrl}${cleanUrl}?t=${new Date().getTime()}`;
         return finalUrl;

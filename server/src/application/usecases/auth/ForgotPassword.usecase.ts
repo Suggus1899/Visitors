@@ -1,6 +1,7 @@
 import { IUserRepository } from '../../../domain/repositories/IUserRepository';
 import { JwtAuthService } from '../../../infrastructure/services/JwtAuthService';
 import { EmailService } from '../../../infrastructure/services/EmailService';
+import logger from '../../../config/logger';
 
 export class ForgotPasswordUseCase {
   constructor(
@@ -37,15 +38,15 @@ export class ForgotPasswordUseCase {
           token, // Send unhashed token
           user.username
         );
-        console.log(`Password reset email sent to ${user.username}`);
+        logger.info(`Password reset email sent to ${user.username}`);
       } catch (error) {
-        console.error('Failed to send password reset email:', error);
+        logger.error('Failed to send password reset email:', error);
         throw new Error('EMAIL_SEND_FAILED');
       }
     } else {
       // Email not configured - log token for development
-      console.log(`[EMAIL NOT CONFIGURED] Password Reset for ${username}. Token: ${token}`);
-      console.log(`Reset link: ${process.env.APP_URL || 'http://localhost:5173'}/reset-password?token=${token}`);
+      logger.warn(`[EMAIL NOT CONFIGURED] Password Reset for ${username}. Token: ${token}`);
+      logger.warn(`Reset link: ${process.env.APP_URL || 'http://localhost:5173'}/reset-password?token=${token}`);
     }
 
     return token;

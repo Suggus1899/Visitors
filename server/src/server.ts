@@ -2,6 +2,7 @@ import app from './app';
 import sequelize, { initializeDatabaseEncryption } from './database';
 import { seedLoad, ensureBaseUsers } from './utils/seeder';
 import { initRetentionScheduler } from './utils/retention';
+import logger from './config/logger';
 
 // import { initScheduler } from './utils/scheduler'; // Legacy - commented out
 import config from './config/AppConfig';
@@ -24,7 +25,7 @@ const startServer = async () => {
             await sequelize.query('DROP TABLE IF EXISTS Visits_backup');
             await sequelize.query('DROP TABLE IF EXISTS Visitors_backup');
         } catch (e) {
-            console.log('Ignore cleanup error');
+            logger.debug('Ignore cleanup error');
         }
 
         const useAlter = process.env.DB_SYNC_ALTER === '1';
@@ -35,7 +36,7 @@ const startServer = async () => {
                 await sequelize.sync({ alter: true });
                 await sequelize.query('PRAGMA foreign_keys = ON;');
             } catch (syncError) {
-                console.error("Alter sync failed:", syncError);
+                logger.error('Alter sync failed:', syncError);
                 await sequelize.query('PRAGMA foreign_keys = ON;'); // ensure it's re-enabled
                 await sequelize.sync(); // fallback
             }
@@ -43,8 +44,8 @@ const startServer = async () => {
             await sequelize.sync();
         }
 
-        console.log('Database synced (data persists).');
-        
+        logger.info('Database synced (data persists).');
+
         // Ensure base users (admin, guard, auditor, demo) always exist
         await ensureBaseUsers();
 
@@ -52,13 +53,14 @@ const startServer = async () => {
         initRetentionScheduler();
 
         app.listen(PORT, () => {
-            console.log(`\n Server running on http://localhost:${PORT}`);
+            logger.info(`Server running on http://localhost:${PORT}`);
         });
     } catch (err: any) {
-        console.error('Unable to connect to the database:', err);
+        logger.error('Unable to connect to the database:', err);
         try {
-            require('fs').writeFileSync('C:\\Users\\Gusgus\\Documents\\Proyectos\\Visitors\\server_crash_log.txt', String(err.stack || err));
-        } catch(e) {}
+            const crashLogPath = require('path').join(config.dbPath, 'server_crash_log.txt');
+            require('fs').writeFileSync(crashLogPath, String(err.stack || err));
+        } catch (e) { }
     }
 };
 

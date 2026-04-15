@@ -97,3 +97,7 @@ export interface AuthContextType {
     loading: boolean;
 }
 
+export interface ReasonData {
+    reason: string;
+    count: number;
+}

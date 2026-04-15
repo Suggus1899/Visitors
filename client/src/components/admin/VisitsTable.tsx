@@ -11,7 +11,7 @@ import ArrowUp from 'lucide-react/dist/esm/icons/arrow-up';
 import ArrowDown from 'lucide-react/dist/esm/icons/arrow-down';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 type SortField = 'visitor' | 'check_in' | 'check_out' | 'arrival_time' | 'entry_time' | 'exit_time' | 'reason' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -86,20 +86,39 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
         doc.save(`reporte_visitas_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
-    const exportExcel = () => {
+    const exportExcel = async () => {
         const ts = (dt?: string | null) => dt ? new Date(dt).toLocaleString('es-ES') : '-';
-        const workSheet = XLSX.utils.json_to_sheet(visits.map(v => ({
-            Nombre: `${v.Visitor?.first_name || ''} ${v.Visitor?.last_name || ''}`.trim(),
-            Empresa: v.Visitor?.company || '',
-            Motivo: v.reason || v.purpose || '',
-            Llegada: ts(v.arrival_time),
-            Entrada: ts(v.entry_time || v.check_in || v.check_in_time),
-            'Salida Final': ts(v.exit_time || v.check_out || v.check_out_time),
-            Estado: v.status === 'active' ? 'Activo' : 'Completado'
-        })));
-        const workBook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workBook, workSheet, 'Visitas');
-        XLSX.writeFile(workBook, 'reporte_visitas.xlsx');
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Visitas');
+        worksheet.columns = [
+            { header: 'Nombre', key: 'nombre', width: 30 },
+            { header: 'Empresa', key: 'empresa', width: 20 },
+            { header: 'Motivo', key: 'motivo', width: 25 },
+            { header: 'Llegada', key: 'llegada', width: 20 },
+            { header: 'Entrada', key: 'entrada', width: 20 },
+            { header: 'Salida Final', key: 'salida', width: 20 },
+            { header: 'Estado', key: 'estado', width: 15 },
+        ];
+        visits.forEach(v => {
+            worksheet.addRow({
+                nombre: `${v.Visitor?.first_name || ''} ${v.Visitor?.last_name || ''}`.trim(),
+                empresa: v.Visitor?.company || '',
+                motivo: v.reason || v.purpose || '',
+                llegada: ts(v.arrival_time),
+                entrada: ts(v.entry_time || v.check_in || v.check_in_time),
+                salida: ts(v.exit_time || v.check_out || v.check_out_time),
+                estado: v.status === 'active' ? 'Activo' : 'Completado',
+            });
+        });
+        worksheet.getRow(1).font = { bold: true };
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'reporte_visitas.xlsx';
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     return (

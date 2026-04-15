@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import config from '../config/AppConfig';
+import logger from '../config/logger';
 
 /**
  * Encryption utility for protecting sensitive data fields
@@ -7,6 +8,7 @@ import config from '../config/AppConfig';
  */
 export class Encryption {
   private static algorithm = 'aes-256-gcm';
+  static readonly ENCRYPTED_PREFIX = 'ENC:';
 
   /**
    * Encrypts plaintext data
@@ -16,24 +18,24 @@ export class Encryption {
   static encrypt(text: string): string {
     if (!text) return '';
     if (!config.encryptionKey) {
-      console.warn('ENCRYPTION_KEY not set, data will not be encrypted');
+      logger.warn('ENCRYPTION_KEY not set, data will not be encrypted');
       return text;
     }
 
     try {
       const iv = crypto.randomBytes(16);
       const key = Buffer.from(config.encryptionKey, 'hex');
-      
+
       const cipher = crypto.createCipheriv(this.algorithm, key, iv);
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       const authTag = (cipher as any).getAuthTag();
 
-      // Return format: encrypted:iv:authTag
-      return `${encrypted}:${iv.toString('hex')}:${authTag.toString('hex')}`;
+      // Return format: ENC:encrypted:iv:authTag
+      return `${this.ENCRYPTED_PREFIX}${encrypted}:${iv.toString('hex')}:${authTag.toString('hex')}`;
     } catch (error) {
-      console.error('Encryption error:', error);
+      logger.error('Encryption error:', error);
       throw new Error('Failed to encrypt data');
     }
   }
@@ -46,19 +48,24 @@ export class Encryption {
   static decrypt(encryptedData: string): string {
     if (!encryptedData) return '';
     if (!config.encryptionKey) {
-      console.warn('ENCRYPTION_KEY not set, returning data as-is');
+      logger.warn('ENCRYPTION_KEY not set, returning data as-is');
       return encryptedData;
     }
 
-    // If data doesn't contain colons, it's not encrypted (legacy data)
-    if (!encryptedData.includes(':')) {
+    // T-13: Check for structured prefix to detect encrypted data
+    // Support both new 'ENC:' prefix format and legacy colon format
+    let dataToParse = encryptedData;
+    if (encryptedData.startsWith(this.ENCRYPTED_PREFIX)) {
+      dataToParse = encryptedData.slice(this.ENCRYPTED_PREFIX.length);
+    } else if (!encryptedData.includes(':')) {
+      // Not encrypted (plaintext legacy data)
       return encryptedData;
     }
 
     try {
-      const parts = encryptedData.split(':');
+      const parts = dataToParse.split(':');
       if (parts.length !== 3) {
-        console.error('Invalid encrypted data format');
+        logger.error('Invalid encrypted data format');
         return encryptedData;
       }
 
@@ -75,7 +82,7 @@ export class Encryption {
 
       return decrypted;
     } catch (error) {
-      console.error('Decryption error:', error);
+      logger.error('Decryption error:', error);
       throw new Error('Failed to decrypt data');
     }
   }
@@ -96,6 +103,14 @@ export class Encryption {
    */
   static generateToken(length: number = 32): string {
     return crypto.randomBytes(length).toString('hex');
+  }
+
+  /**
+   * Check if a value is encrypted (has ENC: prefix or legacy colon format)
+   */
+  static isEncrypted(data: string): boolean {
+    if (!data) return false;
+    return data.startsWith(this.ENCRYPTED_PREFIX) || (data.includes(':') && data.split(':').length === 3);
   }
 }
 

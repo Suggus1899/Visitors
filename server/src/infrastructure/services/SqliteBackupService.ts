@@ -48,14 +48,14 @@ export class SqliteBackupService implements IBackupService {
     return path.join(this.backupPath, `${baseName}.meta`);
   }
 
-  private getKey(): Buffer {
+  private getKey(salt: Buffer): Buffer {
     const password = config.backupPassword || config.dbEncryptionKey || config.encryptionKey;
     if (!password) {
       throw new Error('BACKUP_PASSWORD (or DB_ENCRYPTION_KEY) is required for encrypted backups');
     }
 
-    // Deterministic key derivation
-    return crypto.scryptSync(password, 'backup-salt', 32);
+    // T-12: Use unique random salt per backup for key derivation
+    return crypto.scryptSync(password, salt, 32);
   }
 
   async createBackup(): Promise<BackupResult> {
@@ -67,7 +67,8 @@ export class SqliteBackupService implements IBackupService {
     const restorePassword = this.generateRestorePassword();
     const passwordHash = this.hashPassword(restorePassword);
 
-    const key = this.getKey();
+    const salt = crypto.randomBytes(16);
+    const key = this.getKey(salt);
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(this.algorithm, key, iv);
 
@@ -75,7 +76,8 @@ export class SqliteBackupService implements IBackupService {
     const output = fs.createWriteStream(targetPath);
     const gzip = zlib.createGzip();
 
-    // Write IV first
+    // Write salt + IV first (16 bytes salt + 16 bytes IV)
+    output.write(salt);
     output.write(iv);
 
     return new Promise((resolve, reject) => {
@@ -93,7 +95,8 @@ export class SqliteBackupService implements IBackupService {
         const metaData = {
           createdAt: new Date().toISOString(),
           passwordHash: passwordHash,
-          originalName: backupName
+          originalName: backupName,
+          salt: salt.toString('hex')
         };
         fs.writeFileSync(metaPath, JSON.stringify(metaData, null, 2));
         
@@ -182,11 +185,13 @@ export class SqliteBackupService implements IBackupService {
     // We need to read IV first.
     const fileBuffer = await fs.promises.readFile(sourcePath);
     
-    const iv = fileBuffer.subarray(0, 16);
+    // T-12: Read salt (16 bytes) + IV (16 bytes) from header
+    const salt = fileBuffer.subarray(0, 16);
+    const iv = fileBuffer.subarray(16, 32);
     const authTag = fileBuffer.subarray(fileBuffer.length - 16);
-    const encryptedContent = fileBuffer.subarray(16, fileBuffer.length - 16);
+    const encryptedContent = fileBuffer.subarray(32, fileBuffer.length - 16);
 
-    const key = this.getKey();
+    const key = this.getKey(salt);
     const decipher = crypto.createDecipheriv(this.algorithm, key, iv);
     (decipher as any).setAuthTag(authTag);
 

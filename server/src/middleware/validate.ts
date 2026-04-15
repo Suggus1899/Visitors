@@ -31,3 +31,33 @@ export const validate = (schema: ZodSchema) => {
     next();
   };
 };
+
+/**
+ * Middleware factory that validates req.query against a Zod schema.
+ */
+export const validateQuery = (schema: ZodSchema) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const result = schema.safeParse(req.query);
+
+    if (!result.success) {
+      const errors = result.error.issues.map((e) => ({
+        field: e.path.map(String).join('.'),
+        message: e.message,
+      }));
+
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid query parameters',
+          details: errors,
+        },
+      });
+      return;
+    }
+
+    // Attach validated data back to query (overwriting string values with parsed values if applicable)
+    req.query = result.data as any;
+    next();
+  };
+};

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
+import logger from '../config/logger';
 
 /**
  * Clean Architecture Visitor Controller
@@ -18,7 +19,7 @@ export const getVisitor = async (req: Request, res: Response) => {
 
     res.json(ResponseBuilder.success(visitor));
   } catch (error) {
-    console.error('Get visitor error:', error);
+    logger.error('Get visitor error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error fetching visitor'));
   }
 };
@@ -31,7 +32,7 @@ export const getCompanies = async (req: Request, res: Response) => {
     const companies = await useCase.execute(query);
     res.json(ResponseBuilder.success(companies));
   } catch (error) {
-    console.error('Get companies error:', error);
+    logger.error('Get companies error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error fetching companies'));
   }
 };

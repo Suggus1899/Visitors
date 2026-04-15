@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import ActivityLog from '../models/ActivityLog';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { Op, fn, col, literal } from 'sequelize';
+import logger from '../config/logger';
 
 /**
  * Controller para endpoints de auditoría
@@ -96,7 +97,7 @@ export const getLogs = async (req: Request, res: Response) => {
             }
         }));
     } catch (error) {
-        console.error('Error fetching audit logs:', error);
+        logger.error('Error fetching audit logs:', error);
         res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error al obtener logs'));
     }
 };
@@ -194,7 +195,7 @@ export const getStats = async (req: Request, res: Response) => {
             }
         }));
     } catch (error) {
-        console.error('Error fetching audit stats:', error);
+        logger.error('Error fetching audit stats:', error);
         res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error al obtener estadísticas'));
     }
 };
@@ -253,7 +254,7 @@ export const exportLogs = async (req: Request, res: Response) => {
         res.setHeader('Content-Disposition', `attachment; filename=audit_logs_${new Date().toISOString().split('T')[0]}.csv`);
         res.send('\uFEFF' + csv); // BOM para Excel
     } catch (error) {
-        console.error('Error exporting audit logs:', error);
+        logger.error('Error exporting audit logs:', error);
         res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error al exportar logs'));
     }
 };
@@ -273,7 +274,7 @@ export const getActions = async (_req: Request, res: Response) => {
             actions.map((a: { action: string }) => a.action).filter(Boolean)
         ));
     } catch (error) {
-        console.error('Error fetching actions:', error);
+        logger.error('Error fetching actions:', error);
         res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error al obtener acciones'));
     }
 };
@@ -293,7 +294,7 @@ export const getUsers = async (_req: Request, res: Response) => {
             users.map((u: { username: string }) => u.username).filter(Boolean)
         ));
     } catch (error) {
-        console.error('Error fetching users:', error);
+        logger.error('Error fetching users:', error);
         res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error al obtener usuarios'));
     }
 };
@@ -305,13 +306,13 @@ export const getUsers = async (_req: Request, res: Response) => {
 export const getRetentionPolicy = async (_req: Request, res: Response) => {
     try {
         const retentionDays = process.env.AUDIT_RETENTION_DAYS ? parseInt(process.env.AUDIT_RETENTION_DAYS) : 365;
-        
+
         res.json(ResponseBuilder.success({
             retentionDays,
             policy: `Logs older than ${retentionDays} days are automatically purged.`
         }));
     } catch (error) {
-        console.error('Error fetching retention policy:', error);
+        logger.error('Error fetching retention policy:', error);
         res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error al obtener política de retención'));
     }
 };

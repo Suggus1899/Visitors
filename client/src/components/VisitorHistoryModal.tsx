@@ -31,8 +31,8 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
                 limit: 100
             });
             setVisits(res.visits);
-        } catch (err) {
-            console.error('Error fetching history', err);
+        } catch {
+            // user sees empty history on error
         } finally {
             setLoading(false);
         }

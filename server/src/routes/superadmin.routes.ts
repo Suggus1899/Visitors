@@ -1,6 +1,10 @@
 import express from 'express';
 import { superAdminController } from '../controllers/SuperAdminController';
 import { verifyToken, isSuperAdmin } from '../middleware/auth';
+import { validate, validateQuery } from '../middleware/validate';
+import { createUserSchema, updateUserSchema, resetUserPasswordSchema } from '../schemas/superadmin.schema';
+import { getAuditLogsByUserIdSchema } from '../schemas/audit.schema';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
 
@@ -25,7 +29,7 @@ const router = express.Router();
  *       403:
  *         description: Not authorized
  */
-router.get('/v1/superadmin/users', verifyToken, isSuperAdmin, superAdminController.listUsers);
+router.get('/v1/superadmin/users', verifyToken, isSuperAdmin, asyncHandler(superAdminController.listUsers));
 
 /**
  * @swagger
@@ -57,7 +61,7 @@ router.get('/v1/superadmin/users', verifyToken, isSuperAdmin, superAdminControll
  *       409:
  *         description: Username already exists
  */
-router.post('/v1/superadmin/users', verifyToken, isSuperAdmin, superAdminController.createUser);
+router.post('/v1/superadmin/users', verifyToken, isSuperAdmin, validate(createUserSchema), asyncHandler(superAdminController.createUser));
 
 /**
  * @swagger
@@ -91,7 +95,7 @@ router.post('/v1/superadmin/users', verifyToken, isSuperAdmin, superAdminControl
  *       404:
  *         description: User not found
  */
-router.put('/v1/superadmin/users/:id', verifyToken, isSuperAdmin, superAdminController.updateUser);
+router.put('/v1/superadmin/users/:id', verifyToken, isSuperAdmin, validate(updateUserSchema), asyncHandler(superAdminController.updateUser));
 
 /**
  * @swagger
@@ -115,7 +119,7 @@ router.put('/v1/superadmin/users/:id', verifyToken, isSuperAdmin, superAdminCont
  *       404:
  *         description: User not found
  */
-router.delete('/v1/superadmin/users/:id', verifyToken, isSuperAdmin, superAdminController.deleteUser);
+router.delete('/v1/superadmin/users/:id', verifyToken, isSuperAdmin, asyncHandler(superAdminController.deleteUser));
 
 /**
  * @swagger
@@ -146,7 +150,7 @@ router.delete('/v1/superadmin/users/:id', verifyToken, isSuperAdmin, superAdminC
  *       404:
  *         description: User not found
  */
-router.post('/v1/superadmin/users/:id/reset-password', verifyToken, isSuperAdmin, superAdminController.resetPassword);
+router.post('/v1/superadmin/users/:id/reset-password', verifyToken, isSuperAdmin, validate(resetUserPasswordSchema), asyncHandler(superAdminController.resetPassword));
 
 /**
  * @swagger
@@ -177,6 +181,6 @@ router.post('/v1/superadmin/users/:id/reset-password', verifyToken, isSuperAdmin
  *       200:
  *         description: List of audit logs
  */
-router.get('/v1/superadmin/audit-logs', verifyToken, isSuperAdmin, superAdminController.getAuditLogs);
+router.get('/v1/superadmin/audit-logs', verifyToken, isSuperAdmin, validateQuery(getAuditLogsByUserIdSchema), asyncHandler(superAdminController.getAuditLogs));
 
 export default router;

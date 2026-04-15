@@ -36,9 +36,9 @@ export const checkInSchema = z.object({
     company: z.string().max(200).optional(),
     email: z.string().email('Invalid email').max(200).optional(),
     phone: z.string().max(20).optional(),
-    photo: z.string().optional(),
-    photoBase64: z.string().optional(),
-    idPhotoBase64: z.string().optional(),
+    photo: z.string().max(200).optional(),
+    photoBase64: z.string().max(5_000_000, 'Photo exceeds 5MB limit').optional(),
+    idPhotoBase64: z.string().max(5_000_000, 'ID photo exceeds 5MB limit').optional(),
     jobTitle: z.string().max(200).optional(),
   }).optional(),
 });

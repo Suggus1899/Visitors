@@ -15,6 +15,7 @@ interface AppConfig {
 
   // JWT
   jwtSecret: string;
+  jwtRefreshSecret: string;
   jwtAccessExpiration: string;
   jwtRefreshExpiration: string;
 
@@ -27,6 +28,7 @@ interface AppConfig {
 
   // GDPR
   dataRetentionDays: number;
+  auditLogRetentionDays: number;
 
   // Security
   maxLoginAttempts: number;
@@ -45,8 +47,9 @@ class Config implements AppConfig {
   dbPath = process.env.DB_PATH || path.join(__dirname, '../../../data');
   dbEncryptionKey = process.env.DB_ENCRYPTION_KEY || '';
 
-  // JWT
-  jwtSecret = process.env.JWT_SECRET || 'default_dev_secret_change_me';
+  // JWT — no defaults; must be explicitly configured
+  jwtSecret = process.env.JWT_SECRET || '';
+  jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || '';
   jwtAccessExpiration = process.env.JWT_ACCESS_EXPIRATION || '15m';
   jwtRefreshExpiration = process.env.JWT_REFRESH_EXPIRATION || '7d';
 
@@ -59,6 +62,7 @@ class Config implements AppConfig {
 
   // GDPR
   dataRetentionDays = parseInt(process.env.DATA_RETENTION_DAYS || '60', 10);
+  auditLogRetentionDays = parseInt(process.env.AUDIT_LOG_RETENTION_DAYS || '365', 10);
 
   // Security
   maxLoginAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5', 10);
@@ -70,10 +74,17 @@ class Config implements AppConfig {
   validate() {
     const errors: string[] = [];
 
+    // JWT_SECRET is always required (no default fallback)
+    if (!this.jwtSecret) {
+      errors.push('JWT_SECRET must be set');
+    }
+    // Auto-derive refresh secret from main secret if not explicitly set
+    if (!this.jwtRefreshSecret && this.jwtSecret) {
+      const crypto = require('crypto');
+      this.jwtRefreshSecret = crypto.createHash('sha256').update(this.jwtSecret + ':refresh').digest('hex');
+    }
+
     if (this.nodeEnv === 'production') {
-      if (this.jwtSecret === 'default_dev_secret_change_me') {
-        errors.push('JWT_SECRET must be set in production');
-      }
       if (!this.dbEncryptionKey) {
         errors.push('DB_ENCRYPTION_KEY must be set in production');
       }

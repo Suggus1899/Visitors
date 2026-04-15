@@ -53,7 +53,7 @@ export class JwtAuthService implements IAuthService {
     };
     return jwt.sign(
       payload,
-      config.jwtSecret,
+      config.jwtRefreshSecret,
       { expiresIn: config.jwtRefreshExpiration as jwt.SignOptions['expiresIn'] }
     );
   }
@@ -96,7 +96,7 @@ export class JwtAuthService implements IAuthService {
    */
   verifyRefreshToken(token: string): TokenPayload | null {
     try {
-      const decoded = jwt.verify(token, config.jwtSecret) as TokenPayload;
+      const decoded = jwt.verify(token, config.jwtRefreshSecret) as TokenPayload;
       return decoded;
     } catch (error) {
       return null;

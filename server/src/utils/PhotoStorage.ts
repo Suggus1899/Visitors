@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import config from '../config/AppConfig';
+import logger from '../config/logger';
 
 /**
  * Photo storage utility for saving visitor photos to filesystem
@@ -15,7 +17,7 @@ export class PhotoStorage {
   static init() {
     if (!fs.existsSync(this.photosDir)) {
       fs.mkdirSync(this.photosDir, { recursive: true });
-      console.log(`Created photos directory: ${this.photosDir}`);
+      logger.info(`Created photos directory: ${this.photosDir}`);
     }
   }
 
@@ -33,9 +35,9 @@ export class PhotoStorage {
       // Create buffer from base64
       const imageBuffer = Buffer.from(base64Clean, 'base64');
 
-      // Generate filename: cedula_timestamp.jpg
-      const timestamp = Date.now();
-      const filename = `${cedula}_${timestamp}.jpg`;
+      // T-16: Use UUID for photo filenames instead of cedula hash to prevent enumeration
+      const uuid = crypto.randomUUID();
+      const filename = `${uuid}.jpg`;
       const filepath = path.join(this.photosDir, filename);
 
       // Write file
@@ -44,7 +46,7 @@ export class PhotoStorage {
       // Return relative path
       return `/data/photos/${filename}`;
     } catch (error) {
-      console.error('Error saving photo:', error);
+      logger.error('Error saving photo:', error);
       throw new Error('Failed to save photo');
     }
   }
@@ -62,10 +64,10 @@ export class PhotoStorage {
 
       if (fs.existsSync(filepath)) {
         fs.unlinkSync(filepath);
-        console.log(`Deleted photo: ${filename}`);
+        logger.debug(`Deleted photo: ${filename}`);
       }
     } catch (error) {
-      console.error('Error deleting photo:', error);
+      logger.error('Error deleting photo:', error);
       // Don't throw - deletion failure shouldn't block operations
     }
   }
@@ -86,7 +88,7 @@ export class PhotoStorage {
 
       return fs.readFileSync(filepath);
     } catch (error) {
-      console.error('Error reading photo:', error);
+      logger.error('Error reading photo:', error);
       throw new Error('Failed to read photo');
     }
   }
@@ -137,10 +139,10 @@ export class PhotoStorage {
         }
       }
 
-      console.log(`Cleaned up ${deletedCount} old photos (>${daysOld} days), ${protectedFilenames.size} protected`);
+      logger.info(`Cleaned up ${deletedCount} old photos (>${daysOld} days), ${protectedFilenames.size} protected`);
       return deletedCount;
     } catch (error) {
-      console.error('Error cleaning up photos:', error);
+      logger.error('Error cleaning up photos:', error);
       return 0;
     }
   }

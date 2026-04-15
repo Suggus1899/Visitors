@@ -4,6 +4,7 @@ import { ResponseBuilder } from '../shared/ApiResponse';
 import { LoginDto } from '../application/dto/AuthDto';
 import { getClientInfo } from '../middleware/ipCapture';
 import { logActivity } from '../models/ActivityLog';
+import logger from '../config/logger';
 
 /**
  * Clean Architecture Auth Controller
@@ -52,7 +53,7 @@ export const login = async (req: Request, res: Response) => {
 
       res.status(401).json(ResponseBuilder.error('AUTH_FAILED', 'Invalid credentials', data));
     } else {
-      console.error('Login error:', error);
+      logger.error('Login error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Login failed'));
     }
   }
@@ -64,15 +65,20 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const useCase = container.createForgotPasswordUseCase();
     const token = await useCase.execute(username);
 
+    // Security: Never expose the token in the API response.
+    // In production, send via email. Token is logged server-side for dev only.
+    if (process.env.NODE_ENV !== 'production') {
+      logger.debug(`[DEV ONLY] Password reset token for ${username}: ${token}`);
+    }
+
     res.json(ResponseBuilder.success({
-      message: 'Reset token generated (Check console)',
-      token // Exposed for demo/local purposes
+      message: 'If the account exists, a password reset has been initiated. Check your email or contact an administrator.'
     }));
   } catch (error: any) {
     if (error.message === 'USER_NOT_FOUND') {
       res.status(404).json(ResponseBuilder.error('NOT_FOUND', 'User not found'));
     } else {
-      console.error('Forgot password error:', error);
+      logger.error('Forgot password error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to process request'));
     }
   }
@@ -91,7 +97,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     } else if (error.message === 'PASSWORD_POLICY_VIOLATION') {
       res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', error.details || 'Password does not meet security requirements', error.errors));
     } else {
-      console.error('Reset password error:', error);
+      logger.error('Reset password error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to reset password'));
     }
   }
@@ -112,7 +118,7 @@ export const refreshToken = async (req: Request, res: Response) => {
     if (error.message === 'INVALID_REFRESH_TOKEN' || error.message === 'TOKEN_EXPIRED') {
       res.status(401).json(ResponseBuilder.error('INVALID_TOKEN', 'Invalid or expired refresh token'));
     } else {
-      console.error('Refresh token error:', error);
+      logger.error('Refresh token error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to refresh token'));
     }
   }
@@ -137,7 +143,7 @@ export const changePassword = async (req: Request, res: Response) => {
     } else if (error.message === 'PASSWORD_POLICY_VIOLATION') {
       res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', error.details || 'Password does not meet security requirements', error.errors));
     } else {
-      console.error('Change password error:', error);
+      logger.error('Change password error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to change password'));
     }
   }

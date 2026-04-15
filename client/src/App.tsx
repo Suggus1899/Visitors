@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { VisitService } from './services/api.v1';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { useAuth } from './hooks/useAuth';
@@ -28,28 +27,26 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
 import { Toaster } from 'react-hot-toast';
 import { Header } from './components/Header';
+import { useActiveVisitsQuery, useInvalidateVisitQueries } from './hooks/useVisitQueries';
+import { useVisitEvents } from './hooks/useVisitEvents';
 
 // Main Operations View (Guard + Admin)
 const OperationsView = () => {
-    const [visits, setVisits] = useState<Visit[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [showShortcuts, setShowShortcuts] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'waiting'>('active');
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const { logout, user } = useAuth();
     const { showWarning, timeLeft, extendSession, logout: sessionLogout } = useSessionTimeout();
     const navigate = useNavigate();
     const searchInputRef = useRef<HTMLInputElement>(null);
-
-    const fetchAllVisits = async () => {
-        try {
-            const data = await VisitService.getActiveVisits();
-            setVisits(data);
-            setRefreshTrigger(prev => prev + 1);
-        } catch (error) {
-            console.error(error);
-        }
-    };
+    const { isUsingFallbackPolling } = useVisitEvents();
+    const invalidateVisitQueries = useInvalidateVisitQueries();
+    const {
+        data: visits = [],
+        isFetching: isVisitsLoading,
+    } = useActiveVisitsQuery({
+        refetchInterval: isUsingFallbackPolling ? 15_000 : false,
+    });
 
     useKeyboardShortcuts({
         onNewVisit: () => {
@@ -72,14 +69,9 @@ const OperationsView = () => {
     });
 
     useEffect(() => {
-        fetchAllVisits();
-        const interval = setInterval(fetchAllVisits, 3000);
-
         if (user?.username === 'demo') {
             setTimeout(() => startGuidedTour(), 500);
         }
-
-        return () => clearInterval(interval);
     }, [user]);
 
     const filteredVisits = visits.filter(visit => {
@@ -141,7 +133,7 @@ const OperationsView = () => {
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="flex flex-col xl:flex-row gap-8">
                     <div className="w-full xl:w-1/3" data-tour="visit-form">
-                        <VisitForm onVisitAdded={fetchAllVisits} />
+                        <VisitForm onVisitAdded={invalidateVisitQueries} />
                     </div>
                     <div className="w-full xl:w-2/3" data-tour="active-visits">
 
@@ -200,14 +192,18 @@ const OperationsView = () => {
                                         )}
                                     </div>
                                 </div>
-                                <ActiveVisits visits={filteredVisits} onCheckout={fetchAllVisits} />
+                                <ActiveVisits
+                                    visits={filteredVisits}
+                                    onCheckout={invalidateVisitQueries}
+                                    loading={isVisitsLoading && filteredVisits.length === 0}
+                                />
                             </>
                         ) : (
                             <WaitingVisits
-                                refreshTrigger={refreshTrigger}
+                                fallbackPollingMs={isUsingFallbackPolling ? 15_000 : false}
                                 onVisitAdmitted={() => {
                                     setActiveTab('active');
-                                    fetchAllVisits();
+                                    invalidateVisitQueries();
                                 }}
                             />
                         )}

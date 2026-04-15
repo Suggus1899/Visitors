@@ -24,14 +24,14 @@ class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAtt
     getDecrypted(): Record<string, any> {
         return {
             cedula: this.encrypted_cedula ? Encryption.decrypt(this.encrypted_cedula) : this.cedula,
-            first_name: this.first_name && this.first_name.includes(':') ? Encryption.decrypt(this.first_name) : this.first_name,
-            last_name: this.last_name && this.last_name.includes(':') ? Encryption.decrypt(this.last_name) : this.last_name,
+            first_name: this.first_name && Encryption.isEncrypted(this.first_name) ? Encryption.decrypt(this.first_name) : this.first_name,
+            last_name: this.last_name && Encryption.isEncrypted(this.last_name) ? Encryption.decrypt(this.last_name) : this.last_name,
             company: this.company,
-            job_title: this.job_title && this.job_title.includes(':') ? Encryption.decrypt(this.job_title) : this.job_title,
+            job_title: this.job_title && Encryption.isEncrypted(this.job_title) ? Encryption.decrypt(this.job_title) : this.job_title,
             photo_url: this.photo_url,
             id_photo_url: this.id_photo_url,
-            email: this.email && this.email.includes(':') ? Encryption.decrypt(this.email) : this.email,
-            phone: this.phone && this.phone.includes(':') ? Encryption.decrypt(this.phone) : this.phone
+            email: this.email && Encryption.isEncrypted(this.email) ? Encryption.decrypt(this.email) : this.email,
+            phone: this.phone && Encryption.isEncrypted(this.phone) ? Encryption.decrypt(this.phone) : this.phone
         };
     }
 }
@@ -95,23 +95,23 @@ VisitorModel.init({
             // Other fields
             if (instance.changed('first_name')) {
                 const val = instance.getDataValue('first_name');
-                if (!val.includes(':')) instance.setDataValue('first_name', Encryption.encrypt(val));
+                if (!Encryption.isEncrypted(val)) instance.setDataValue('first_name', Encryption.encrypt(val));
             }
             if (instance.changed('last_name')) {
                 const val = instance.getDataValue('last_name');
-                if (!val.includes(':')) instance.setDataValue('last_name', Encryption.encrypt(val));
+                if (!Encryption.isEncrypted(val)) instance.setDataValue('last_name', Encryption.encrypt(val));
             }
             if (instance.changed('email') && instance.email) {
                 const val = instance.getDataValue('email');
-                if (val && !val.includes(':')) instance.setDataValue('email', Encryption.encrypt(val));
+                if (val && !Encryption.isEncrypted(val)) instance.setDataValue('email', Encryption.encrypt(val));
             }
             if (instance.changed('phone') && instance.phone) {
                 const val = instance.getDataValue('phone');
-                if (val && !val.includes(':')) instance.setDataValue('phone', Encryption.encrypt(val));
+                if (val && !Encryption.isEncrypted(val)) instance.setDataValue('phone', Encryption.encrypt(val));
             }
             if (instance.changed('job_title') && instance.job_title) {
                 const val = instance.getDataValue('job_title');
-                if (val && !val.includes(':')) instance.setDataValue('job_title', Encryption.encrypt(val));
+                if (val && !Encryption.isEncrypted(val)) instance.setDataValue('job_title', Encryption.encrypt(val));
             }
         }
     }

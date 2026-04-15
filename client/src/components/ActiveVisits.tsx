@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { VisitService } from '../services/api.v1';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
 import User from 'lucide-react/dist/esm/icons/user';
@@ -10,6 +9,7 @@ import { useSoundFeedback } from '../hooks/useSoundFeedback';
 import toast from 'react-hot-toast';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
+import { useCheckOutMutation } from '../hooks/useVisitQueries';
 
 interface ActiveVisitsProps {
     visits: Visit[];
@@ -21,6 +21,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [checkingOut, setCheckingOut] = useState<number | null>(null);
     const { playCheckout, playError } = useSoundFeedback();
+    const checkOutMutation = useCheckOutMutation();
 
     const handleCheckout = async (e: React.MouseEvent, id: number, visitorName: string) => {
         e.stopPropagation(); // Prevent opening modal when clicking checkout
@@ -29,12 +30,11 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
         setCheckingOut(id);
 
         try {
-            await VisitService.checkOut(id);
+            await checkOutMutation.mutateAsync({ id });
             playCheckout();
             toast.success(`¡Hasta luego, ${visitorName}!`);
             if (onCheckout) onCheckout();
         } catch (error) {
-            console.error('Error checking out:', error);
             playError();
             toast.error('Error al registrar salida');
         } finally {
