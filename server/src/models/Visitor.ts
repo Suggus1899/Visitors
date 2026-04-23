@@ -11,6 +11,8 @@ class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAtt
     declare job_title: CreationOptional<string | null>;
     declare photo_url: CreationOptional<string | null>;
     declare id_photo_url: CreationOptional<string | null>;
+    declare photo_data: CreationOptional<Buffer | null>;
+    declare id_photo_data: CreationOptional<Buffer | null>;
     declare email: CreationOptional<string | null>; // Encrypted
     declare phone: CreationOptional<string | null>; // Encrypted
     
@@ -30,6 +32,8 @@ class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAtt
             job_title: this.job_title && Encryption.isEncrypted(this.job_title) ? Encryption.decrypt(this.job_title) : this.job_title,
             photo_url: this.photo_url,
             id_photo_url: this.id_photo_url,
+            photo_data: this.photo_data ? this.photo_data.toString('base64') : null,
+            id_photo_data: this.id_photo_data ? this.id_photo_data.toString('base64') : null,
             email: this.email && Encryption.isEncrypted(this.email) ? Encryption.decrypt(this.email) : this.email,
             phone: this.phone && Encryption.isEncrypted(this.phone) ? Encryption.decrypt(this.phone) : this.phone
         };
@@ -69,6 +73,16 @@ VisitorModel.init({
     id_photo_url: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    photo_data: {
+        type: DataTypes.BLOB('long'),
+        allowNull: true,
+        comment: 'Face photo stored as binary blob for backup inclusion'
+    },
+    id_photo_data: {
+        type: DataTypes.BLOB('long'),
+        allowNull: true,
+        comment: 'ID photo stored as binary blob for backup inclusion'
     },
     email: {
         type: DataTypes.TEXT,

@@ -205,7 +205,7 @@ const adaptVisit = (v: VisitDTO): Visit => {
         exit_time: v.exitTime,
         check_out: v.checkOutTime,
         check_out_time: v.checkOutTime,
-        status: (v.status ? v.status.toLowerCase() : 'active') as 'waiting' | 'active' | 'completed',
+        status: (v.status ? v.status.toLowerCase() : 'active') as 'waiting' | 'active' | 'intermittent' | 'completed',
         personToVisit: v.personToVisit,
         person_to_visit: v.personToVisit,
         target_department: v.targetDepartment,
@@ -306,6 +306,22 @@ export const VisitService = {
     admitVisitor: async (id: number) => {
         const response = await api.post(`/visits/${id}/admit`);
         return unwrapResponse(response.data);
+    },
+
+    intermittentExit: async (id: number, notes?: string) => {
+        const response = await api.post(`/visits/${id}/intermittent-exit`, { notes });
+        return unwrapResponse(response.data);
+    },
+
+    intermittentReEntry: async (id: number, notes?: string) => {
+        const response = await api.post(`/visits/${id}/intermittent-reentry`, { notes });
+        return unwrapResponse(response.data);
+    },
+
+    getIntermittentVisits: async () => {
+        const response = await api.get('/visits/intermittent');
+        const data = unwrapResponse<any[]>(response.data);
+        return Array.isArray(data) ? data : [];
     },
 
     // Visitors

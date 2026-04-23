@@ -12,12 +12,14 @@ import VisitForm from './components/VisitForm';
 import ActiveVisits from './components/ActiveVisits';
 import WaitingVisits from './components/WaitingVisits';
 import AuditDashboard from './components/AuditDashboard';
+import IntermittentVisits from './components/IntermittentVisits';
 import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
 import HelpCircle from 'lucide-react/dist/esm/icons/help-circle';
 import Keyboard from 'lucide-react/dist/esm/icons/keyboard';
 import Shield from 'lucide-react/dist/esm/icons/shield';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Activity from 'lucide-react/dist/esm/icons/activity';
+import Pause from 'lucide-react/dist/esm/icons/alert-circle';
 import { Visit } from './types';
 import { startGuidedTour } from './utils/guidedTour';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
@@ -34,7 +36,7 @@ import { useVisitEvents } from './hooks/useVisitEvents';
 const OperationsView = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showShortcuts, setShowShortcuts] = useState(false);
-    const [activeTab, setActiveTab] = useState<'active' | 'waiting'>('active');
+    const [activeTab, setActiveTab] = useState<'active' | 'waiting' | 'intermittent'>('active');
     const { logout, user } = useAuth();
     const { showWarning, timeLeft, extendSession, logout: sessionLogout } = useSessionTimeout();
     const navigate = useNavigate();
@@ -153,6 +155,13 @@ const OperationsView = () => {
                                 <Clock size={16} /> En Espera
                                 {activeTab === 'waiting' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--status-warning)]" />}
                             </button>
+                            <button
+                                onClick={() => setActiveTab('intermittent')}
+                                className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'intermittent' ? 'text-amber-400' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
+                            >
+                                <Pause size={16} /> Intermitencia
+                                {activeTab === 'intermittent' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-400" />}
+                            </button>
                         </div>
 
                         {activeTab === 'active' ? (
@@ -198,10 +207,18 @@ const OperationsView = () => {
                                     loading={isVisitsLoading && filteredVisits.length === 0}
                                 />
                             </>
-                        ) : (
+                        ) : activeTab === 'waiting' ? (
                             <WaitingVisits
                                 fallbackPollingMs={isUsingFallbackPolling ? 15_000 : false}
                                 onVisitAdmitted={() => {
+                                    setActiveTab('active');
+                                    invalidateVisitQueries();
+                                }}
+                            />
+                        ) : (
+                            <IntermittentVisits
+                                fallbackPollingMs={isUsingFallbackPolling ? 15_000 : false}
+                                onVisitReEntered={() => {
                                     setActiveTab('active');
                                     invalidateVisitQueries();
                                 }}

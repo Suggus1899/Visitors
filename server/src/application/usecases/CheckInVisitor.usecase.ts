@@ -30,13 +30,18 @@ export class CheckInVisitorUseCase {
       // Create new visitor
       let photoUrl: string | undefined;
       let idPhotoUrl: string | undefined;
+      let photoData: Buffer | undefined;
+      let idPhotoData: Buffer | undefined;
 
-      // Save photo to filesystem if provided
+      // Save photo to filesystem for URL serving AND as BLOB for backup
       if (dto.visitorData.photoBase64) {
         photoUrl = await PhotoStorage.savePhoto(
           dto.visitorData.photoBase64,
           dto.visitorCedula
         );
+        // Also store as BLOB for backup inclusion
+        const base64Clean = dto.visitorData.photoBase64.replace(/^data:image\/\w+;base64,/, '');
+        photoData = Buffer.from(base64Clean, 'base64');
       }
 
       if (dto.visitorData.idPhotoBase64) {
@@ -44,6 +49,8 @@ export class CheckInVisitorUseCase {
           dto.visitorData.idPhotoBase64,
           `${dto.visitorCedula}_id`
         );
+        const base64Clean = dto.visitorData.idPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
+        idPhotoData = Buffer.from(base64Clean, 'base64');
       }
 
       visitor = new Visitor(
@@ -58,7 +65,7 @@ export class CheckInVisitorUseCase {
         dto.visitorData.phone
       );
 
-      visitor = await this.visitorRepository.create(visitor);
+      visitor = await this.visitorRepository.create(visitor, photoData, idPhotoData);
     } else if (!visitor) {
       throw new Error('Visitor not found and no visitor data provided');
     }

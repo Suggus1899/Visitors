@@ -3,6 +3,7 @@ import Clock from 'lucide-react/dist/esm/icons/clock';
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
 import User from 'lucide-react/dist/esm/icons/user';
 import LogOutIcon from 'lucide-react/dist/esm/icons/log-out';
+import PauseCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import { Visit } from '../types';
 import { SkeletonVisitCard } from './ui/Skeleton';
 import { useSoundFeedback } from '../hooks/useSoundFeedback';
@@ -10,6 +11,8 @@ import toast from 'react-hot-toast';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
 import { useCheckOutMutation } from '../hooks/useVisitQueries';
+import { VisitService } from '../services/api.v1';
+import IntermittentModal from './IntermittentModal';
 
 interface ActiveVisitsProps {
     visits: Visit[];
@@ -20,6 +23,8 @@ interface ActiveVisitsProps {
 const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading = false }) => {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [checkingOut, setCheckingOut] = useState<number | null>(null);
+    const [intermittentTarget, setIntermittentTarget] = useState<Visit | null>(null);
+    const [intermittentProcessing, setIntermittentProcessing] = useState(false);
     const { playCheckout, playError } = useSoundFeedback();
     const checkOutMutation = useCheckOutMutation();
 
@@ -39,6 +44,24 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
             toast.error('Error al registrar salida');
         } finally {
             setCheckingOut(null);
+        }
+    };
+
+    const handleIntermittentExit = async (notes: string) => {
+        if (!intermittentTarget) return;
+        setIntermittentProcessing(true);
+        try {
+            await VisitService.intermittentExit(intermittentTarget.id, notes);
+            playCheckout();
+            const name = intermittentTarget.Visitor ? `${intermittentTarget.Visitor.first_name || ''} ${intermittentTarget.Visitor.last_name || ''}`.trim() : 'Visitante';
+            toast.success(`${name} en salida temporal`);
+            setIntermittentTarget(null);
+            onCheckout();
+        } catch {
+            playError();
+            toast.error('Error al registrar salida temporal');
+        } finally {
+            setIntermittentProcessing(false);
         }
     };
 
@@ -142,19 +165,28 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                     {new Date(visit.check_in || visit.check_in_time || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </div>
 
-                                <button
-                                    onClick={(e) => handleCheckout(e, visit.id, visitorName)}
-                                    disabled={isCheckingOut}
-                                    className="group/btn relative px-4 py-1.5 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-2)] text-xs font-semibold hover:border-red-400 hover:text-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 overflow-hidden z-10"
-                                >
-                                    <span className="absolute inset-0 bg-red-500/15 transform origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 ease-out -z-10" />
-                                    {isCheckingOut ? (
-                                        <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <LogOutIcon size={13} className="group-hover/btn:-translate-x-0.5 transition-transform" />
-                                    )}
-                                    <span>SALIDA</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIntermittentTarget(visit); }}
+                                        className="group/btn relative px-3 py-1.5 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-2)] text-xs font-semibold hover:border-amber-400 hover:text-amber-300 transition-all flex items-center gap-1.5 overflow-hidden z-10"
+                                    >
+                                        <span className="absolute inset-0 bg-amber-500/15 transform origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 ease-out -z-10" />
+                                        <PauseCircle size={13} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => handleCheckout(e, visit.id, visitorName)}
+                                        disabled={isCheckingOut}
+                                        className="group/btn relative px-4 py-1.5 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-2)] text-xs font-semibold hover:border-red-400 hover:text-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 overflow-hidden z-10"
+                                    >
+                                        <span className="absolute inset-0 bg-red-500/15 transform origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 ease-out -z-10" />
+                                        {isCheckingOut ? (
+                                            <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <LogOutIcon size={13} className="group-hover/btn:-translate-x-0.5 transition-transform" />
+                                        )}
+                                        <span>SALIDA</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )
@@ -165,6 +197,15 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                 visit={selectedVisit}
                 isOpen={!!selectedVisit}
                 onClose={() => setSelectedVisit(null)}
+            />
+
+            <IntermittentModal
+                isOpen={!!intermittentTarget}
+                visitorName={intermittentTarget ? `${intermittentTarget.Visitor?.first_name || ''} ${intermittentTarget.Visitor?.last_name || ''}`.trim() : ''}
+                mode="exit"
+                onConfirm={handleIntermittentExit}
+                onClose={() => setIntermittentTarget(null)}
+                loading={intermittentProcessing}
             />
         </>
     );

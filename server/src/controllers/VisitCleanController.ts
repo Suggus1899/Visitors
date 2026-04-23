@@ -166,3 +166,91 @@ export const getVisits = async (req: Request, res: Response) => {
     res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch visits'));
   }
 };
+
+/**
+ * Intermittent Exit — temporary exit from premises
+ * POST /api/v1/visits/:id/intermittent-exit
+ */
+export const intermittentExit = async (req: Request, res: Response) => {
+  try {
+    const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const visitId = parseInt(idParam);
+
+    if (isNaN(visitId)) {
+      return res.status(400).json(ResponseBuilder.error('INVALID_ID', 'Invalid visit ID'));
+    }
+
+    const useCase = container.createIntermittentExitUseCase();
+    const result = await useCase.execute({
+      visitId,
+      notes: req.body.notes,
+      registeredBy: (req as any).user?.username || null,
+    });
+
+    eventEmitterService.emitVisitEvent({
+      type: 'visit:intermittent-exit',
+      timestamp: new Date().toISOString(),
+      visitId,
+    });
+
+    res.json(ResponseBuilder.success(result));
+  } catch (error) {
+    logger.error('Intermittent exit error:', error);
+    res.status(400).json(ResponseBuilder.error(
+      'INTERMITTENT_EXIT_FAILED',
+      error instanceof Error ? error.message : 'Failed to register temporary exit'
+    ));
+  }
+};
+
+/**
+ * Intermittent Re-Entry — return to premises after temporary exit
+ * POST /api/v1/visits/:id/intermittent-reentry
+ */
+export const intermittentReEntry = async (req: Request, res: Response) => {
+  try {
+    const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const visitId = parseInt(idParam);
+
+    if (isNaN(visitId)) {
+      return res.status(400).json(ResponseBuilder.error('INVALID_ID', 'Invalid visit ID'));
+    }
+
+    const useCase = container.createIntermittentReEntryUseCase();
+    const result = await useCase.execute({
+      visitId,
+      notes: req.body.notes,
+      registeredBy: (req as any).user?.username || null,
+    });
+
+    eventEmitterService.emitVisitEvent({
+      type: 'visit:intermittent-reentry',
+      timestamp: new Date().toISOString(),
+      visitId,
+    });
+
+    res.json(ResponseBuilder.success(result));
+  } catch (error) {
+    logger.error('Intermittent re-entry error:', error);
+    res.status(400).json(ResponseBuilder.error(
+      'INTERMITTENT_REENTRY_FAILED',
+      error instanceof Error ? error.message : 'Failed to register re-entry'
+    ));
+  }
+};
+
+/**
+ * Get all intermittent visits
+ * GET /api/v1/visits/intermittent
+ */
+export const getIntermittentVisits = async (_req: Request, res: Response) => {
+  try {
+    const useCase = container.createGetIntermittentVisitsUseCase();
+    const visits = await useCase.execute();
+
+    res.json(ResponseBuilder.success(visits));
+  } catch (error) {
+    logger.error('Get intermittent visits error:', error);
+    res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch intermittent visits'));
+  }
+};

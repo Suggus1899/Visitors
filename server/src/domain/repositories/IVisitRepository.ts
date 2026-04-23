@@ -21,6 +21,11 @@ export interface IVisitRepository {
   findActive(): Promise<Visit[]>;
 
   /**
+   * Find intermittent visits (temporarily outside)
+   */
+  findIntermittent(): Promise<Visit[]>;
+
+  /**
    * Find visits by visitor cedula
    */
   findByVisitor(visitorCedula: string): Promise<Visit[]>;

@@ -71,7 +71,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return byCompany.map(m => this.toDomain(m));
   }
 
-  async create(visitor: Visitor): Promise<Visitor> {
+  async create(visitor: Visitor, photoData?: Buffer, idPhotoData?: Buffer): Promise<Visitor> {
     // Model hooks handle encryption
     const model = await VisitorModel.create({
       cedula: visitor.cedula,
@@ -80,6 +80,9 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       company: visitor.company,
       job_title: visitor.jobTitle,
       photo_url: visitor.photoUrl,
+      id_photo_url: visitor.idPhotoUrl,
+      photo_data: photoData || null,
+      id_photo_data: idPhotoData || null,
       email: visitor.email,
       phone: visitor.phone
     });

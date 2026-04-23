@@ -13,6 +13,20 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /companies:
+ *   get:
+ *     summary: Get list of unique companies
+ *     tags: [Visitors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of companies
+ */
+router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getCompanies);
+
+/**
+ * @swagger
  * /visitors/{cedula}:
  *   get:
  *     summary: Get visitor by cedula
@@ -32,19 +46,5 @@ const router = express.Router();
  *         description: Visitor not found
  */
 router.get('/v1/visitors/:cedula', verifyToken, VisitorCleanController.getVisitor);
-
-/**
- * @swagger
- * /companies:
- *   get:
- *     summary: Get list of unique companies
- *     tags: [Visitors]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of companies
- */
-router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getCompanies);
 
 export default router;

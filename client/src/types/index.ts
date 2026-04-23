@@ -39,7 +39,7 @@ export interface Visit {
     check_in_time?: string;
     check_out?: string;
     check_out_time?: string;
-    status: 'waiting' | 'active' | 'completed';
+    status: 'waiting' | 'active' | 'intermittent' | 'completed';
     personToVisit?: string;
     person_to_visit?: string;
     notes?: string;

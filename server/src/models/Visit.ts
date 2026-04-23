@@ -9,7 +9,7 @@ class VisitModel extends Model<InferAttributes<VisitModel>, InferCreationAttribu
     declare person_to_visit: string;
     declare check_in_time: CreationOptional<Date>;
     declare check_out_time: CreationOptional<Date | null>;
-    declare status: CreationOptional<'waiting' | 'active' | 'completed'>;
+    declare status: CreationOptional<'waiting' | 'active' | 'intermittent' | 'completed'>;
     declare notes: CreationOptional<string | null>;
 
     // Timestamp lifecycle fields (ISO 8601)
@@ -62,7 +62,7 @@ VisitModel.init({
         allowNull: true
     },
     status: {
-        type: DataTypes.ENUM('waiting', 'active', 'completed'),
+        type: DataTypes.ENUM('waiting', 'active', 'intermittent', 'completed'),
         defaultValue: 'active'
     },
     notes: {

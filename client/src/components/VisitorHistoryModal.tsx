@@ -108,10 +108,12 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
                                     <div key={visit.id} className="relative pl-10 pb-4">
                                         <div className={`absolute left-2.5 w-3 h-3 rounded-full border-2 ${visit.status === 'active'
                                             ? 'bg-[color:var(--accent-0)] border-[color:var(--accent-1)]'
-                                            : 'bg-[color:var(--surface-2)] border-[color:var(--border-1)]'
+                                            : visit.status === 'intermittent'
+                                                ? 'bg-amber-400 border-amber-300'
+                                                : 'bg-[color:var(--surface-2)] border-[color:var(--border-1)]'
                                             }`} />
 
-                                        <div className={`bg-[color:var(--surface-2)] rounded-lg p-3 border-l-4 ${visit.status === 'active' ? 'border-[color:var(--accent-0)]' : 'border-[color:var(--border-1)]'
+                                        <div className={`bg-[color:var(--surface-2)] rounded-lg p-3 border-l-4 ${visit.status === 'active' ? 'border-[color:var(--accent-0)]' : visit.status === 'intermittent' ? 'border-amber-400' : 'border-[color:var(--border-1)]'
                                             }`}>
                                             <div className="flex items-center gap-2 text-sm text-[color:var(--text-3)] mb-1">
                                                 <Calendar size={14} />
@@ -134,6 +136,11 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
                                                 {visit.status === 'active' && (
                                                     <span className="px-2 py-0.5 border border-[color:var(--accent-0)] text-[color:var(--accent-0)] text-xs rounded-full font-semibold">
                                                         ACTIVO
+                                                    </span>
+                                                )}
+                                                {visit.status === 'intermittent' && (
+                                                    <span className="px-2 py-0.5 border border-amber-400 text-amber-400 text-xs rounded-full font-semibold">
+                                                        INTERMITENTE
                                                     </span>
                                                 )}
                                             </div>

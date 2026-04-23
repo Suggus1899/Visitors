@@ -17,7 +17,19 @@ export const getVisitor = async (req: Request, res: Response) => {
       return res.status(404).json(ResponseBuilder.error('VISITOR_NOT_FOUND', 'Visitor not found'));
     }
 
-    res.json(ResponseBuilder.success(visitor));
+    // Map to snake_case for frontend compatibility
+    const response = {
+      cedula: visitor.cedula,
+      first_name: visitor.firstName,
+      last_name: visitor.lastName,
+      company: visitor.company,
+      job_title: visitor.jobTitle,
+      photo_url: visitor.photoUrl,
+      email: visitor.email,
+      phone: visitor.phone,
+    };
+
+    res.json(ResponseBuilder.success(response));
   } catch (error) {
     logger.error('Get visitor error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error fetching visitor'));

@@ -29,6 +29,9 @@ import { ForgotPasswordUseCase } from '../application/usecases/auth/ForgotPasswo
 import { ResetPasswordUseCase } from '../application/usecases/auth/ResetPassword.usecase';
 import { RefreshTokenUseCase } from '../application/usecases/auth/RefreshToken.usecase';
 import { ChangePasswordUseCase } from '../application/usecases/auth/ChangePassword.usecase';
+import { IntermittentExitUseCase } from '../application/usecases/IntermittentExit.usecase';
+import { IntermittentReEntryUseCase } from '../application/usecases/IntermittentReEntry.usecase';
+import { GetIntermittentVisitsUseCase } from '../application/usecases/GetIntermittentVisits.usecase';
 
 /**
  * Simple Dependency Injection Container
@@ -229,6 +232,25 @@ class Container {
       this.authService,
       this.passwordPolicy,
       this.emailService
+    );
+  }
+
+  createIntermittentExitUseCase(): IntermittentExitUseCase {
+    return new IntermittentExitUseCase(
+      this.visitRepository
+    );
+  }
+
+  createIntermittentReEntryUseCase(): IntermittentReEntryUseCase {
+    return new IntermittentReEntryUseCase(
+      this.visitRepository
+    );
+  }
+
+  createGetIntermittentVisitsUseCase(): GetIntermittentVisitsUseCase {
+    return new GetIntermittentVisitsUseCase(
+      this.visitRepository,
+      this.visitorRepository
     );
   }
 }
