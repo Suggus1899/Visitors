@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Visit, Visitor, StatsData, ComparisonStats } from '../types';
+import type { Visit, Visitor, VisitorWithHistory, StatsData, ComparisonStats, IntermittentVisit } from '../types';
 import { API_URL, API_BASE_URL } from '../config/env';
 
 // Configure axios instance
@@ -177,7 +177,6 @@ interface VisitDTO {
     vehicleBrand?: string;
     vehicleModel?: string;
     vehiclePlate?: string;
-    area?: string;
     action?: 'Carga' | 'Descarga' | 'Ninguna';
     department?: string;
 }
@@ -205,7 +204,7 @@ const adaptVisit = (v: VisitDTO): Visit => {
         exit_time: v.exitTime,
         check_out: v.checkOutTime,
         check_out_time: v.checkOutTime,
-        status: (v.status ? v.status.toLowerCase() : 'active') as 'waiting' | 'active' | 'completed',
+        status: (v.status ? v.status.toLowerCase() : 'active') as 'waiting' | 'active' | 'intermittent' | 'completed',
         personToVisit: v.personToVisit,
         person_to_visit: v.personToVisit,
         target_department: v.targetDepartment,
@@ -216,7 +215,6 @@ const adaptVisit = (v: VisitDTO): Visit => {
         vehicleBrand: v.vehicleBrand,
         vehicleModel: v.vehicleModel,
         vehiclePlate: v.vehiclePlate,
-        area: v.area,
         action: v.action,
         department: v.department,
         Visitor: {
@@ -281,7 +279,6 @@ export const VisitService = {
         vehicleBrand?: string;
         vehicleModel?: string;
         vehiclePlate?: string;
-        area?: string;
         action?: string;
         department?: string;
         visitorData?: {
@@ -308,9 +305,40 @@ export const VisitService = {
         return unwrapResponse(response.data);
     },
 
+    getIntermittentVisits: async (): Promise<IntermittentVisit[]> => {
+        const response = await api.get('/visits/intermittent');
+        return unwrapResponse<IntermittentVisit[]>(response.data);
+    },
+
+    goIntermittent: async (id: number, notes?: string) => {
+        const response = await api.post(`/visits/${id}/intermittent`, { notes });
+        return unwrapResponse(response.data);
+    },
+
+    reactivateVisit: async (id: number) => {
+        const response = await api.post(`/visits/${id}/reactivate`);
+        return unwrapResponse(response.data);
+    },
+
+    getVisitorPhotoUrl: (cedula: string) => {
+        return `${API_URL}/visitors/${encodeURIComponent(cedula)}/photo`;
+    },
+
     // Visitors
-    getVisitorByCedula: async (cedula: string): Promise<Visitor> => {
-        const response = await api.get(`/visitors/${cedula}`);
+    getVisitorByCedula: async (cedula: string, includeHistory: boolean = false): Promise<Visitor | VisitorWithHistory> => {
+        const response = await api.get(`/visitors/${cedula}?history=${includeHistory}`);
+        return unwrapResponse<Visitor | VisitorWithHistory>(response.data);
+    },
+
+    getAllVisitors: async (page: number = 1, limit: number = 50, company?: string): Promise<{ visitors: Visitor[]; total: number }> => {
+        let url = `/visitors?page=${page}&limit=${limit}`;
+        if (company) url += `&company=${encodeURIComponent(company)}`;
+        const response = await api.get(url);
+        return unwrapResponse(response.data);
+    },
+
+    updateVisitor: async (cedula: string, data: Partial<Visitor>): Promise<Visitor> => {
+        const response = await api.patch(`/visitors/${cedula}`, data);
         return unwrapResponse<Visitor>(response.data);
     },
 

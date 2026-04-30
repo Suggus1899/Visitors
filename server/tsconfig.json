@@ -16,6 +16,9 @@
     "include": [
         "src/**/*"
     ],
+    "exclude": [
+        "src/scripts/**/*"
+    ],
     "ts-node": {
         "files": true
     }

@@ -28,6 +28,7 @@ export interface VisitEntity {
 export enum VisitStatus {
   WAITING = 'waiting',
   ACTIVE = 'active',
+  INTERMITTENT = 'intermittent',
   COMPLETED = 'completed'
 }
 
@@ -87,12 +88,22 @@ export class Visit {
     if (this.status === VisitStatus.COMPLETED && !this.checkOutTime) {
       throw new Error('Completed visits must have a check-out time');
     }
+
+    // Business rule: only active visits can be checked out
+    // (intermittent visits must reactivate first)
   }
 
   /**
-   * Check if visit is active
+   * Check if visit is currently open (active or intermittent)
    */
   isActive(): boolean {
+    return (this.status === VisitStatus.ACTIVE || this.status === VisitStatus.INTERMITTENT) && !this.checkOutTime;
+  }
+
+  /**
+   * Check if visit is strictly in ACTIVE state (not intermittent)
+   */
+  isStrictlyActive(): boolean {
     return this.status === VisitStatus.ACTIVE && !this.checkOutTime;
   }
 
@@ -107,9 +118,16 @@ export class Visit {
   }
 
   /**
-   * Create a completed visit (checkout)
+   * Create a completed visit (checkout) — only allowed from ACTIVE status
    */
   checkout(checkOutTime: Date, notes?: string): Visit {
+    if (this.status !== VisitStatus.ACTIVE) {
+      throw new Error(
+        this.status === VisitStatus.INTERMITTENT
+          ? 'Cannot check out an intermittent visit. Reactivate the visit first.'
+          : 'Only active visits can be checked out'
+      );
+    }
     return new Visit(
       this.visitorCedula,
       this.checkInTime,
@@ -119,6 +137,64 @@ export class Visit {
       this.id,
       checkOutTime,
       notes || this.notes,
+      this.visitorName,
+      this.visitorCompany,
+      this.companionName,
+      this.companionCedula,
+      this.vehicleBrand,
+      this.vehicleModel,
+      this.vehiclePlate,
+      this.area,
+      this.action,
+      this.department
+    );
+  }
+
+  /**
+   * Mark visit as intermittent (visitor temporarily left) — only from ACTIVE
+   */
+  goIntermittent(): Visit {
+    if (this.status !== VisitStatus.ACTIVE) {
+      throw new Error('Only active visits can be marked as intermittent');
+    }
+    return new Visit(
+      this.visitorCedula,
+      this.checkInTime,
+      this.purpose,
+      this.personToVisit,
+      VisitStatus.INTERMITTENT,
+      this.id,
+      this.checkOutTime,
+      this.notes,
+      this.visitorName,
+      this.visitorCompany,
+      this.companionName,
+      this.companionCedula,
+      this.vehicleBrand,
+      this.vehicleModel,
+      this.vehiclePlate,
+      this.area,
+      this.action,
+      this.department
+    );
+  }
+
+  /**
+   * Reactivate an intermittent visit (visitor returned) — only from INTERMITTENT
+   */
+  reactivate(): Visit {
+    if (this.status !== VisitStatus.INTERMITTENT) {
+      throw new Error('Only intermittent visits can be reactivated');
+    }
+    return new Visit(
+      this.visitorCedula,
+      this.checkInTime,
+      this.purpose,
+      this.personToVisit,
+      VisitStatus.ACTIVE,
+      this.id,
+      this.checkOutTime,
+      this.notes,
       this.visitorName,
       this.visitorCompany,
       this.companionName,

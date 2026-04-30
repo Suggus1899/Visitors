@@ -3,11 +3,19 @@ import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Check from 'lucide-react/dist/esm/icons/check';
 import PhotoCapture from '../PhotoCapture';
 
+const VISIT_PURPOSES = [
+    'Reunión',
+    'Entrega',
+    'Mantenimiento',
+    'Capacitación',
+    'Inspección',
+    'Otro'
+];
+
 interface VisitDetailsStepProps {
     formData: {
         target_department: string;
         host_person: string;
-        area: string;
         department: string;
         reason: string;
         photo_url: string;
@@ -66,33 +74,30 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                 />
             </div>
 
-            {/* ── Existing fields ──────────────────────────────────────── */}
-            <div>
-                <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
-                    Área de Visita (Física) <span className="text-red-500">*</span>
-                </label>
-                <input
-                    type="text"
-                    placeholder="Ej: Oficina Principal, Almacén 2..."
-                    value={formData.area}
-                    onChange={(e) => onFormDataChange('area', e.target.value)}
-                    className={getInputClass(formData.area.trim() ? true : null)}
-                    required
-                />
-            </div>
-
+            {/* ── Purpose Dropdown ─────────────────────────────────────── */}
             <div>
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                     Motivo de la Visita <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                    placeholder="Indique el motivo de la visita"
+                <select
                     value={formData.reason}
                     onChange={(e) => onFormDataChange('reason', e.target.value)}
-                    className={getInputClass(formData.reason.trim() ? true : null)}
-                    rows={3}
+                    className={`${getInputClass(formData.reason.trim() ? true : null)} w-full bg-[color:var(--surface-0)]`}
                     required
-                />
+                >
+                    <option value="">Seleccione un motivo...</option>
+                    {VISIT_PURPOSES.map((purpose) => (
+                        <option key={purpose} value={purpose}>{purpose}</option>
+                    ))}
+                </select>
+                {formData.reason === 'Otro' && (
+                    <input
+                        type="text"
+                        placeholder="Especifique el motivo..."
+                        onChange={(e) => onFormDataChange('reason', `Otro: ${e.target.value}`)}
+                        className={`${getInputClass(true)} w-full mt-2`}
+                    />
+                )}
             </div>
 
             <label className={`flex items-start gap-3 rounded-lg border p-3 ${formData.consent_accepted ? 'border-[color:var(--accent-0)] bg-[color:var(--surface-2)]' : 'border-red-400 bg-[color:var(--surface-2)]'}`}>

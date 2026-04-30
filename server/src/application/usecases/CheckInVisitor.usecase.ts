@@ -3,7 +3,6 @@ import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
 import { Visit, VisitStatus } from '../../domain/entities/Visit.entity';
 import { Visitor } from '../../domain/entities/Visitor.entity';
 import { CheckInDto, VisitResponseDto } from '../dto/VisitDto';
-import { PhotoStorage } from '../../utils/PhotoStorage';
 
 /**
  * Use Case: Check in a visitor
@@ -28,34 +27,36 @@ export class CheckInVisitorUseCase {
 
     if (!visitor && dto.visitorData) {
       // Create new visitor
-      let photoUrl: string | undefined;
-      let idPhotoUrl: string | undefined;
+      // Save photo as BLOB in DB (SQLCipher encrypts it automatically)
+      let photoBlob: Buffer | undefined;
+      let idPhotoBlob: Buffer | undefined;
 
-      // Save photo to filesystem if provided
       if (dto.visitorData.photoBase64) {
-        photoUrl = await PhotoStorage.savePhoto(
-          dto.visitorData.photoBase64,
-          dto.visitorCedula
-        );
+        const base64Clean = dto.visitorData.photoBase64.replace(/^data:image\/\w+;base64,/, '');
+        photoBlob = Buffer.from(base64Clean, 'base64');
       }
 
       if (dto.visitorData.idPhotoBase64) {
-        idPhotoUrl = await PhotoStorage.savePhoto(
-          dto.visitorData.idPhotoBase64,
-          `${dto.visitorCedula}_id`
-        );
+        const base64Clean = dto.visitorData.idPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
+        idPhotoBlob = Buffer.from(base64Clean, 'base64');
       }
 
       visitor = new Visitor(
+        undefined, // id will be generated
         dto.visitorCedula,
         dto.visitorData.firstName,
         dto.visitorData.lastName,
         dto.visitorData.company,
         dto.visitorData.jobTitle,
-        photoUrl,
-        idPhotoUrl,
-        undefined, // email removed
-        dto.visitorData.phone
+        undefined, // photoUrl (legacy filesystem path — not used for new visitors)
+        undefined, // idPhotoUrl
+        dto.visitorData.email,
+        dto.visitorData.phone,
+        photoBlob,
+        idPhotoBlob,
+        false, // isBlocked - new visitors are not blocked
+        undefined, // observations
+        new Date() // createdAt
       );
 
       visitor = await this.visitorRepository.create(visitor);
@@ -63,11 +64,19 @@ export class CheckInVisitorUseCase {
       throw new Error('Visitor not found and no visitor data provided');
     }
 
-    // 2. Check if visitor has an active visit
-    const activeVisits = await this.visitRepository.findByVisitor(dto.visitorCedula);
-    const hasActiveVisit = activeVisits.some(v => v.isActive());
+    // 1b. Check if visitor is blocked
+    if (visitor.isBlacklisted()) {
+      throw new Error(`Visitor is blocked: ${visitor.observations || 'No reason provided'}`);
+    }
 
-    if (hasActiveVisit) {
+    // 2. Check if visitor has an active or intermittent visit
+    const activeVisits = await this.visitRepository.findByVisitor(dto.visitorCedula);
+    const openVisit = activeVisits.find(v => v.isActive());
+
+    if (openVisit) {
+      if (openVisit.status === VisitStatus.INTERMITTENT) {
+        throw new Error('Visitor has an active intermittent visit. Use reactivate to let them back in.');
+      }
       throw new Error('Visitor already has an active visit');
     }
 
@@ -119,7 +128,6 @@ export class CheckInVisitorUseCase {
       vehicleBrand: visit.vehicleBrand,
       vehicleModel: visit.vehicleModel,
       vehiclePlate: visit.vehiclePlate,
-      area: visit.area,
       action: visit.action,
       department: visit.department
     };

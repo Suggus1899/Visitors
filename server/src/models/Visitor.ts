@@ -3,6 +3,7 @@ import sequelize from '../database';
 import Encryption from '../utils/Encryption';
 
 class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAttributes<VisitorModel>> {
+    declare id: CreationOptional<number>;
     declare cedula: string; // Stored as hash
     declare encrypted_cedula: CreationOptional<string | null>;
     declare first_name: string; // Encrypted
@@ -11,8 +12,13 @@ class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAtt
     declare job_title: CreationOptional<string | null>;
     declare photo_url: CreationOptional<string | null>;
     declare id_photo_url: CreationOptional<string | null>;
+    declare photo_blob: CreationOptional<Buffer | null>;
+    declare id_photo_blob: CreationOptional<Buffer | null>;
     declare email: CreationOptional<string | null>; // Encrypted
     declare phone: CreationOptional<string | null>; // Encrypted
+    declare isBlocked: CreationOptional<boolean>;
+    declare observations: CreationOptional<string | null>;
+    declare createdAt: CreationOptional<Date>;
     
     // Unencrypted virtual getters/setters (if needed)
     declare dec_cedula?: NonAttribute<string>;
@@ -23,6 +29,7 @@ class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAtt
 
     getDecrypted(): Record<string, any> {
         return {
+            id: this.id,
             cedula: this.encrypted_cedula ? Encryption.decrypt(this.encrypted_cedula) : this.cedula,
             first_name: this.first_name && Encryption.isEncrypted(this.first_name) ? Encryption.decrypt(this.first_name) : this.first_name,
             last_name: this.last_name && Encryption.isEncrypted(this.last_name) ? Encryption.decrypt(this.last_name) : this.last_name,
@@ -30,17 +37,27 @@ class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAtt
             job_title: this.job_title && Encryption.isEncrypted(this.job_title) ? Encryption.decrypt(this.job_title) : this.job_title,
             photo_url: this.photo_url,
             id_photo_url: this.id_photo_url,
+            photo_blob: this.photo_blob,
+            id_photo_blob: this.id_photo_blob,
             email: this.email && Encryption.isEncrypted(this.email) ? Encryption.decrypt(this.email) : this.email,
-            phone: this.phone && Encryption.isEncrypted(this.phone) ? Encryption.decrypt(this.phone) : this.phone
+            phone: this.phone && Encryption.isEncrypted(this.phone) ? Encryption.decrypt(this.phone) : this.phone,
+            isBlocked: this.isBlocked,
+            observations: this.observations,
+            createdAt: this.createdAt
         };
     }
 }
 
 VisitorModel.init({
+    id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
     cedula: {
         type: DataTypes.STRING,
-        primaryKey: true,
-        allowNull: false
+        allowNull: false,
+        unique: true
     },
     encrypted_cedula: {
         type: DataTypes.STRING,
@@ -70,6 +87,14 @@ VisitorModel.init({
         type: DataTypes.STRING,
         allowNull: true
     },
+    photo_blob: {
+        type: DataTypes.BLOB,
+        allowNull: true
+    },
+    id_photo_blob: {
+        type: DataTypes.BLOB,
+        allowNull: true
+    },
     email: {
         type: DataTypes.TEXT,
         allowNull: true
@@ -77,6 +102,20 @@ VisitorModel.init({
     phone: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    isBlocked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false
+    },
+    observations: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    createdAt: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        allowNull: false
     }
 }, {
     sequelize,

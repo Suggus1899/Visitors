@@ -11,8 +11,31 @@ import Encryption from '../../../utils/Encryption';
 export class SequelizeVisitorRepository implements IVisitorRepository {
   async findByCedula(cedula: string): Promise<Visitor | null> {
     const hashed = Encryption.hash(cedula);
-    const model = await VisitorModel.findByPk(hashed);
+    const model = await VisitorModel.findOne({ where: { cedula: hashed } });
     return model ? this.toDomain(model) : null;
+  }
+
+  async findById(id: number): Promise<Visitor | null> {
+    const model = await VisitorModel.findByPk(id);
+    return model ? this.toDomain(model) : null;
+  }
+
+  async findByCedulaWithHistory(cedula: string, historyLimit: number = 5): Promise<{ visitor: Visitor | null; history: any[] }> {
+    const visitor = await this.findByCedula(cedula);
+    if (!visitor) {
+      return { visitor: null, history: [] };
+    }
+
+    // Import VisitModel dynamically to avoid circular dependencies
+    const VisitModel = (await import('../../../models/Visit')).default;
+    const hashedCedula = Encryption.hash(cedula);
+    const history = await VisitModel.findAll({
+      where: { visitor_cedula: hashedCedula },
+      order: [['check_in_time', 'DESC']],
+      limit: historyLimit
+    });
+
+    return { visitor, history };
   }
 
   async findAll(filters?: VisitorFilters): Promise<Visitor[]> {
@@ -80,8 +103,14 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       company: visitor.company,
       job_title: visitor.jobTitle,
       photo_url: visitor.photoUrl,
+      id_photo_url: visitor.idPhotoUrl,
+      photo_blob: visitor.photoBlob || null,
+      id_photo_blob: visitor.idPhotoBlob || null,
       email: visitor.email,
-      phone: visitor.phone
+      phone: visitor.phone,
+      isBlocked: visitor.isBlocked,
+      observations: visitor.observations,
+      createdAt: visitor.createdAt
     });
 
     return this.toDomain(model);
@@ -89,7 +118,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
 
   async update(cedula: string, data: Partial<VisitorEntity>): Promise<Visitor> {
     const hashed = Encryption.hash(cedula);
-    const model = await VisitorModel.findByPk(hashed);
+    const model = await VisitorModel.findOne({ where: { cedula: hashed } });
     
     if (!model) {
       throw new Error('Visitor not found');
@@ -102,16 +131,66 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       company: data.company,
       job_title: data.jobTitle,
       photo_url: data.photoUrl,
+      id_photo_url: data.idPhotoUrl,
+      photo_blob: data.photoBlob !== undefined ? data.photoBlob : undefined,
+      id_photo_blob: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
       email: data.email,
-      phone: data.phone
+      phone: data.phone,
+      isBlocked: data.isBlocked,
+      observations: data.observations
     });
 
     return this.toDomain(model);
   }
 
+  async updateById(id: number, data: Partial<VisitorEntity>): Promise<Visitor> {
+    const model = await VisitorModel.findByPk(id);
+    
+    if (!model) {
+      throw new Error('Visitor not found');
+    }
+
+    await model.update({
+      first_name: data.firstName,
+      last_name: data.lastName,
+      company: data.company,
+      job_title: data.jobTitle,
+      photo_url: data.photoUrl,
+      id_photo_url: data.idPhotoUrl,
+      photo_blob: data.photoBlob !== undefined ? data.photoBlob : undefined,
+      id_photo_blob: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
+      email: data.email,
+      phone: data.phone,
+      isBlocked: data.isBlocked,
+      observations: data.observations
+    });
+
+    return this.toDomain(model);
+  }
+
+  async getPhotoBlob(cedula: string): Promise<Buffer | null> {
+    const hashed = Encryption.hash(cedula);
+    const model = await VisitorModel.findByPk(hashed, {
+      attributes: ['photo_blob']
+    });
+    return model?.photo_blob || null;
+  }
+
+  async getIdPhotoBlob(cedula: string): Promise<Buffer | null> {
+    const hashed = Encryption.hash(cedula);
+    const model = await VisitorModel.findByPk(hashed, {
+      attributes: ['id_photo_blob']
+    });
+    return model?.id_photo_blob || null;
+  }
+
   async delete(cedula: string): Promise<void> {
     const hashed = Encryption.hash(cedula);
     await VisitorModel.destroy({ where: { cedula: hashed } });
+  }
+
+  async deleteById(id: number): Promise<void> {
+    await VisitorModel.destroy({ where: { id } });
   }
 
   async exists(cedula: string): Promise<boolean> {
@@ -155,14 +234,21 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     const decrypted = model.getDecrypted();
     
     return new Visitor(
-      decrypted.cedula, // Original Cedula
+      decrypted.id,
+      decrypted.cedula,
       decrypted.first_name,
       decrypted.last_name,
       decrypted.company,
       decrypted.job_title || undefined,
       decrypted.photo_url || undefined,
+      decrypted.id_photo_url || undefined,
       decrypted.email || undefined,
-      decrypted.phone || undefined
+      decrypted.phone || undefined,
+      decrypted.photo_blob || undefined,
+      decrypted.id_photo_blob || undefined,
+      decrypted.isBlocked,
+      decrypted.observations || undefined,
+      decrypted.createdAt
     );
   }
 }

@@ -11,14 +11,18 @@ import SuperAdminDashboard from './components/SuperAdminDashboard';
 import VisitForm from './components/VisitForm';
 import ActiveVisits from './components/ActiveVisits';
 import WaitingVisits from './components/WaitingVisits';
+import IntermittentVisits from './components/IntermittentVisits';
+import VisitorAdmin from './components/VisitorAdmin';
 import AuditDashboard from './components/AuditDashboard';
+import Brochure from './Brochure';
 import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
 import HelpCircle from 'lucide-react/dist/esm/icons/help-circle';
 import Keyboard from 'lucide-react/dist/esm/icons/keyboard';
 import Shield from 'lucide-react/dist/esm/icons/shield';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Activity from 'lucide-react/dist/esm/icons/activity';
-import { Visit } from './types';
+import ArrowRightLeft from 'lucide-react/dist/esm/icons/arrow-right-left';
+import Users from 'lucide-react/dist/esm/icons/users';
 import { startGuidedTour } from './utils/guidedTour';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
 import { SessionWarningModal } from './components/SessionWarningModal';
@@ -27,14 +31,14 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
 import { Toaster } from 'react-hot-toast';
 import { Header } from './components/Header';
-import { useActiveVisitsQuery, useInvalidateVisitQueries } from './hooks/useVisitQueries';
+import { useActiveVisitsQuery, useIntermittentVisitsQuery, useInvalidateVisitQueries } from './hooks/useVisitQueries';
 import { useVisitEvents } from './hooks/useVisitEvents';
 
 // Main Operations View (Guard + Admin)
 const OperationsView = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showShortcuts, setShowShortcuts] = useState(false);
-    const [activeTab, setActiveTab] = useState<'active' | 'waiting'>('active');
+    const [activeTab, setActiveTab] = useState<'active' | 'waiting' | 'intermittent' | 'visitor-admin'>('active');
     const { logout, user } = useAuth();
     const { showWarning, timeLeft, extendSession, logout: sessionLogout } = useSessionTimeout();
     const navigate = useNavigate();
@@ -45,6 +49,13 @@ const OperationsView = () => {
         data: visits = [],
         isFetching: isVisitsLoading,
     } = useActiveVisitsQuery({
+        refetchInterval: isUsingFallbackPolling ? 15_000 : false,
+    });
+
+    const {
+        data: intermittentVisits = [],
+        isFetching: isIntermittentLoading,
+    } = useIntermittentVisitsQuery({
         refetchInterval: isUsingFallbackPolling ? 15_000 : false,
     });
 
@@ -144,6 +155,9 @@ const OperationsView = () => {
                                 className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'active' ? 'text-[color:var(--accent-0)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
                             >
                                 <Activity size={16} /> Activas
+                                {visits.length > 0 && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[color:var(--accent-2)] text-[color:var(--accent-0)]">{visits.length}</span>
+                                )}
                                 {activeTab === 'active' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--accent-0)]" />}
                             </button>
                             <button
@@ -153,9 +167,44 @@ const OperationsView = () => {
                                 <Clock size={16} /> En Espera
                                 {activeTab === 'waiting' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--status-warning)]" />}
                             </button>
+                            <button
+                                onClick={() => setActiveTab('intermittent')}
+                                className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'intermittent' ? 'text-amber-400' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
+                            >
+                                <ArrowRightLeft size={16} /> Intermitencia
+                                {intermittentVisits.length > 0 && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300">{intermittentVisits.length}</span>
+                                )}
+                                {activeTab === 'intermittent' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-400" />}
+                            </button>
+                            {user?.role === 'admin' && (
+                                <button
+                                    onClick={() => setActiveTab('visitor-admin')}
+                                    className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'visitor-admin' ? 'text-[color:var(--accent-0)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
+                                >
+                                    <Users size={16} /> Admin Visitantes
+                                    {activeTab === 'visitor-admin' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--accent-0)]" />}
+                                </button>
+                            )}
                         </div>
 
-                        {activeTab === 'active' ? (
+                        {activeTab === 'visitor-admin' ? (
+                            <VisitorAdmin />
+                        ) : activeTab === 'intermittent' ? (
+                            <>
+                                <h2 className="text-lg font-display uppercase tracking-[0.18em] text-amber-400 border-l-2 border-amber-400 pl-3 mb-4">
+                                    Visitas Intermitentes
+                                    <span className="ml-2 text-xs font-semibold text-[color:var(--text-3)]">
+                                        ({intermittentVisits.length})
+                                    </span>
+                                </h2>
+                                <IntermittentVisits
+                                    visits={intermittentVisits}
+                                    onReactivated={invalidateVisitQueries}
+                                    loading={isIntermittentLoading && intermittentVisits.length === 0}
+                                />
+                            </>
+                        ) : activeTab === 'active' ? (
                             <>
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                                     <h2 className="text-lg font-display uppercase tracking-[0.18em] text-[color:var(--text-1)] border-l-2 border-[color:var(--accent-0)] pl-3">
@@ -292,6 +341,7 @@ function AppRoutes() {
                         <AdminDashboard />
                     </AdminRoute>
                 } />
+                <Route path="/brochure" element={<Brochure />} />
                 <Route path="/superadmin" element={
                     <SuperAdminRoute>
                         <SuperAdminDashboard />

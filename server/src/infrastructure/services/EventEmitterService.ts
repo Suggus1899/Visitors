@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 
 export interface VisitRealtimeEvent {
-  type: 'system:connected' | 'visit:checked-in' | 'visit:checked-out' | 'visit:admitted';
+  type: 'system:connected' | 'visit:checked-in' | 'visit:checked-out' | 'visit:admitted' | 'visit:intermittent' | 'visit:reactivated';
   timestamp: string;
   visitId?: number;
 }

@@ -37,7 +37,7 @@ describe('JwtAuthService', () => {
             expect(token).toBeDefined();
             expect(typeof token).toBe('string');
 
-            const decoded = jwt.verify(token, config.jwtSecret) as any;
+            const decoded = jwt.verify(token, config.jwtRefreshSecret) as any;
             expect(decoded.id).toBe(mockUser.id);
             expect(decoded.username).toBe(mockUser.username);
             expect(decoded.role).toBe(mockUser.role);

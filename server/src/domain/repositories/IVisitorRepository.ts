@@ -6,9 +6,19 @@ import { Visitor, VisitorEntity } from '../entities/Visitor.entity';
  */
 export interface IVisitorRepository {
   /**
-   * Find visitor by cedula (primary key)
+   * Find visitor by cedula
    */
   findByCedula(cedula: string): Promise<Visitor | null>;
+
+  /**
+   * Find visitor by ID
+   */
+  findById(id: number): Promise<Visitor | null>;
+
+  /**
+   * Find visitor by cedula with visit history
+   */
+  findByCedulaWithHistory(cedula: string, historyLimit?: number): Promise<{ visitor: Visitor | null; history: any[] }>;
 
   /**
    * Find all visitors with optional filters
@@ -31,14 +41,24 @@ export interface IVisitorRepository {
   create(visitor: Visitor): Promise<Visitor>;
 
   /**
-   * Update existing visitor
+   * Update existing visitor by cedula
    */
   update(cedula: string, visitor: Partial<VisitorEntity>): Promise<Visitor>;
 
   /**
-   * Delete visitor (soft delete for GDPR compliance)
+   * Update existing visitor by ID
+   */
+  updateById(id: number, visitor: Partial<VisitorEntity>): Promise<Visitor>;
+
+  /**
+   * Delete visitor by cedula
    */
   delete(cedula: string): Promise<void>;
+
+  /**
+   * Delete visitor by ID
+   */
+  deleteById(id: number): Promise<void>;
 
   /**
    * Check if visitor exists

@@ -3,6 +3,7 @@ import sequelize, { initializeDatabaseEncryption } from './database';
 import { seedLoad, ensureBaseUsers } from './utils/seeder';
 import { initRetentionScheduler } from './utils/retention';
 import logger from './config/logger';
+import './models/VisitInterval';
 
 // import { initScheduler } from './utils/scheduler'; // Legacy - commented out
 import config from './config/AppConfig';

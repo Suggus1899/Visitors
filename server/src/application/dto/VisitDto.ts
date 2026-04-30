@@ -17,6 +17,7 @@ export interface CheckInDto {
     jobTitle?: string;
     photoBase64?: string;
     idPhotoBase64?: string;
+    email?: string;
     phone?: string;
   };
   purpose: string;
@@ -55,6 +56,21 @@ export interface ActiveVisitDto {
  */
 export interface CheckOutDto {
   visitId: number;
+  notes?: string;
+}
+
+/**
+ * DTO for intermittent visit list item (visitor temporarily outside)
+ */
+export interface IntermittentVisitDto extends ActiveVisitDto {
+  lastExitTime: string;
+  minutesOutside: number;
+  intervals: {
+    id?: number;
+    exitTime: string;
+    reentryTime?: string;
+    notes?: string;
+  }[];
   notes?: string;
 }
 

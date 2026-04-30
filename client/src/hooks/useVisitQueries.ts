@@ -1,10 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { VisitService } from '../services/api.v1';
+import type { Visitor, VisitorWithHistory } from '../types';
 
 export const visitQueryKeys = {
     all: ['visits'] as const,
     active: () => [...visitQueryKeys.all, 'active'] as const,
     waiting: () => [...visitQueryKeys.all, 'waiting'] as const,
+    intermittent: () => [...visitQueryKeys.all, 'intermittent'] as const,
+    visitors: ['visitors'] as const,
+    visitor: (cedula: string) => [...visitQueryKeys.visitors, cedula] as const,
 };
 
 interface QueryOptions {
@@ -52,10 +56,70 @@ export const useAdmitVisitorMutation = () => {
     });
 };
 
+export const useIntermittentVisitsQuery = (options?: QueryOptions) => {
+    return useQuery({
+        queryKey: visitQueryKeys.intermittent(),
+        queryFn: VisitService.getIntermittentVisits,
+        refetchInterval: options?.refetchInterval,
+        enabled: options?.enabled,
+    });
+};
+
+export const useGoIntermittentMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, notes }: { id: number; notes?: string }) => VisitService.goIntermittent(id, notes),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: visitQueryKeys.all });
+        },
+    });
+};
+
+export const useReactivateVisitMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (id: number) => VisitService.reactivateVisit(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: visitQueryKeys.all });
+        },
+    });
+};
+
 export const useInvalidateVisitQueries = () => {
     const queryClient = useQueryClient();
 
     return () => {
         queryClient.invalidateQueries({ queryKey: visitQueryKeys.all });
     };
+};
+
+// Visitor queries
+export const useVisitorQuery = (cedula: string | null, includeHistory: boolean = false) => {
+    return useQuery<Visitor | VisitorWithHistory | null>({
+        queryKey: [...visitQueryKeys.visitor(cedula || ''), { includeHistory }],
+        queryFn: () => cedula ? VisitService.getVisitorByCedula(cedula, includeHistory) : null,
+        enabled: !!cedula,
+    });
+};
+
+export const useAllVisitorsQuery = (page: number = 1, limit: number = 50, company?: string) => {
+    return useQuery({
+        queryKey: [...visitQueryKeys.visitors, 'all', { page, limit, company }],
+        queryFn: () => VisitService.getAllVisitors(page, limit, company),
+    });
+};
+
+export const useUpdateVisitorMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ cedula, data }: { cedula: string; data: Partial<Visitor> }) => 
+            VisitService.updateVisitor(cedula, data),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: visitQueryKeys.visitor(variables.cedula) });
+            queryClient.invalidateQueries({ queryKey: visitQueryKeys.visitors });
+        },
+    });
 };

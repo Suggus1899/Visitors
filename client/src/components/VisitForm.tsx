@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { VisitService } from '../services/api.v1';
-import { Visitor } from '../types';
+import { Visitor, VisitorWithHistory } from '../types';
 import UserPlus from 'lucide-react/dist/esm/icons/user-plus';
 import { AxiosError } from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
 import VisitorHistoryModal from './VisitorHistoryModal';
+import { BlockVisitorAlert } from './BlockVisitorAlert';
 import { useSoundFeedback } from '../hooks/useSoundFeedback';
+import { useVisitorQuery } from '../hooks/useVisitQueries';
 import WizardProgress from './visit/WizardProgress';
 import VisitorLookupStep from './visit/VisitorLookupStep';
 import VisitorInfoStep from './visit/VisitorInfoStep';
@@ -45,7 +47,6 @@ const INITIAL_FORM_DATA = {
     vehicle_brand: '',
     vehicle_model: '',
     vehicle_plate: '',
-    area: '',
     department: '',
     consent_accepted: false
 };
@@ -66,7 +67,12 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [validation, setValidation] = useState<ValidationState>(INITIAL_VALIDATION);
+    const [showBlockedAlert, setShowBlockedAlert] = useState(false);
+    const [blockedReason, setBlockedReason] = useState('');
     const { playSuccess, playError } = useSoundFeedback();
+
+    // Query visitor with history when cedula changes
+    const { data: visitorData } = useVisitorQuery(cedula.length >= 7 ? cedula : null, true);
 
     // Fetch company suggestions once
     useEffect(() => {
@@ -165,7 +171,6 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 vehicleBrand: formData.has_vehicle ? formData.vehicle_brand : undefined,
                 vehicleModel: formData.has_vehicle ? formData.vehicle_model : undefined,
                 vehiclePlate: formData.has_vehicle ? formData.vehicle_plate : undefined,
-                area: formData.area,
                 department: formData.target_department || formData.department
             });
             playSuccess();
@@ -196,15 +201,26 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         (!formData.has_companion || formData.companions.every(c => c.name.trim().length > 2)) &&
         (!formData.has_vehicle || (formData.vehicle_plate.length > 2 && formData.vehicle_brand.length > 2));
     
-    // Step 4 (Photos & Area/Action & Consent)
-    const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3 
-        && formData.photo_url.length > 0 
-        && formData.id_photo_url.length > 0 
-        && formData.area.trim().length > 0
+    // Step 4 (Photos, Department, Host & Consent)
+    const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3
+        && formData.photo_url.length > 0
+        && formData.id_photo_url.length > 0
         && formData.target_department.trim().length > 0
         && formData.host_person.trim().length > 0
         && formData.reason.trim().length > 0
         && formData.consent_accepted === true;
+
+    // Show blocked alert if visitor is blocked
+    useEffect(() => {
+        if (visitorData && 'isBlocked' in visitorData && visitorData.isBlocked) {
+            setShowBlockedAlert(true);
+            setBlockedReason(visitorData.observations || '');
+            playError();
+        } else {
+            setShowBlockedAlert(false);
+            setBlockedReason('');
+        }
+    }, [visitorData, playError]);
 
     return (
         <div className="panel-tech p-6 rounded-2xl relative overflow-hidden">
@@ -218,6 +234,36 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     error: { iconTheme: { primary: '#ff6b6b', secondary: '#0b0f12' } }
                 }}
             />
+
+            {showBlockedAlert && (
+                <div className="mb-4 animate-slideUp">
+                    <BlockVisitorAlert
+                        observations={blockedReason}
+                        onDismiss={() => setShowBlockedAlert(false)}
+                    />
+                </div>
+            )}
+
+            {/* Show visitor history summary if visitor exists */}
+            {visitorData && !showBlockedAlert && 'history' in visitorData && visitorData.history && visitorData.history.length > 0 && (
+                <div className="mb-4 p-3 bg-[color:var(--surface-2)] rounded-lg border border-[color:var(--border-1)] animate-slideUp">
+                    <p className="text-xs text-[color:var(--text-2)] mb-2">
+                        Historial: <strong className="text-[color:var(--text-1)]">{visitorData.history.length}</strong> visita{visitorData.history.length !== 1 ? 's' : ''} previa{visitorData.history.length !== 1 ? 's' : ''}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                        {visitorData.history.slice(0, 3).map((visit, idx) => (
+                            <span key={idx} className="text-[10px] px-2 py-0.5 rounded bg-[color:var(--surface-1)] text-[color:var(--text-3)]">
+                                {visit.purpose} · {new Date(visit.checkInTime).toLocaleDateString()}
+                            </span>
+                        ))}
+                        {visitorData.history.length > 3 && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-[color:var(--surface-1)] text-[color:var(--text-3)]">
+                                +{visitorData.history.length - 3} más
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <VisitorHistoryModal
                 cedula={cedula}

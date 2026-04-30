@@ -10,7 +10,14 @@ import { SequelizeUserRepository } from '../infrastructure/database/repositories
 import { JwtAuthService } from '../infrastructure/services/JwtAuthService';
 import { PasswordPolicy } from '../domain/services/PasswordPolicy';
 import { EmailService } from '../infrastructure/services/EmailService';
+import { IVisitIntervalRepository } from '../domain/repositories/IVisitIntervalRepository';
+import { SequelizeVisitIntervalRepository } from '../infrastructure/database/repositories/SequelizeVisitIntervalRepository';
 import { CheckInVisitorUseCase } from '../application/usecases/CheckInVisitor.usecase';
+import { GoIntermittentUseCase } from '../application/usecases/GoIntermittent.usecase';
+import { ReactivateVisitUseCase } from '../application/usecases/ReactivateVisit.usecase';
+import { GetIntermittentVisitsUseCase } from '../application/usecases/GetIntermittentVisits.usecase';
+import { UpdateVisitorUseCase } from '../application/usecases/UpdateVisitor.usecase';
+import { GetAllVisitorsUseCase } from '../application/usecases/GetAllVisitors.usecase';
 import { CheckOutVisitorUseCase } from '../application/usecases/CheckOutVisitor.usecase';
 import { AdmitVisitorUseCase } from '../application/usecases/AdmitVisitor.usecase';
 import { GetActiveVisitsUseCase } from '../application/usecases/GetActiveVisits.usecase';
@@ -40,6 +47,7 @@ class Container {
   // Repositories (singletons)
   private _visitorRepository?: IVisitorRepository;
   private _visitRepository?: IVisitRepository;
+  private _visitIntervalRepository?: IVisitIntervalRepository;
   private _userRepository?: IUserRepository;
   // Services
   private _backupService?: IBackupService;
@@ -71,6 +79,13 @@ class Container {
     return this._visitRepository;
   }
 
+  get visitIntervalRepository(): IVisitIntervalRepository {
+    if (!this._visitIntervalRepository) {
+      this._visitIntervalRepository = new SequelizeVisitIntervalRepository();
+    }
+    return this._visitIntervalRepository;
+  }
+
   get userRepository(): IUserRepository {
     if (!this._userRepository) {
       this._userRepository = new SequelizeUserRepository();
@@ -83,6 +98,15 @@ class Container {
       this._backupService = new SqliteBackupService();
     }
     return this._backupService;
+  }
+
+  // New use cases
+  get updateVisitorUseCase(): UpdateVisitorUseCase {
+    return new UpdateVisitorUseCase(this.visitorRepository);
+  }
+
+  get getAllVisitorsUseCase(): GetAllVisitorsUseCase {
+    return new GetAllVisitorsUseCase(this.visitorRepository);
   }
 
   get authService(): JwtAuthService {
@@ -185,6 +209,27 @@ class Container {
   createCreateBackupUseCase(): CreateBackupUseCase {
     return new CreateBackupUseCase(
       this.backupService
+    );
+  }
+
+  createGoIntermittentUseCase(): GoIntermittentUseCase {
+    return new GoIntermittentUseCase(
+      this.visitRepository,
+      this.visitIntervalRepository
+    );
+  }
+
+  createReactivateVisitUseCase(): ReactivateVisitUseCase {
+    return new ReactivateVisitUseCase(
+      this.visitRepository,
+      this.visitIntervalRepository
+    );
+  }
+
+  createGetIntermittentVisitsUseCase(): GetIntermittentVisitsUseCase {
+    return new GetIntermittentVisitsUseCase(
+      this.visitRepository,
+      this.visitIntervalRepository
     );
   }
 

@@ -5,6 +5,7 @@ export interface User {
 }
 
 export interface Visitor {
+    id?: number;
     cedula: string;
     first_name: string;
     last_name: string;
@@ -14,6 +15,22 @@ export interface Visitor {
     id_photo_url?: string;
     email?: string;
     phone?: string;
+    isBlocked?: boolean;
+    observations?: string;
+    createdAt?: string;
+}
+
+export interface VisitorHistoryItem {
+    id: number;
+    purpose: string;
+    checkInTime: string;
+    checkOutTime?: string;
+    status: string;
+    targetDepartment?: string;
+}
+
+export interface VisitorWithHistory extends Visitor {
+    history: VisitorHistoryItem[];
 }
 
 /**
@@ -39,7 +56,7 @@ export interface Visit {
     check_in_time?: string;
     check_out?: string;
     check_out_time?: string;
-    status: 'waiting' | 'active' | 'completed';
+    status: 'waiting' | 'active' | 'intermittent' | 'completed';
     personToVisit?: string;
     person_to_visit?: string;
     notes?: string;
@@ -59,7 +76,6 @@ export interface Visit {
     vehicleBrand?: string;
     vehicleModel?: string;
     vehiclePlate?: string;
-    area?: string;
     action?: 'Carga' | 'Descarga' | 'Ninguna';
     department?: string;
 
@@ -67,6 +83,31 @@ export interface Visit {
     intermittent_logs?: IntermittentLog[];
 
     Visitor?: Visitor;
+}
+
+/**
+ * Intermittent visit as returned by GET /visits/intermittent
+ */
+export interface IntermittentVisit {
+    id: number;
+    visitorCedula: string;
+    visitorName: string;
+    firstName?: string;
+    lastName?: string;
+    company: string;
+    checkInTime: string;
+    purpose: string;
+    personToVisit: string;
+    durationMinutes: number;
+    lastExitTime: string;
+    minutesOutside: number;
+    intervals: {
+        id?: number;
+        exitTime: string;
+        reentryTime?: string;
+        notes?: string;
+    }[];
+    notes?: string;
 }
 
 export interface StatsData {

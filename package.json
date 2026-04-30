@@ -1,7 +1,7 @@
 {
-  "name": "visitor-system",
+  "name": "logmaster",
   "version": "1.0.0",
-  "description": "Visitor Access Control System",
+  "description": "LogMaster - Sistema de Control de Acceso de Visitantes",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--no-warnings concurrently \"npm run server\" \"npm run client\"",
@@ -11,8 +11,12 @@
     "install-all": "npm install && cd server && npm install && cd client && npm install",
     "electron:dev": "cross-env NODE_OPTIONS=--no-warnings concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron:start\"",
     "electron:start": "cross-env NODE_OPTIONS=--no-warnings tsc -p tsconfig.electron.json && electron dist-electron/main.js",
+    "test:server": "npm --prefix server run test",
+    "test:client": "npm --prefix client run test",
+    "test": "npm run test:server && npm run test:client",
+    "build:server": "npm --prefix server install && npx tsc -p server/tsconfig.json",
     "dist": "cross-env NODE_OPTIONS=--no-warnings npm --prefix client run build && npm run build:server && tsc -p tsconfig.electron.json && electron-builder",
-    "build:server": "npm --prefix server install && npx tsc -p server/tsconfig.json"
+    "release": "npm run test && npm run dist"
   },
   "devDependencies": {
     "@types/node": "^25.2.1",
@@ -26,8 +30,8 @@
   "author": "",
   "license": "ISC",
   "build": {
-    "appId": "com.visits.system",
-    "productName": "Visitor System",
+    "appId": "com.logmaster.app",
+    "productName": "LogMaster",
     "directories": {
       "output": "dist"
     },

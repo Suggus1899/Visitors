@@ -3,13 +3,15 @@ import Clock from 'lucide-react/dist/esm/icons/clock';
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
 import User from 'lucide-react/dist/esm/icons/user';
 import LogOutIcon from 'lucide-react/dist/esm/icons/log-out';
+import ArrowRightLeft from 'lucide-react/dist/esm/icons/arrow-right-left';
 import { Visit } from '../types';
 import { SkeletonVisitCard } from './ui/Skeleton';
 import { useSoundFeedback } from '../hooks/useSoundFeedback';
 import toast from 'react-hot-toast';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
-import { useCheckOutMutation } from '../hooks/useVisitQueries';
+import { useCheckOutMutation, useGoIntermittentMutation } from '../hooks/useVisitQueries';
+import { VisitService } from '../services/api.v1';
 
 interface ActiveVisitsProps {
     visits: Visit[];
@@ -20,8 +22,27 @@ interface ActiveVisitsProps {
 const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading = false }) => {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [checkingOut, setCheckingOut] = useState<number | null>(null);
+    const [markingIntermittent, setMarkingIntermittent] = useState<number | null>(null);
     const { playCheckout, playError } = useSoundFeedback();
     const checkOutMutation = useCheckOutMutation();
+    const goIntermittentMutation = useGoIntermittentMutation();
+
+    const handleGoIntermittent = async (e: React.MouseEvent, id: number, visitorName: string) => {
+        e.stopPropagation();
+        if (!window.confirm(`¿Registrar salida temporal de ${visitorName}? La visita quedará en estado intermitente.`)) return;
+
+        setMarkingIntermittent(id);
+        try {
+            await goIntermittentMutation.mutateAsync({ id });
+            toast.success(`Salida temporal de ${visitorName} registrada`);
+            if (onCheckout) onCheckout();
+        } catch {
+            playError();
+            toast.error('Error al registrar salida temporal');
+        } finally {
+            setMarkingIntermittent(null);
+        }
+    };
 
     const handleCheckout = async (e: React.MouseEvent, id: number, visitorName: string) => {
         e.stopPropagation(); // Prevent opening modal when clicking checkout
@@ -34,7 +55,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
             playCheckout();
             toast.success(`¡Hasta luego, ${visitorName}!`);
             if (onCheckout) onCheckout();
-        } catch (error) {
+        } catch {
             playError();
             toast.error('Error al registrar salida');
         } finally {
@@ -76,10 +97,13 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                 {visits.map((visit) => {
                     const visitorName = visit.Visitor ? `${visit.Visitor.first_name || ''} ${visit.Visitor.last_name || ''}`.trim() : 'Unknown';
                     const visitorCompany = visit.Visitor ? visit.Visitor.company : 'Unknown';
-                    const visitorPhoto = visit.Visitor ? visit.Visitor.photo_url : null;
                     const cedula = visit.Visitor ? visit.Visitor.cedula : '';
+                    const visitorPhoto = cedula
+                        ? VisitService.getVisitorPhotoUrl(cedula)
+                        : (visit.Visitor?.photo_url || null);
+                    const isMarkingIntermittent = markingIntermittent === visit.id;
                     const isCheckingOut = checkingOut === visit.id;
-                    const timeInSite = getTimeInSite(visit.check_in || visit.check_in_time || ''); // Handle both formats
+                    const timeInSite = getTimeInSite(visit.check_in || visit.check_in_time || '');
 
                     // Sanitize user-generated content for XSS protection
                     const sanitizedName = sanitizeInput(visitorName);
@@ -136,25 +160,42 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                             </div>
 
                             {/* Footer Actions */}
-                            <div className="px-5 py-3 border-t border-[color:var(--border-1)] bg-[color:var(--surface-2)]/60 flex justify-between items-center mt-auto">
+                            <div className="px-5 py-3 border-t border-[color:var(--border-1)] bg-[color:var(--surface-2)]/60 flex justify-between items-center mt-auto gap-2">
                                 <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium">
                                     <Clock size={13} className="mr-1.5" />
                                     {new Date(visit.check_in || visit.check_in_time || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </div>
 
-                                <button
-                                    onClick={(e) => handleCheckout(e, visit.id, visitorName)}
-                                    disabled={isCheckingOut}
-                                    className="group/btn relative px-4 py-1.5 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-2)] text-xs font-semibold hover:border-red-400 hover:text-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 overflow-hidden z-10"
-                                >
-                                    <span className="absolute inset-0 bg-red-500/15 transform origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 ease-out -z-10" />
-                                    {isCheckingOut ? (
-                                        <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <LogOutIcon size={13} className="group-hover/btn:-translate-x-0.5 transition-transform" />
-                                    )}
-                                    <span>SALIDA</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={(e) => handleGoIntermittent(e, visit.id, visitorName)}
+                                        disabled={isMarkingIntermittent || isCheckingOut}
+                                        title="Salida temporal (visita sigue activa)"
+                                        className="group/ibtn relative px-3 py-1.5 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-3)] text-xs font-semibold hover:border-amber-400 hover:text-amber-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 overflow-hidden z-10"
+                                    >
+                                        <span className="absolute inset-0 bg-amber-500/10 transform origin-left scale-x-0 group-hover/ibtn:scale-x-100 transition-transform duration-300 ease-out -z-10" />
+                                        {isMarkingIntermittent ? (
+                                            <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <ArrowRightLeft size={12} />
+                                        )}
+                                        <span>SALIDA TEMP.</span>
+                                    </button>
+
+                                    <button
+                                        onClick={(e) => handleCheckout(e, visit.id, visitorName)}
+                                        disabled={isCheckingOut || isMarkingIntermittent}
+                                        className="group/btn relative px-4 py-1.5 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-2)] text-xs font-semibold hover:border-red-400 hover:text-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 overflow-hidden z-10"
+                                    >
+                                        <span className="absolute inset-0 bg-red-500/15 transform origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 ease-out -z-10" />
+                                        {isCheckingOut ? (
+                                            <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <LogOutIcon size={13} className="group-hover/btn:-translate-x-0.5 transition-transform" />
+                                        )}
+                                        <span>SALIDA</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )

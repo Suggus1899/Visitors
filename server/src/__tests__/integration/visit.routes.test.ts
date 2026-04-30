@@ -42,7 +42,9 @@ const VALID_PAYLOAD = {
     acceptedAt: '2026-03-11T10:00:00.000Z'
   },
   purpose: 'Reunión',
-  personToVisit: 'Recepcion'
+  personToVisit: 'Recepcion',
+  targetDepartment: 'Administración',
+  hostPerson: 'Carlos Pérez'
 };
 
 let app: ReturnType<typeof buildTestApp>;

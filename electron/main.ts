@@ -114,7 +114,7 @@ async function createBackup() {
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const defaultPath = path.join(app.getPath('documents'), `VisitorBackup_${timestamp}.sqlite`);
+    const defaultPath = path.join(app.getPath('documents'), `LogMasterBackup_${timestamp}.sqlite`);
 
     const result = await dialog.showSaveDialog(mainWindow!, {
         title: 'Guardar Backup',
@@ -221,9 +221,9 @@ function createMenu() {
                     click: () => {
                         dialog.showMessageBox({
                             type: 'info',
-                            title: 'Acerca de Visitor System',
-                            message: 'Visitor Access Control System',
-                            detail: `Versión: ${app.getVersion()}\n© 2026 Galletas Puig`
+                            title: 'Acerca de LogMaster',
+                            message: 'LogMaster - Sistema de Control de Acceso',
+                            detail: `Versión: ${app.getVersion()}\n© 2026 LogMaster`
                         });
                     }
                 },
@@ -256,12 +256,12 @@ function createTray() {
     tray = new Tray(icon.resize({ width: 16, height: 16 }));
 
     const contextMenu = Menu.buildFromTemplate([
-        { label: 'Abrir Visitor System', click: () => mainWindow?.show() },
+        { label: 'Abrir LogMaster', click: () => mainWindow?.show() },
         { type: 'separator' },
         { label: 'Salir', click: () => app.quit() }
     ]);
 
-    tray.setToolTip('Visitor Access Control System');
+    tray.setToolTip('LogMaster - Sistema de Control de Acceso');
     tray.setContextMenu(contextMenu);
 
     tray.on('click', () => {
@@ -286,7 +286,7 @@ function createWindow() {
             webSecurity: true,
             allowRunningInsecureContent: false,
         },
-        title: 'Visitor Access Control System',
+        title: 'LogMaster',
         icon: path.join(__dirname, '../client/public/logo.png'),
         show: false // Show after ready
     });

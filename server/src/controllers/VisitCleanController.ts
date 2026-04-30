@@ -137,6 +137,85 @@ export const getWaitingVisits = async (_req: Request, res: Response) => {
   }
 };
 
+/**
+ * Mark a visit as intermittent (visitor temporarily left)
+ * POST /api/v1/visits/:id/intermittent
+ */
+export const goIntermittent = async (req: Request, res: Response) => {
+  try {
+    const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const visitId = parseInt(idParam);
+
+    if (isNaN(visitId)) {
+      return res.status(400).json(ResponseBuilder.error('INVALID_ID', 'Invalid visit ID'));
+    }
+
+    const useCase = container.createGoIntermittentUseCase();
+    const result = await useCase.execute(visitId, req.body.notes);
+
+    eventEmitterService.emitVisitEvent({
+      type: 'visit:intermittent',
+      timestamp: new Date().toISOString(),
+      visitId,
+    });
+
+    res.json(ResponseBuilder.success(result));
+  } catch (error) {
+    logger.error('Go intermittent error:', error);
+    res.status(400).json(ResponseBuilder.error(
+      'INTERMITTENT_FAILED',
+      error instanceof Error ? error.message : 'Failed to mark visit as intermittent'
+    ));
+  }
+};
+
+/**
+ * Reactivate an intermittent visit (visitor returned)
+ * POST /api/v1/visits/:id/reactivate
+ */
+export const reactivateVisit = async (req: Request, res: Response) => {
+  try {
+    const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const visitId = parseInt(idParam);
+
+    if (isNaN(visitId)) {
+      return res.status(400).json(ResponseBuilder.error('INVALID_ID', 'Invalid visit ID'));
+    }
+
+    const useCase = container.createReactivateVisitUseCase();
+    const result = await useCase.execute(visitId);
+
+    eventEmitterService.emitVisitEvent({
+      type: 'visit:reactivated',
+      timestamp: new Date().toISOString(),
+      visitId,
+    });
+
+    res.json(ResponseBuilder.success(result));
+  } catch (error) {
+    logger.error('Reactivate visit error:', error);
+    res.status(400).json(ResponseBuilder.error(
+      'REACTIVATE_FAILED',
+      error instanceof Error ? error.message : 'Failed to reactivate visit'
+    ));
+  }
+};
+
+/**
+ * Get all intermittent visits
+ * GET /api/v1/visits/intermittent
+ */
+export const getIntermittentVisits = async (_req: Request, res: Response) => {
+  try {
+    const useCase = container.createGetIntermittentVisitsUseCase();
+    const visits = await useCase.execute();
+    res.json(ResponseBuilder.success(visits));
+  } catch (error) {
+    logger.error('Get intermittent visits error:', error);
+    res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch intermittent visits'));
+  }
+};
+
 export const getVisits = async (req: Request, res: Response) => {
   try {
     // const useCase = container.createGetVisitsUseCase(); // Removed duplicate

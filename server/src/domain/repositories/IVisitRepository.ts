@@ -87,6 +87,11 @@ export interface IVisitRepository {
    * Count visits in a specific date range
    */
   countByDateRange(startDate: Date, endDate: Date): Promise<number>;
+
+  /**
+   * Find all intermittent visits (visitor temporarily outside)
+   */
+  findIntermittent(): Promise<Visit[]>;
 }
 
 /**

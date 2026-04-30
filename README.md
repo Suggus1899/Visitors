@@ -1,4 +1,4 @@
-# Sistema de Gestión de Visitantes
+# LogMaster - Sistema de Control de Acceso
 
 Sistema de escritorio profesional para el control de acceso y gestión de visitantes en instalaciones corporativas. Construido con Electron, React y Node.js, con arquitectura limpia y seguridad de nivel empresarial.
 
@@ -24,17 +24,17 @@ Sistema de escritorio profesional para el control de acceso y gestión de visita
 
 ### Instalación para Usuarios
 
-1. Descarga el instalador desde [Releases](https://github.com/tu-usuario/visitor-system/releases)
-2. Ejecuta `Visitor System-1.0.0-win.zip`
-3. Extrae y ejecuta `Visitor System.exe`
+1. Descarga el instalador desde [Releases](https://github.com/tu-usuario/logmaster/releases)
+2. Ejecuta `LogMaster-1.0.0-win.zip`
+3. Extrae y ejecuta `LogMaster.exe`
 4. Crea tu cuenta de administrador en el primer inicio
 
 ### Instalación para Desarrollo
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/tu-usuario/visitor-system.git
-cd visitor-system
+git clone https://github.com/tu-usuario/logmaster.git
+cd logmaster
 
 # Instalar dependencias en todos los módulos
 npm run install-all
@@ -81,6 +81,7 @@ ENCRYPTION_KEY=tu_clave_de_cifrado_de_64_caracteres_aqui
 ## 🏗️ Stack Tecnológico
 
 ### Frontend
+
 - **React 18** - Framework UI
 - **TypeScript** - Tipado estático
 - **Tailwind CSS** - Estilos
@@ -88,6 +89,7 @@ ENCRYPTION_KEY=tu_clave_de_cifrado_de_64_caracteres_aqui
 - **Lucide React** - Iconos
 
 ### Backend
+
 - **Node.js** - Runtime
 - **Express** - Framework web
 - **Sequelize** - ORM
@@ -95,16 +97,17 @@ ENCRYPTION_KEY=tu_clave_de_cifrado_de_64_caracteres_aqui
 - **JWT** - Autenticación
 
 ### Desktop
+
 - **Electron** - Wrapper de aplicación de escritorio
 - **Electron Builder** - Empaquetado
 
 ## 🎯 Roles y Permisos
 
-| Rol | Permisos |
-|-----|----------|
-| **Admin** | Acceso completo: gestión de usuarios, configuración del sistema, todos los reportes |
-| **Guardia** | Check-in/check-out de visitantes, ver visitas activas, reportes básicos |
-| **Auditor** | Solo lectura: ver logs de auditoría, generar reportes, sin modificar datos |
+| Rol         | Permisos                                                                            |
+| ----------- | ----------------------------------------------------------------------------------- |
+| **Admin**   | Acceso completo: gestión de usuarios, configuración del sistema, todos los reportes |
+| **Guardia** | Check-in/check-out de visitantes, ver visitas activas, reportes básicos             |
+| **Auditor** | Solo lectura: ver logs de auditoría, generar reportes, sin modificar datos          |
 
 ## 📦 Scripts Disponibles
 
@@ -174,16 +177,19 @@ visitor-system/
 ## 🐛 Solución de Problemas
 
 ### La aplicación no inicia
+
 - Verifica que el puerto 3000 esté disponible
 - Revisa los logs en `server/server_health.log`
 - Asegúrate de tener todas las dependencias instaladas
 
 ### Error de base de datos
+
 - Verifica que `DB_ENCRYPTION_KEY` esté configurada
 - Comprueba permisos de escritura en carpeta `data/`
 - Revisa que SQLCipher esté instalado correctamente
 
 ### Problemas de autenticación
+
 - Verifica que `JWT_SECRET` esté configurado
 - Limpia cookies del navegador
 - Revisa que el usuario no esté bloqueado (max intentos)
@@ -195,6 +201,7 @@ Este proyecto es privado y propietario. Todos los derechos reservados.
 ## 👥 Soporte
 
 Para reportar problemas o solicitar características:
+
 - Abre un issue en GitHub
 - Contacta al equipo de desarrollo
 
