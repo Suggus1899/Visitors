@@ -141,6 +141,76 @@ router.post('/v1/visits/:id/reactivate', verifyToken, denyAuditorOnly, asyncHand
 
 /**
  * @swagger
+ * /visits/intermittent:
+ *   get:
+ *     summary: Get all intermittent visits (temporarily outside)
+ *     tags: [Visits]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of intermittent visits
+ */
+router.get('/v1/visits/intermittent', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.getIntermittentVisits));
+
+/**
+ * @swagger
+ * /visits/{id}/intermittent-exit:
+ *   post:
+ *     summary: Register temporary exit (Active → Intermittent)
+ *     tags: [Visits]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Temporary exit registered
+ */
+router.post('/v1/visits/:id/intermittent-exit', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.intermittentExit));
+
+/**
+ * @swagger
+ * /visits/{id}/intermittent-reentry:
+ *   post:
+ *     summary: Register re-entry (Intermittent → Active)
+ *     tags: [Visits]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Re-entry registered
+ */
+router.post('/v1/visits/:id/intermittent-reentry', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.intermittentReEntry));
+
+/**
+ * @swagger
  * /visits:
  *   get:
  *     summary: Get visits with filters
@@ -160,7 +230,7 @@ router.post('/v1/visits/:id/reactivate', verifyToken, denyAuditorOnly, asyncHand
  *         name: status
  *         schema:
  *           type: string
- *           enum: [active, completed]
+ *           enum: [active, intermittent, completed]
  *     responses:
  *       200:
  *         description: Paginated list of visits

@@ -2,6 +2,7 @@ import { IVisitRepository, VisitFilters } from '../../../domain/repositories/IVi
 import { Visit, VisitEntity, VisitStatus } from '../../../domain/entities/Visit.entity';
 import VisitModel from '../../../models/Visit';
 import VisitorModel from '../../../models/Visitor';
+import IntermittentLogModel from '../../../models/IntermittentLog';
 import { Op } from 'sequelize';
 import Encryption from '../../../utils/Encryption';
 
@@ -78,7 +79,23 @@ export class SequelizeVisitRepository implements IVisitRepository {
     const models = await VisitModel.findAll({
       where: { status: VisitStatus.ACTIVE },
       order: [['check_in_time', 'DESC']],
-      include: [{ model: VisitorModel }]
+      include: [
+        { model: VisitorModel },
+        { model: IntermittentLogModel, as: 'intermittent_logs' }
+      ]
+    });
+
+    return models.map(m => this.toDomain(m));
+  }
+
+  async findIntermittent(): Promise<Visit[]> {
+    const models = await VisitModel.findAll({
+      where: { status: VisitStatus.INTERMITTENT },
+      order: [['check_in_time', 'DESC']],
+      include: [
+        { model: VisitorModel },
+        { model: IntermittentLogModel, as: 'intermittent_logs' }
+      ]
     });
 
     return models.map(m => this.toDomain(m));
@@ -297,13 +314,11 @@ export class SequelizeVisitRepository implements IVisitRepository {
     let visitorCedula = model.visitor_cedula;
 
     if (model.Visitor) {
-        // Since we are fetching via Include, we can assume it's a Model instance if not 'raw: true'
-        // And VisitorModel has getDecrypted()
         if (typeof model.Visitor.getDecrypted === 'function') {
             const decrypted = model.Visitor.getDecrypted();
             visitorName = `${decrypted.first_name || ''} ${decrypted.last_name || ''}`.trim();
             visitorCompany = decrypted.company;
-            visitorCedula = decrypted.cedula; // Get Real Cedula from Encrypted
+            visitorCedula = decrypted.cedula;
         }
     }
 
@@ -325,7 +340,12 @@ export class SequelizeVisitRepository implements IVisitRepository {
       model.vehicle_plate || undefined,
       model.area,
       model.action,
-      model.department || undefined
+      model.department || undefined,
+      model.arrival_time || undefined,
+      model.entry_time || undefined,
+      model.exit_time || undefined,
+      model.target_department || undefined,
+      model.host_person || undefined,
     );
   }
 }

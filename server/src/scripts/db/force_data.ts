@@ -1,7 +1,7 @@
 
-import VisitModel from '../models/Visit';
-import VisitorModel from '../models/Visitor';
-import { VisitStatus } from '../domain/entities/Visit.entity';
+import VisitModel from '../../models/Visit';
+import VisitorModel from '../../models/Visitor';
+import { VisitStatus } from '../../domain/entities/Visit.entity';
 
 async function forceInsert() {
     console.log('Forcing insertion of recent visits...');

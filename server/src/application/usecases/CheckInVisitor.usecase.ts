@@ -26,19 +26,18 @@ export class CheckInVisitorUseCase {
     let visitor = await this.visitorRepository.findByCedula(dto.visitorCedula);
 
     if (!visitor && dto.visitorData) {
-      // Create new visitor
-      // Save photo as BLOB in DB (SQLCipher encrypts it automatically)
-      let photoBlob: Buffer | undefined;
-      let idPhotoBlob: Buffer | undefined;
+      // Create new visitor — photos stored as BYTEA in PostgreSQL
+      let photoData: Buffer | undefined;
+      let idPhotoData: Buffer | undefined;
 
       if (dto.visitorData.photoBase64) {
         const base64Clean = dto.visitorData.photoBase64.replace(/^data:image\/\w+;base64,/, '');
-        photoBlob = Buffer.from(base64Clean, 'base64');
+        photoData = Buffer.from(base64Clean, 'base64');
       }
 
       if (dto.visitorData.idPhotoBase64) {
         const base64Clean = dto.visitorData.idPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
-        idPhotoBlob = Buffer.from(base64Clean, 'base64');
+        idPhotoData = Buffer.from(base64Clean, 'base64');
       }
 
       visitor = new Visitor(
@@ -48,18 +47,18 @@ export class CheckInVisitorUseCase {
         dto.visitorData.lastName,
         dto.visitorData.company,
         dto.visitorData.jobTitle,
-        undefined, // photoUrl (legacy filesystem path — not used for new visitors)
+        undefined, // photoUrl
         undefined, // idPhotoUrl
         dto.visitorData.email,
         dto.visitorData.phone,
-        photoBlob,
-        idPhotoBlob,
+        photoData,
+        idPhotoData,
         false, // isBlocked - new visitors are not blocked
         undefined, // observations
         new Date() // createdAt
       );
 
-      visitor = await this.visitorRepository.create(visitor);
+      visitor = await this.visitorRepository.create(visitor, photoData, idPhotoData);
     } else if (!visitor) {
       throw new Error('Visitor not found and no visitor data provided');
     }

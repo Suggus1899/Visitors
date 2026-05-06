@@ -10,10 +10,8 @@ import Mail from 'lucide-react/dist/esm/icons/mail';
 import Car from 'lucide-react/dist/esm/icons/car';
 import Users from 'lucide-react/dist/esm/icons/users';
 import MapPin from 'lucide-react/dist/esm/icons/map-pin';
-import LogIn from 'lucide-react/dist/esm/icons/log-in';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
 import { Visit } from '../types';
-import IntermittentAccessLog from './IntermittentAccessLog';
 
 interface VisitDetailsModalProps {
     visit: Visit | null;
@@ -46,7 +44,74 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
     const fmt = (dt: string | null | undefined) =>
         dt ? new Date(dt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
-    const hasTimestamps = !!(visit.arrival_time || visit.entry_time || visit.exit_time);
+    // Build timeline events
+    type TimelineEvent = {
+        id: string;
+        time: string;
+        label: string;
+        icon: React.ReactNode;
+        colorClass: string;
+        notes?: string;
+    };
+    
+    const timeline: TimelineEvent[] = [];
+    
+    if (visit.arrival_time) {
+        timeline.push({
+            id: 'arrival',
+            time: visit.arrival_time,
+            label: 'Registro',
+            icon: <FileText size={14} />,
+            colorClass: 'text-[color:var(--accent-2)]'
+        });
+    }
+    
+    const entryTime = visit.entry_time || visit.check_in_time || visit.check_in;
+    if (entryTime) {
+        timeline.push({
+            id: 'entry',
+            time: entryTime,
+            label: 'Entrada',
+            icon: <LogIn size={14} />,
+            colorClass: 'text-emerald-400'
+        });
+    }
+    
+    if (visit.intermittent_logs) {
+        visit.intermittent_logs.forEach(log => {
+            timeline.push({
+                id: `inter_out_${log.id}`,
+                time: log.check_out,
+                label: 'Salida temporal',
+                icon: <LogOut size={14} />,
+                colorClass: 'text-amber-400',
+                notes: log.notes || undefined
+            });
+            if (log.re_entry) {
+                timeline.push({
+                    id: `inter_in_${log.id}`,
+                    time: log.re_entry,
+                    label: 'Reingreso',
+                    icon: <LogIn size={14} />,
+                    colorClass: 'text-emerald-400'
+                });
+            }
+        });
+    }
+    
+    const exitTime = visit.exit_time || visit.check_out_time || visit.check_out;
+    if (exitTime) {
+        timeline.push({
+            id: 'exit',
+            time: exitTime,
+            label: 'Salida',
+            icon: <LogOut size={14} />,
+            colorClass: 'text-amber-400'
+        });
+    }
+    
+    // Sort chronological
+    timeline.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
@@ -126,57 +191,56 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
                         </div>
                     </div>
 
-                    {/* ── Timestamp Lifecycle Group ─────────────────────────── */}
-                    {hasTimestamps && (
-                        <div className="mt-4">
-                            <p className="text-left text-[10px] uppercase tracking-[0.18em] font-semibold text-[color:var(--text-3)] mb-2">
-                                Ciclo de tiempo
+                    {/* ── Timeline Group ─────────────────────────── */}
+                    {timeline.length > 0 && (
+                        <div className="mt-6 bg-[color:var(--surface-2)] p-4 rounded-xl border border-[color:var(--border-1)] text-left relative">
+                            <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-[color:var(--text-3)] mb-4 flex items-center gap-2">
+                                <Clock size={14} className="text-[color:var(--accent-0)]" />
+                                Línea de Tiempo
                             </p>
-                            <div className="grid grid-cols-3 gap-3 text-left">
-                                {/* Llegada */}
-                                <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
-                                    <label className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase block mb-1">Llegada</label>
-                                    <div className="flex items-center gap-1 text-xs text-[color:var(--text-2)]">
-                                        <Clock size={12} className="text-[color:var(--accent-2)] shrink-0" />
-                                        <span className="font-mono">{fmt(visit.arrival_time)}</span>
+                            <div className="relative pl-6 space-y-4">
+                                {/* Vertical line */}
+                                <div className="absolute left-[11px] top-2 bottom-2 w-px bg-[color:var(--border-1)]" />
+                                
+                                {timeline.map((ev, i) => (
+                                    <div key={ev.id} className="relative">
+                                        {/* Node dot */}
+                                        <div className={`absolute -left-6 top-1 w-3 h-3 rounded-full bg-[color:var(--surface-1)] border-2 flex items-center justify-center
+                                            ${ev.label === 'Salida temporal' ? 'border-amber-400' : 
+                                              ev.label === 'Entrada' || ev.label === 'Reingreso' ? 'border-emerald-400' : 
+                                              ev.label === 'Salida' ? 'border-rose-400' : 'border-[color:var(--accent-0)]'}`}
+                                        />
+                                        
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`flex items-center gap-1 text-sm font-semibold ${ev.colorClass}`}>
+                                                    {ev.icon}
+                                                    {ev.label}
+                                                </span>
+                                                <div className="flex-1 h-px bg-gradient-to-r from-[color:var(--border-1)] to-transparent opacity-50 mx-2" />
+                                                <span className="font-mono text-xs text-[color:var(--text-2)] bg-[color:var(--surface-1)] px-2 py-0.5 rounded-md border border-[color:var(--border-1)]">
+                                                    {fmt(ev.time)}
+                                                </span>
+                                            </div>
+                                            {ev.notes && (
+                                                <p className="mt-1 text-[11px] text-[color:var(--text-3)] italic bg-[color:var(--surface-1)] p-2 rounded-lg border border-[color:var(--border-1)]">
+                                                    {ev.notes}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                                {/* Entrada */}
-                                <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
-                                    <label className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase block mb-1">Entrada</label>
-                                    <div className="flex items-center gap-1 text-xs text-[color:var(--text-2)]">
-                                        <LogIn size={12} className="text-emerald-400 shrink-0" />
-                                        <span className="font-mono">{fmt(visit.entry_time || visit.check_in_time || visit.check_in)}</span>
+                                ))}
+                                
+                                {/* Status pending indicator */}
+                                {visit.status === 'intermittent' && !timeline.find(e => e.label === 'Salida') && (
+                                    <div className="relative pt-2">
+                                        <div className="absolute -left-[23px] top-3 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping opacity-75" />
+                                        <div className="absolute -left-[23px] top-3 w-2.5 h-2.5 rounded-full bg-amber-400" />
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-semibold text-amber-400/70 italic">Aún fuera...</span>
+                                        </div>
                                     </div>
-                                </div>
-                                {/* Salida */}
-                                <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
-                                    <label className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase block mb-1">Salida</label>
-                                    <div className="flex items-center gap-1 text-xs text-[color:var(--text-2)]">
-                                        <LogOut size={12} className="text-amber-400 shrink-0" />
-                                        <span className="font-mono">{fmt(visit.exit_time || visit.check_out_time || visit.check_out)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Fallback single timestamp row when no lifecycle data */}
-                    {!hasTimestamps && (
-                        <div className="mt-4 grid grid-cols-2 gap-4 text-left">
-                            <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
-                                <label className="text-xs font-semibold text-[color:var(--text-3)] uppercase block mb-1">Entrada</label>
-                                <div className="flex items-center text-[color:var(--text-1)] font-medium">
-                                    <Clock size={16} className="mr-2 text-[color:var(--accent-1)]" />
-                                    {fmt(visit.check_in || visit.check_in_time)}
-                                </div>
-                            </div>
-                            <div className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-[color:var(--border-1)]">
-                                <label className="text-xs font-semibold text-[color:var(--text-3)] uppercase block mb-1">Salida</label>
-                                <div className="flex items-center text-[color:var(--text-1)] font-medium">
-                                    <Clock size={16} className="mr-2 text-[color:var(--text-3)]" />
-                                    {fmt(visit.check_out || visit.check_out_time)}
-                                </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -217,15 +281,17 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
                         </div>
                     )}
 
-                    {/* IntermittentAccessLog — rendered adjacent to main details */}
-                    {visit.intermittent_logs && visit.intermittent_logs.length > 0 && (
-                        <IntermittentAccessLog logs={visit.intermittent_logs} />
-                    )}
 
                     {/* Status badge */}
                     <div className="mt-8 flex justify-center">
-                        <div className={`px-4 py-1 rounded-full text-xs font-semibold border ${visit.status === 'active' ? 'border-[color:var(--accent-0)] text-[color:var(--accent-0)]' : 'border-[color:var(--border-1)] text-[color:var(--text-3)]'}`}>
-                            Estado: {visit.status === 'active' ? 'Activo (En sitio)' : 'Completado'}
+                        <div className={`px-4 py-1 rounded-full text-xs font-semibold border ${
+                            visit.status === 'active' 
+                                ? 'border-[color:var(--accent-0)] text-[color:var(--accent-0)]' 
+                                : visit.status === 'intermittent'
+                                    ? 'border-amber-400 text-amber-400'
+                                    : 'border-[color:var(--border-1)] text-[color:var(--text-3)]'
+                        }`}>
+                            Estado: {visit.status === 'active' ? 'Activo (En sitio)' : visit.status === 'intermittent' ? 'Intermitente (Fuera temporal)' : 'Completado'}
                         </div>
                     </div>
                 </div>

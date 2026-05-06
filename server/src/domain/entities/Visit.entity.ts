@@ -13,6 +13,15 @@ export interface VisitEntity {
   notes?: string;
   visitorName?: string;
   visitorCompany?: string;
+
+  // Timestamp lifecycle
+  arrivalTime?: Date;
+  entryTime?: Date;
+  exitTime?: Date;
+
+  // Relational
+  targetDepartment?: string;
+  hostPerson?: string;
   
   // Pase de Entrada
   companionName?: string;
@@ -54,7 +63,12 @@ export class Visit {
     public readonly vehiclePlate?: string,
     public readonly area?: string,
     public readonly action?: 'Carga' | 'Descarga' | 'Ninguna',
-    public readonly department?: string
+    public readonly department?: string,
+    public readonly arrivalTime?: Date,
+    public readonly entryTime?: Date,
+    public readonly exitTime?: Date,
+    public readonly targetDepartment?: string,
+    public readonly hostPerson?: string
   ) {
     this.validate();
   }
@@ -108,6 +122,13 @@ export class Visit {
   }
 
   /**
+   * Check if visit is in intermittent state
+   */
+  isIntermittent(): boolean {
+    return this.status === VisitStatus.INTERMITTENT;
+  }
+
+  /**
    * Get visit duration in minutes
    */
   getDurationMinutes(): number | null {
@@ -128,26 +149,32 @@ export class Visit {
           : 'Only active visits can be checked out'
       );
     }
-    return new Visit(
-      this.visitorCedula,
-      this.checkInTime,
-      this.purpose,
-      this.personToVisit,
-      VisitStatus.COMPLETED,
-      this.id,
+    return this._cloneWith({
+      status: VisitStatus.COMPLETED,
       checkOutTime,
-      notes || this.notes,
-      this.visitorName,
-      this.visitorCompany,
-      this.companionName,
-      this.companionCedula,
-      this.vehicleBrand,
-      this.vehicleModel,
-      this.vehiclePlate,
-      this.area,
-      this.action,
-      this.department
-    );
+      notes: notes || this.notes,
+      exitTime: checkOutTime,
+    });
+  }
+
+  /**
+   * Transition: Active → Intermittent (temporary exit)
+   */
+  toIntermittent(): Visit {
+    if (this.status !== VisitStatus.ACTIVE) {
+      throw new Error('Solo las visitas en estado Activo pueden pasar a Intermitente.');
+    }
+    return this._cloneWith({ status: VisitStatus.INTERMITTENT });
+  }
+
+  /**
+   * Transition: Intermittent → Active (re-entry)
+   */
+  reEnter(): Visit {
+    if (this.status !== VisitStatus.INTERMITTENT) {
+      throw new Error('Solo las visitas en estado Intermitente pueden reingresar.');
+    }
+    return this._cloneWith({ status: VisitStatus.ACTIVE });
   }
 
   /**
@@ -216,25 +243,66 @@ export class Visit {
       throw new Error('Only visits in waiting status can be admitted');
     }
 
-    return new Visit(
-      this.visitorCedula,
+    return this._cloneWith({
       checkInTime,
-      this.purpose,
-      this.personToVisit,
-      VisitStatus.ACTIVE,
-      this.id,
-      this.checkOutTime,
-      this.notes,
-      this.visitorName,
-      this.visitorCompany,
-      this.companionName,
-      this.companionCedula,
-      this.vehicleBrand,
-      this.vehicleModel,
-      this.vehiclePlate,
-      this.area,
-      this.action,
-      this.department
+      status: VisitStatus.ACTIVE,
+      entryTime: checkInTime,
+    });
+  }
+
+  /**
+   * Internal helper to clone a Visit with overrides.
+   * Keeps all existing fields and only replaces the ones provided.
+   */
+  private _cloneWith(overrides: Partial<{
+    visitorCedula: string;
+    checkInTime: Date;
+    purpose: string;
+    personToVisit: string;
+    status: VisitStatus;
+    id: number;
+    checkOutTime: Date;
+    notes: string;
+    visitorName: string;
+    visitorCompany: string;
+    companionName: string;
+    companionCedula: string;
+    vehicleBrand: string;
+    vehicleModel: string;
+    vehiclePlate: string;
+    area: string;
+    action: 'Carga' | 'Descarga' | 'Ninguna';
+    department: string;
+    arrivalTime: Date;
+    entryTime: Date;
+    exitTime: Date;
+    targetDepartment: string;
+    hostPerson: string;
+  }>): Visit {
+    return new Visit(
+      overrides.visitorCedula ?? this.visitorCedula,
+      overrides.checkInTime ?? this.checkInTime,
+      overrides.purpose ?? this.purpose,
+      overrides.personToVisit ?? this.personToVisit,
+      overrides.status ?? this.status,
+      overrides.id ?? this.id,
+      overrides.checkOutTime ?? this.checkOutTime,
+      overrides.notes ?? this.notes,
+      overrides.visitorName ?? this.visitorName,
+      overrides.visitorCompany ?? this.visitorCompany,
+      overrides.companionName ?? this.companionName,
+      overrides.companionCedula ?? this.companionCedula,
+      overrides.vehicleBrand ?? this.vehicleBrand,
+      overrides.vehicleModel ?? this.vehicleModel,
+      overrides.vehiclePlate ?? this.vehiclePlate,
+      overrides.area ?? this.area,
+      overrides.action ?? this.action,
+      overrides.department ?? this.department,
+      overrides.arrivalTime ?? this.arrivalTime,
+      overrides.entryTime ?? this.entryTime,
+      overrides.exitTime ?? this.exitTime,
+      overrides.targetDepartment ?? this.targetDepartment,
+      overrides.hostPerson ?? this.hostPerson,
     );
   }
 
@@ -260,7 +328,12 @@ export class Visit {
       obj.vehiclePlate,
       obj.area,
       obj.action,
-      obj.department
+      obj.department,
+      obj.arrivalTime,
+      obj.entryTime,
+      obj.exitTime,
+      obj.targetDepartment,
+      obj.hostPerson,
     );
   }
 
@@ -279,6 +352,11 @@ export class Visit {
       notes: this.notes,
       visitorName: this.visitorName,
       visitorCompany: this.visitorCompany,
+      arrivalTime: this.arrivalTime,
+      entryTime: this.entryTime,
+      exitTime: this.exitTime,
+      targetDepartment: this.targetDepartment,
+      hostPerson: this.hostPerson,
       companionName: this.companionName,
       companionCedula: this.companionCedula,
       vehicleBrand: this.vehicleBrand,
@@ -286,7 +364,7 @@ export class Visit {
       vehiclePlate: this.vehiclePlate,
       area: this.area,
       action: this.action,
-      department: this.department
+      department: this.department,
     };
   }
 }

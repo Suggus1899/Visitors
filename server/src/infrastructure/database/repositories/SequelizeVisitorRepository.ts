@@ -94,7 +94,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return byCompany.map(m => this.toDomain(m));
   }
 
-  async create(visitor: Visitor): Promise<Visitor> {
+  async create(visitor: Visitor, photoData?: Buffer, idPhotoData?: Buffer): Promise<Visitor> {
     // Model hooks handle encryption
     const model = await VisitorModel.create({
       cedula: visitor.cedula,
@@ -104,8 +104,8 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       job_title: visitor.jobTitle,
       photo_url: visitor.photoUrl,
       id_photo_url: visitor.idPhotoUrl,
-      photo_blob: visitor.photoBlob || null,
-      id_photo_blob: visitor.idPhotoBlob || null,
+      photo_data: photoData || visitor.photoBlob || null,
+      id_photo_data: idPhotoData || visitor.idPhotoBlob || null,
       email: visitor.email,
       phone: visitor.phone,
       isBlocked: visitor.isBlocked,
@@ -132,8 +132,8 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       job_title: data.jobTitle,
       photo_url: data.photoUrl,
       id_photo_url: data.idPhotoUrl,
-      photo_blob: data.photoBlob !== undefined ? data.photoBlob : undefined,
-      id_photo_blob: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
+      photo_data: data.photoBlob !== undefined ? data.photoBlob : undefined,
+      id_photo_data: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
       email: data.email,
       phone: data.phone,
       isBlocked: data.isBlocked,
@@ -157,8 +157,8 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       job_title: data.jobTitle,
       photo_url: data.photoUrl,
       id_photo_url: data.idPhotoUrl,
-      photo_blob: data.photoBlob !== undefined ? data.photoBlob : undefined,
-      id_photo_blob: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
+      photo_data: data.photoBlob !== undefined ? data.photoBlob : undefined,
+      id_photo_data: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
       email: data.email,
       phone: data.phone,
       isBlocked: data.isBlocked,
@@ -170,18 +170,20 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
 
   async getPhotoBlob(cedula: string): Promise<Buffer | null> {
     const hashed = Encryption.hash(cedula);
-    const model = await VisitorModel.findByPk(hashed, {
-      attributes: ['photo_blob']
+    const model = await VisitorModel.findOne({
+      where: { cedula: hashed },
+      attributes: ['photo_data']
     });
-    return model?.photo_blob || null;
+    return model?.photo_data || null;
   }
 
   async getIdPhotoBlob(cedula: string): Promise<Buffer | null> {
     const hashed = Encryption.hash(cedula);
-    const model = await VisitorModel.findByPk(hashed, {
-      attributes: ['id_photo_blob']
+    const model = await VisitorModel.findOne({
+      where: { cedula: hashed },
+      attributes: ['id_photo_data']
     });
-    return model?.id_photo_blob || null;
+    return model?.id_photo_data || null;
   }
 
   async delete(cedula: string): Promise<void> {
@@ -244,8 +246,8 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       decrypted.id_photo_url || undefined,
       decrypted.email || undefined,
       decrypted.phone || undefined,
-      decrypted.photo_blob || undefined,
-      decrypted.id_photo_blob || undefined,
+      model.photo_data || undefined,
+      model.id_photo_data || undefined,
       decrypted.isBlocked,
       decrypted.observations || undefined,
       decrypted.createdAt

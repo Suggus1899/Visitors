@@ -38,7 +38,7 @@ export interface IVisitorRepository {
   /**
    * Create new visitor
    */
-  create(visitor: Visitor): Promise<Visitor>;
+  create(visitor: Visitor, photoData?: Buffer, idPhotoData?: Buffer): Promise<Visitor>;
 
   /**
    * Update existing visitor by cedula

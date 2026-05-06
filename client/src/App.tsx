@@ -14,7 +14,6 @@ import WaitingVisits from './components/WaitingVisits';
 import IntermittentVisits from './components/IntermittentVisits';
 import VisitorAdmin from './components/VisitorAdmin';
 import AuditDashboard from './components/AuditDashboard';
-import Brochure from './Brochure';
 import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
 import HelpCircle from 'lucide-react/dist/esm/icons/help-circle';
 import Keyboard from 'lucide-react/dist/esm/icons/keyboard';
@@ -247,7 +246,7 @@ const OperationsView = () => {
                                     loading={isVisitsLoading && filteredVisits.length === 0}
                                 />
                             </>
-                        ) : (
+                        ) : activeTab === 'waiting' ? (
                             <WaitingVisits
                                 fallbackPollingMs={isUsingFallbackPolling ? 15_000 : false}
                                 onVisitAdmitted={() => {
@@ -255,7 +254,7 @@ const OperationsView = () => {
                                     invalidateVisitQueries();
                                 }}
                             />
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </main>
@@ -341,7 +340,6 @@ function AppRoutes() {
                         <AdminDashboard />
                     </AdminRoute>
                 } />
-                <Route path="/brochure" element={<Brochure />} />
                 <Route path="/superadmin" element={
                     <SuperAdminRoute>
                         <SuperAdminDashboard />

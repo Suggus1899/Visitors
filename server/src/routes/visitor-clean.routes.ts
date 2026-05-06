@@ -14,6 +14,20 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /companies:
+ *   get:
+ *     summary: Get list of unique companies
+ *     tags: [Visitors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of companies
+ */
+router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getCompanies);
+
+/**
+ * @swagger
  * /visitors/{cedula}:
  *   get:
  *     summary: Get visitor by cedula
@@ -108,5 +122,6 @@ router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getComp
 router.get('/v1/visitors/:cedula/photo', verifyToken, asyncHandler(VisitorCleanController.getVisitorPhoto));
 
 router.get('/v1/visitors/:cedula/id-photo', verifyToken, asyncHandler(VisitorCleanController.getVisitorIdPhoto));
+
 
 export default router;

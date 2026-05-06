@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import User from '../models/User';
 import VisitorModel from '../models/Visitor';
 import VisitModel from '../models/Visit';
+import IntermittentLogModel from '../models/IntermittentLog';
 import Encryption from './Encryption';
 import logger from '../config/logger';
 
@@ -431,5 +432,152 @@ export const seedLoad = async (options: SeedLoadOptions) => {
         logger.info(`✅ Load seed complete: ${visitorCount} visitors, ${visitsToCreate.length} visits`);
     } catch (err) {
         logger.error('Seed Load Error:', err);
+    }
+};
+
+// Base64 string for a simple 1x1 gray pixel PNG to act as a placeholder avatar
+const DEFAULT_AVATAR_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+export const seedComprehensive = async () => {
+    try {
+        await ensureBaseUsers();
+
+        // 1. Generate 150 visitors with photo
+        logger.info('Creating 150 visitors with photos...');
+        const visitors = [];
+        const jobTitles = ['Gerente', 'Supervisor', 'Técnico', 'Contador', 'Abogado', 'Ingeniero', 'Consultor', 'Director', 'Analista', 'Coordinador'];
+        const departments = ['Administración', 'Ventas', 'Logística', 'Finanzas', 'Recursos Humanos', 'IT', 'Operaciones', 'Legal'];
+        const areas = ['Oficina', 'Planta', 'Almacén', 'Ninguna'] as const;
+        const actions = ['Carga', 'Descarga', 'Ninguna'] as const;
+        const vehicleBrands = ['Toyota', 'Ford', 'Chevrolet', 'Nissan', 'Honda', 'Hyundai', 'Kia', 'Mazda'];
+        const vehicleModels = ['Corolla', 'F-150', 'Silverado', 'Sentra', 'Civic', 'Tucson', 'Sportage', 'CX-5'];
+        const photoBuffer = Buffer.from(DEFAULT_AVATAR_B64, 'base64');
+
+        for (let i = 1; i <= 150; i++) {
+            const cedula = (10000000 + i * 1234 + Math.floor(Math.random() * 100000)).toString().substring(0, 8);
+            const visitorData = {
+                cedula,
+                first_name: firstNames[Math.floor(Math.random() * firstNames.length)],
+                last_name: lastNames[Math.floor(Math.random() * lastNames.length)],
+                company: companies[Math.floor(Math.random() * companies.length)],
+                job_title: jobTitles[Math.floor(Math.random() * jobTitles.length)],
+                email: `visitor${i}@example.com`,
+                phone: `+5841${Math.floor(1000000 + Math.random() * 9000000)}`,
+                photo_data: photoBuffer
+            };
+            visitors.push(visitorData);
+            
+            const exists = await VisitorModel.findByPk(Encryption.hash(visitorData.cedula));
+            if (!exists) {
+                await VisitorModel.create(visitorData);
+            }
+        }
+
+        logger.info('Distributing 150 visits across states...');
+        const now = new Date();
+        const visitsToCreate = [];
+
+        // 1. COMPLETED visits (40)
+        for (let i = 0; i < 40; i++) {
+            const visitorIndex = i;
+            const checkIn = new Date(now.getTime() - (Math.floor(Math.random() * 72) + 2) * 3600000); // 2-74 hours ago
+            const checkOut = new Date(checkIn.getTime() + (1 + Math.random() * 4) * 3600000);
+
+            visitsToCreate.push({
+                visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
+                purpose: reasons[Math.floor(Math.random() * reasons.length)],
+                person_to_visit: `Admin User`,
+                check_in_time: checkIn,
+                check_out_time: checkOut,
+                status: 'completed',
+                notes: 'Visita finalizada (Seed)',
+                area: areas[Math.floor(Math.random() * areas.length)],
+                action: actions[Math.floor(Math.random() * actions.length)],
+                department: departments[Math.floor(Math.random() * departments.length)]
+            });
+        }
+
+        // 2. ACTIVE visits (40)
+        for (let i = 40; i < 80; i++) {
+            const visitorIndex = i;
+            const checkIn = new Date(now.getTime() - (Math.floor(Math.random() * 5) + 1) * 3600000); // 1-6 hours ago
+
+            visitsToCreate.push({
+                visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
+                purpose: reasons[Math.floor(Math.random() * reasons.length)],
+                person_to_visit: `Admin User`,
+                check_in_time: checkIn,
+                check_out_time: null,
+                status: 'active',
+                notes: 'Visita activa adentro (Seed)',
+                area: areas[Math.floor(Math.random() * areas.length)],
+                action: actions[Math.floor(Math.random() * actions.length)],
+                department: departments[Math.floor(Math.random() * departments.length)]
+            });
+        }
+
+        // 3. INTERMITTENT visits (40)
+        for (let i = 80; i < 120; i++) {
+            const visitorIndex = i;
+            const checkIn = new Date(now.getTime() - (Math.floor(Math.random() * 4) + 2) * 3600000); // 2-6 hours ago
+
+            const visitData: any = {
+                visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
+                purpose: reasons[Math.floor(Math.random() * reasons.length)],
+                person_to_visit: `Admin User`,
+                check_in_time: checkIn,
+                check_out_time: null,
+                status: 'intermittent',
+                notes: 'Salida temporal registrada (Seed)',
+                area: areas[Math.floor(Math.random() * areas.length)],
+                action: actions[Math.floor(Math.random() * actions.length)],
+                department: departments[Math.floor(Math.random() * departments.length)]
+            };
+
+            const createdVisit = await VisitModel.create(visitData);
+            
+            // Generate the intermittent log entry for this visit
+            await IntermittentLogModel.create({
+                visit_id: createdVisit.id,
+                check_out: new Date(now.getTime() - (Math.floor(Math.random() * 60) + 10) * 60000), // exited 10-70 mins ago
+                re_entry: null,
+                notes: 'Salió a comprar comida',
+                registered_by: 'guard'
+            } as any);
+        }
+
+        // 4. WAITING visits (30)
+        for (let i = 120; i < 150; i++) {
+            const visitorIndex = i;
+            const checkIn = new Date(now.getTime() - (Math.floor(Math.random() * 45) + 5) * 60000); // 5-50 mins ago
+
+            visitsToCreate.push({
+                visitor_cedula: Encryption.hash(visitors[visitorIndex].cedula),
+                purpose: reasons[Math.floor(Math.random() * reasons.length)],
+                person_to_visit: `Admin User`,
+                check_in_time: checkIn,
+                check_out_time: null,
+                status: 'waiting',
+                notes: 'Esperando pase (Seed)',
+                area: areas[Math.floor(Math.random() * areas.length)],
+                action: actions[Math.floor(Math.random() * actions.length)],
+                department: departments[Math.floor(Math.random() * departments.length)]
+            });
+        }
+
+        // Create the rest of the visits (completed, active, waiting)
+        for (const visitData of visitsToCreate) {
+            await VisitModel.create(visitData as any);
+        }
+
+        logger.info(`✅ Comprehensive seed complete! Created:`);
+        logger.info(`   - 150 Visitors with Photos`);
+        logger.info(`   - 40 COMPLETED visits`);
+        logger.info(`   - 40 ACTIVE visits`);
+        logger.info(`   - 40 INTERMITTENT visits (with logs)`);
+        logger.info(`   - 30 WAITING visits`);
+        
+    } catch (err) {
+        logger.error('Seed Comprehensive Error:', err);
     }
 };

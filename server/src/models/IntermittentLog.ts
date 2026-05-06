@@ -28,6 +28,7 @@ class IntermittentLogModel extends Model<
     declare check_out: Date;
     declare re_entry: CreationOptional<Date | null>;
     declare notes: CreationOptional<string | null>;
+    declare registered_by: CreationOptional<string | null>;
 
     // Association helper
     declare Visit?: VisitModel;
@@ -62,6 +63,11 @@ IntermittentLogModel.init(
         notes: {
             type: DataTypes.TEXT,
             allowNull: true,
+        },
+        registered_by: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            comment: 'Username of the security staff who registered this event',
         },
     },
     {
