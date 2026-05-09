@@ -1,4 +1,4 @@
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 import User from '../models/User';
 import VisitorModel from '../models/Visitor';
 import VisitModel from '../models/Visit';
@@ -13,7 +13,6 @@ const parseArg = (flag: string) => {
 
 const run = async () => {
     try {
-        await initializeDatabaseEncryption();
         await sequelize.authenticate();
 
         // Ensure all models are registered before sync
@@ -22,9 +21,7 @@ const run = async () => {
         void VisitModel;
         void ActivityLog;
 
-        await sequelize.query('PRAGMA foreign_keys = OFF');
         await sequelize.sync();
-        await sequelize.query('PRAGMA foreign_keys = ON');
 
         const preset = parseArg('--preset') ?? 'standard';
         const countArg = parseArg('--count');

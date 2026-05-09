@@ -1,4 +1,4 @@
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 import { seedDatabase } from '../utils/seeder';
 import Visit from '../models/Visit';
 import Visitor from '../models/Visitor';
@@ -6,8 +6,6 @@ import Visitor from '../models/Visitor';
 const runComprehensiveSeed = async () => {
     try {
         console.log('🌱 Iniciando seed completo del sistema...\n');
-
-        await initializeDatabaseEncryption();
 
         // Optional: Clean existing data
         const shouldClean = process.argv.includes('--clean');

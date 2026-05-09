@@ -1,17 +1,16 @@
 import fs from 'fs';
 import path from 'path';
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 import VisitorModel from '../models/Visitor';
 
 async function migratePhotosToBlob() {
   try {
     console.log('Connecting to database...');
-    await initializeDatabaseEncryption();
     await sequelize.authenticate();
     console.log('✓ Database connected');
 
     const visitors = await VisitorModel.findAll({
-      attributes: ['cedula', 'photo_url', 'id_photo_url', 'photo_blob', 'id_photo_blob']
+      attributes: ['cedula', 'photo_url', 'id_photo_url', 'photo_data', 'id_photo_data']
     });
 
     let migrated = 0;
@@ -19,15 +18,15 @@ async function migratePhotosToBlob() {
     let errors = 0;
 
     for (const visitor of visitors) {
-      const updates: Partial<{ photo_blob: Buffer | null; id_photo_blob: Buffer | null }> = {};
+      const updates: Partial<{ photo_data: Buffer | null; id_photo_data: Buffer | null }> = {};
 
-      if (visitor.photo_url && !visitor.photo_blob) {
+      if (visitor.photo_url && !visitor.photo_data) {
         const filePath = visitor.photo_url.startsWith('/data/photos/')
           ? path.join(__dirname, '../../../data/photos', path.basename(visitor.photo_url))
           : visitor.photo_url;
 
         if (fs.existsSync(filePath)) {
-          updates.photo_blob = fs.readFileSync(filePath);
+          updates.photo_data = fs.readFileSync(filePath);
           console.log(`  ✓ Migrated photo for ${visitor.cedula.substring(0, 8)}...`);
         } else {
           console.warn(`  ⚠ Photo file not found: ${filePath}`);
@@ -35,13 +34,13 @@ async function migratePhotosToBlob() {
         }
       }
 
-      if (visitor.id_photo_url && !visitor.id_photo_blob) {
+      if (visitor.id_photo_url && !visitor.id_photo_data) {
         const filePath = visitor.id_photo_url.startsWith('/data/photos/')
           ? path.join(__dirname, '../../../data/photos', path.basename(visitor.id_photo_url))
           : visitor.id_photo_url;
 
         if (fs.existsSync(filePath)) {
-          updates.id_photo_blob = fs.readFileSync(filePath);
+          updates.id_photo_data = fs.readFileSync(filePath);
           console.log(`  ✓ Migrated ID photo for ${visitor.cedula.substring(0, 8)}...`);
         } else {
           console.warn(`  ⚠ ID photo file not found: ${filePath}`);

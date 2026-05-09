@@ -18,7 +18,8 @@
     "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
-    "@journeyapps/sqlcipher": "^5.1.8",
+    "pg": "^8.13.3",
+    "pg-hstore": "^2.3.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.4",

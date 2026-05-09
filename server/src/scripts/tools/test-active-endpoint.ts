@@ -1,10 +1,8 @@
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 import { container } from '../shared/Container';
 
 const testActiveEndpoint = async () => {
     try {
-        await initializeDatabaseEncryption();
-
         console.log('🧪 Probando endpoint /visits/active...\n');
 
         const useCase = container.createGetActiveVisitsUseCase();

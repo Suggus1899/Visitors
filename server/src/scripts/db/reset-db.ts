@@ -1,10 +1,9 @@
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 import Visit from '../models/Visit';
 import Visitor from '../models/Visitor';
 
 const resetDb = async () => {
     try {
-        await initializeDatabaseEncryption();
         console.log('🗑️  Limpiando base de datos...');
         
         // Delete all visits first (foreign key constraint)

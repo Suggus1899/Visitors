@@ -1,11 +1,9 @@
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 import Visit from '../models/Visit';
 import Visitor from '../models/Visitor';
 
 const debugActiveVisit = async () => {
     try {
-        await initializeDatabaseEncryption();
-
         console.log('🔍 Depurando visita activa...\n');
 
         const activeVisit = await Visit.findOne({

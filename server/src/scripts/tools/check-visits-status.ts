@@ -1,10 +1,8 @@
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 import Visit from '../models/Visit';
 
 const checkVisitsStatus = async () => {
     try {
-        await initializeDatabaseEncryption();
-
         console.log('📊 Estado actual de las visitas:\n');
 
         const waitingCount = await Visit.count({ where: { status: 'waiting' } });

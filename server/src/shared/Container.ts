@@ -38,7 +38,6 @@ import { RefreshTokenUseCase } from '../application/usecases/auth/RefreshToken.u
 import { ChangePasswordUseCase } from '../application/usecases/auth/ChangePassword.usecase';
 import { IntermittentExitUseCase } from '../application/usecases/IntermittentExit.usecase';
 import { IntermittentReEntryUseCase } from '../application/usecases/IntermittentReEntry.usecase';
-import { GetIntermittentVisitsUseCase } from '../application/usecases/GetIntermittentVisits.usecase';
 
 /**
  * Simple Dependency Injection Container
@@ -224,13 +223,6 @@ class Container {
 
   createReactivateVisitUseCase(): ReactivateVisitUseCase {
     return new ReactivateVisitUseCase(
-      this.visitRepository,
-      this.visitIntervalRepository
-    );
-  }
-
-  createGetIntermittentVisitsUseCase(): GetIntermittentVisitsUseCase {
-    return new GetIntermittentVisitsUseCase(
       this.visitRepository,
       this.visitIntervalRepository
     );

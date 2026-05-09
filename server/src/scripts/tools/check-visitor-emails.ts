@@ -1,10 +1,8 @@
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 import Visitor from '../models/Visitor';
 
 const checkEmails = async () => {
     try {
-        await initializeDatabaseEncryption();
-
         console.log('🔍 Verificando emails de visitantes...\n');
 
         const visitors = await Visitor.findAll({ limit: 10 });

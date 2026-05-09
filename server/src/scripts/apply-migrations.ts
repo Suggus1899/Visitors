@@ -1,10 +1,9 @@
 import { migrator } from '../config/umzug';
-import sequelize, { initializeDatabaseEncryption } from '../database';
+import sequelize from '../database';
 
 async function applyMigrations() {
     try {
         console.log('Connecting to database...');
-        await initializeDatabaseEncryption();
         await sequelize.authenticate();
         console.log('✓ Database connection established');
 

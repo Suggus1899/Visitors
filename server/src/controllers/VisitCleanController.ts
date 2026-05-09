@@ -318,18 +318,3 @@ export const intermittentReEntry = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Get all intermittent visits
- * GET /api/v1/visits/intermittent
- */
-export const getIntermittentVisits = async (_req: Request, res: Response) => {
-  try {
-    const useCase = container.createGetIntermittentVisitsUseCase();
-    const visits = await useCase.execute();
-
-    res.json(ResponseBuilder.success(visits));
-  } catch (error) {
-    logger.error('Get intermittent visits error:', error);
-    res.status(500).json(ResponseBuilder.error('FETCH_FAILED', 'Failed to fetch intermittent visits'));
-  }
-};

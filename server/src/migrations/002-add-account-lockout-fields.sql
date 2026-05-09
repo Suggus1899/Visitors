@@ -3,10 +3,10 @@
 -- Date: 2026-02-28
 
 -- Add loginAttempts field to track failed login attempts
-ALTER TABLE Users ADD COLUMN loginAttempts INTEGER DEFAULT 0;
+ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "loginAttempts" INTEGER DEFAULT 0;
 
 -- Add lockedUntil field to track account lockout expiration
-ALTER TABLE Users ADD COLUMN lockedUntil DATETIME NULL;
+ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "lockedUntil" TIMESTAMP NULL;
 
 -- Initialize existing users with default values
-UPDATE Users SET loginAttempts = 0 WHERE loginAttempts IS NULL;
+UPDATE "Users" SET "loginAttempts" = 0 WHERE "loginAttempts" IS NULL;

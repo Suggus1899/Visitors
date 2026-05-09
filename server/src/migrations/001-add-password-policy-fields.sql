@@ -3,10 +3,10 @@
 -- Date: 2026-02-28
 
 -- Add mustChangePassword field (default: true for new users)
-ALTER TABLE Users ADD COLUMN mustChangePassword BOOLEAN DEFAULT 1;
+ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "mustChangePassword" BOOLEAN DEFAULT TRUE;
 
 -- Add passwordChangedAt field to track last password change
-ALTER TABLE Users ADD COLUMN passwordChangedAt DATETIME NULL;
+ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "passwordChangedAt" TIMESTAMP NULL;
 
 -- Update existing users to require password change
-UPDATE Users SET mustChangePassword = 1 WHERE mustChangePassword IS NULL;
+UPDATE "Users" SET "mustChangePassword" = TRUE WHERE "mustChangePassword" IS NULL;

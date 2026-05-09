@@ -9,13 +9,13 @@
 -- ============================================
 
 -- Add isBlocked flag for blacklist
-ALTER TABLE Visitors ADD COLUMN isBlocked BOOLEAN DEFAULT 0;
+ALTER TABLE "Visitors" ADD COLUMN IF NOT EXISTS "isBlocked" BOOLEAN DEFAULT FALSE;
 
 -- Add observations field for blacklist reason or general notes
-ALTER TABLE Visitors ADD COLUMN observations TEXT;
+ALTER TABLE "Visitors" ADD COLUMN IF NOT EXISTS observations TEXT;
 
 -- Add createdAt timestamp (existing records will use current timestamp)
-ALTER TABLE Visitors ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "Visitors" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 -- ============================================
 -- 2. Ensure unique constraint on cedula
@@ -25,21 +25,21 @@ ALTER TABLE Visitors ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP;
 -- This is a safety measure - should be reviewed manually if duplicates exist
 
 -- Create unique index if not exists
-CREATE UNIQUE INDEX IF NOT EXISTS idx_visitors_cedula_unique ON Visitors(cedula);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_visitors_cedula_unique ON "Visitors"(cedula);
 
 -- ============================================
 -- 3. Create VisitPurposes lookup table
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS VisitPurposes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS "VisitPurposes" (
+  id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
-  isActive BOOLEAN DEFAULT 1,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  "isActive" BOOLEAN DEFAULT TRUE,
+  "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insert default purposes
-INSERT OR IGNORE INTO VisitPurposes (id, name) VALUES 
+INSERT INTO "VisitPurposes" (id, name) VALUES 
   (1, 'Reunión de negocios'),
   (2, 'Entrega de documentos'),
   (3, 'Visita personal'),
@@ -48,22 +48,23 @@ INSERT OR IGNORE INTO VisitPurposes (id, name) VALUES
   (6, 'Entrevista'),
   (7, 'Visita comercial'),
   (8, 'Inspección'),
-  (9, 'Otro');
+  (9, 'Otro')
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
 -- 4. Create Departments lookup table (optional but recommended)
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS Departments (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS "Departments" (
+  id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   code VARCHAR(20),
-  isActive BOOLEAN DEFAULT 1,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  "isActive" BOOLEAN DEFAULT TRUE,
+  "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insert sample departments (customize as needed)
-INSERT OR IGNORE INTO Departments (id, name, code) VALUES 
+INSERT INTO "Departments" (id, name, code) VALUES 
   (1, 'Administración', 'ADM'),
   (2, 'Recursos Humanos', 'RRHH'),
   (3, 'Ventas', 'VTA'),
@@ -73,7 +74,8 @@ INSERT OR IGNORE INTO Departments (id, name, code) VALUES
   (7, 'Almacén', 'ALM'),
   (8, 'Producción', 'PROD'),
   (9, 'Seguridad', 'SEG'),
-  (10, 'Recepción', 'RECP');
+  (10, 'Recepción', 'RECP')
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
 -- 5. Remove area column from Visits (if exists)
@@ -87,14 +89,8 @@ INSERT OR IGNORE INTO Departments (id, name, code) VALUES
 -- The 'area' field should no longer be used in the application
 
 -- ============================================
--- 6. Add updatedAt trigger for Visitors (optional but recommended)
+-- 6. updatedAt is managed by Sequelize (timestamps: true)
 -- ============================================
-
-CREATE TRIGGER IF NOT EXISTS trg_visitors_updatedAt 
-AFTER UPDATE ON Visitors
-BEGIN
-  UPDATE Visitors SET updatedAt = CURRENT_TIMESTAMP WHERE id = NEW.id;
-END;
 
 -- ============================================
 -- Migration complete

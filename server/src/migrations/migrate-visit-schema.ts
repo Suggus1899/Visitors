@@ -1,8 +1,8 @@
 import sequelize from '../database';
 
 /**
- * Database migration script
- * Updates Visit table schema to match new model
+ * @deprecated SQLite-only legacy migration script. Not used with PostgreSQL.
+ * Schema migrations are handled by Sequelize sync + umzug SQL files.
  */
 export async function migrateVisitSchema() {
   console.log('Starting Visit table migration...');

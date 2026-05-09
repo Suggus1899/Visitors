@@ -1,19 +1,11 @@
-import path from 'path';
 import cron from 'node-cron';
 import { Op } from 'sequelize';
 import config from '../config/AppConfig';
 import ActivityLog from '../models/ActivityLog';
-import VisitorModel from '../models/Visitor';
-import PhotoStorage from './PhotoStorage';
 import logger from '../config/logger';
 
 export async function runRetentionCleanup(): Promise<void> {
-  const dataRetentionDays = config.dataRetentionDays;
   const auditLogRetentionDays = config.auditLogRetentionDays;
-
-  // C-04: Separate cutoff dates for personal data vs audit logs
-  const dataCutoffDate = new Date();
-  dataCutoffDate.setDate(dataCutoffDate.getDate() - dataRetentionDays);
 
   const auditCutoffDate = new Date();
   auditCutoffDate.setDate(auditCutoffDate.getDate() - auditLogRetentionDays);
@@ -28,24 +20,11 @@ export async function runRetentionCleanup(): Promise<void> {
       }
     });
 
-    // Build the set of photo filenames that belong to registered visitors.
-    // These are kept permanently regardless of the retention window.
-    const visitors = await VisitorModel.findAll({
-      attributes: ['photo_url', 'id_photo_url']
-    });
-
-    const protectedFilenames = new Set<string>();
-    for (const v of visitors) {
-      if (v.photo_url) protectedFilenames.add(path.basename(v.photo_url));
-      if (v.id_photo_url) protectedFilenames.add(path.basename(v.id_photo_url));
-    }
-
-    const deletedPhotos = await PhotoStorage.cleanupOldPhotos(dataRetentionDays, protectedFilenames);
+    // Photos are stored as BYTEA in PostgreSQL — no filesystem cleanup needed.
+    // Photo retention is handled by visitor data deletion (CASCADE or explicit purge).
 
     logger.info(
-      `[Retention] Cleanup completed. Logs deleted: ${deletedLogs} (>${auditLogRetentionDays}d), ` +
-      `photos deleted: ${deletedPhotos} (>${dataRetentionDays}d), ` +
-      `protected: ${protectedFilenames.size}`
+      `[Retention] Cleanup completed. Logs deleted: ${deletedLogs} (>${auditLogRetentionDays}d)`
     );
   } catch (error) {
     logger.error('[Retention] Cleanup failed:', error);

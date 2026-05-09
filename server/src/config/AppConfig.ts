@@ -11,7 +11,12 @@ interface AppConfig {
 
   // Database
   dbPath: string;
-  dbEncryptionKey: string;
+  dbHost: string;
+  dbPort: number;
+  dbName: string;
+  dbUser: string;
+  dbPassword: string;
+  dbSsl: boolean;
 
   // JWT
   jwtSecret: string;
@@ -45,7 +50,12 @@ class Config implements AppConfig {
 
   // Database
   dbPath = process.env.DB_PATH || path.join(__dirname, '../../../data');
-  dbEncryptionKey = process.env.DB_ENCRYPTION_KEY || '';
+  dbHost = process.env.DB_HOST || 'localhost';
+  dbPort = parseInt(process.env.DB_PORT || '5432', 10);
+  dbName = process.env.DB_NAME || 'visitors';
+  dbUser = process.env.DB_USER || 'postgres';
+  dbPassword = process.env.DB_PASSWORD || '';
+  dbSsl = process.env.DB_SSL === 'true';
 
   // JWT — no defaults; must be explicitly configured
   jwtSecret = process.env.JWT_SECRET || '';
@@ -85,8 +95,8 @@ class Config implements AppConfig {
     }
 
     if (this.nodeEnv === 'production') {
-      if (!this.dbEncryptionKey) {
-        errors.push('DB_ENCRYPTION_KEY must be set in production');
+      if (!this.dbPassword) {
+        errors.push('DB_PASSWORD must be set in production');
       }
       if (!this.encryptionKey) {
         errors.push('ENCRYPTION_KEY must be set in production');

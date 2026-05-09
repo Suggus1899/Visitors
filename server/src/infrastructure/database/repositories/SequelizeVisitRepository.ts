@@ -282,15 +282,6 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return models.map(m => this.toDomain(m));
   }
 
-  async findIntermittent(): Promise<Visit[]> {
-    const models = await VisitModel.findAll({
-      where: { status: VisitStatus.INTERMITTENT },
-      order: [['check_in_time', 'DESC']],
-      include: [{ model: VisitorModel }]
-    });
-    return models.map(m => this.toDomain(m));
-  }
-
   async findForReport(startDate: Date, endDate: Date): Promise<Visit[]> {
     const models = await VisitModel.findAll({
       where: {

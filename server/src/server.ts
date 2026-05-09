@@ -1,13 +1,11 @@
 import app from './app';
-import sequelize, { initializeDatabaseEncryption } from './database';
+import sequelize from './database';
 import { seedLoad, ensureBaseUsers } from './utils/seeder';
 import { initRetentionScheduler } from './utils/retention';
 import logger from './config/logger';
 import './models/VisitInterval';
 
-// import { initScheduler } from './utils/scheduler'; // Legacy - commented out
 import config from './config/AppConfig';
-// import { migrateVisitSchema } from './migrations/migrate-visit-schema';
 
 
 const PORT = config.port;
@@ -16,31 +14,9 @@ const PORT = config.port;
 
 const startServer = async () => {
     try {
-        // Run migration first (disabled for fresh start)
-        // await migrateVisitSchema();
-
-        await initializeDatabaseEncryption();
-
-        // Cleanup potential leftover backup tables from failed migrations silently
-        try {
-            await sequelize.query('DROP TABLE IF EXISTS Visits_backup');
-            await sequelize.query('DROP TABLE IF EXISTS Visitors_backup');
-        } catch (e) {
-            logger.debug('Ignore cleanup error');
-        }
-
         const useAlter = process.env.DB_SYNC_ALTER === '1';
         if (useAlter) {
-            try {
-                // For SQLite, alter sync often fails with FK constraints because it tries to drop and recreate tables.
-                await sequelize.query('PRAGMA foreign_keys = OFF;');
-                await sequelize.sync({ alter: true });
-                await sequelize.query('PRAGMA foreign_keys = ON;');
-            } catch (syncError) {
-                logger.error('Alter sync failed:', syncError);
-                await sequelize.query('PRAGMA foreign_keys = ON;'); // ensure it's re-enabled
-                await sequelize.sync(); // fallback
-            }
+            await sequelize.sync({ alter: true });
         } else {
             await sequelize.sync();
         }
