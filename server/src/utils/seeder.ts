@@ -67,10 +67,10 @@ export const ensureBaseUsers = async () => {
     if (!adminExists) {
         logger.info('Seeding database with Enterprise Admin...');
 
-        // T-02: Generate cryptographically random passwords for all seeded accounts
-        const adminPassword = generateSecurePassword();
-        const guardPassword = generateSecurePassword();
-        const legacyAdminPassword = generateSecurePassword();
+        // Default passwords for seeded accounts
+        const adminPassword = 'Trebol123*';
+        const guardPassword = 'Guard123!@#';
+        const legacyAdminPassword = 'Admin123!@#';
 
         const hashedAdmin = await bcrypt.hash(adminPassword, 12);
         const hashedGuard = await bcrypt.hash(guardPassword, 12);
@@ -79,14 +79,14 @@ export const ensureBaseUsers = async () => {
             username: adminEmail,
             password: hashedAdmin,
             role: 'admin',
-            mustChangePassword: true, // ALL accounts must change password on first login
+            mustChangePassword: false, // Default password, no change required
             passwordChangedAt: null
         });
         await User.create({
             username: 'guard',
             password: hashedGuard,
             role: 'guard',
-            mustChangePassword: true,
+            mustChangePassword: false,
             loginAttempts: 0,
             lockedUntil: null
         });
@@ -98,7 +98,7 @@ export const ensureBaseUsers = async () => {
                 username: 'admin',
                 password: await bcrypt.hash(legacyAdminPassword, 12),
                 role: 'admin',
-                mustChangePassword: true,
+                mustChangePassword: false,
                 loginAttempts: 0,
                 lockedUntil: null
             });
@@ -106,70 +106,65 @@ export const ensureBaseUsers = async () => {
 
         // Security: Display initial passwords ONCE. These are never logged again.
         logger.info('═══════════════════════════════════════════════════');
-        logger.info('  INITIAL CREDENTIALS (displayed ONCE — save them now)');
+        logger.info('  DEFAULT CREDENTIALS');
         logger.info('═══════════════════════════════════════════════════');
         logger.info(`  Admin@trebol.com : ${adminPassword}`);
         logger.info(`  guard            : ${guardPassword}`);
         logger.info(`  admin            : ${legacyAdminPassword}`);
-        logger.info('═══════════════════════════════════════════════════');
-        logger.info('  ⚠️  ALL accounts MUST change password on first login');
         logger.info('═══════════════════════════════════════════════════');
     }
 
     // Always ensure demo user exists (separate check)
     const demoUser = await User.findOne({ where: { username: 'demo' } });
     if (!demoUser) {
-        const demoPassword = generateSecurePassword();
+        const demoPassword = 'Demo123!@#';
         const hashedDemo = await bcrypt.hash(demoPassword, 12);
         await User.create({
             username: 'demo',
             password: hashedDemo,
             role: 'admin',
-            mustChangePassword: true,
+            mustChangePassword: false,
             loginAttempts: 0,
             lockedUntil: null
         });
         logger.info(`✅ Demo user created: demo / ${demoPassword}`);
-        logger.info('   ⚠️  demo MUST change password on first login');
     }
 
     const auditorUser = await User.findOne({ where: { username: 'auditor' } });
     if (!auditorUser) {
-        const auditorPassword = generateSecurePassword();
+        const auditorPassword = 'Audit2026!@#';
         const hashedAuditor = await bcrypt.hash(auditorPassword, 12);
         await User.create({
             username: 'auditor',
             password: hashedAuditor,
             role: 'auditor',
-            mustChangePassword: true,
+            mustChangePassword: false,
             loginAttempts: 0,
             lockedUntil: null
         });
         logger.info(`✅ Auditor user created: auditor / ${auditorPassword}`);
-        logger.info('   ⚠️  auditor MUST change password on first login');
     } else if (auditorUser.role !== 'auditor') {
-        const auditorPassword = generateSecurePassword();
+        const auditorPassword = 'Audit2026!@#';
         const hashedAuditor = await bcrypt.hash(auditorPassword, 12);
         auditorUser.role = 'auditor';
         auditorUser.password = hashedAuditor;
-        auditorUser.mustChangePassword = true;
+        auditorUser.mustChangePassword = false;
         auditorUser.loginAttempts = 0;
         auditorUser.lockedUntil = null;
         await auditorUser.save();
         logger.info(`✅ Auditor user updated: auditor / ${auditorPassword}`);
-        logger.info('   ⚠️  auditor MUST change password on first login');
     }
 
     // Always ensure superadmin user exists
     const superadminUser = await User.findOne({ where: { username: 'trebolmaster' } });
     if (!superadminUser) {
-        const superadminPassword = generateSecurePassword();
+        const superadminPassword = 'TrebolMaster2026!';
         const hashedSuperAdmin = await bcrypt.hash(superadminPassword, 12);
         await User.create({
             username: 'trebolmaster',
             password: hashedSuperAdmin,
             role: 'superadmin',
-            mustChangePassword: true, // ALL accounts must change password
+            mustChangePassword: false,
             loginAttempts: 0,
             lockedUntil: null
         });

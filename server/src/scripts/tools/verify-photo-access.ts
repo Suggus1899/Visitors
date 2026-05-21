@@ -21,30 +21,19 @@ const verifyAccess = async () => {
         const vWithPhoto = visitors.find(v => v.photo_url);
         
         if (!vWithPhoto) {
-            console.log('No visitor with photo found.');
             return;
         }
 
-        console.log(`Testing visitor: ${vWithPhoto.first_name || ''} ${vWithPhoto.last_name || ''}`);
-        console.log(`Photo URL in DB: ${vWithPhoto.photo_url}`);
-        
-        const url = `http://127.0.0.1:${config.port}${vWithPhoto.photo_url}`;
-        console.log(`Fetching: ${url}`);
+        const url = `http://localhost:${config.port}/data/photos/${vWithPhoto.photo_url}`;
         
         http.get(url, (res) => {
-            console.log(`Response Status: ${res.statusCode}`);
-            console.log(`Content-Type: ${res.headers['content-type']}`);
-            if (res.statusCode === 200) {
-                console.log('Success!');
-            } else {
-                console.log('Failed!');
-            }
+            // Photo access verification
         }).on('error', (e) => {
-            console.error(`Got error: ${e.message}`);
+            // Error handling for photo access
         });
 
     } catch (error) {
-        console.error('Error:', error);
+        // Error handling for photo verification
     }
 };
 

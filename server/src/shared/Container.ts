@@ -2,7 +2,7 @@ import { IVisitorRepository } from '../domain/repositories/IVisitorRepository';
 import { IVisitRepository } from '../domain/repositories/IVisitRepository';
 import { SequelizeVisitorRepository } from '../infrastructure/database/repositories/SequelizeVisitorRepository';
 import { SequelizeVisitRepository } from '../infrastructure/database/repositories/SequelizeVisitRepository';
-import { SqliteBackupService } from '../infrastructure/services/SqliteBackupService';
+import { PostgresBackupService } from '../infrastructure/services/PostgresBackupService';
 import { IBackupService } from '../domain/services/IBackupService';
 import { IUserRepository } from '../domain/repositories/IUserRepository';
 import { IAuthService } from '../domain/services/IAuthService';
@@ -97,7 +97,7 @@ class Container {
 
   get backupService(): IBackupService {
     if (!this._backupService) {
-      this._backupService = new SqliteBackupService();
+      this._backupService = new PostgresBackupService();
     }
     return this._backupService;
   }

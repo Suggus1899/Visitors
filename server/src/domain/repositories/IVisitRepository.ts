@@ -49,6 +49,8 @@ export interface IVisitRepository {
   update(id: number, data: {
     checkInTime?: Date;
     checkOutTime?: Date;
+    entryTime?: Date;
+    exitTime?: Date;
     status?: VisitStatus;
     notes?: string;
   }): Promise<Visit>;

@@ -1,11 +1,11 @@
-# LogMaster - Sistema de Control de Acceso
+# LogMaster - Sistema de Gestión de Visitas
 
-Sistema de escritorio profesional para el control de acceso y gestión de visitantes en instalaciones corporativas. Construido con Electron, React y Node.js, con arquitectura limpia y seguridad de nivel empresarial.
+LogMaster es una aplicación web moderna y segura para la gestión de visitantes en empresas, desarrollada con React, Node.js, TypeScript y Docker. Sistema perfeccionado con seguridad de nivel empresarial, monitoreo completo y CI/CD automatizado.
 
 ## 🚀 Características Principales
 
 - **Control de Acceso Completo**: Check-in/check-out de visitantes con registro fotográfico
-- **Seguridad Robusta**: Cifrado de base de datos con SQLCipher y cifrado de campos sensibles con AES-256-GCM
+- **Seguridad Robusta**: Base de datos PostgreSQL con cifrado de campos sensibles con AES-256-GCM
 - **Gestión de Usuarios**: Sistema de roles (Admin, Guardia, Auditor) con autenticación JWT
 - **Reportes Avanzados**: Exportación a PDF y Excel con filtros personalizables
 - **Auditoría Completa**: Registro detallado de todas las operaciones del sistema
@@ -52,9 +52,6 @@ npm run dev
 **IMPORTANTE**: Antes de usar en producción, genera claves seguras:
 
 ```bash
-# Generar clave de cifrado de base de datos (64 caracteres hex)
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
 # Generar secreto JWT (128 caracteres hex)
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
@@ -65,18 +62,23 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 Agrega estas claves a tu archivo `.env`:
 
 ```env
-DB_ENCRYPTION_KEY=tu_clave_de_64_caracteres_aqui
 JWT_SECRET=tu_secreto_jwt_de_128_caracteres_aqui
 ENCRYPTION_KEY=tu_clave_de_cifrado_de_64_caracteres_aqui
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=visitors
+DB_USER=postgres
+DB_PASSWORD=tu_contraseña_postgres
 ```
 
 ## 📚 Documentación
 
-- **[Arquitectura](docs/ARCHITECTURE.md)**: Estructura del sistema y patrones de diseño
-- **[Seguridad](docs/SECURITY_AUDIT_REPORT.md)**: Hallazgos y estado de hardening de seguridad
-- **[Guía de Instalación](docs/SETUP.md)**: Instrucciones detalladas de instalación y configuración
-- **[API](docs/API.md)**: Documentación completa de endpoints REST
+- **[Guía de Instalación](docs/SETUP.md)**: Instrucciones de instalación y configuración
+- **[Docker](docs/DOCKER.md)**: Stack de 3 contenedores y despliegue
+- **[API](docs/API.md)**: Documentación de endpoints REST
 - **[Manual de Usuario](docs/USER_MANUAL.md)**: Guía operativa por rol
+- **[Roadmap](docs/ROADMAP.md)**: Plan de desarrollo y características futuras
+- **[Credenciales Seed](docs/SEED_CREDENTIALS.md)**: Usuarios y contraseñas de desarrollo
 
 ## 🏗️ Stack Tecnológico
 
@@ -93,7 +95,7 @@ ENCRYPTION_KEY=tu_clave_de_cifrado_de_64_caracteres_aqui
 - **Node.js** - Runtime
 - **Express** - Framework web
 - **Sequelize** - ORM
-- **SQLCipher** - Base de datos cifrada
+- **PostgreSQL** - Base de datos relacional
 - **JWT** - Autenticación
 
 ### Desktop
@@ -127,12 +129,31 @@ npm run electron:start   # Inicia Electron (requiere build previo)
 
 # Instalación
 npm run install-all      # Instala dependencias en todos los módulos
+
+# Scripts Windows (Batch)
+scripts\deploy.bat       # Deploy completo (env + build + up + healthcheck)
+scripts\auto-env.bat     # Solo detectar IP y actualizar .env
+scripts\detener.bat      # Detener servicios
+scripts\monitor-health.bat # Monitoreo continuo de salud
+scripts\setup-ssl.bat    # Generar certificados SSL
 ```
 
 ## 🗂️ Estructura del Proyecto
 
 ```
-visitor-system/
+logmaster/
+├── scripts/             # Scripts de automatización (Windows)
+│   ├── deploy.bat       # Deploy completo (auto-env + build + up)
+│   ├── auto-env.bat     # Auto-detecta IP y configura .env
+│   ├── detener.bat      # Detener servicios (docker-compose down)
+│   ├── monitor-health.bat # Monitoreo de salud continuo
+│   └── setup-ssl.bat    # Generar certificados SSL
+├── docs/                # Documentación centralizada
+│   ├── SETUP.md         # Guía de instalación
+│   ├── DOCKER.md        # Guía Docker (3 contenedores)
+│   ├── API.md           # Documentación API
+│   ├── USER_MANUAL.md   # Manual de usuario
+│   └── ROADMAP.md       # Plan de desarrollo
 ├── client/              # Frontend React
 │   ├── src/
 │   │   ├── components/  # Componentes UI
@@ -148,9 +169,10 @@ visitor-system/
 │   │   └── routes/      # Definición de rutas
 │   └── package.json
 ├── electron/            # Configuración Electron
-├── docs/                # Documentación
-├── data/                # Base de datos SQLite
-└── Backups/             # Respaldos automáticos
+├── data/                # Base de datos PostgreSQL
+├── backups/             # Respaldos automáticos
+├── README.md            # Documentación principal
+└── docker-compose.yml   # Configuración Docker
 ```
 
 ## 🔄 Flujo de Trabajo Típico
@@ -164,7 +186,7 @@ visitor-system/
 
 ## 🛡️ Características de Seguridad
 
-- ✅ Base de datos cifrada con SQLCipher (AES-256)
+- ✅ Base de datos PostgreSQL con conexión segura
 - ✅ Cifrado de campos sensibles (nombres, documentos, emails)
 - ✅ Autenticación JWT con tokens de acceso y refresh
 - ✅ Rate limiting para prevenir ataques de fuerza bruta
@@ -184,9 +206,9 @@ visitor-system/
 
 ### Error de base de datos
 
-- Verifica que `DB_ENCRYPTION_KEY` esté configurada
-- Comprueba permisos de escritura en carpeta `data/`
-- Revisa que SQLCipher esté instalado correctamente
+- Verifica que PostgreSQL esté corriendo en el puerto configurado
+- Comprueba que las variables de entorno `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` estén configuradas
+- Revisa que Docker esté corriendo si usas docker-compose
 
 ### Problemas de autenticación
 

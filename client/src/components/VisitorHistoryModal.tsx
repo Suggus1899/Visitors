@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { VisitService } from '../services/api.v1';
 import X from 'lucide-react/dist/esm/icons/x';
-import Clock from 'lucide-react/dist/esm/icons/clock';
 import Calendar from 'lucide-react/dist/esm/icons/calendar';
 import FileText from 'lucide-react/dist/esm/icons/file-text';
 import { Visit } from '../types';
@@ -25,8 +24,10 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
     const fetchHistory = useCallback(async () => {
         setLoading(true);
         try {
+            // Asegurar que la cédula tenga el prefijo V-
+            const fullCedula = cedula.startsWith('V') ? cedula : `V-${cedula}`;
             const res = await VisitService.getVisits({
-                visitorCedula: cedula,
+                visitorCedula: fullCedula,
                 page: 1,
                 limit: 100
             });
@@ -75,7 +76,7 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
                     <div className="absolute inset-x-0 top-0 h-0.5 bg-[color:var(--accent-0)]" />
                     <div>
                         <h2 className="text-lg font-display uppercase tracking-[0.2em] text-[color:var(--text-1)]">Historial de Visitas</h2>
-                        <p className="text-xs text-[color:var(--text-3)]">{visitorName} · C.I. {cedula}</p>
+                        <p className="text-xs text-[color:var(--text-3)]">{visitorName} · C.I. V-{cedula.replace(/^V-?/, '')}</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -120,19 +121,31 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
                                                 {formatDate(visit.check_in || visit.check_in_time || '')}
                                             </div>
 
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3 text-sm">
-                                                    <span className="flex items-center gap-1 text-[color:var(--accent-0)]">
-                                                        <Clock size={14} />
+                                            {/* Compact Schedule: Arrival → Entry → Exit */}
+                                            <div className="flex flex-wrap items-center gap-2 text-xs mt-1.5">
+                                                {visit.arrival_time && (
+                                                    <span className="flex items-center gap-1 text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded" title="Llegada">
+                                                        <span className="font-bold">L:</span> {formatTime(visit.arrival_time)}
+                                                    </span>
+                                                )}
+                                                {(visit.entry_time || visit.check_in_time || visit.check_in) && (
+                                                    <span className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded" title="Ingreso">
+                                                        <span className="font-bold">I:</span> {formatTime(visit.entry_time || visit.check_in_time || visit.check_in || '')}
+                                                    </span>
+                                                )}
+                                                {(visit.exit_time || visit.check_out_time || visit.check_out) && (
+                                                    <span className="flex items-center gap-1 text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded" title="Salida">
+                                                        <span className="font-bold">S:</span> {formatTime(visit.exit_time || visit.check_out_time || visit.check_out || '')}
+                                                    </span>
+                                                )}
+                                                {!visit.arrival_time && !visit.entry_time && !(visit.check_out || visit.check_out_time) && (
+                                                    <span className="text-[color:var(--text-3)] italic">
                                                         {formatTime(visit.check_in || visit.check_in_time || '')}
                                                     </span>
-                                                    {(visit.check_out || visit.check_out_time) && (
-                                                        <span className="flex items-center gap-1 text-red-400">
-                                                            → {formatTime(visit.check_out || visit.check_out_time || '')}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                )}
+                                            </div>
 
+                                            <div className="flex items-center justify-between mt-2">
                                                 {visit.status === 'active' && (
                                                     <span className="px-2 py-0.5 border border-[color:var(--accent-0)] text-[color:var(--accent-0)] text-xs rounded-full font-semibold">
                                                         ACTIVO

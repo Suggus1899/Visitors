@@ -4,21 +4,15 @@ import axios from 'axios';
 const API_URL = 'http://localhost:3000/api/v1';
 const FRONTEND_URL = 'http://localhost:4173';
 
-const log = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
-    const icons = { info: 'ℹ️', success: '✅', error: '❌' };
-    console.log(`${icons[type]} ${msg}`);
-};
-
 const runTests = async () => {
-    console.log('\n🚀 Starting Integration Tests...\n');
     let token = '';
 
     // 1. Test Frontend Availability
     try {
         await axios.get(FRONTEND_URL);
-        log(`Frontend is reachable at ${FRONTEND_URL}`, 'success');
+        // Frontend reachable
     } catch (error) {
-        log(`Frontend is unreachable at ${FRONTEND_URL}`, 'error');
+        // Frontend unreachable
         process.exit(1);
     }
 
@@ -84,7 +78,7 @@ const runTests = async () => {
         log(`Failed to fetch backups: ${error.message}`, 'error');
     }
 
-    console.log('\n✨ Tests Completed.');
+    // Tests completed
 };
 
 runTests();

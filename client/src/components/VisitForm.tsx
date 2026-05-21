@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { VisitService } from '../services/api.v1';
-import { Visitor, VisitorWithHistory } from '../types';
+import { Visitor } from '../types';
 import UserPlus from 'lucide-react/dist/esm/icons/user-plus';
 import { AxiosError } from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
@@ -71,8 +71,9 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     const [blockedReason, setBlockedReason] = useState('');
     const { playSuccess, playError } = useSoundFeedback();
 
-    // Query visitor with history when cedula changes
-    const { data: visitorData } = useVisitorQuery(cedula.length >= 7 ? cedula : null, true);
+    // Query visitor with history when cedula changes (con prefijo V-)
+    const fullCedula = cedula.length >= 7 ? `V-${cedula}` : null;
+    const { data: visitorData, isLoading: isLoadingVisitor, refetch: refetchVisitor } = useVisitorQuery(fullCedula, true);
 
     // Fetch company suggestions once
     useEffect(() => {
@@ -109,29 +110,103 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     };
 
     const handleSearch = async () => {
-        if (!cedula || cedula.length < 7) return;
+        if (!cedula || cedula.length < 7) {
+            toast.error('Ingrese una cédula válida (7-8 dígitos)');
+            return;
+        }
+        
         setLoading(true);
+        
         try {
-            const visitor = await VisitService.getVisitorByCedula(cedula) as Visitor;
-            if (visitor) {
-                setFormData({
-                    ...formData,
+            // Forzar recarga de datos del visitante
+            const result = await refetchVisitor();
+            const freshData = result.data;
+            
+            if (freshData) {
+                // Cargar datos del visitante encontrado
+                const visitor = freshData as Visitor;
+                setFormData(prev => ({
+                    ...prev,
                     first_name: visitor.first_name || '',
                     last_name: visitor.last_name || '',
                     company: visitor.company,
                     job_title: visitor.job_title || '',
                     phone: visitor.phone || '',
                     photo_url: visitor.photo_url || ''
-                });
+                }));
                 setValidation({ cedula: true, first_name: !!visitor.first_name, last_name: !!visitor.last_name, company: !!visitor.company, phone: null });
-                toast.success('Visitante encontrado');
+                
+                // Si hay historial, cargar datos de la visita previa
+                if ('history' in freshData && freshData.history && freshData.history.length > 0) {
+                    const lastVisit = freshData.history[0];
+                    setFormData(prev => ({
+                        ...prev,
+                        reason: lastVisit.purpose || prev.reason,
+                        target_department: lastVisit.targetDepartment || prev.target_department,
+                        department: lastVisit.targetDepartment || prev.department,
+                        // Cargar datos del vehículo si existen
+                        has_vehicle: !!lastVisit.vehiclePlate || prev.has_vehicle,
+                        vehicle_brand: lastVisit.vehicleBrand || prev.vehicle_brand,
+                        vehicle_model: lastVisit.vehicleModel || prev.vehicle_model,
+                        vehicle_plate: lastVisit.vehiclePlate || prev.vehicle_plate,
+                        // Cargar fotos si existen
+                        photo_url: lastVisit.photo_url || prev.photo_url,
+                        id_photo_url: lastVisit.id_photo_url || prev.id_photo_url,
+                    }));
+                    toast.success('Visitante encontrado con datos de visita previa');
+                } else {
+                    toast.success('Visitante encontrado');
+                }
             } else {
                 toast.error('Visitante no encontrado');
             }
-        } catch (err: unknown) {
-            if ((err as { response?: { status?: number } }).response?.status !== 404) {
-                toast.error('Error al buscar visitante');
+        } catch {
+            toast.error('Error al buscar visitante');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLoadFromPreviousVisit = async () => {
+        if (!cedula || cedula.length < 7) {
+            toast.error('Ingrese una cédula válida primero');
+            return;
+        }
+        
+        setLoading(true);
+        
+        try {
+            // Forzar recarga de datos del visitante
+            const result = await refetchVisitor();
+            const freshData = result.data;
+            
+            if (freshData && 'history' in freshData && freshData.history && freshData.history.length > 0) {
+                // Obtener la visita más reciente
+                const lastVisit = freshData.history[0];
+                
+                // Cargar datos de la visita previa al formulario
+                setFormData(prev => ({
+                    ...prev,
+                    reason: lastVisit.purpose || prev.reason,
+                    target_department: lastVisit.targetDepartment || prev.target_department,
+                    department: lastVisit.targetDepartment || prev.department,
+                    // Cargar datos del vehículo si existen
+                    has_vehicle: !!lastVisit.vehiclePlate || prev.has_vehicle,
+                    vehicle_brand: lastVisit.vehicleBrand || prev.vehicle_brand,
+                    vehicle_model: lastVisit.vehicleModel || prev.vehicle_model,
+                    vehicle_plate: lastVisit.vehiclePlate || prev.vehicle_plate,
+                    // Cargar fotos si existen
+                    photo_url: lastVisit.photo_url || prev.photo_url,
+                    id_photo_url: lastVisit.id_photo_url || prev.id_photo_url,
+                }));
+                
+                toast.success('Datos de visita previa cargados');
             }
+            
+            // Abrir el modal de historial
+            setShowHistory(true);
+        } catch {
+            toast.error('Error al cargar datos');
         } finally {
             setLoading(false);
         }
@@ -153,7 +228,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             const companionCedula = activeCompanions.map(c => c.cedula.trim()).filter(Boolean).join(', ') || undefined;
 
             await VisitService.checkIn({
-                visitorCedula: cedula,
+                visitorCedula: `V-${cedula}`,
                 consent: {
                     accepted: formData.consent_accepted,
                     policyVersion: '1.0',
@@ -285,7 +360,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                         cedulaError={cedulaError}
                         formData={formData}
                         validation={validation}
-                        loading={loading}
+                        loading={loading || isLoadingVisitor}
                         canProceed={canProceedStep1}
                         onCedulaChange={handleCedulaChange}
                         onSearch={handleSearch}
@@ -293,7 +368,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                             setFormData(prev => ({ ...prev, [field]: value }));
                             validateField(field, value);
                         }}
-                        onShowHistory={() => setShowHistory(true)}
+                        onShowHistory={handleLoadFromPreviousVisit}
                         onNext={() => setCurrentStep(s => Math.min(s + 1, 3))}
                         getInputClass={getInputClass}
                     />

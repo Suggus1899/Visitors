@@ -16,10 +16,12 @@ export class AdmitVisitorUseCase {
       throw new Error('Only visits in waiting status can be admitted');
     }
 
-    const admittedVisit = visit.admit(new Date());
+    const now = new Date();
+    const admittedVisit = visit.admit(now);
 
     const updatedVisit = await this.visitRepository.update(visitId, {
       checkInTime: admittedVisit.checkInTime,
+      entryTime: now,  // Hora de entrada automática al admitir
       status: admittedVisit.status
     });
 

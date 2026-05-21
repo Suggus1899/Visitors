@@ -1,16 +1,15 @@
 import app from './app';
 import sequelize from './database';
-import { seedLoad, ensureBaseUsers } from './utils/seeder';
+import { ensureBaseUsers } from './utils/seeder';
 import { initRetentionScheduler } from './utils/retention';
 import logger from './config/logger';
+import path from 'path';
+import fs from 'fs';
 import './models/VisitInterval';
 
 import config from './config/AppConfig';
 
-
 const PORT = config.port;
-
-
 
 const startServer = async () => {
     try {
@@ -29,14 +28,32 @@ const startServer = async () => {
         // Start daily retention cleanup (logs + photos)
         initRetentionScheduler();
 
-        app.listen(PORT, () => {
+        const server = app.listen(PORT, () => {
             logger.info(`Server running on http://localhost:${PORT}`);
         });
+
+        // Graceful shutdown
+        const shutdown = async (signal: string) => {
+            logger.info(`${signal} received — shutting down gracefully`);
+            server.close(() => {
+                logger.info('HTTP server closed');
+            });
+            try {
+                await sequelize.close();
+                logger.info('Database connections closed');
+            } catch (err) {
+                logger.error('Error closing database:', err);
+            }
+            process.exit(0);
+        };
+
+        process.on('SIGTERM', () => shutdown('SIGTERM'));
+        process.on('SIGINT', () => shutdown('SIGINT'));
     } catch (err: any) {
         logger.error('Unable to connect to the database:', err);
         try {
-            const crashLogPath = require('path').join(config.dbPath, 'server_crash_log.txt');
-            require('fs').writeFileSync(crashLogPath, String(err.stack || err));
+            const crashLogPath = path.join(config.dbPath, 'server_crash_log.txt');
+            fs.writeFileSync(crashLogPath, String(err.stack || err));
         } catch (e) { }
     }
 };

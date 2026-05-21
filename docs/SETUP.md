@@ -1,9 +1,10 @@
-# Setup - Sistema de Gestion de Visitantes
+# Setup - LogMaster (Sistema de Gestion de Visitantes)
 
 ## 1. Requisitos
 
-- Node.js 18+
+- Node.js 20+
 - npm 9+
+- Docker Desktop (para PostgreSQL y deploy completo)
 - Windows 10/11 recomendado
 
 ## 2. Clonar e instalar
@@ -16,33 +17,41 @@ npm run install-all
 
 ## 3. Variables de entorno
 
-Crear archivo `.env` en la raiz del workspace.
+Copiar `.env.example` a `.env` (unica fuente de verdad):
 
-Variables minimas recomendadas:
+```bash
+copy .env.example .env
+```
+
+O usar el script automatico:
+
+```bash
+scripts\auto-env.bat
+```
+
+Variables minimas requeridas:
 
 ```env
 PORT=3000
 NODE_ENV=development
 
-DB_PATH=./data
-DB_ENCRYPTION_KEY=<64-hex>
+# PostgreSQL
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=visitors
+DB_USER=postgres
+DB_PASSWORD=postgres
 
+# Seguridad
 JWT_SECRET=<128-hex>
-JWT_ACCESS_EXPIRATION=15m
-JWT_REFRESH_EXPIRATION=7d
-
 ENCRYPTION_KEY=<64-hex>
 
-BACKUP_PATH=./Backups
-BACKUP_PASSWORD=<64-hex>
-
-DATA_RETENTION_DAYS=60
-
+# Tokens
+JWT_ACCESS_EXPIRATION=15m
+JWT_REFRESH_EXPIRATION=7d
+BCRYPT_ROUNDS=12
 MAX_LOGIN_ATTEMPTS=5
 LOCKOUT_DURATION_MINUTES=15
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX_REQUESTS=100
-BCRYPT_ROUNDS=12
 ```
 
 ## 4. Generacion de claves seguras
@@ -54,9 +63,7 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"  # 128-
 
 Uso sugerido:
 
-- `DB_ENCRYPTION_KEY`: 64-hex
 - `ENCRYPTION_KEY`: 64-hex
-- `BACKUP_PASSWORD`: 64-hex
 - `JWT_SECRET`: 128-hex
 
 ## 5. Ejecucion en desarrollo
@@ -140,15 +147,19 @@ Nota:
 ## 10. Troubleshooting rapido
 
 1. Error de clave de cifrado:
+
 - Verificar formato hex y longitud de variables criticas.
 
 2. API no levanta:
+
 - Confirmar `PORT` libre.
 - Revisar salida de `npm --prefix server run dev`.
 
 3. Frontend no conecta:
+
 - Confirmar que backend este en `localhost:3000`.
 - Verificar CORS permitido para `localhost:5173`.
 
 4. Swagger no disponible:
+
 - Abrir `http://localhost:3000/api-docs`.

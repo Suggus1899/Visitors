@@ -15,7 +15,14 @@
     "db:reset": "ts-node src/scripts/reset-db.ts",
     "migrate": "ts-node src/scripts/apply-migrations.ts",
     "migrate:photos": "ts-node src/scripts/migrate-photos-to-blob.ts",
-    "audit": "npm audit --audit-level=high"
+    "audit": "npm audit --audit-level=high",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f postgres",
+    "docker:reset": "docker-compose down -v && docker-compose up -d",
+    "backup:full": "docker exec logmaster-postgres pg_dump -Fc -U postgres visitors > ../backups/backup_$(date +%Y%m%d_%H%M%S).dump",
+    "backup:schema": "docker exec logmaster-postgres pg_dump -s -U postgres visitors > ../backups/schema_$(date +%Y%m%d).sql",
+    "backup:monitor": "docker exec logmaster-postgres psql -U postgres -c \"SELECT pg_size_pretty(pg_total_relation_size('\\\"Visitors\\\"'));\""
   },
   "dependencies": {
     "pg": "^8.13.3",

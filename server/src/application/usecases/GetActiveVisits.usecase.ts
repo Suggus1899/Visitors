@@ -39,7 +39,8 @@ export class GetActiveVisitsUseCase {
       purpose: visit.purpose,
       personToVisit: visit.personToVisit,
       durationMinutes: visit.getDurationMinutes() || 0,
-      photoUrl: visitor?.photoUrl
+      photoUrl: visitor?.photoUrl,
+      entryTime: visit.entryTime?.toISOString()
     };
   }
 }

@@ -32,7 +32,11 @@ export class GetVisitsUseCase {
       purpose: visit.purpose,
       personToVisit: visit.personToVisit,
       status: visit.status,
-      notes: visit.notes
+      notes: visit.notes,
+      // Timestamp lifecycle fields
+      arrivalTime: visit.arrivalTime?.toISOString(),
+      entryTime: visit.entryTime?.toISOString(),
+      exitTime: visit.exitTime?.toISOString(),
     }));
 
     return {

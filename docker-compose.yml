@@ -1,0 +1,154 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: logmaster-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-visitors}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_backup:/backups
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-visitors}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - logmaster-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    container_name: logmaster-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-visitors}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_SSL: false
+      DB_PATH: /app/data
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS:-5}
+      LOCKOUT_DURATION_MINUTES: ${LOCKOUT_DURATION_MINUTES:-15}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - server_logs:/app/logs
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - logmaster-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_URL: ""
+        NODE_ENV: ${NODE_ENV:-production}
+    container_name: logmaster-client
+    ports:
+      - "${CLIENT_HTTP_PORT:-80}:80"
+      - "${CLIENT_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+      - client_logs:/var/log/nginx
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - logmaster-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_DATA_PATH:-./data/postgres}
+  postgres_backup:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_BACKUP_PATH:-./backups/postgres}
+  server_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${SERVER_LOGS_PATH:-./logs/server}
+  client_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CLIENT_LOGS_PATH:-./logs/client}
+
+networks:
+  logmaster-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.20.0.0/16}
+          gateway: ${DOCKER_GATEWAY:-172.20.0.1}

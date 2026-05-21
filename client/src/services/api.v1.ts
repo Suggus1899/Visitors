@@ -182,15 +182,7 @@ interface VisitDTO {
 }
 
 const adaptVisit = (v: VisitDTO): Visit => {
-    // Helper to fix photo URL
-    const getPhotoUrl = (url: string | null | undefined) => {
-        if (!url) return null;
-        if (url.startsWith('http')) return url;
-        const baseUrl = API_BASE_URL;
-        const cleanUrl = url.startsWith('/') ? url : `/${url}`;
-        const finalUrl = `${baseUrl}${cleanUrl}?t=${new Date().getTime()}`;
-        return finalUrl;
-    };
+    // Helper getPhotoUrl removed as URLs are now dynamically built via the cedula using BLOB endpoints.
 
     return {
         id: v.id,
@@ -223,8 +215,8 @@ const adaptVisit = (v: VisitDTO): Visit => {
             last_name: v.lastName || '',
             company: v.visitorCompany || v.company || 'Sin empresa',
             job_title: v.jobTitle,
-            photo_url: getPhotoUrl(v.photoUrl || v.visitorPhoto) || undefined,
-            id_photo_url: getPhotoUrl(v.idPhotoUrl || v.visitorIdPhoto) || undefined
+            photo_url: v.visitorCedula ? `${API_URL}/visitors/${encodeURIComponent(v.visitorCedula)}/photo?t=${new Date().getTime()}` : undefined,
+            id_photo_url: v.visitorCedula ? `${API_URL}/visitors/${encodeURIComponent(v.visitorCedula)}/id-photo?t=${new Date().getTime()}` : undefined
         }
     };
 };

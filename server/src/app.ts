@@ -8,8 +8,6 @@ import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { apiLimiter } from "./middleware/rateLimiter";
 import { mustChangePassword } from "./middleware/mustChangePassword";
-import { verifyToken } from "./middleware/auth";
-
 // Clean Architecture routes
 import visitCleanRoutes from "./routes/visit-clean.routes";
 import reportCleanRoutes from "./routes/report-clean.routes";
@@ -21,44 +19,132 @@ import privacyCleanRoutes from "./routes/privacy-clean.routes";
 import superadminRoutes from "./routes/superadmin.routes";
 import eventsRoutes from "./routes/events.routes";
 import { captureClientInfo } from "./middleware/ipCapture";
+import { firewall } from "./middleware/firewall";
 
 const app = express();
 
-// T-14: Security headers via helmet
-app.use(helmet({
-  contentSecurityPolicy: false, // CSP managed by Electron
-  crossOriginEmbedderPolicy: false,
-}));
+// Application-level firewall (IP blocking, attack pattern detection)
+app.use(firewall);
 
-// Strict CORS - only allow local origins (Electron + dev)
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "app://.", // Electron production
-];
+// Enhanced security headers via helmet
+app.use(
+  helmet({
+    // Content Security Policy - dynamic based on environment
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "blob:", "https://ui-avatars.com"],
+        scriptSrc: ["'self'", "'unsafe-inline'"], // Needed for React development
+        connectSrc: ["'self'", "ws:", "wss:"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        manifestSrc: ["'self'"],
+        workerSrc: ["'self'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Needed for some third-party scripts
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+    referrerPolicy: {
+      policy: "strict-origin-when-cross-origin",
+    },
+    xDnsPrefetchControl: {
+      allow: false,
+    },
+    xFrameOptions: {
+      action: "deny",
+    },
+  }),
+);
+
+// Dynamic CORS configuration for multiple environments
+const getAllowedOrigins = (): string[] => {
+  const origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:80",
+    "https://localhost:443",
+    "https://localhost",
+    "app://.", // Electron production
+  ];
+
+  // Add origins from environment variable
+  if (process.env.ALLOWED_ORIGINS) {
+    const envOrigins = process.env.ALLOWED_ORIGINS.split(",").map((origin) =>
+      origin.trim(),
+    );
+    origins.push(...envOrigins);
+  }
+
+  // Add production domain if configured
+  if (process.env.PRODUCTION_DOMAIN) {
+    origins.push(`https://${process.env.PRODUCTION_DOMAIN}`);
+    origins.push(`http://${process.env.PRODUCTION_DOMAIN}`);
+  }
+
+  return [...new Set(origins)]; // Remove duplicates
+};
+
+const allowedOrigins = getAllowedOrigins();
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (Electron IPC, curl, mobile apps)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS: Origin '${origin}' not allowed`));
+      // Allow requests with no origin (Electron IPC, curl, mobile apps, server-to-server)
+      if (!origin) {
+        return callback(null, true);
       }
+
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow subdomains of production domain
+      if (process.env.PRODUCTION_DOMAIN) {
+        const productionDomain = process.env.PRODUCTION_DOMAIN;
+        if (
+          origin.endsWith(`.${productionDomain}`) ||
+          origin === `https://${productionDomain}` ||
+          origin === `http://${productionDomain}`
+        ) {
+          return callback(null, true);
+        }
+      }
+
+      // Log blocked origin for debugging
+      console.warn(
+        `CORS: Origin '${origin}' not allowed. Allowed origins:`,
+        allowedOrigins,
+      );
+      callback(new Error(`CORS: Origin '${origin}' not allowed`));
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-App-Source"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-App-Source",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
     credentials: true,
+    optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+    preflightContinue: false,
   }),
 );
 
 // T-09: Set body size limit to prevent DoS via large payloads
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: "5mb" }));
 app.use(captureClientInfo); // Captura IP y userAgent para auditoría
 
-// T-08: Serve photos behind authentication middleware
-const photosDir = path.join(config.dbPath, "photos");
-app.use("/data/photos", verifyToken, express.static(photosDir));
+// Static photos directory routing removed - photos are served from DB BLOB via API endpoints
 
 // Root Landing Page
 app.get("/", (req, res) => {
@@ -86,7 +172,7 @@ app.use("/api", apiLimiter);
 app.use("/api", mustChangePassword);
 
 // T-06: Swagger Documentation — disabled in production, protected in development
-if (config.nodeEnv !== 'production') {
+if (config.nodeEnv !== "production") {
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
 

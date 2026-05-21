@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Visit } from '../../types';
-import Download from 'lucide-react/dist/esm/icons/download';
-import FileSpreadsheet from 'lucide-react/dist/esm/icons/file-spreadsheet';
-import Filter from 'lucide-react/dist/esm/icons/filter';
-import Search from 'lucide-react/dist/esm/icons/search';
-import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
-import ArrowUpDown from 'lucide-react/dist/esm/icons/arrow-up-down';
-import ArrowUp from 'lucide-react/dist/esm/icons/arrow-up';
-import ArrowDown from 'lucide-react/dist/esm/icons/arrow-down';
+import { 
+    Download, 
+    FileSpreadsheet, 
+    Filter, 
+    Search, 
+    ChevronLeft, 
+    ChevronRight, 
+    ArrowUpDown, 
+    ArrowUp, 
+    ArrowDown
+} from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
@@ -52,74 +54,199 @@ const SortIcon: React.FC<{ field: SortField; sortField: SortField; sortDirection
     return sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
 };
 
+SortIcon.displayName = 'SortIcon';
+
 const VisitsTable: React.FC<VisitsTableProps> = ({
     visits, sortedVisits, totalVisitsCount, currentPage, totalPages,
     filters, sortField, sortDirection, username,
     onFilterChange, onSort, onPageChange
 }) => {
-    const exportPDF = () => {
-        const doc = new jsPDF();
-        doc.setFillColor(45, 212, 191);
-        doc.rect(0, 0, 220, 25, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(18).setFont('helvetica', 'bold');
-        doc.text('Industrias de Alimentos el Trébol - Reporte de Visitas', 14, 17);
-        doc.setTextColor(31, 41, 55);
-        doc.setFontSize(10).setFont('helvetica', 'normal');
-        doc.text(`Generado por: ${username} el ${new Date().toLocaleString()}`, 14, 35);
-        doc.text(`Total visitas (filtrado): ${visits.length}`, 14, 42);
-        const ts = (dt?: string | null) => dt ? new Date(dt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-';
-        const tableData = visits.map(visit => ([
-            `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''}`.trim(),
-            visit.Visitor?.company || '',
-            visit.reason || visit.purpose || '',
-            ts(visit.arrival_time),
-            ts(visit.entry_time || visit.check_in || visit.check_in_time),
-            ts(visit.exit_time || visit.check_out || visit.check_out_time),
-            visit.status === 'active' ? 'Activo' : 'Completado'
-        ]));
-        autoTable(doc, {
-            startY: 50, head: [['Nombre', 'Empresa', 'Motivo', 'Llegada', 'Entrada', 'Salida Final', 'Estado']],
-            body: tableData, theme: 'striped',
-            headStyles: { fillColor: [45, 212, 191], textColor: 255 }, styles: { fontSize: 8, cellPadding: 2 }
-        });
-        doc.save(`reporte_visitas_${new Date().toISOString().split('T')[0]}.pdf`);
-    };
+    const [isExporting, setIsExporting] = useState(false);
 
-    const exportExcel = async () => {
-        const ts = (dt?: string | null) => dt ? new Date(dt).toLocaleString('es-ES') : '-';
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Visitas');
-        worksheet.columns = [
-            { header: 'Nombre', key: 'nombre', width: 30 },
-            { header: 'Empresa', key: 'empresa', width: 20 },
-            { header: 'Motivo', key: 'motivo', width: 25 },
-            { header: 'Llegada', key: 'llegada', width: 20 },
-            { header: 'Entrada', key: 'entrada', width: 20 },
-            { header: 'Salida Final', key: 'salida', width: 20 },
-            { header: 'Estado', key: 'estado', width: 15 },
-        ];
-        visits.forEach(v => {
-            worksheet.addRow({
-                nombre: `${v.Visitor?.first_name || ''} ${v.Visitor?.last_name || ''}`.trim(),
-                empresa: v.Visitor?.company || '',
-                motivo: v.reason || v.purpose || '',
-                llegada: ts(v.arrival_time),
-                entrada: ts(v.entry_time || v.check_in || v.check_in_time),
-                salida: ts(v.exit_time || v.check_out || v.check_out_time),
-                estado: v.status === 'active' ? 'Activo' : 'Completado',
+    const formatDateTime = useCallback((dateTime?: string | null): string => {
+        if (!dateTime) return '-';
+        try {
+            return new Date(dateTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+        } catch {
+            return '-';
+        }
+    }, []);
+
+    // Memoized filtered and sorted data
+    const tableData = useMemo(() => {
+        return sortedVisits.map(visit => ({
+            ...visit,
+            visitorName: `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''}`.trim(),
+            company: visit.Visitor?.company || '',
+            reason: visit.reason || visit.purpose || '',
+            arrivalTime: formatDateTime(visit.arrival_time),
+            entryTime: formatDateTime(visit.entry_time || visit.check_in || visit.check_in_time),
+            exitTime: formatDateTime(visit.exit_time || visit.check_out || visit.check_out_time),
+            statusText: visit.status === 'active' ? 'Activo' : 'Completado',
+            statusColor: visit.status === 'active' ? 'text-green-400' : 'text-blue-400'
+        }));
+    }, [sortedVisits, formatDateTime]);
+
+    // Optimized PDF export
+    const exportPDF = useCallback(async () => {
+        if (isExporting) return;
+        
+        setIsExporting(true);
+        try {
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFillColor(45, 212, 191);
+            doc.rect(0, 0, 220, 25, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18).setFont('helvetica', 'bold');
+            doc.text('Industrias de Alimentos el Trébol - Reporte de Visitas', 14, 17);
+            
+            // Metadata
+            doc.setTextColor(31, 41, 55);
+            doc.setFontSize(10).setFont('helvetica', 'normal');
+            doc.text(`Generado por: ${username || 'Usuario'} el ${new Date().toLocaleString()}`, 14, 35);
+            doc.text(`Total visitas (filtrado): ${visits.length}`, 14, 42);
+            
+            // Table data
+            const pdfTableData = tableData.map(visit => [
+                visit.visitorName,
+                visit.company,
+                visit.reason,
+                visit.arrivalTime,
+                visit.entryTime,
+                visit.exitTime,
+                visit.statusText
+            ]);
+            
+            // Table headers
+            const headers = [
+                'Visitante', 'Empresa', 'Motivo', 'Llegada', 'Entrada', 'Salida', 'Estado'
+            ];
+            
+            // Generate table
+            autoTable(doc, {
+                head: [headers],
+                body: pdfTableData,
+                startY: 50,
+                styles: { font: 'helvetica', fontSize: 8 },
+                headStyles: { fillColor: [45, 212, 191], textColor: 255 },
+                alternateRowStyles: { fillColor: [245, 245, 245] }
             });
-        });
-        worksheet.getRow(1).font = { bold: true };
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'reporte_visitas.xlsx';
-        a.click();
-        URL.revokeObjectURL(url);
-    };
+            
+            // Save PDF
+            doc.save(`reporte-visitas-${new Date().toISOString().split('T')[0]}.pdf`);
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+        } finally {
+            setIsExporting(false);
+        }
+    }, [isExporting, username, visits, tableData]);
+
+    // Optimized Excel export
+    const exportExcel = useCallback(async () => {
+        if (isExporting) return;
+        
+        setIsExporting(true);
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Reporte de Visitas');
+            
+            // Set columns
+            worksheet.columns = [
+                { header: 'Visitante', key: 'visitorName', width: 25 },
+                { header: 'Empresa', key: 'company', width: 20 },
+                { header: 'Motivo', key: 'reason', width: 20 },
+                { header: 'Llegada', key: 'arrivalTime', width: 18 },
+                { header: 'Entrada', key: 'entryTime', width: 18 },
+                { header: 'Salida', key: 'exitTime', width: 18 },
+                { header: 'Estado', key: 'statusText', width: 12 }
+            ];
+            
+            // Add data
+            worksheet.addRows(tableData);
+            
+            // Style header row
+            const headerRow = worksheet.getRow(1);
+            headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+            headerRow.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF2DD4BF' }
+            };
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            headerRow.height = 20;
+            
+            // Style data rows
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber > 1) {
+                    row.alignment = { vertical: 'middle', wrapText: true };
+                    row.height = 20;
+                    
+                    // Alternate row colors
+                    if (rowNumber % 2 === 0) {
+                        row.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFF5F5F5' }
+                        };
+                    }
+                }
+            });
+            
+            // Add borders
+            worksheet.eachRow((row) => {
+                row.eachCell((cell) => {
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                });
+            });
+            
+            // Generate buffer
+            const buffer = await workbook.xlsx.writeBuffer();
+            
+            // Download file
+            const blob = new Blob([buffer], { 
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `reporte-visitas-${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error exporting Excel:', error);
+        } finally {
+            setIsExporting(false);
+        }
+    }, [isExporting, tableData]);
+
+    // Optimized sort handler
+    const handleSort = useCallback((field: SortField) => {
+        onSort(field);
+    }, [onSort]);
+
+    // Optimized filter handlers
+    const handleFilterChange = useCallback((key: keyof Filters, value: string) => {
+        onFilterChange(key, value);
+    }, [onFilterChange]);
+
+    // Optimized pagination
+    const handlePageChange = useCallback((page: number) => {
+        onPageChange(page);
+    }, [onPageChange]);
+
+    // Memoized pagination info
+    const paginationInfo = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+        const end = Math.min(currentPage * ITEMS_PER_PAGE, totalVisitsCount);
+        return { start, end, total: totalVisitsCount };
+    }, [currentPage, totalVisitsCount]);
 
     return (
         <div className="panel-tech rounded-lg overflow-hidden">

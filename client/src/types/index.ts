@@ -27,6 +27,13 @@ export interface VisitorHistoryItem {
     checkOutTime?: string;
     status: string;
     targetDepartment?: string;
+    // Vehicle data from previous visits
+    vehicleBrand?: string;
+    vehicleModel?: string;
+    vehiclePlate?: string;
+    // Photos from previous visits
+    photo_url?: string;
+    id_photo_url?: string;
 }
 
 export interface VisitorWithHistory extends Visitor {

@@ -35,15 +35,18 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
         <div>
             <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">Cédula de Identidad</label>
             <div className="flex items-center gap-2">
-                <input
-                    type="text"
-                    placeholder="Ej: 12345678"
-                    value={cedula}
-                    onChange={(e) => onCedulaChange(e.target.value)}
-                    onBlur={onSearch}
-                    maxLength={8}
-                    className={`${getInputClass(validation.cedula)} font-mono`}
-                />
+                <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-2)] font-mono font-bold">V-</span>
+                    <input
+                        type="text"
+                        placeholder="12345678"
+                        value={cedula}
+                        onChange={(e) => onCedulaChange(e.target.value)}
+                        onBlur={onSearch}
+                        maxLength={8}
+                        className={`${getInputClass(validation.cedula)} font-mono pl-10`}
+                    />
+                </div>
                 <button
                     type="button"
                     onClick={onSearch}

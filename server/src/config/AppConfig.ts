@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
 
 // Load environment variables from workspace .env file
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
@@ -90,7 +91,6 @@ class Config implements AppConfig {
     }
     // Auto-derive refresh secret from main secret if not explicitly set
     if (!this.jwtRefreshSecret && this.jwtSecret) {
-      const crypto = require('crypto');
       this.jwtRefreshSecret = crypto.createHash('sha256').update(this.jwtSecret + ':refresh').digest('hex');
     }
 

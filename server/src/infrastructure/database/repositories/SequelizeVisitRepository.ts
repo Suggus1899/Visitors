@@ -26,8 +26,19 @@ export class SequelizeVisitRepository implements IVisitRepository {
     }
 
     if (filters?.visitorCedula) {
-      // Hash the cedula to match FK in DB
-      where.visitor_cedula = Encryption.hash(filters.visitorCedula);
+      // Buscar el visitante por cédula hasheada para obtener su ID
+      const hashedCedula = Encryption.hash(filters.visitorCedula);
+      const visitor = await VisitorModel.findOne({
+        where: { cedula: hashedCedula }
+      });
+      
+      if (visitor) {
+        // Filtrar visitas por visitor_id (FK real)
+        where.visitor_id = visitor.id;
+      } else {
+        // Si no se encuentra el visitante, retornar array vacío
+        return [];
+      }
     }
 
     if (filters?.personToVisit) {
@@ -43,9 +54,8 @@ export class SequelizeVisitRepository implements IVisitRepository {
           { notes: { [Op.like]: `%${search}%` } }
         ];
 
-        if (/^\d{6,10}$/.test(search)) {
-          orConditions.push({ visitor_cedula: Encryption.hash(search) });
-        }
+        // Nota: La búsqueda por cédula numérica se maneja a través de visitorCedula filter
+        // ya que ahora usamos visitor_id como FK en lugar de visitor_cedula
 
         where[Op.and] = [...(where[Op.and] || []), { [Op.or]: orConditions }];
       }
@@ -102,9 +112,19 @@ export class SequelizeVisitRepository implements IVisitRepository {
   }
 
   async findByVisitor(visitorCedula: string): Promise<Visit[]> {
-    const hashedFn = Encryption.hash(visitorCedula);
+    const hashedCedula = Encryption.hash(visitorCedula);
+    
+    // Find visitor to get id
+    const visitor = await VisitorModel.findOne({
+      where: { cedula: hashedCedula }
+    });
+    
+    if (!visitor) {
+      return [];  // No visitor found, return empty array
+    }
+    
     const models = await VisitModel.findAll({
-      where: { visitor_cedula: hashedFn },
+      where: { visitor_id: visitor.id },
       order: [['check_in_time', 'DESC']],
       include: [{ model: VisitorModel }]
     });
@@ -129,11 +149,18 @@ export class SequelizeVisitRepository implements IVisitRepository {
   async create(visit: Visit): Promise<Visit> {
     const hashedCedula = Encryption.hash(visit.visitorCedula);
     
-    // Check if visitor exists (integrity check might fail if not found)
-    // But repository just inserts. FK constraint handles it.
+    // Find visitor by cedula to get the id (foreign key)
+    const visitor = await VisitorModel.findOne({
+      where: { cedula: hashedCedula }
+    });
+    
+    if (!visitor) {
+      throw new Error('Visitor not found');
+    }
     
     const model = await VisitModel.create({
-      visitor_cedula: hashedCedula,
+      visitor_id: visitor.id,  // Foreign key
+      visitor_cedula: hashedCedula,  // Data field
       check_in_time: visit.checkInTime,
       check_out_time: visit.checkOutTime || null,
       purpose: visit.purpose,
@@ -148,13 +175,9 @@ export class SequelizeVisitRepository implements IVisitRepository {
       area: visit.area || null,
       action: visit.action || 'Ninguna',
       department: visit.department || null,
-      // We don't have 'include' here so toDomain might fail to get real name/ID.
-      // But we can fallback to input 'visit' data if needed? 
-      // Or we can reload.
     });
     
     // Reload to get visitor details (name, etc) for the returned entity
-    // This adds an extra query but ensures consistency
     await model.reload({ include: [VisitorModel] });
 
     return this.toDomain(model);
@@ -170,6 +193,8 @@ export class SequelizeVisitRepository implements IVisitRepository {
     await model.update({
       check_in_time: data.checkInTime,
       check_out_time: data.checkOutTime,
+      entry_time: data.entryTime,
+      exit_time: data.exitTime,
       status: data.status,
       notes: data.notes,
       companion_name: data.companionName,
@@ -200,7 +225,19 @@ export class SequelizeVisitRepository implements IVisitRepository {
     }
 
     if (filters?.visitorCedula) {
-      where.visitor_cedula = Encryption.hash(filters.visitorCedula);
+      // Buscar el visitante por cédula hasheada para obtener su ID
+      const hashedCedula = Encryption.hash(filters.visitorCedula);
+      const visitor = await VisitorModel.findOne({
+        where: { cedula: hashedCedula }
+      });
+      
+      if (visitor) {
+        // Filtrar visitas por visitor_id (FK real)
+        where.visitor_id = visitor.id;
+      } else {
+        // Si no se encuentra el visitante, retornar 0
+        return 0;
+      }
     }
 
     if (filters?.personToVisit) {
@@ -216,9 +253,8 @@ export class SequelizeVisitRepository implements IVisitRepository {
           { notes: { [Op.like]: `%${search}%` } }
         ];
 
-        if (/^\d{6,10}$/.test(search)) {
-          orConditions.push({ visitor_cedula: Encryption.hash(search) });
-        }
+        // Nota: La búsqueda por cédula numérica se maneja a través de visitorCedula filter
+        // ya que ahora usamos visitor_id como FK en lugar de visitor_cedula
 
         where[Op.and] = [...(where[Op.and] || []), { [Op.or]: orConditions }];
       }

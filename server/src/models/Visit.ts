@@ -4,7 +4,8 @@ import VisitorModel from './Visitor';
 
 class VisitModel extends Model<InferAttributes<VisitModel>, InferCreationAttributes<VisitModel>> {
     declare id: CreationOptional<number>;
-    declare visitor_cedula: ForeignKey<VisitorModel['cedula']>;
+    declare visitor_id: ForeignKey<VisitorModel['id']>;
+    declare visitor_cedula: string;
     declare purpose: string;
     declare person_to_visit: string;
     declare check_in_time: CreationOptional<Date>;
@@ -136,7 +137,7 @@ VisitModel.init({
 });
 
 // Define Associations
-VisitModel.belongsTo(VisitorModel, { foreignKey: 'visitor_cedula' });
-VisitorModel.hasMany(VisitModel, { foreignKey: 'visitor_cedula' });
+VisitModel.belongsTo(VisitorModel, { foreignKey: 'visitor_id' });
+VisitorModel.hasMany(VisitModel, { foreignKey: 'visitor_id' });
 
 export default VisitModel;

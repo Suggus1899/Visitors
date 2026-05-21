@@ -29,6 +29,11 @@ export class GetIntermittentVisitsUseCase {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const currentLog = logs.find((l: any) => !l.re_entry);
 
+        // Calcular minutos fuera
+        const minutesOutside = currentLog 
+          ? Math.floor((Date.now() - new Date(currentLog.check_out).getTime()) / 60000)
+          : 0;
+
         return {
           id: visit.id,
           visitorCedula: visit.visitorCedula,
@@ -48,6 +53,15 @@ export class GetIntermittentVisitsUseCase {
           intermittentSince: currentLog?.check_out?.toISOString() || null,
           intermittentNotes: currentLog?.notes || null,
           totalIntermittentEvents: logs.length,
+          minutesOutside,
+          lastExitTime: currentLog?.check_out?.toISOString() || visit.checkInTime.toISOString(),
+          // Intervals es lo que el frontend espera
+          intervals: logs.map((l: any) => ({
+            id: l.id,
+            exitTime: l.check_out.toISOString(),
+            reentryTime: l.re_entry?.toISOString() || null,
+            notes: l.notes,
+          })),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           intermittent_logs: logs.map((l: any) => ({
             id: l.id,

@@ -12,6 +12,7 @@ import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
 import { useCheckOutMutation, useGoIntermittentMutation } from '../hooks/useVisitQueries';
 import { VisitService } from '../services/api.v1';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 
 interface ActiveVisitsProps {
     visits: Visit[];
@@ -27,40 +28,64 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
     const checkOutMutation = useCheckOutMutation();
     const goIntermittentMutation = useGoIntermittentMutation();
 
+    // Custom confirmation dialog state
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: (notes?: string) => void;
+        variant: 'danger' | 'warning' | 'info';
+        notesLabel?: string;
+    }>({ isOpen: false, title: '', message: '', onConfirm: () => {}, variant: 'warning' });
+
     const handleGoIntermittent = async (e: React.MouseEvent, id: number, visitorName: string) => {
         e.stopPropagation();
-        if (!window.confirm(`¿Registrar salida temporal de ${visitorName}? La visita quedará en estado intermitente.`)) return;
-
-        setMarkingIntermittent(id);
-        try {
-            await goIntermittentMutation.mutateAsync({ id });
-            toast.success(`Salida temporal de ${visitorName} registrada`);
-            if (onCheckout) onCheckout();
-        } catch {
-            playError();
-            toast.error('Error al registrar salida temporal');
-        } finally {
-            setMarkingIntermittent(null);
-        }
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Salida Temporal',
+            message: `¿Registrar salida temporal de ${visitorName}? La visita quedará en estado intermitente.`,
+            variant: 'warning',
+            notesLabel: 'Observación (opcional)',
+            onConfirm: async (notes?: string) => {
+                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                setMarkingIntermittent(id);
+                try {
+                    await goIntermittentMutation.mutateAsync({ id, notes });
+                    toast.success(`Salida temporal de ${visitorName} registrada`);
+                    if (onCheckout) onCheckout();
+                } catch {
+                    playError();
+                    toast.error('Error al registrar salida temporal');
+                } finally {
+                    setMarkingIntermittent(null);
+                }
+            }
+        });
     };
 
     const handleCheckout = async (e: React.MouseEvent, id: number, visitorName: string) => {
-        e.stopPropagation(); // Prevent opening modal when clicking checkout
-        if (!window.confirm(`¿Confirmar salida de ${visitorName}?`)) return;
-
-        setCheckingOut(id);
-
-        try {
-            await checkOutMutation.mutateAsync({ id });
-            playCheckout();
-            toast.success(`¡Hasta luego, ${visitorName}!`);
-            if (onCheckout) onCheckout();
-        } catch {
-            playError();
-            toast.error('Error al registrar salida');
-        } finally {
-            setCheckingOut(null);
-        }
+        e.stopPropagation();
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Confirmar Salida',
+            message: `¿Confirmar salida de ${visitorName}?`,
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                setCheckingOut(id);
+                try {
+                    await checkOutMutation.mutateAsync({ id });
+                    playCheckout();
+                    toast.success(`¡Hasta luego, ${visitorName}!`);
+                    if (onCheckout) onCheckout();
+                } catch {
+                    playError();
+                    toast.error('Error al registrar salida');
+                } finally {
+                    setCheckingOut(null);
+                }
+            }
+        });
     };
 
     // Calculate time in site
@@ -160,41 +185,45 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                             </div>
 
                             {/* Footer Actions */}
-                            <div className="px-5 py-3 border-t border-[color:var(--border-1)] bg-[color:var(--surface-2)]/60 flex justify-between items-center mt-auto gap-2">
-                                <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium">
-                                    <Clock size={13} className="mr-1.5" />
-                                    {new Date(visit.check_in || visit.check_in_time || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </div>
+                            <div className="px-4 py-3 border-t border-[color:var(--border-1)] bg-[color:var(--surface-2)]/60 mt-auto">
+                                <div className="flex items-center justify-between gap-3">
+                                    {/* Time */}
+                                    <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium whitespace-nowrap">
+                                        <Clock size={13} className="mr-1.5" />
+                                        {new Date(visit.check_in || visit.check_in_time || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
 
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={(e) => handleGoIntermittent(e, visit.id, visitorName)}
-                                        disabled={isMarkingIntermittent || isCheckingOut}
-                                        title="Salida temporal (visita sigue activa)"
-                                        className="group/ibtn relative px-3 py-1.5 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-3)] text-xs font-semibold hover:border-amber-400 hover:text-amber-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 overflow-hidden z-10"
-                                    >
-                                        <span className="absolute inset-0 bg-amber-500/10 transform origin-left scale-x-0 group-hover/ibtn:scale-x-100 transition-transform duration-300 ease-out -z-10" />
-                                        {isMarkingIntermittent ? (
-                                            <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                            <ArrowRightLeft size={12} />
-                                        )}
-                                        <span>SALIDA TEMP.</span>
-                                    </button>
+                                    {/* Buttons */}
+                                    <div className="flex items-center gap-2">
+                                        {/* Salida Temporal */}
+                                        <button
+                                            onClick={(e) => handleGoIntermittent(e, visit.id, visitorName)}
+                                            disabled={isMarkingIntermittent || isCheckingOut}
+                                            title="Salida temporal"
+                                            className="group/ibtn relative px-2.5 py-2 rounded-lg border border-amber-400/30 text-amber-400 text-[11px] font-semibold hover:bg-amber-500/10 hover:border-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
+                                        >
+                                            {isMarkingIntermittent ? (
+                                                <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <ArrowRightLeft size={12} />
+                                            )}
+                                            <span>Temp.</span>
+                                        </button>
 
-                                    <button
-                                        onClick={(e) => handleCheckout(e, visit.id, visitorName)}
-                                        disabled={isCheckingOut || isMarkingIntermittent}
-                                        className="group/btn relative px-4 py-1.5 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-2)] text-xs font-semibold hover:border-red-400 hover:text-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 overflow-hidden z-10"
-                                    >
-                                        <span className="absolute inset-0 bg-red-500/15 transform origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 ease-out -z-10" />
-                                        {isCheckingOut ? (
-                                            <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                            <LogOutIcon size={13} className="group-hover/btn:-translate-x-0.5 transition-transform" />
-                                        )}
-                                        <span>SALIDA</span>
-                                    </button>
+                                        {/* Salida Final */}
+                                        <button
+                                            onClick={(e) => handleCheckout(e, visit.id, visitorName)}
+                                            disabled={isCheckingOut || isMarkingIntermittent}
+                                            className="group/btn relative px-3 py-2 rounded-lg bg-red-500/10 border border-red-400/40 text-red-400 text-[11px] font-semibold hover:bg-red-500/20 hover:border-red-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
+                                        >
+                                            {isCheckingOut ? (
+                                                <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <LogOutIcon size={12} />
+                                            )}
+                                            <span>Salir</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -206,6 +235,18 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                 visit={selectedVisit}
                 isOpen={!!selectedVisit}
                 onClose={() => setSelectedVisit(null)}
+            />
+
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                variant={confirmDialog.variant}
+                confirmText="Confirmar"
+                cancelText="Cancelar"
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                notesLabel={confirmDialog.notesLabel}
             />
         </>
     );

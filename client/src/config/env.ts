@@ -10,8 +10,17 @@ const isElectronProduction = (): boolean =>
 
 const resolveApiBaseUrl = (): string => {
   // Vite injects env vars at build time via import.meta.env
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL as string;
+  const viteApiUrl = import.meta.env.VITE_API_URL;
+
+  // Explicit URL set (e.g. http://192.168.1.x:3000 for LAN dev)
+  if (viteApiUrl && viteApiUrl !== '') {
+    return viteApiUrl as string;
+  }
+
+  // VITE_API_URL='' means Docker/nginx: use empty string so axios calls are relative
+  // Nginx will proxy /api → server:3000
+  if (typeof viteApiUrl === 'string' && viteApiUrl === '') {
+    return '';
   }
 
   // Electron production: server always runs on localhost:3000

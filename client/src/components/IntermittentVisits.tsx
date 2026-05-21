@@ -13,6 +13,7 @@ import { sanitizeInput } from '../utils/sanitizer';
 import toast from 'react-hot-toast';
 import IntermittentAccessLog from './IntermittentAccessLog';
 import { IntermittentLog } from '../types';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 
 interface IntermittentVisitsProps {
     visits: IntermittentVisit[];
@@ -30,20 +31,35 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const reactivateMutation = useReactivateVisitMutation();
 
-    const handleReactivate = async (e: React.MouseEvent, id: number, visitorName: string) => {
-        e.stopPropagation();
-        if (!window.confirm(`¿Confirmar reingreso de ${visitorName}?`)) return;
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant: 'danger' | 'warning' | 'info';
+    }>({ isOpen: false, title: '', message: '', onConfirm: () => {}, variant: 'info' });
 
-        setReactivating(id);
-        try {
-            await reactivateMutation.mutateAsync(id);
-            toast.success(`¡Bienvenido de vuelta, ${visitorName}!`);
-            if (onReactivated) onReactivated();
-        } catch {
-            toast.error('Error al registrar reingreso');
-        } finally {
-            setReactivating(null);
-        }
+    const handleReactivate = (e: React.MouseEvent, id: number, visitorName: string) => {
+        e.stopPropagation();
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Confirmar Reingreso',
+            message: `¿Confirmar reingreso de ${visitorName}?`,
+            variant: 'info',
+            onConfirm: async () => {
+                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                setReactivating(id);
+                try {
+                    await reactivateMutation.mutateAsync(id);
+                    toast.success(`¡Bienvenido de vuelta, ${visitorName}!`);
+                    if (onReactivated) onReactivated();
+                } catch {
+                    toast.error('Error al registrar reingreso');
+                } finally {
+                    setReactivating(null);
+                }
+            }
+        });
     };
 
     if (loading) {
@@ -65,114 +81,136 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
     }
 
     return (
-        <div className="space-y-4">
-            {visits.map((visit) => {
-                const visitorName = sanitizeInput(visit.visitorName || 'Visitante');
-                const company = sanitizeInput(visit.company || 'Sin empresa');
-                const purpose = sanitizeInput(visit.purpose || 'Visita');
-                const isReactivating = reactivating === visit.id;
-                const isExpanded = expandedId === visit.id;
-                const photoUrl = visit.visitorCedula
-                    ? VisitService.getVisitorPhotoUrl(visit.visitorCedula)
-                    : undefined;
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {visits.map((visit) => {
+                    const visitorName = sanitizeInput(visit.visitorName || 'Visitante');
+                    const company = sanitizeInput(visit.company || 'Sin empresa');
+                    const purpose = sanitizeInput(visit.purpose || 'Visita');
+                    const isReactivating = reactivating === visit.id;
+                    const isExpanded = expandedId === visit.id;
+                    const photoUrl = visit.visitorCedula
+                        ? VisitService.getVisitorPhotoUrl(visit.visitorCedula)
+                        : undefined;
 
-                const adaptedLogs: IntermittentLog[] = visit.intervals.map((interval, idx) => ({
-                    id: interval.id ?? idx,
-                    visit_id: visit.id,
-                    check_out: interval.exitTime,
-                    re_entry: interval.reentryTime ?? null,
-                    notes: interval.notes ?? null
-                }));
+                    const adaptedLogs: IntermittentLog[] = visit.intervals.map((interval, idx) => ({
+                        id: interval.id ?? idx,
+                        visit_id: visit.id,
+                        check_out: interval.exitTime,
+                        re_entry: interval.reentryTime ?? null,
+                        notes: interval.notes ?? null
+                    }));
 
-                return (
-                    <div
-                        key={visit.id}
-                        className="panel-tech rounded-2xl border border-amber-500/30 bg-amber-500/5 overflow-hidden transition-all duration-300"
-                    >
-                        <div className="p-5 flex items-start gap-4">
-                            {/* Photo */}
-                            <div className="relative flex-shrink-0">
-                                {photoUrl ? (
-                                    <img
-                                        src={photoUrl}
-                                        alt={visitorName}
-                                        className="w-14 h-14 rounded-2xl object-cover shadow-sm border border-amber-400/30"
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).src =
-                                                'https://ui-avatars.com/api/?background=1b232a&color=e5edf5&name=' + encodeURIComponent(visitorName);
-                                        }}
-                                    />
-                                ) : (
-                                    <div className="w-14 h-14 rounded-2xl bg-[color:var(--surface-2)] flex items-center justify-center text-[color:var(--text-2)] font-bold text-xl border border-amber-400/30">
-                                        {visitorName.charAt(0).toUpperCase()}
+                    return (
+                        <div
+                            key={visit.id}
+                            className="group panel-tech rounded-2xl transition-all duration-300 overflow-visible border border-amber-500/30 flex flex-col relative transform hover:-translate-y-1 hover:shadow-md"
+                        >
+                            <div className="p-5 flex items-start space-x-4 flex-grow">
+                                {/* Photo */}
+                                <div className="relative flex-shrink-0">
+                                    {photoUrl ? (
+                                        <img
+                                            src={photoUrl}
+                                            alt={visitorName}
+                                            className="w-14 h-14 rounded-2xl object-cover shadow-sm bg-[color:var(--surface-0)] border border-amber-400/30 group-hover:scale-105 transition-transform duration-500"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src =
+                                                    'https://ui-avatars.com/api/?background=1b232a&color=e5edf5&name=' + encodeURIComponent(visitorName);
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-2xl bg-[color:var(--surface-2)] flex items-center justify-center text-[color:var(--text-2)] font-bold text-xl shadow-inner border border-amber-400/30">
+                                            {visitorName.charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
+                                    {/* Amber pulse indicator */}
+                                    <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 animate-pulse border-2 border-[color:var(--bg-0)]" />
+                                </div>
+
+                                <div className="flex-1 min-w-0 pt-0.5">
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="text-base font-semibold text-[color:var(--text-1)] pr-2 group-hover:text-amber-300 transition-colors leading-snug">
+                                            {visitorName}
+                                        </h3>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-400/50 whitespace-nowrap ml-2">
+                                            <Clock size={10} />
+                                            {formatMinutes(visit.minutesOutside)}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-start text-xs text-[color:var(--text-2)] mt-1 mb-0.5">
+                                        <Briefcase size={12} className="mr-1.5 opacity-70 mt-0.5 flex-shrink-0" />
+                                        <span className="font-medium leading-normal">{company}</span>
+                                    </div>
+                                    <div className="flex items-center text-xs text-[color:var(--text-3)] font-mono">
+                                        C.I. {visit.visitorCedula}
+                                    </div>
+
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-[color:var(--surface-2)] text-[color:var(--text-2)] border border-[color:var(--border-1)]">
+                                            {purpose}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-4 py-3 border-t border-amber-500/20 bg-amber-500/5 mt-auto">
+                                <div className="flex items-center justify-between gap-3">
+                                    {/* Exit time + intervals toggle */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium whitespace-nowrap">
+                                            <Clock size={13} className="mr-1.5" />
+                                            Salió: {new Date(visit.lastExitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                        <button
+                                            onClick={() => setExpandedId(isExpanded ? null : visit.id)}
+                                            className="flex items-center gap-1 text-[10px] text-[color:var(--text-3)] hover:text-amber-300 transition-colors"
+                                        >
+                                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                            {visit.intervals.length}
+                                        </button>
+                                    </div>
+
+                                    {/* Reingreso button */}
+                                    <button
+                                        onClick={(e) => handleReactivate(e, visit.id, visitorName)}
+                                        disabled={isReactivating}
+                                        className="group/rbtn relative px-3 py-2 rounded-lg border border-emerald-500/50 text-emerald-300 text-[11px] font-semibold hover:border-emerald-400 hover:bg-emerald-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
+                                    >
+                                        {isReactivating ? (
+                                            <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <LogIn size={12} />
+                                        )}
+                                        <span>REGRESÓ</span>
+                                    </button>
+                                </div>
+
+                                {/* Expanded interval history */}
+                                {isExpanded && (
+                                    <div className="mt-3 pt-3 border-t border-amber-500/20">
+                                        <IntermittentAccessLog logs={adaptedLogs} />
                                     </div>
                                 )}
-                                {/* Amber pulse indicator */}
-                                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 animate-pulse border-2 border-[color:var(--bg-0)]" />
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                    <h3 className="text-base font-semibold text-[color:var(--text-1)] leading-snug">
-                                        {visitorName}
-                                    </h3>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border border-amber-400/50 text-amber-300 bg-amber-500/10 whitespace-nowrap">
-                                        <Clock size={10} />
-                                        {formatMinutes(visit.minutesOutside)}
-                                    </span>
-                                </div>
-
-                                <div className="flex items-center text-xs text-[color:var(--text-2)] mt-1">
-                                    <Briefcase size={12} className="mr-1.5 opacity-70" />
-                                    {company}
-                                </div>
-
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[color:var(--surface-2)] text-[color:var(--text-2)] border border-[color:var(--border-1)]">
-                                        {purpose}
-                                    </span>
-                                    <span className="text-[10px] text-[color:var(--text-3)] font-mono self-center">
-                                        Salió: {new Date(visit.lastExitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                </div>
                             </div>
                         </div>
+                    );
+                })}
+            </div>
 
-                        {/* Footer */}
-                        <div className="px-5 py-3 border-t border-amber-500/20 bg-amber-500/5 flex items-center justify-between gap-2">
-                            <button
-                                onClick={() => setExpandedId(isExpanded ? null : visit.id)}
-                                className="flex items-center gap-1 text-[10px] text-[color:var(--text-3)] hover:text-[color:var(--text-2)] transition-colors"
-                            >
-                                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                                {visit.intervals.length} intervalo{visit.intervals.length !== 1 ? 's' : ''}
-                            </button>
-
-                            <button
-                                onClick={(e) => handleReactivate(e, visit.id, visitorName)}
-                                disabled={isReactivating}
-                                className="group/rbtn relative px-4 py-1.5 rounded-lg border border-emerald-500/50 text-emerald-300 text-xs font-semibold hover:border-emerald-400 hover:bg-emerald-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                            >
-                                {isReactivating ? (
-                                    <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                    <LogIn size={13} />
-                                )}
-                                <span>REGRESÓ</span>
-                            </button>
-                        </div>
-
-                        {/* Expanded interval history */}
-                        {isExpanded && (
-                            <div className="px-5 pb-4">
-                                <IntermittentAccessLog logs={adaptedLogs} />
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                variant={confirmDialog.variant}
+                confirmText="Confirmar"
+                cancelText="Cancelar"
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+            />
+        </>
     );
 };
 

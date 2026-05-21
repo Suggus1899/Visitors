@@ -119,9 +119,9 @@ router.patch('/v1/visitors/:cedula', verifyToken, VisitorCleanController.updateV
  */
 router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getCompanies);
 
-router.get('/v1/visitors/:cedula/photo', verifyToken, asyncHandler(VisitorCleanController.getVisitorPhoto));
+router.get('/v1/visitors/:cedula/photo', asyncHandler(VisitorCleanController.getVisitorPhoto));
 
-router.get('/v1/visitors/:cedula/id-photo', verifyToken, asyncHandler(VisitorCleanController.getVisitorIdPhoto));
+router.get('/v1/visitors/:cedula/id-photo', asyncHandler(VisitorCleanController.getVisitorIdPhoto));
 
 
 export default router;

@@ -7,6 +7,7 @@ import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
 import { useAdmitVisitorMutation, useWaitingVisitsQuery } from '../hooks/useVisitQueries';
+import { VisitService } from '../services/api.v1';
 
 interface WaitingVisitsProps {
     onVisitAdmitted: () => void;
@@ -79,6 +80,8 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                     const sanitizedName = sanitizeInput(visitorName);
                     const sanitizedCompany = sanitizeInput(visit.Visitor?.company || 'Independiente');
                     const sanitizedReason = sanitizeInput(visit.reason || visit.purpose || visit.personToVisit || visit.person_to_visit || 'Visita General');
+                    const cedula = visit.Visitor?.cedula || visit.visitor_cedula || '';
+                    const photoUrl = cedula ? VisitService.getVisitorPhotoUrl(cedula) : null;
 
                     return (
                         <div
@@ -90,8 +93,8 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
 
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex gap-3">
-                                    {visit.Visitor?.photo_url ? (
-                                        <img src={visit.Visitor.photo_url} alt="Foto" className="w-12 h-12 rounded-lg object-cover border border-[color:var(--border-1)]" />
+                                    {photoUrl ? (
+                                        <img src={photoUrl} alt="Foto" className="w-12 h-12 rounded-lg object-cover border border-[color:var(--border-1)]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                     ) : (
                                         <div className="w-12 h-12 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-1)] flex items-center justify-center">
                                             <Clock className="text-[color:var(--text-3)]" size={20} />

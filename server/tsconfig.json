@@ -17,7 +17,8 @@
         "src/**/*"
     ],
     "exclude": [
-        "src/scripts/**/*"
+        "src/scripts/**/*",
+        "src/__tests__/**/*"
     ],
     "ts-node": {
         "files": true

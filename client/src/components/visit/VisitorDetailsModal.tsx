@@ -1,7 +1,7 @@
 
 import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, Car, Users } from 'lucide-react';
 import type { Visit } from '../../types';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { sanitizeInput, sanitizeHTML } from '../../utils/sanitizer';
 
 interface VisitorDetailsModalProps {
@@ -37,6 +37,16 @@ const IconRow = ({
 );
 
 export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsModalProps) {
+  const [photoError, setPhotoError] = useState(false);
+  const [idPhotoError, setIdPhotoError] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPhotoError(false);
+      setIdPhotoError(false);
+    }
+  }, [isOpen, visit]);
+
   // Hooks must be called unconditionally before any early return
   const sanitizedFirstName = useMemo(() => sanitizeInput(visit?.Visitor?.first_name || ''), [visit]);
   const sanitizedLastName = useMemo(() => sanitizeInput(visit?.Visitor?.last_name || ''), [visit]);
@@ -76,9 +86,6 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
               <h2 className="text-base font-display uppercase tracking-[0.18em] text-[color:var(--text-1)]">
                 Detalles de la Visita
               </h2>
-              <p className="text-[10px] text-[color:var(--text-3)] uppercase tracking-[0.15em] mt-0.5">
-                #{visit.id} · Registrada {formattedDate}
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -111,12 +118,13 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                 <p className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em] mb-2">
                   Fotografía del Visitante
                 </p>
-                {visit.Visitor?.photo_url ? (
+                {visit.Visitor?.photo_url && !photoError ? (
                   <div className="aspect-square w-full sm:w-56 rounded-xl overflow-hidden border border-[color:var(--border-1)] bg-[color:var(--surface-2)] shadow-inner">
                     <img
                       src={visit.Visitor.photo_url}
                       alt={`Foto de ${sanitizedFirstName}`}
                       className="w-full h-full object-cover"
+                      onError={() => setPhotoError(true)}
                     />
                   </div>
                 ) : (
@@ -133,12 +141,13 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                   Identificación (Cédula / Carnet)
                 </p>
                 <p className="text-xs font-mono text-[color:var(--text-2)] mb-2">C.I. {sanitizedCedula}</p>
-                {visit.Visitor?.id_photo_url ? (
+                {visit.Visitor?.id_photo_url && !idPhotoError ? (
                   <div className="aspect-video w-full rounded-xl overflow-hidden border border-[color:var(--border-1)] bg-[color:var(--surface-2)] shadow-inner">
                     <img
                       src={visit.Visitor.id_photo_url}
                       alt={`ID de ${sanitizedFirstName}`}
                       className="w-full h-full object-contain"
+                      onError={() => setIdPhotoError(true)}
                     />
                   </div>
                 ) : (
@@ -188,9 +197,21 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                 />
                 <IconRow
                   icon={Clock}
-                  label="Hora de Registro"
-                  value={formattedDate}
-                  iconClass="text-[color:var(--accent-2)]"
+                  label="Hora de Llegada"
+                  value={(visit.check_in || visit.check_in_time || visit.arrival_time) ? new Date(visit.check_in || visit.check_in_time || visit.arrival_time!).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                  iconClass="text-blue-400"
+                />
+                <IconRow
+                  icon={Clock}
+                  label="Hora de Entrada"
+                  value={visit.entry_time ? new Date(visit.entry_time).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' }) : 'Pendiente'}
+                  iconClass="text-emerald-400"
+                />
+                <IconRow
+                  icon={Clock}
+                  label="Hora de Salida"
+                  value={(visit.exit_time || visit.check_out_time || visit.check_out) ? new Date(visit.exit_time || visit.check_out_time || visit.check_out!).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' }) : 'Pendiente'}
+                  iconClass="text-amber-400"
                 />
                 <IconRow
                   icon={FileText}

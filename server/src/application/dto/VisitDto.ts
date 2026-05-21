@@ -49,6 +49,7 @@ export interface ActiveVisitDto {
   personToVisit: string;
   durationMinutes: number;
   photoUrl?: string;
+  entryTime?: string; // ISO string - hora cuando se admitió la entrada
 }
 
 /**
@@ -98,4 +99,8 @@ export interface VisitResponseDto {
   area?: string;
   action?: 'Carga' | 'Descarga' | 'Ninguna';
   department?: string;
+  // Timestamp lifecycle fields
+  arrivalTime?: string;  // ISO string
+  entryTime?: string;    // ISO string - cuando se admitió la entrada
+  exitTime?: string;   // ISO string
 }

@@ -11,6 +11,7 @@ import Car from 'lucide-react/dist/esm/icons/car';
 import Users from 'lucide-react/dist/esm/icons/users';
 import MapPin from 'lucide-react/dist/esm/icons/map-pin';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
+import LogIn from 'lucide-react/dist/esm/icons/log-in';
 import { Visit } from '../types';
 
 interface VisitDetailsModalProps {
@@ -159,7 +160,7 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
                             <div className="flex items-center text-[color:var(--text-1)] font-medium">
                                 <MapPin size={16} className="mr-2 text-[color:var(--accent-0)]" />
                                 <span className="text-sm">
-                                    {visit.target_department || visit.area || visit.department || '—'}
+                                    {visit.target_department || visit.department || '—'}
                                 </span>
                             </div>
                         </div>
@@ -191,6 +192,103 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
                         </div>
                     </div>
 
+                    {/* ── Schedule Cards (Arrival / Entry / Exit) ── */}
+                    {(visit.arrival_time || visit.entry_time || visit.exit_time || visit.check_out) && (
+                        <div className="mt-6 grid grid-cols-3 gap-3 text-left">
+                            {/* Arrival Time */}
+                            <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg">
+                                <div className="flex items-center gap-1.5 text-blue-400 mb-1">
+                                    <FileText size={14} />
+                                    <span className="text-[10px] uppercase font-semibold tracking-wider">Llegada</span>
+                                </div>
+                                <p className="text-sm font-mono font-medium text-[color:var(--text-1)]">
+                                    {visit.arrival_time 
+                                        ? new Date(visit.arrival_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+                                        : '—'}
+                                </p>
+                                <p className="text-[10px] text-[color:var(--text-3)] mt-0.5">
+                                    {visit.arrival_time 
+                                        ? new Date(visit.arrival_time).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+                                        : ''}
+                                </p>
+                            </div>
+
+                            {/* Entry Time */}
+                            <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-lg">
+                                <div className="flex items-center gap-1.5 text-emerald-400 mb-1">
+                                    <LogIn size={14} />
+                                    <span className="text-[10px] uppercase font-semibold tracking-wider">Ingreso</span>
+                                </div>
+                                <p className="text-sm font-mono font-medium text-[color:var(--text-1)]">
+                                    {(visit.entry_time || visit.check_in_time || visit.check_in)
+                                        ? new Date(visit.entry_time || visit.check_in_time || visit.check_in!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+                                        : '—'}
+                                </p>
+                                <p className="text-[10px] text-[color:var(--text-3)] mt-0.5">
+                                    {(visit.entry_time || visit.check_in_time || visit.check_in)
+                                        ? new Date(visit.entry_time || visit.check_in_time || visit.check_in!).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+                                        : ''}
+                                </p>
+                            </div>
+
+                            {/* Exit Time */}
+                            <div className={`${visit.exit_time || visit.check_out_time || visit.check_out ? 'bg-amber-500/10 border-amber-500/30' : 'bg-[color:var(--surface-2)] border-[color:var(--border-1)]'} border p-3 rounded-lg`}>
+                                <div className={`flex items-center gap-1.5 ${visit.exit_time || visit.check_out_time || visit.check_out ? 'text-amber-400' : 'text-[color:var(--text-3)]'} mb-1`}>
+                                    <LogOut size={14} />
+                                    <span className="text-[10px] uppercase font-semibold tracking-wider">Salida</span>
+                                </div>
+                                <p className="text-sm font-mono font-medium text-[color:var(--text-1)]">
+                                    {(visit.exit_time || visit.check_out_time || visit.check_out)
+                                        ? new Date(visit.exit_time || visit.check_out_time || visit.check_out!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+                                        : 'Pendiente'}
+                                </p>
+                                <p className="text-[10px] text-[color:var(--text-3)] mt-0.5">
+                                    {(visit.exit_time || visit.check_out_time || visit.check_out)
+                                        ? new Date(visit.exit_time || visit.check_out_time || visit.check_out!).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+                                        : visit.status === 'intermittent' ? 'Intermitente' : 'En sitio'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Intermittent Schedule (if applicable) ── */}
+                    {visit.intermittent_logs && visit.intermittent_logs.length > 0 && (
+                        <div className="mt-4 bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl">
+                            <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-amber-400 mb-3 flex items-center gap-2">
+                                <Clock size={14} />
+                                Registros de Salida/Entrada Temporal
+                            </p>
+                            <div className="space-y-2">
+                                {visit.intermittent_logs.map((log, idx) => (
+                                    <div key={log.id} className="flex items-center justify-between bg-[color:var(--surface-2)] p-2.5 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-mono text-[color:var(--text-3)] bg-[color:var(--surface-1)] px-1.5 py-0.5 rounded">#{idx + 1}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs text-amber-400 flex items-center gap-1">
+                                                    <LogOut size={12} /> Salida: {new Date(log.check_out).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                {log.re_entry && (
+                                                    <span className="text-xs text-emerald-400 flex items-center gap-1 mt-0.5">
+                                                        <LogIn size={12} /> Reingreso: {new Date(log.re_entry).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            {log.re_entry ? (
+                                                <span className="text-[10px] text-[color:var(--text-3)]">
+                                                    {Math.round((new Date(log.re_entry).getTime() - new Date(log.check_out).getTime()) / 60000)} min fuera
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] text-amber-400 animate-pulse">Aún fuera</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* ── Timeline Group ─────────────────────────── */}
                     {timeline.length > 0 && (
                         <div className="mt-6 bg-[color:var(--surface-2)] p-4 rounded-xl border border-[color:var(--border-1)] text-left relative">
@@ -202,7 +300,7 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
                                 {/* Vertical line */}
                                 <div className="absolute left-[11px] top-2 bottom-2 w-px bg-[color:var(--border-1)]" />
                                 
-                                {timeline.map((ev, i) => (
+                                {timeline.map((ev, _i) => (
                                     <div key={ev.id} className="relative">
                                         {/* Node dot */}
                                         <div className={`absolute -left-6 top-1 w-3 h-3 rounded-full bg-[color:var(--surface-1)] border-2 flex items-center justify-center
