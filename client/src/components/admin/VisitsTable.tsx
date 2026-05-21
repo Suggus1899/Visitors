@@ -14,6 +14,7 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
+import { VisitorDetailsModal } from '../visit/VisitorDetailsModal';
 
 type SortField = 'visitor' | 'check_in' | 'check_out' | 'arrival_time' | 'entry_time' | 'exit_time' | 'reason' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -62,6 +63,7 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
     onFilterChange, onSort, onPageChange
 }) => {
     const [isExporting, setIsExporting] = useState(false);
+    const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
 
     const formatDateTime = useCallback((dateTime?: string | null): string => {
         if (!dateTime) return '-';
@@ -307,7 +309,7 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                         {sortedVisits.length > 0 ? sortedVisits.map((vis) => {
                             const ts = (dt?: string | null) => dt ? new Date(dt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
                             return (
-                            <tr key={vis.id} className="hover:bg-[color:var(--surface-2)] border-b border-[color:var(--border-1)] last:border-0 transition-colors">
+                            <tr key={vis.id} onClick={() => setSelectedVisit(vis)} className="hover:bg-[color:var(--surface-2)] border-b border-[color:var(--border-1)] last:border-0 transition-colors cursor-pointer">
                                 <td className="p-4">
                                     <div className="font-semibold text-[color:var(--text-1)]">{`${vis.Visitor?.first_name || ''} ${vis.Visitor?.last_name || ''}`.trim()}</div>
                                     <div className="text-xs text-[color:var(--text-3)]">{vis.Visitor?.company || ''} · {vis.Visitor?.cedula || ''}</div>
@@ -363,6 +365,12 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                     </div>
                 </div>
             )}
+
+            <VisitorDetailsModal
+                visit={selectedVisit}
+                isOpen={!!selectedVisit}
+                onClose={() => setSelectedVisit(null)}
+            />
         </div>
     );
 };
