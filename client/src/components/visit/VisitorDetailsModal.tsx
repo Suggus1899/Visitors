@@ -2,7 +2,7 @@
 import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, Car, Users } from 'lucide-react';
 import type { Visit } from '../../types';
 import { useMemo, useState, useEffect } from 'react';
-import { sanitizeInput, sanitizeHTML } from '../../utils/sanitizer';
+import { sanitizeInput } from '../../utils/sanitizer';
 
 interface VisitorDetailsModalProps {
   visit: Visit | null;
@@ -55,7 +55,6 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
   const sanitizedCedula = useMemo(() => sanitizeInput(visit?.visitor_cedula || '—'), [visit]);
   const sanitizedPersonToVisit = useMemo(() => sanitizeInput(visit?.person_to_visit || ''), [visit]);
   const sanitizedPurpose = useMemo(() => sanitizeInput(visit?.purpose || ''), [visit]);
-  const sanitizedNotes = useMemo(() => sanitizeHTML(visit?.notes || ''), [visit]);
 
   if (!isOpen || !visit) return null;
 
@@ -229,17 +228,6 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                   </div>
                 )}
 
-                {visit.notes && (
-                  <div className="pt-1 border-t border-[color:var(--border-1)]">
-                    <span className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em] block mb-1">
-                      Notas adicionales
-                    </span>
-                    <p
-                      className="text-sm text-[color:var(--text-2)] bg-[color:var(--surface-3)] p-3 rounded-lg border border-[color:var(--border-1)] italic leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: sanitizedNotes }}
-                    />
-                  </div>
-                )}
               </div>
 
               {/* Companion / Vehicle (if present) */}

@@ -1,14 +1,52 @@
 import React, { useState } from 'react';
-import { useAllVisitorsQuery, useUpdateVisitorMutation } from '../hooks/useVisitQueries';
+import { useAllVisitorsQuery, useUpdateVisitorMutation, useRecentVisitsQuery } from '../hooks/useVisitQueries';
 import { Ban, CheckCircle, Search, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { API_URL } from '../config/env';
 import { Visit } from '../types';
+import RecentVisits from './RecentVisits';
+
+const RecentVisitsPanel: React.FC = () => {
+    const [expanded, setExpanded] = useState(false);
+    const { data: recentVisits = [], isFetching } = useRecentVisitsQuery();
+
+    if (recentVisits.length === 0 && !isFetching) return null;
+
+    const shown = expanded ? recentVisits : recentVisits.slice(0, 3);
+
+    return (
+        <div className="mb-6 bg-[color:var(--surface-1)] border border-[color:var(--border-1)] rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[color:var(--border-1)] bg-[color:var(--surface-2)]">
+                <span className="text-xs font-semibold uppercase tracking-widest text-rose-400 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 inline-block" />
+                    Últimas Salidas
+                    {recentVisits.length > 0 && (
+                        <span className="text-[10px] bg-rose-500/20 text-rose-300 border border-rose-400/20 px-1.5 py-0.5 rounded-full">
+                            {recentVisits.length}
+                        </span>
+                    )}
+                </span>
+                {recentVisits.length > 3 && (
+                    <button
+                        onClick={() => setExpanded(v => !v)}
+                        className="text-[11px] text-[color:var(--text-3)] hover:text-[color:var(--text-1)] transition"
+                    >
+                        {expanded ? 'Ver menos ↑' : `Ver todos (${recentVisits.length}) ↓`}
+                    </button>
+                )}
+            </div>
+            <div className="p-3">
+                <RecentVisits visits={shown} loading={isFetching && recentVisits.length === 0} />
+            </div>
+        </div>
+    );
+};
 
 export const VisitorAdmin: React.FC = () => {
     const [page, setPage] = useState(1);
     const [companyFilter, setCompanyFilter] = useState('');
+    const [cedulaFilter, setCedulaFilter] = useState('');
     const [editingVisitor, setEditingVisitor] = useState<{ cedula: string; observations: string } | null>(null);
     const [selectedVisitor, setSelectedVisitor] = useState<any>(null);
     const limit = 20;
@@ -16,7 +54,11 @@ export const VisitorAdmin: React.FC = () => {
     const { data, isLoading, refetch } = useAllVisitorsQuery(page, limit, companyFilter || undefined);
     const updateMutation = useUpdateVisitorMutation();
 
-    const visitors = data?.visitors || [];
+    const allVisitors = data?.visitors || [];
+    // Local filter by cedula (strips V- prefix for comparison)
+    const visitors = cedulaFilter
+        ? allVisitors.filter(v => (v.cedula || '').replace(/^V-/, '').includes(cedulaFilter))
+        : allVisitors;
     const total = data?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
@@ -77,15 +119,28 @@ export const VisitorAdmin: React.FC = () => {
                 </h2>
             </div>
 
-            {/* Filter */}
-            <div className="mb-4 flex gap-2">
-                <div className="relative flex-1">
+            {/* Recent Departures */}
+            <RecentVisitsPanel />
+
+            {/* Filters */}
+            <div className="mb-4 flex gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-[160px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--text-3)]" />
                     <input
                         type="text"
                         placeholder="Filtrar por empresa..."
                         value={companyFilter}
                         onChange={(e) => { setCompanyFilter(e.target.value); setPage(1); }}
+                        className="input-tech w-full pl-10"
+                    />
+                </div>
+                <div className="relative min-w-[160px]" title="Búsqueda local por cédula exacta (sin prefijo V-)">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--text-3)]" />
+                    <input
+                        type="text"
+                        placeholder="Buscar por cédula..."
+                        value={cedulaFilter}
+                        onChange={(e) => { setCedulaFilter(e.target.value.replace(/\D/g, '')); setPage(1); }}
                         className="input-tech w-full pl-10"
                     />
                 </div>

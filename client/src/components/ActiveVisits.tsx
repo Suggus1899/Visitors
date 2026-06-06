@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
 import User from 'lucide-react/dist/esm/icons/user';
@@ -88,9 +88,16 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
         });
     };
 
-    // Calculate time in site
+    // Live clock that ticks every minute for time-in-site counters
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const t = setInterval(() => setNow(Date.now()), 60000);
+        return () => clearInterval(t);
+    }, []);
+
+    // Calculate time in site (updates with live clock)
     const getTimeInSite = (checkIn: string) => {
-        const diff = Date.now() - new Date(checkIn).getTime();
+        const diff = now - new Date(checkIn).getTime();
         const hours = Math.floor(diff / 3600000);
         const minutes = Math.floor((diff % 3600000) / 60000);
         if (hours > 0) return `${hours}h ${minutes}m`;
@@ -128,7 +135,10 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                         : (visit.Visitor?.photo_url || null);
                     const isMarkingIntermittent = markingIntermittent === visit.id;
                     const isCheckingOut = checkingOut === visit.id;
-                    const timeInSite = getTimeInSite(visit.check_in || visit.check_in_time || '');
+                    const entryTime = visit.entry_time || visit.check_in || visit.check_in_time || '';
+                    const arrivalTime = visit.arrival_time || '';
+                    const showBothTimes = arrivalTime && entryTime && arrivalTime !== entryTime;
+                    const timeInSite = entryTime ? getTimeInSite(entryTime) : '—';
 
                     // Sanitize user-generated content for XSS protection
                     const sanitizedName = sanitizeInput(visitorName);
@@ -180,6 +190,12 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                         <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-[color:var(--surface-2)] text-[color:var(--text-2)] border border-[color:var(--border-1)]">
                                             {sanitizedReason}
                                         </span>
+                                        {visit.intermittent_logs && visit.intermittent_logs.length > 0 && (
+                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-400/30">
+                                                <ArrowRightLeft size={10} className="mr-1" />
+                                                {visit.intermittent_logs.length} {visit.intermittent_logs.length === 1 ? 'Intermitencia' : 'Intermitencias'}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -188,9 +204,26 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                             <div className="px-4 py-3 border-t border-[color:var(--border-1)] bg-[color:var(--surface-2)]/60 mt-auto">
                                 <div className="flex items-center justify-between gap-3">
                                     {/* Time */}
-                                    <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium whitespace-nowrap">
-                                        <Clock size={13} className="mr-1.5" />
-                                        {new Date(visit.check_in || visit.check_in_time || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    <div className="flex flex-col gap-0.5">
+                                        {showBothTimes ? (
+                                            <>
+                                                <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium whitespace-nowrap">
+                                                    <Clock size={11} className="mr-1" />
+                                                    <span className="text-[9px] text-[color:var(--text-3)] mr-1 uppercase tracking-wide">Llegada</span>
+                                                    {new Date(arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                                <div className="flex items-center text-emerald-400 text-xs font-medium whitespace-nowrap">
+                                                    <Clock size={11} className="mr-1" />
+                                                    <span className="text-[9px] mr-1 uppercase tracking-wide">Entrada</span>
+                                                    {new Date(entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium whitespace-nowrap">
+                                                <Clock size={13} className="mr-1.5" />
+                                                {entryTime ? new Date(entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Buttons */}

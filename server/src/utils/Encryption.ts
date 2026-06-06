@@ -52,14 +52,14 @@ export class Encryption {
       return encryptedData;
     }
 
-    // T-13: Check for structured prefix to detect encrypted data
-    // Support both new 'ENC:' prefix format and legacy colon format
+    if (!this.isEncrypted(encryptedData)) {
+      // Not encrypted (plaintext legacy data)
+      return encryptedData;
+    }
+
     let dataToParse = encryptedData;
     if (encryptedData.startsWith(this.ENCRYPTED_PREFIX)) {
       dataToParse = encryptedData.slice(this.ENCRYPTED_PREFIX.length);
-    } else if (!encryptedData.includes(':')) {
-      // Not encrypted (plaintext legacy data)
-      return encryptedData;
     }
 
     try {
@@ -105,12 +105,19 @@ export class Encryption {
     return crypto.randomBytes(length).toString('hex');
   }
 
-  /**
-   * Check if a value is encrypted (has ENC: prefix or legacy colon format)
-   */
   static isEncrypted(data: string): boolean {
     if (!data) return false;
-    return data.startsWith(this.ENCRYPTED_PREFIX) || (data.includes(':') && data.split(':').length === 3);
+    if (data.startsWith(this.ENCRYPTED_PREFIX)) return true;
+    
+    const parts = data.split(':');
+    if (parts.length === 3) {
+      // Validate legacy format: iv (32 chars hex) and authTag (32 chars hex)
+      const isHex = (str: string) => /^[0-9a-fA-F]+$/.test(str);
+      if (parts[1].length === 32 && isHex(parts[1]) && parts[2].length === 32 && isHex(parts[2])) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 

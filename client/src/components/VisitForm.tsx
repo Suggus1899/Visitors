@@ -7,7 +7,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import VisitorHistoryModal from './VisitorHistoryModal';
 import { BlockVisitorAlert } from './BlockVisitorAlert';
 import { useSoundFeedback } from '../hooks/useSoundFeedback';
-import { useVisitorQuery } from '../hooks/useVisitQueries';
+import { useVisitorQuery, useUpdateVisitorMutation } from '../hooks/useVisitQueries';
 import WizardProgress from './visit/WizardProgress';
 import VisitorLookupStep from './visit/VisitorLookupStep';
 import VisitorInfoStep from './visit/VisitorInfoStep';
@@ -71,6 +71,13 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     const [blockedReason, setBlockedReason] = useState('');
     const { playSuccess, playError } = useSoundFeedback();
 
+    // Estado para tracking de datos originales del visitante (para detectar cambios)
+    const [originalVisitorData, setOriginalVisitorData] = useState<Visitor | null>(null);
+    const [hasVisitorDataChanged, setHasVisitorDataChanged] = useState(false);
+    
+    // Mutation para actualizar visitante
+    const updateVisitorMutation = useUpdateVisitorMutation();
+
     // Query visitor with history when cedula changes (con prefijo V-)
     const fullCedula = cedula.length >= 7 ? `V-${cedula}` : null;
     const { data: visitorData, isLoading: isLoadingVisitor, refetch: refetchVisitor } = useVisitorQuery(fullCedula, true);
@@ -125,6 +132,11 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             if (freshData) {
                 // Cargar datos del visitante encontrado
                 const visitor = freshData as Visitor;
+                
+                // Guardar datos originales para detectar cambios
+                setOriginalVisitorData(visitor);
+                setHasVisitorDataChanged(false);
+                
                 setFormData(prev => ({
                     ...prev,
                     first_name: visitor.first_name || '',
@@ -132,7 +144,8 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     company: visitor.company,
                     job_title: visitor.job_title || '',
                     phone: visitor.phone || '',
-                    photo_url: visitor.photo_url || ''
+                    photo_url: visitor.photo_url || '',
+                    id_photo_url: visitor.id_photo_url || ''
                 }));
                 setValidation({ cedula: true, first_name: !!visitor.first_name, last_name: !!visitor.last_name, company: !!visitor.company, phone: null });
                 
@@ -218,6 +231,30 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         }
         setLoading(true);
         try {
+            // Si los datos del visitante cambiaron, actualizar primero
+            if (hasVisitorDataChanged && originalVisitorData) {
+                try {
+                    // Detectar si la foto es base64 nueva o URL existente
+                    const isNewPhoto = formData.photo_url.startsWith('data:');
+                    const isNewIdPhoto = formData.id_photo_url.startsWith('data:');
+                    await updateVisitorMutation.mutateAsync({
+                        cedula: `V-${cedula}`,
+                        data: {
+                            first_name: formData.first_name,
+                            last_name: formData.last_name,
+                            company: formData.company,
+                            job_title: formData.job_title,
+                            phone: formData.phone,
+                            ...(isNewPhoto && { photoBase64: formData.photo_url }),
+                            ...(isNewIdPhoto && { idPhotoBase64: formData.id_photo_url }),
+                        }
+                    });
+                    toast.success('Datos del visitante actualizados');
+                } catch {
+                    toast.error('Error al actualizar datos del visitante, pero continuará el registro');
+                }
+            }
+
             const fullPhone = formData.phone ? `${phoneCode}${formData.phone}` : '';
 
             // Serialize companions list into the single-value backend fields
@@ -249,12 +286,22 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 department: formData.target_department || formData.department
             });
             playSuccess();
-            toast.success('¡Entrada registrada correctamente!');
-            onVisitAdded();
-            setCedula('');
-            setCurrentStep(1);
-            setFormData(INITIAL_FORM_DATA);
-            setValidation(INITIAL_VALIDATION);
+            
+            if (status === 'waiting') {
+                toast.success('¡Visita puesta en espera! Se mantendrá en la lista de pendientes.');
+                // No reiniciar el formulario, solo notificar al padre y mantener datos
+                onVisitAdded();
+                // Volver al paso 1 pero mantener la cédula para continuar si es necesario
+                setCurrentStep(1);
+            } else {
+                toast.success('¡Entrada registrada correctamente!');
+                onVisitAdded();
+                // Reiniciar completamente para nueva visita
+                setCedula('');
+                setCurrentStep(1);
+                setFormData(INITIAL_FORM_DATA);
+                setValidation(INITIAL_VALIDATION);
+            }
         } catch (err: unknown) {
             const error = err as AxiosError<{ message?: string; error?: { message: string } }>;
             playError();
@@ -296,6 +343,25 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             setBlockedReason('');
         }
     }, [visitorData, playError]);
+
+    // Detectar cambios en los datos del visitante comparando con originales
+    useEffect(() => {
+        if (!originalVisitorData) {
+            setHasVisitorDataChanged(false);
+            return;
+        }
+
+        const hasChanged = 
+            formData.first_name !== (originalVisitorData.first_name || '') ||
+            formData.last_name !== (originalVisitorData.last_name || '') ||
+            formData.company !== (originalVisitorData.company || '') ||
+            formData.job_title !== (originalVisitorData.job_title || '') ||
+            formData.phone !== (originalVisitorData.phone || '') ||
+            formData.photo_url !== (originalVisitorData.photo_url || '') ||
+            formData.id_photo_url !== (originalVisitorData.id_photo_url || '');
+
+        setHasVisitorDataChanged(hasChanged);
+    }, [formData, originalVisitorData]);
 
     return (
         <div className="panel-tech p-6 rounded-2xl relative overflow-hidden">
@@ -345,6 +411,8 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 visitorName={`${formData.first_name} ${formData.last_name}`.trim() || 'Visitante'}
                 isOpen={showHistory}
                 onClose={() => setShowHistory(false)}
+                company={formData.company}
+                photoUrl={formData.photo_url || undefined}
             />
 
             <h2 className="text-lg font-display uppercase tracking-[0.2em] mb-4 flex items-center text-[color:var(--text-1)]">

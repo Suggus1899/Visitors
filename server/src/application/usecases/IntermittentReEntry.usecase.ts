@@ -15,7 +15,7 @@ export class IntermittentReEntryUseCase {
     visitId: number;
     notes?: string;
     registeredBy?: string;
-  }): Promise<{ visit: any; log: any }> {
+  }): Promise<{ visit: any; log: any; duration?: { minutes: number; seconds: number; formatted: string } }> {
     // 1. Find the visit
     const visit = await this.visitRepository.findById(dto.visitId);
     if (!visit) {
@@ -50,6 +50,11 @@ export class IntermittentReEntryUseCase {
       status: activeVisit.status,
     });
 
+    // Calcular duración del período intermitente
+    const durationMs = now.getTime() - openLog.check_out.getTime();
+    const durationMinutes = Math.floor(durationMs / (1000 * 60));
+    const durationSeconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+
     return {
       visit: {
         id: updatedVisit.id,
@@ -63,6 +68,11 @@ export class IntermittentReEntryUseCase {
         re_entry: now.toISOString(),
         notes: openLog.notes,
         registered_by: openLog.registered_by,
+      },
+      duration: {
+        minutes: durationMinutes,
+        seconds: durationSeconds,
+        formatted: `${durationMinutes}m ${durationSeconds}s`, // Formato legible
       },
     };
   }

@@ -26,7 +26,9 @@ export class UpdateVisitorUseCase {
       email: data.email,
       phone: data.phone,
       isBlocked: data.isBlocked,
-      observations: data.observations
+      observations: data.observations,
+      photoBlob: data.photoBlob,
+      idPhotoBlob: data.idPhotoBlob,
     });
 
     return {

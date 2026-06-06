@@ -20,14 +20,39 @@ LogMaster es una aplicación web moderna y segura para la gestión de visitantes
 - **Espacio en Disco**: 500MB para instalación + espacio para datos
 - **Resolución**: Mínimo 1366x768
 
-## ⚡ Inicio Rápido
+## ⚡ Inicio Rápido (Docker Portable)
 
-### Instalación para Usuarios
+Sistema completo en 3 contenedores. Solo necesitas Docker Desktop.
 
-1. Descarga el instalador desde [Releases](https://github.com/tu-usuario/logmaster/releases)
-2. Ejecuta `LogMaster-1.0.0-win.zip`
-3. Extrae y ejecuta `LogMaster.exe`
-4. Crea tu cuenta de administrador en el primer inicio
+### Requisitos
+
+- Docker Desktop instalado y corriendo: https://www.docker.com/products/docker-desktop
+
+### Ejecutar (Primera vez)
+
+```bash
+# Doble clic en:
+scripts\start.bat
+
+# Esperar 3-5 minutos (construcción inicial)
+# Navegador se abre automáticamente en http://localhost
+```
+
+### Uso Diario
+
+| Acción            | Script                      |
+| ----------------- | --------------------------- |
+| Iniciar           | `scripts\start.bat`         |
+| Detener           | `scripts\detener.bat`       |
+| Ver estado        | `scripts\status.bat`        |
+| Verificar sistema | `scripts\verify-system.bat` |
+
+### Acceso desde Red LAN
+
+1. Ejecutar `scripts\status.bat` para ver la IP (ej: `192.168.1.108`)
+2. Desde otra PC: `http://192.168.1.108`
+
+Ver guía completa: [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
 
 ### Instalación para Desarrollo
 
@@ -73,7 +98,8 @@ DB_PASSWORD=tu_contraseña_postgres
 
 ## 📚 Documentación
 
-- **[Guía de Instalación](docs/SETUP.md)**: Instrucciones de instalación y configuración
+- **[Inicio Rápido](docs/QUICKSTART.md)** 🚀: Guía mínima para ejecutar en cualquier PC
+- **[Guía de Instalación](docs/SETUP.md)**: Instrucciones detallas de instalación
 - **[Docker](docs/DOCKER.md)**: Stack de 3 contenedores y despliegue
 - **[API](docs/API.md)**: Documentación de endpoints REST
 - **[Manual de Usuario](docs/USER_MANUAL.md)**: Guía operativa por rol
@@ -131,11 +157,13 @@ npm run electron:start   # Inicia Electron (requiere build previo)
 npm run install-all      # Instala dependencias en todos los módulos
 
 # Scripts Windows (Batch)
-scripts\deploy.bat       # Deploy completo (env + build + up + healthcheck)
-scripts\auto-env.bat     # Solo detectar IP y actualizar .env
-scripts\detener.bat      # Detener servicios
-scripts\monitor-health.bat # Monitoreo continuo de salud
-scripts\setup-ssl.bat    # Generar certificados SSL
+scripts\start.bat         # Iniciar todo (detecta primera vez o reinicio)
+scripts\detener.bat       # Detener servicios
+scripts\status.bat        # Ver estado de contenedores y URLs
+scripts\verify-system.bat # Verificación completa del sistema
+scripts\auto-env.bat      # Reconfigurar IP y entorno
+scripts\setup-ssl.bat     # Generar certificados SSL
+scripts\monitor-health.bat # Monitoreo continuo avanzado
 ```
 
 ## 🗂️ Estructura del Proyecto
@@ -143,17 +171,21 @@ scripts\setup-ssl.bat    # Generar certificados SSL
 ```
 logmaster/
 ├── scripts/             # Scripts de automatización (Windows)
-│   ├── deploy.bat       # Deploy completo (auto-env + build + up)
-│   ├── auto-env.bat     # Auto-detecta IP y configura .env
-│   ├── detener.bat      # Detener servicios (docker-compose down)
-│   ├── monitor-health.bat # Monitoreo de salud continuo
-│   └── setup-ssl.bat    # Generar certificados SSL
-├── docs/                # Documentación centralizada
-│   ├── SETUP.md         # Guía de instalación
-│   ├── DOCKER.md        # Guía Docker (3 contenedores)
-│   ├── API.md           # Documentación API
-│   ├── USER_MANUAL.md   # Manual de usuario
-│   └── ROADMAP.md       # Plan de desarrollo
+│   ├── start.bat          # Iniciar todo (inteligente: build si es primera vez)
+│   ├── detener.bat        # Detener servicios
+│   ├── status.bat         # Ver estado y URLs de acceso
+│   ├── verify-system.bat  # Verificación completa del sistema
+│   ├── auto-env.bat       # Auto-detecta IP y configura .env
+│   ├── setup-ssl.bat      # Generar certificados SSL
+│   └── monitor-health.bat # Monitoreo continuo
+├── docs/                # Documentación centralizada (7 archivos)
+│   ├── QUICKSTART.md      # 🚀 Guía mínima (Docker Portable)
+│   ├── SETUP.md           # Guía completa de instalación
+│   ├── DOCKER.md          # Stack de 3 contenedores
+│   ├── API.md             # Documentación de endpoints
+│   ├── USER_MANUAL.md     # Manual operativo por rol
+│   ├── ROADMAP.md         # Plan de desarrollo
+│   └── SEED_CREDENTIALS.md # Usuarios/contraseñas de desarrollo
 ├── client/              # Frontend React
 │   ├── src/
 │   │   ├── components/  # Componentes UI

@@ -81,9 +81,11 @@ export class CheckInVisitorUseCase {
 
     // 3. Create new visit
     const visitStatus = dto.status || VisitStatus.ACTIVE;
+    const now = new Date();
+    const entryTime = visitStatus === VisitStatus.ACTIVE ? now : undefined;
     const visit = new Visit(
       dto.visitorCedula,
-      new Date(),
+      now,
       dto.purpose,
       dto.personToVisit,
       visitStatus,
@@ -99,7 +101,9 @@ export class CheckInVisitorUseCase {
       dto.vehiclePlate,
       dto.area,
       dto.action,
-      dto.department
+      dto.department,
+      now,         // arrivalTime - siempre la hora actual de registro
+      entryTime,   // entryTime - solo si es active directo
     );
 
     const createdVisit = await this.visitRepository.create(visit);

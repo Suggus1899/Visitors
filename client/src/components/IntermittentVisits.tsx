@@ -7,7 +7,7 @@ import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
 import User from 'lucide-react/dist/esm/icons/user';
 import { IntermittentVisit } from '../types';
 import { SkeletonVisitCard } from './ui/Skeleton';
-import { useReactivateVisitMutation } from '../hooks/useVisitQueries';
+import { useReactivateVisitMutation, useLiveDuration } from '../hooks/useVisitQueries';
 import { VisitService } from '../services/api.v1';
 import { sanitizeInput } from '../utils/sanitizer';
 import toast from 'react-hot-toast';
@@ -24,6 +24,18 @@ interface IntermittentVisitsProps {
 const formatMinutes = (mins: number): string => {
     if (mins < 60) return `${mins}m fuera`;
     return `${Math.floor(mins / 60)}h ${mins % 60}m fuera`;
+};
+
+// Component for live duration counter
+const LiveDurationBadge: React.FC<{ startTime: string | Date }> = ({ startTime }) => {
+    const { formatted } = useLiveDuration(startTime);
+    
+    return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-400/50 whitespace-nowrap flex-shrink-0 animate-pulse">
+            <Clock size={10} />
+            {formatted} fuera
+        </span>
+    );
 };
 
 const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReactivated, loading = false }) => {
@@ -128,26 +140,36 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                                     <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 animate-pulse border-2 border-[color:var(--bg-0)]" />
                                 </div>
 
-                                <div className="flex-1 min-w-0 pt-0.5">
-                                    <div className="flex justify-between items-start">
-                                        <h3 className="text-base font-semibold text-[color:var(--text-1)] pr-2 group-hover:text-amber-300 transition-colors leading-snug">
+                                <div className="flex-1 min-w-0">
+                                    {/* Nombre y badge en una línea */}
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h3 className="text-base font-semibold text-[color:var(--text-1)] group-hover:text-amber-300 transition-colors leading-tight">
                                             {visitorName}
                                         </h3>
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-400/50 whitespace-nowrap ml-2">
-                                            <Clock size={10} />
-                                            {formatMinutes(visit.minutesOutside)}
-                                        </span>
+                                        {/* Live counter for current intermittent period */}
+                                        {visit.lastExitTime ? (
+                                            <LiveDurationBadge startTime={visit.lastExitTime} />
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-400/50 whitespace-nowrap flex-shrink-0">
+                                                <Clock size={10} />
+                                                {formatMinutes(visit.minutesOutside)}
+                                            </span>
+                                        )}
                                     </div>
 
-                                    <div className="flex items-start text-xs text-[color:var(--text-2)] mt-1 mb-0.5">
-                                        <Briefcase size={12} className="mr-1.5 opacity-70 mt-0.5 flex-shrink-0" />
-                                        <span className="font-medium leading-normal">{company}</span>
-                                    </div>
-                                    <div className="flex items-center text-xs text-[color:var(--text-3)] font-mono">
-                                        C.I. {visit.visitorCedula}
+                                    {/* Info secundaria: empresa y cédula */}
+                                    <div className="mt-1 space-y-0.5">
+                                        <div className="flex items-center text-xs text-[color:var(--text-2)]">
+                                            <Briefcase size={12} className="mr-1.5 opacity-70 flex-shrink-0" />
+                                            <span className="font-medium truncate">{company}</span>
+                                        </div>
+                                        <div className="flex items-center text-xs text-[color:var(--text-3)] font-mono">
+                                            C.I. {visit.visitorCedula}
+                                        </div>
                                     </div>
 
-                                    <div className="mt-3 flex flex-wrap gap-2">
+                                    {/* Propósito */}
+                                    <div className="mt-2">
                                         <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-[color:var(--surface-2)] text-[color:var(--text-2)] border border-[color:var(--border-1)]">
                                             {purpose}
                                         </span>
@@ -157,19 +179,19 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
 
                             {/* Footer */}
                             <div className="px-4 py-3 border-t border-amber-500/20 bg-amber-500/5 mt-auto">
-                                <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center justify-between">
                                     {/* Exit time + intervals toggle */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium whitespace-nowrap">
-                                            <Clock size={13} className="mr-1.5" />
-                                            Salió: {new Date(visit.lastExitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center text-[color:var(--text-3)] text-xs font-medium">
+                                            <Clock size={13} className="mr-1.5 flex-shrink-0" />
+                                            <span className="whitespace-nowrap">Salió: {new Date(visit.lastExitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                         </div>
                                         <button
                                             onClick={() => setExpandedId(isExpanded ? null : visit.id)}
-                                            className="flex items-center gap-1 text-[10px] text-[color:var(--text-3)] hover:text-amber-300 transition-colors"
+                                            className="flex items-center gap-0.5 text-[10px] text-[color:var(--text-3)] hover:text-amber-300 transition-colors px-1 py-0.5 rounded hover:bg-amber-500/10"
                                         >
-                                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                                            {visit.intervals.length}
+                                            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                            <span className="font-medium">{visit.intervals.length}</span>
                                         </button>
                                     </div>
 
@@ -177,7 +199,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                                     <button
                                         onClick={(e) => handleReactivate(e, visit.id, visitorName)}
                                         disabled={isReactivating}
-                                        className="group/rbtn relative px-3 py-2 rounded-lg border border-emerald-500/50 text-emerald-300 text-[11px] font-semibold hover:border-emerald-400 hover:bg-emerald-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
+                                        className="group/rbtn relative px-3 py-1.5 rounded-lg border border-emerald-500/50 text-emerald-300 text-[11px] font-semibold hover:border-emerald-400 hover:bg-emerald-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
                                     >
                                         {isReactivating ? (
                                             <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />

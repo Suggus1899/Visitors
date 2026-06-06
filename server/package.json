@@ -25,8 +25,6 @@
     "backup:monitor": "docker exec logmaster-postgres psql -U postgres -c \"SELECT pg_size_pretty(pg_total_relation_size('\\\"Visitors\\\"'));\""
   },
   "dependencies": {
-    "pg": "^8.13.3",
-    "pg-hstore": "^2.3.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.4",
@@ -36,6 +34,8 @@
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.2.1",
     "pdfkit": "^0.17.2",
+    "pg": "^8.13.3",
+    "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",

@@ -49,6 +49,7 @@ export interface IVisitRepository {
   update(id: number, data: {
     checkInTime?: Date;
     checkOutTime?: Date;
+    arrivalTime?: Date;  // Hora de llegada original (no se modifica, solo se preserva)
     entryTime?: Date;
     exitTime?: Date;
     status?: VisitStatus;

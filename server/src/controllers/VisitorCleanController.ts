@@ -59,7 +59,28 @@ export const getAllVisitors = async (req: Request, res: Response) => {
 export const updateVisitor = async (req: Request, res: Response) => {
   try {
     const cedula = req.params.cedula as string;
-    const visitorData = req.body;
+    const { photoBase64, idPhotoBase64, photoUrl, idPhotoUrl, ...rest } = req.body;
+
+    // Normalize snake_case fields from frontend to camelCase for DTO
+    const firstName = rest.firstName || rest.first_name;
+    const lastName = rest.lastName || rest.last_name;
+    const jobTitle = rest.jobTitle || rest.job_title;
+
+    // Convert base64 photos to Buffer if provided
+    let photoBlob: Buffer | undefined;
+    let idPhotoBlob: Buffer | undefined;
+
+    if (photoBase64 && typeof photoBase64 === 'string' && photoBase64.startsWith('data:')) {
+      const clean = photoBase64.replace(/^data:image\/\w+;base64,/, '');
+      photoBlob = Buffer.from(clean, 'base64');
+    }
+
+    if (idPhotoBase64 && typeof idPhotoBase64 === 'string' && idPhotoBase64.startsWith('data:')) {
+      const clean = idPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
+      idPhotoBlob = Buffer.from(clean, 'base64');
+    }
+
+    const visitorData = { ...rest, firstName, lastName, jobTitle, photoBlob, idPhotoBlob };
 
     const useCase = container.updateVisitorUseCase;
     const updatedVisitor = await useCase.execute(cedula, visitorData);

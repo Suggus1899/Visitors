@@ -15,7 +15,7 @@ export class IntermittentExitUseCase {
     visitId: number;
     notes?: string;
     registeredBy?: string;
-  }): Promise<{ visit: any; log: any }> {
+  }): Promise<{ visit: any; log: any; intermittentStartTime?: string }> {
     // 1. Find the visit
     const visit = await this.visitRepository.findById(dto.visitId);
     if (!visit) {
@@ -51,6 +51,7 @@ export class IntermittentExitUseCase {
         notes: log.notes,
         registered_by: log.registered_by,
       },
+      intermittentStartTime: log.check_out.toISOString(), // Tiempo de inicio para el contador UI
     };
   }
 }

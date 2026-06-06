@@ -22,25 +22,25 @@ const fix = async () => {
             // Actually migration used: "UPDATE ... encrypted_cedula = :newEncrypted".
             // newEncrypted was plain text.
             
-            if (v.encrypted_cedula && !v.encrypted_cedula.includes(':')) {
+            if (v.encrypted_cedula && !Encryption.isEncrypted(v.encrypted_cedula)) {
                 v.setDataValue('encrypted_cedula', Encryption.encrypt(v.encrypted_cedula));
                 changed = true;
             }
 
             // Check other fields
-            if (v.first_name && !v.first_name.includes(':')) {
+            if (v.first_name && !Encryption.isEncrypted(v.first_name)) {
                 v.setDataValue('first_name', Encryption.encrypt(v.first_name));
                 changed = true;
             }
-            if (v.last_name && !v.last_name.includes(':')) {
+            if (v.last_name && !Encryption.isEncrypted(v.last_name)) {
                 v.setDataValue('last_name', Encryption.encrypt(v.last_name));
                 changed = true;
             }
-            if (v.email && !v.email.includes(':')) {
+            if (v.email && !Encryption.isEncrypted(v.email)) {
                 v.setDataValue('email', Encryption.encrypt(v.email));
                 changed = true;
             }
-            if (v.phone && !v.phone.includes(':')) {
+            if (v.phone && !Encryption.isEncrypted(v.phone)) {
                 v.setDataValue('phone', Encryption.encrypt(v.phone));
                 changed = true;
             }

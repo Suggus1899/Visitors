@@ -3,6 +3,10 @@ import Shield from 'lucide-react/dist/esm/icons/shield';
 import Download from 'lucide-react/dist/esm/icons/download';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
+import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
 interface AuditHeaderProps {
     autoRefresh: boolean;
@@ -21,6 +25,15 @@ const AuditHeader = ({
     fetchData,
     loading
 }: AuditHeaderProps) => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const handleBack = () => {
+        if (user?.role === 'admin') navigate('/admin');
+        else if (user?.role === 'superadmin') navigate('/superadmin');
+        else navigate('/');
+    };
+
     return (
         <div className="flex flex-col md:flex-row justify-between items-center panel-tech p-6 rounded-xl gap-4">
             <div>
@@ -30,7 +43,16 @@ const AuditHeader = ({
                 </h1>
                 <p className="text-[color:var(--text-3)]">Monitorización y rastro de actividades del sistema</p>
             </div>
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-3 items-center flex-wrap">
+                <button
+                    onClick={handleBack}
+                    className="btn-ghost px-4 py-2 border border-[color:var(--border-1)] flex items-center gap-2"
+                    title="Volver al dashboard"
+                >
+                    <ArrowLeft size={16} />
+                    <LayoutDashboard size={16} />
+                    <span className="hidden sm:inline text-xs">Dashboard</span>
+                </button>
                 <ThemeToggle />
                 <div className="flex items-center gap-2 mr-4 bg-[color:var(--surface-2)] rounded-lg px-3 py-2 border border-[color:var(--border-1)]">
                     <span className="text-xs text-[color:var(--text-3)] font-medium">Auto-refresh</span>

@@ -19,9 +19,11 @@ export class AdmitVisitorUseCase {
     const now = new Date();
     const admittedVisit = visit.admit(now);
 
+    // Preservar arrivalTime original y solo actualizar entryTime
     const updatedVisit = await this.visitRepository.update(visitId, {
       checkInTime: admittedVisit.checkInTime,
-      entryTime: now,  // Hora de entrada automática al admitir
+      arrivalTime: visit.arrivalTime,  // Preservar hora original de llegada
+      entryTime: now,  // Hora actual de entrada (cuando se admite)
       status: admittedVisit.status
     });
 

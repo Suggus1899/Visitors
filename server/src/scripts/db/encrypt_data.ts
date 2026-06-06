@@ -46,11 +46,10 @@ const migrate = async () => {
 
             const newHash = Encryption.hash(oldCedula);
             const newEncrypted = Encryption.encrypt(oldCedula);
-            
-            const firstName = v.first_name && !v.first_name.includes(':') ? Encryption.encrypt(v.first_name) : v.first_name;
-            const lastName = v.last_name && !v.last_name.includes(':') ? Encryption.encrypt(v.last_name) : v.last_name;
-            const email = v.email && !v.email.includes(':') ? Encryption.encrypt(v.email) : v.email;
-            const phone = v.phone && !v.phone.includes(':') ? Encryption.encrypt(v.phone) : v.phone;
+            const firstName = v.first_name && !Encryption.isEncrypted(v.first_name) ? Encryption.encrypt(v.first_name) : v.first_name;
+            const lastName = v.last_name && !Encryption.isEncrypted(v.last_name) ? Encryption.encrypt(v.last_name) : v.last_name;
+            const email = v.email && !Encryption.isEncrypted(v.email) ? Encryption.encrypt(v.email) : v.email;
+            const phone = v.phone && !Encryption.isEncrypted(v.phone) ? Encryption.encrypt(v.phone) : v.phone;
 
             const t = await sequelize.transaction();
 

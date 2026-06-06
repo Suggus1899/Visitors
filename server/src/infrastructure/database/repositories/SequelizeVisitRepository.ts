@@ -163,6 +163,9 @@ export class SequelizeVisitRepository implements IVisitRepository {
       visitor_cedula: hashedCedula,  // Data field
       check_in_time: visit.checkInTime,
       check_out_time: visit.checkOutTime || null,
+      arrival_time: visit.arrivalTime || visit.checkInTime,
+      entry_time: visit.entryTime || null,
+      exit_time: visit.exitTime || null,
       purpose: visit.purpose,
       person_to_visit: visit.personToVisit,
       status: visit.status,
@@ -193,6 +196,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
     await model.update({
       check_in_time: data.checkInTime,
       check_out_time: data.checkOutTime,
+      arrival_time: data.arrivalTime,  // Preservar hora de llegada original
       entry_time: data.entryTime,
       exit_time: data.exitTime,
       status: data.status,
@@ -342,10 +346,15 @@ export class SequelizeVisitRepository implements IVisitRepository {
 
     if (model.Visitor) {
         if (typeof model.Visitor.getDecrypted === 'function') {
-            const decrypted = model.Visitor.getDecrypted();
-            visitorName = `${decrypted.first_name || ''} ${decrypted.last_name || ''}`.trim();
-            visitorCompany = decrypted.company;
-            visitorCedula = decrypted.cedula;
+            try {
+                const decrypted = model.Visitor.getDecrypted();
+                visitorName = `${decrypted.first_name || ''} ${decrypted.last_name || ''}`.trim();
+                visitorCompany = decrypted.company;
+                visitorCedula = decrypted.cedula;
+            } catch {
+                visitorName = 'Visitante (error de cifrado)';
+                visitorCompany = undefined;
+            }
         }
     }
 

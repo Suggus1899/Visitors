@@ -5,8 +5,14 @@ import RefreshCcw from 'lucide-react/dist/esm/icons/refresh-ccw';
 import X from 'lucide-react/dist/esm/icons/x';
 import Upload from 'lucide-react/dist/esm/icons/upload';
 import ImageIcon from 'lucide-react/dist/esm/icons/image';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import toast from 'react-hot-toast';
 import { validateImage } from '../utils/photoValidator';
+
+interface CameraDevice {
+    deviceId: string;
+    label: string;
+}
 
 interface PhotoCaptureProps {
     onCapture: (imageSrc: string) => void;
@@ -21,6 +27,33 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
     const [isActive, setIsActive] = useState(false);
     const [countdown, setCountdown] = useState<number | null>(null);
     const [showGuide, setShowGuide] = useState(true);
+    const [cameras, setCameras] = useState<CameraDevice[]>([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+
+    // Enumerate available cameras on mount
+    useEffect(() => {
+        const loadCameras = async () => {
+            try {
+                // Request permission first so labels are available
+                await navigator.mediaDevices.getUserMedia({ video: true }).then(s => s.getTracks().forEach(t => t.stop()));
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices
+                    .filter(d => d.kind === 'videoinput')
+                    .map((d, i) => ({
+                        deviceId: d.deviceId,
+                        label: d.label || `Cámara ${i + 1}`
+                    }));
+                setCameras(videoDevices);
+                if (videoDevices.length > 0 && !selectedDeviceId) {
+                    setSelectedDeviceId(videoDevices[0].deviceId);
+                }
+            } catch {
+                // Permission denied or no cameras — will fall back to default
+            }
+        };
+        loadCameras();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleCapture = useCallback(() => {
         if (webcamRef.current) {
@@ -125,6 +158,30 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
     if (!isActive) {
         return (
             <div className="w-full max-w-sm mx-auto space-y-3">
+                {/* Camera selector — only shown when multiple cameras detected */}
+                {cameras.length > 1 && (
+                    <div className="relative">
+                        <label className="block text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.15em] mb-1">
+                            Seleccionar cámara
+                        </label>
+                        <div className="relative">
+                            <Camera size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-3)] pointer-events-none" />
+                            <select
+                                value={selectedDeviceId}
+                                onChange={(e) => setSelectedDeviceId(e.target.value)}
+                                className="w-full pl-8 pr-8 py-2 text-sm bg-[color:var(--surface-1)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)] appearance-none cursor-pointer"
+                            >
+                                {cameras.map((cam) => (
+                                    <option key={cam.deviceId} value={cam.deviceId}>
+                                        {cam.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-3)] pointer-events-none" />
+                        </div>
+                    </div>
+                )}
+
                 {/* Camera trigger */}
                 <div
                     className="h-40 bg-[color:var(--surface-2)] border-2 border-dashed border-[color:var(--border-1)] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[color:var(--accent-0)] transition-all group"
@@ -134,6 +191,11 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                         <Camera size={24} className="text-[color:var(--text-3)] group-hover:text-[color:var(--accent-0)] transition-colors" />
                     </div>
                     <span className="text-sm text-[color:var(--text-3)] font-medium group-hover:text-[color:var(--accent-0)]">Usar Cámara</span>
+                    {cameras.length === 1 && (
+                        <span className="text-[10px] text-[color:var(--text-3)] mt-0.5 opacity-60 truncate max-w-[90%] text-center px-2">
+                            {cameras[0].label}
+                        </span>
+                    )}
                 </div>
 
                 {/* File upload alternative */}
@@ -165,11 +227,11 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
                     className="w-full"
-                    videoConstraints={{
-                        width: 400,
-                        height: 400,
-                        facingMode: "user"
-                    }}
+                    videoConstraints={
+                        selectedDeviceId
+                            ? { width: 400, height: 400, deviceId: { exact: selectedDeviceId } }
+                            : { width: 400, height: 400, facingMode: 'user' }
+                    }
                 />
 
                 {/* Face guide overlay */}

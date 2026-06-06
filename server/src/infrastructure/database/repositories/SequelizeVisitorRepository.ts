@@ -232,26 +232,36 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
    * Convert Sequelize model to domain entity
    */
   private toDomain(model: InstanceType<typeof VisitorModel>): Visitor {
-    // Use helper to get decrypted values
-    const decrypted = model.getDecrypted();
-    
-    return new Visitor(
-      decrypted.id,
-      decrypted.cedula,
-      decrypted.first_name,
-      decrypted.last_name,
-      decrypted.company,
-      decrypted.job_title || undefined,
-      decrypted.photo_url || undefined,
-      decrypted.id_photo_url || undefined,
-      decrypted.email || undefined,
-      decrypted.phone || undefined,
-      model.photo_data || undefined,
-      model.id_photo_data || undefined,
-      decrypted.isBlocked,
-      decrypted.observations || undefined,
-      decrypted.createdAt
-    );
+    try {
+      const decrypted = model.getDecrypted();
+      return new Visitor(
+        decrypted.id,
+        decrypted.cedula,
+        decrypted.first_name,
+        decrypted.last_name,
+        decrypted.company,
+        decrypted.job_title || undefined,
+        decrypted.photo_url || undefined,
+        decrypted.id_photo_url || undefined,
+        decrypted.email || undefined,
+        decrypted.phone || undefined,
+        model.photo_data || undefined,
+        model.id_photo_data || undefined,
+        decrypted.isBlocked,
+        decrypted.observations || undefined,
+        decrypted.createdAt
+      );
+    } catch {
+      return new Visitor(
+        model.id,
+        `ERR-${model.id}`,
+        '(cifrado',
+        'inválido)',
+        'N/A',
+        undefined, undefined, undefined, undefined, undefined,
+        undefined, undefined, false, undefined, undefined
+      );
+    }
   }
 }
 

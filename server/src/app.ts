@@ -18,6 +18,7 @@ import auditCleanRoutes from "./routes/audit-clean.routes";
 import privacyCleanRoutes from "./routes/privacy-clean.routes";
 import superadminRoutes from "./routes/superadmin.routes";
 import eventsRoutes from "./routes/events.routes";
+import healthRoutes from "./routes/health.routes";
 import { captureClientInfo } from "./middleware/ipCapture";
 import { firewall } from "./middleware/firewall";
 
@@ -164,6 +165,9 @@ app.get("/", (req, res) => {
     </div>
   `);
 });
+
+// Healthcheck endpoint (exempt from rate limiting)
+app.use("/api/v1/health", healthRoutes);
 
 // Global Rate Limiting
 app.use("/api", apiLimiter);

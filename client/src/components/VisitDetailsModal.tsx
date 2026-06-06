@@ -192,6 +192,21 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
                         </div>
                     </div>
 
+                    {/* ── Intermittent Counter Badge ── */}
+                    {visit.intermittent_logs && visit.intermittent_logs.length > 0 && (
+                        <div className="mt-4 flex justify-center">
+                            <div className="bg-amber-500/10 border border-amber-400/50 px-4 py-2 rounded-full flex items-center gap-2">
+                                <Clock size={16} className="text-amber-400" />
+                                <span className="text-sm font-semibold text-amber-400">
+                                    {visit.intermittent_logs.length} {visit.intermittent_logs.length === 1 ? 'Intermitencia' : 'Intermitencias'}
+                                </span>
+                                <span className="text-[10px] text-amber-400/70 uppercase tracking-wider">
+                                    ({visit.intermittent_logs.filter(l => !l.re_entry).length} actualmente fuera)
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* ── Schedule Cards (Arrival / Entry / Exit) ── */}
                     {(visit.arrival_time || visit.entry_time || visit.exit_time || visit.check_out) && (
                         <div className="mt-6 grid grid-cols-3 gap-3 text-left">
@@ -256,33 +271,58 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
                         <div className="mt-4 bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl">
                             <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-amber-400 mb-3 flex items-center gap-2">
                                 <Clock size={14} />
-                                Registros de Salida/Entrada Temporal
+                                Detalle de Intermitencias
                             </p>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {visit.intermittent_logs.map((log, idx) => (
-                                    <div key={log.id} className="flex items-center justify-between bg-[color:var(--surface-2)] p-2.5 rounded-lg">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-xs font-mono text-[color:var(--text-3)] bg-[color:var(--surface-1)] px-1.5 py-0.5 rounded">#{idx + 1}</span>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs text-amber-400 flex items-center gap-1">
-                                                    <LogOut size={12} /> Salida: {new Date(log.check_out).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                    <div key={log.id} className="bg-[color:var(--surface-2)] p-3 rounded-lg border border-amber-400/20">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-400/30">
+                                                    #{idx + 1}
                                                 </span>
-                                                {log.re_entry && (
-                                                    <span className="text-xs text-emerald-400 flex items-center gap-1 mt-0.5">
-                                                        <LogIn size={12} /> Reingreso: {new Date(log.re_entry).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs text-amber-400 flex items-center gap-1 font-medium">
+                                                        <LogOut size={12} />
+                                                        Salida: {new Date(log.check_out).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                    {log.re_entry && (
+                                                        <span className="text-xs text-emerald-400 flex items-center gap-1 mt-1 font-medium">
+                                                            <LogIn size={12} />
+                                                            Reingreso: {new Date(log.re_entry).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                {log.re_entry ? (
+                                                    <span className="text-[10px] bg-[color:var(--surface-1)] px-2 py-1 rounded text-[color:var(--text-2)] border border-[color:var(--border-1)]">
+                                                        {(() => {
+                                                            const ms = new Date(log.re_entry).getTime() - new Date(log.check_out).getTime();
+                                                            const totalSec = Math.floor(ms / 1000);
+                                                            const h = Math.floor(totalSec / 3600);
+                                                            const m = Math.floor((totalSec % 3600) / 60);
+                                                            const s = totalSec % 60;
+                                                            if (h > 0) return `${h}h ${m}m fuera`;
+                                                            if (m > 0) return `${m}m ${s}s fuera`;
+                                                            return `${s}s fuera`;
+                                                        })()}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] bg-amber-500/20 px-2 py-1 rounded text-amber-400 border border-amber-400/30 animate-pulse">
+                                                        Aún fuera
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            {log.re_entry ? (
-                                                <span className="text-[10px] text-[color:var(--text-3)]">
-                                                    {Math.round((new Date(log.re_entry).getTime() - new Date(log.check_out).getTime()) / 60000)} min fuera
-                                                </span>
-                                            ) : (
-                                                <span className="text-[10px] text-amber-400 animate-pulse">Aún fuera</span>
-                                            )}
-                                        </div>
+                                        {/* Motivo de la salida temporal */}
+                                        {log.notes && (
+                                            <div className="mt-2 pt-2 border-t border-amber-400/10">
+                                                <p className="text-[11px] text-[color:var(--text-3)] italic">
+                                                    <span className="text-amber-400/70 font-medium">Motivo:</span> {log.notes}
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

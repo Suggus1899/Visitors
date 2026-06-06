@@ -120,24 +120,26 @@ const OperationsView = () => {
                     <HelpCircle size={18} />
                 </button>
 
-                {user?.role === 'admin' && (
-                    <button
-                        data-tour="admin-btn"
-                        onClick={() => navigate('/admin')}
-                        className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors"
-                    >
-                        <LayoutDashboard size={16} className="mr-1" /> Admin
-                    </button>
-                )}
+                <div className="flex items-center gap-2">
+                    {user?.role === 'admin' && (
+                        <button
+                            data-tour="admin-btn"
+                            onClick={() => navigate('/admin')}
+                            className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-2 rounded-md text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition-colors h-9"
+                        >
+                            <LayoutDashboard size={16} /> Admin
+                        </button>
+                    )}
 
-                {(user?.role === 'admin' || user?.role === 'auditor') && (
-                    <button
-                        onClick={() => navigate('/audit')}
-                        className="bg-transparent border border-[color:var(--accent-2)] text-[color:var(--accent-0)] hover:text-[color:var(--text-1)] hover:border-[color:var(--accent-0)] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors"
-                    >
-                        <Shield size={16} className="mr-1" /> Auditoría
-                    </button>
-                )}
+                    {(user?.role === 'admin' || user?.role === 'auditor') && (
+                        <button
+                            onClick={() => navigate('/audit')}
+                            className="bg-transparent border border-[color:var(--accent-2)] text-[color:var(--accent-0)] hover:text-[color:var(--text-1)] hover:border-[color:var(--accent-0)] hover:bg-[color:var(--surface-2)] px-3 py-2 rounded-md text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition-colors h-9"
+                        >
+                            <Shield size={16} /> Auditoría
+                        </button>
+                    )}
+                </div>
             </Header>
 
             <main className="container mx-auto px-4 py-8 relative z-10">

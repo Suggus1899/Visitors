@@ -247,6 +247,12 @@ export const VisitService = {
         };
     },
 
+    getRecentVisits: async (limit = 20) => {
+        const response = await api.get(`/visits?status=completed&limit=${limit}&page=1`);
+        const result = unwrapResponse<{ visits: VisitDTO[]; total: number }>(response.data);
+        return Array.isArray(result.visits) ? result.visits.map(adaptVisit) : [];
+    },
+
     getWaitingVisits: async () => {
         const response = await api.get('/visits/waiting');
         const data = unwrapResponse<VisitDTO[]>(response.data);
@@ -329,7 +335,7 @@ export const VisitService = {
         return unwrapResponse(response.data);
     },
 
-    updateVisitor: async (cedula: string, data: Partial<Visitor>): Promise<Visitor> => {
+    updateVisitor: async (cedula: string, data: Partial<Visitor> & { photoBase64?: string; idPhotoBase64?: string; firstName?: string; lastName?: string; jobTitle?: string; photoUrl?: string; idPhotoUrl?: string }): Promise<Visitor> => {
         const response = await api.patch(`/visitors/${cedula}`, data);
         return unwrapResponse<Visitor>(response.data);
     },

@@ -68,18 +68,6 @@ const Login = () => {
         }
     };
 
-    const handleDemoMode = () => {
-        setUsername('demo');
-        setPassword('Demo123!@#');
-        toast('Credenciales demo cargadas');
-    };
-
-    const handleAuditMode = () => {
-        setUsername('auditor');
-        setPassword('Audit2026!@#');
-        toast('Credenciales de auditor cargadas');
-    };
-
     return (
         <div className="min-h-screen bg-[color:var(--bg-0)] text-[color:var(--text-1)] flex items-center justify-center p-6 relative overflow-hidden">
             <div className="absolute inset-0 bg-blueprint opacity-40" />
@@ -180,25 +168,6 @@ const Login = () => {
                             )}
                         </button>
                     </form>
-
-                    <div className="mt-8 grid grid-cols-2 gap-4 animate-fadeIn" style={{ animationDelay: '0.3s' }}>
-                        <button
-                            type="button"
-                            onClick={handleDemoMode}
-                            disabled={isLoading}
-                            className="btn-ghost text-[11px] uppercase tracking-[0.2em]"
-                        >
-                            Demo
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleAuditMode}
-                            disabled={isLoading}
-                            className="btn-ghost text-[11px] uppercase tracking-[0.2em] border-[color:var(--accent-2)] text-[color:var(--accent-0)] hover:text-[color:var(--text-1)]"
-                        >
-                            Auditoria
-                        </button>
-                    </div>
 
                     <div className="mt-8 text-center animate-fadeIn" style={{ animationDelay: '0.4s' }}>
                         <p className="text-[10px] text-[color:var(--text-3)] uppercase tracking-[0.3em] font-medium">

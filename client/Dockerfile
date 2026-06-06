@@ -38,6 +38,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Create SSL directory and set permissions
+RUN mkdir -p /etc/nginx/ssl && \
+    chown -R nginx:nginx /etc/nginx/ssl
+
 # Create directories for logs with proper permissions
 RUN mkdir -p /var/log/nginx && \
     chown -R nginx:nginx /var/log/nginx /usr/share/nginx/html && \
@@ -45,8 +49,8 @@ RUN mkdir -p /var/log/nginx && \
     chown -R nginx:nginx /var/run && \
     chown -R nginx:nginx /etc/nginx/conf.d
 
-# Switch to non-root user
-USER nginx
+# Note: Running as root to handle SSL certs from Windows volume mount
+# SSL certificates need root access when mounted from Docker volume on Windows
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \

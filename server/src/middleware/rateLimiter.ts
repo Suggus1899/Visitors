@@ -1,7 +1,16 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import config from '../config/AppConfig';
 import { Request, Response } from 'express';
 import logger from '../config/logger';
+
+// Safe IP key generator that normalises IPv4-mapped IPv6 (::ffff:x.x.x.x)
+// and delegates IPv6 subnet handling to ipKeyGenerator.
+const getClientIp = (req: Request): string => {
+  const raw = req.ip || req.socket?.remoteAddress || 'unknown';
+  // Strip IPv4-mapped prefix so ipKeyGenerator receives a clean address
+  const ip = raw.startsWith('::ffff:') ? raw.slice(7) : raw;
+  return ipKeyGenerator(ip);
+};
 
 // In-memory rate limiter (sufficient for single-server deployment)
 const createRateLimiter = (options: {
@@ -17,7 +26,8 @@ const createRateLimiter = (options: {
     max: options.max,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: options.keyGenerator || ((req) => req.ip || 'unknown'),
+    validate: false,
+    keyGenerator: options.keyGenerator || getClientIp,
     skipSuccessfulRequests: options.skipSuccessfulRequests || false,
     skipFailedRequests: options.skipFailedRequests || false,
     message: {

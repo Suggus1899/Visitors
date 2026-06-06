@@ -7,6 +7,7 @@ export const visitQueryKeys = {
     active: () => [...visitQueryKeys.all, 'active'] as const,
     waiting: () => [...visitQueryKeys.all, 'waiting'] as const,
     intermittent: () => [...visitQueryKeys.all, 'intermittent'] as const,
+    recent: () => [...visitQueryKeys.all, 'recent'] as const,
     visitors: ['visitors'] as const,
     visitor: (cedula: string) => [...visitQueryKeys.visitors, cedula] as const,
 };
@@ -87,6 +88,15 @@ export const useReactivateVisitMutation = () => {
     });
 };
 
+export const useRecentVisitsQuery = (options?: QueryOptions) => {
+    return useQuery({
+        queryKey: visitQueryKeys.recent(),
+        queryFn: () => VisitService.getRecentVisits(20),
+        refetchInterval: options?.refetchInterval,
+        enabled: options?.enabled,
+    });
+};
+
 export const useInvalidateVisitQueries = () => {
     const queryClient = useQueryClient();
 
@@ -111,15 +121,62 @@ export const useAllVisitorsQuery = (page: number = 1, limit: number = 50, compan
     });
 };
 
+type UpdateVisitorData = Partial<Visitor> & {
+    first_name?: string;
+    last_name?: string;
+    company?: string;
+    job_title?: string;
+    phone?: string;
+    photoBase64?: string;
+    idPhotoBase64?: string;
+};
+
 export const useUpdateVisitorMutation = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ cedula, data }: { cedula: string; data: Partial<Visitor> }) => 
+        mutationFn: ({ cedula, data }: { cedula: string; data: UpdateVisitorData }) => 
             VisitService.updateVisitor(cedula, data),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: visitQueryKeys.visitor(variables.cedula) });
             queryClient.invalidateQueries({ queryKey: visitQueryKeys.visitors });
         },
     });
+};
+
+import { useState, useEffect } from 'react';
+
+/**
+ * Hook for live duration counter
+ * Returns formatted time string that updates every second
+ * @param startTime - ISO 8601 timestamp when the intermittent period started
+ */
+export const useLiveDuration = (startTime: string | Date | undefined): { minutes: number; seconds: number; formatted: string } => {
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+        if (!startTime) return;
+        
+        const interval = setInterval(() => {
+            setNow(new Date());
+        }, 1000); // Update every second
+
+        return () => clearInterval(interval);
+    }, [startTime]);
+
+    if (!startTime) {
+        return { minutes: 0, seconds: 0, formatted: '0m 0s' };
+    }
+
+    const start = new Date(startTime);
+    const diffMs = now.getTime() - start.getTime();
+    const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return {
+        minutes,
+        seconds,
+        formatted: minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+    };
 };
