@@ -98,13 +98,18 @@ DB_PASSWORD=tu_contraseña_postgres
 
 ## 📚 Documentación
 
-- **[Inicio Rápido](docs/QUICKSTART.md)** 🚀: Guía mínima para ejecutar en cualquier PC
-- **[Guía de Instalación](docs/SETUP.md)**: Instrucciones detallas de instalación
+- **[Manual Tecnico](docs/MANUAL_TECNICO.md)**: Arquitectura, base de datos, API, seguridad, despliegue
+- **[Manual de Instalacion](docs/MANUAL_INSTALACION.md)**: Instalacion completa desde cero, troubleshooting
+- **[Manual de Usuario](docs/USER_MANUAL.md)**: Guia operativa completa por rol
+- **[Inicio Rapido](docs/QUICKSTART.md)**: Guia minima para ejecutar en cualquier PC
+- **[Guia de Instalacion](docs/SETUP.md)**: Instrucciones detalladas de instalacion
 - **[Docker](docs/DOCKER.md)**: Stack de 3 contenedores y despliegue
-- **[API](docs/API.md)**: Documentación de endpoints REST
-- **[Manual de Usuario](docs/USER_MANUAL.md)**: Guía operativa por rol
-- **[Roadmap](docs/ROADMAP.md)**: Plan de desarrollo y características futuras
-- **[Credenciales Seed](docs/SEED_CREDENTIALS.md)**: Usuarios y contraseñas de desarrollo
+- **[API](docs/API.md)**: Documentacion de endpoints REST
+- **[Seguridad](docs/SECURITY.md)**: Configuracion de seguridad, JWT, cifrado, firewall
+- **[LAN](docs/LAN_SETUP.md)**: Acceso desde red local, DHCP, auto-env.bat
+- **[Arquitectura](docs/ARCHITECTURE.md)**: Estructura del sistema y flujo de datos
+- **[Roadmap](docs/ROADMAP.md)**: Plan de desarrollo y caracteristicas futuras
+- **[Credenciales Seed](docs/SEED_CREDENTIALS.md)**: Usuarios y contrasenas de desarrollo
 
 ## 🏗️ Stack Tecnológico
 

@@ -93,7 +93,42 @@ Backend (type-check):
 npm --prefix server exec -- tsc -p server/tsconfig.json --noEmit
 ```
 
-## 7. Ejecutar Electron
+## 7. Email / SMTP
+
+Para habilitar recuperacion de contrasena por correo:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=tu-email@gmail.com
+SMTP_PASSWORD=tu-app-password
+EMAIL_FROM=noreply@tudominio.com
+APP_URL=http://localhost:5173
+```
+
+Sin SMTP configurado, los correos se registran en logs (no se envian).
+
+## 8. CI/CD (GitHub Actions)
+
+El pipeline automatico en `.github/workflows/ci.yml` ejecuta en cada push/PR:
+
+1. Tests del servidor (con PostgreSQL en service container)
+2. Tests del cliente
+3. Lint (ESLint)
+4. Build
+
+## 9. Pre-commit Hooks (Husky)
+
+Los hooks de Husky v9 ejecutan automaticamente antes de cada commit:
+
+- `npm run lint` en cliente y servidor
+- `npx tsc --noEmit` en cliente y servidor
+- `npm test` en cliente y servidor
+
+Se salta en ramas `main`, `develop`, `master`.
+
+## 10. Ejecutar Electron
 
 Modo desarrollo:
 
@@ -107,7 +142,7 @@ Arranque Electron (requiere build de piezas):
 npm run electron:start
 ```
 
-## 8. Scripts utiles
+## 12. Scripts utiles
 
 Raiz:
 
@@ -130,7 +165,7 @@ Cliente:
 - `npm --prefix client run build`
 - `npm --prefix client run test`
 
-## 9. Usuarios base (desarrollo)
+## 13. Usuarios base (desarrollo)
 
 El seeder asegura usuarios base al iniciar backend.
 
@@ -144,7 +179,7 @@ Nota:
 
 - Algunos usuarios pueden exigir cambio obligatorio de contrasena en primer login.
 
-## 10. Troubleshooting rapido
+## 14. Troubleshooting rapido
 
 1. Error de clave de cifrado:
 

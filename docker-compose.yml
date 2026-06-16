@@ -59,6 +59,8 @@ services:
       MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS:-5}
       LOCKOUT_DURATION_MINUTES: ${LOCKOUT_DURATION_MINUTES:-15}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      PRODUCTION_DOMAIN: ${PRODUCTION_DOMAIN}
     volumes:
       - server_logs:/app/logs
     restart: unless-stopped

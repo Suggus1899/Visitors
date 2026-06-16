@@ -12,18 +12,11 @@ import { getClientInfo } from '../middleware/ipCapture';
 import { logActivity } from '../models/ActivityLog';
 import logger from '../config/logger';
 
-interface TokenUser {
-  id?: number;
-  username?: string;
-  role?: string;
-}
-
-const getActor = (req: Request): Required<TokenUser> => {
-  const user = (req.user || {}) as TokenUser;
+const getActor = (req: Request) => {
   return {
-    id: user.id ?? 0,
-    username: user.username ?? 'system',
-    role: user.role ?? 'unknown'
+    id: req.user?.id ?? 0,
+    username: req.user?.username ?? 'system',
+    role: req.user?.role ?? 'unknown'
   };
 };
 

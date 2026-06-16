@@ -13,10 +13,8 @@ import { logActivity } from '../models/ActivityLog';
 import { getClientInfo } from '../middleware/ipCapture';
 import { tokenBlacklist } from '../infrastructure/services/TokenBlacklist';
 
-// C-07: Helper to extract actor info from request
 const getActor = (req: Request) => {
-  const user = (req as any).user || {};
-  return { id: user.id || 0, username: user.username || 'system' };
+  return { id: req.user?.id ?? 0, username: req.user?.username ?? 'system' };
 };
 
 export class SuperAdminController {

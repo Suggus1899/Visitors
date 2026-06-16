@@ -14,7 +14,10 @@ const PORT = config.port;
 const startServer = async () => {
     try {
         const useAlter = process.env.DB_SYNC_ALTER === '1';
-        if (useAlter) {
+        if (useAlter && process.env.NODE_ENV === 'production') {
+            logger.warn('DB_SYNC_ALTER=1 is dangerous in production — forcing safe sync');
+            await sequelize.sync();
+        } else if (useAlter) {
             await sequelize.sync({ alter: true });
         } else {
             await sequelize.sync();

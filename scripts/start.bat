@@ -38,11 +38,8 @@ set "PROJECT_ROOT=%CD%"
 popd
 cd /d "%PROJECT_ROOT%"
 
-:: Crear .env si no existe
-if not exist ".env" (
-    echo       Creando .env por primera vez...
-    call "scripts\auto-env.bat" >nul 2>&1
-)
+:: Crear .env si no existe y actualizar ALLOWED_ORIGINS siempre (IP cambia con DHCP)
+call "scripts\auto-env.bat" >nul 2>&1
 
 :: Detectar IP
 set "LOCAL_IP=localhost"

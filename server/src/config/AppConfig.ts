@@ -42,6 +42,13 @@ interface AppConfig {
   rateLimitWindowMs: number;
   rateLimitMaxRequests: number;
   bcryptRounds: number;
+
+  // Seed default passwords (overridable via env)
+  seedAdminPassword: string;
+  seedGuardPassword: string;
+  seedDemoPassword: string;
+  seedAuditorPassword: string;
+  seedSuperadminPassword: string;
 }
 
 class Config implements AppConfig {
@@ -81,6 +88,13 @@ class Config implements AppConfig {
   rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
   rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10);
   bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+
+  // Seed default passwords (overridable via env — only used if SEED_DEFAULT_PASSWORDS=1)
+  seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || 'Trebol123*';
+  seedGuardPassword = process.env.SEED_GUARD_PASSWORD || 'Guard123!@#';
+  seedDemoPassword = process.env.SEED_DEMO_PASSWORD || 'Demo123!@#';
+  seedAuditorPassword = process.env.SEED_AUDITOR_PASSWORD || 'Audit2026!@#';
+  seedSuperadminPassword = process.env.SEED_SUPERADMIN_PASSWORD || 'TrebolMaster2026!';
 
   validate() {
     const errors: string[] = [];

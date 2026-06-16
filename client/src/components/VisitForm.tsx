@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { VisitService } from '../services/api.v1';
+import { API_URL } from '../config/env';
 import { Visitor } from '../types';
 import UserPlus from 'lucide-react/dist/esm/icons/user-plus';
 import { AxiosError } from 'axios';
@@ -133,8 +134,16 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 // Cargar datos del visitante encontrado
                 const visitor = freshData as Visitor;
                 
-                // Guardar datos originales para detectar cambios
-                setOriginalVisitorData(visitor);
+                // Construir URLs de fotos desde el endpoint BLOB (photo_url columna es siempre null)
+                const photoUrl = visitor.cedula
+                    ? `${API_URL}/visitors/${encodeURIComponent(visitor.cedula)}/photo?t=${Date.now()}`
+                    : '';
+                const idPhotoUrl = visitor.cedula
+                    ? `${API_URL}/visitors/${encodeURIComponent(visitor.cedula)}/id-photo?t=${Date.now()}`
+                    : '';
+                
+                // Guardar datos originales para detectar cambios (incluyendo URLs de fotos)
+                setOriginalVisitorData({ ...visitor, photo_url: photoUrl, id_photo_url: idPhotoUrl });
                 setHasVisitorDataChanged(false);
                 
                 setFormData(prev => ({
@@ -144,8 +153,8 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     company: visitor.company,
                     job_title: visitor.job_title || '',
                     phone: visitor.phone || '',
-                    photo_url: visitor.photo_url || '',
-                    id_photo_url: visitor.id_photo_url || ''
+                    photo_url: photoUrl,
+                    id_photo_url: idPhotoUrl,
                 }));
                 setValidation({ cedula: true, first_name: !!visitor.first_name, last_name: !!visitor.last_name, company: !!visitor.company, phone: null });
                 

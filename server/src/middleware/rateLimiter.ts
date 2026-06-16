@@ -104,8 +104,7 @@ export const adminLimiter = createRateLimiter({
   max: config.nodeEnv === 'production' ? 30 : 150,
   message: 'Too many admin operations, please try again later.',
   keyGenerator: (req: Request) => {
-    const user = (req as any).user;
-    return user ? `user:${user.id}` : `${req.ip}:admin`;
+    return req.user ? `user:${req.user.id}` : `${req.ip}:admin`;
   },
 });
 
