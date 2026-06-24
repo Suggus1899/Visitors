@@ -7,13 +7,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Force re-authentication on every app startup
-        // Clear any existing session tokens
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('username');
-        delete axios.defaults.headers.common['Authorization'];
-        setUser(null);
+        // Restore session from localStorage on page load
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        const username = localStorage.getItem('username');
+
+        if (token && role && username) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            setUser({ username, role });
+        }
         setLoading(false);
     }, []);
 

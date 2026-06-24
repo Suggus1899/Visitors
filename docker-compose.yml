@@ -19,7 +19,7 @@ services:
           "CMD-SHELL",
           "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-visitors}",
         ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
       start_period: 30s
@@ -53,12 +53,15 @@ services:
       DB_PATH: /app/data
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:-${ENCRYPTION_KEY}}
       JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
       MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS:-5}
       LOCKOUT_DURATION_MINUTES: ${LOCKOUT_DURATION_MINUTES:-15}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      PRODUCTION_DOMAIN: ${PRODUCTION_DOMAIN}
     volumes:
       - server_logs:/app/logs
     restart: unless-stopped
@@ -66,7 +69,7 @@ services:
       - "${SERVER_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
-      interval: 30s
+      interval: 5s
       timeout: 10s
       retries: 3
       start_period: 40s
@@ -105,7 +108,7 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fk", "https://localhost:443/health"]
-      interval: 30s
+      interval: 5s
       timeout: 10s
       retries: 3
       start_period: 30s

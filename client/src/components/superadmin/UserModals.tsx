@@ -61,9 +61,10 @@ const UserModals = ({
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value as User['role'] })}
                   className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
                 >
-                  <option value="guard">Guardia</option>
+                  <option value="operador">Operador</option>
                   <option value="admin">Administrador</option>
                   <option value="auditor">Auditor</option>
+                  <option value="demo">Demo</option>
                 </select>
               </div>
             </div>
@@ -101,9 +102,10 @@ const UserModals = ({
                   onChange={(e) => setEditUser({ ...editUser, role: e.target.value as User['role'] })}
                   className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
                 >
-                  <option value="guard">Guardia</option>
+                  <option value="operador">Operador</option>
                   <option value="admin">Administrador</option>
                   <option value="auditor">Auditor</option>
+                  <option value="demo">Demo</option>
                 </select>
               </div>
             </div>

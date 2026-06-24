@@ -15,7 +15,7 @@ const ForgotPassword = () => {
         setLoading(true);
         setMessage('');
         try {
-            await axios.post('http://localhost:3000/api/v1/auth/forgot-password', { username });
+            await axios.post('/api/v1/auth/forgot-password', { username });
             // In a real app this would be an email. Here we show the simulation message.
             setMessage(`✅ Link enviado (Simulado). Revisa la consola del servidor para ver el token.`);
         } catch {

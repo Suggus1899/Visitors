@@ -5,7 +5,7 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
     declare id: CreationOptional<number>;
     declare username: string;
     declare password: string;
-    declare role: CreationOptional<'admin' | 'guard' | 'auditor' | 'superadmin'>;
+    declare role: CreationOptional<'root' | 'admin' | 'operador' | 'auditor' | 'demo'>;
     declare resetToken: CreationOptional<string | null>;
     declare resetTokenExpiry: CreationOptional<Date | null>;
 
@@ -34,8 +34,8 @@ User.init({
         allowNull: false
     },
     role: {
-        type: DataTypes.ENUM('admin', 'guard', 'auditor', 'superadmin'),
-        defaultValue: 'guard'
+        type: DataTypes.ENUM('root', 'admin', 'operador', 'auditor', 'demo'),
+        defaultValue: 'operador'
     },
     resetToken: {
         type: DataTypes.STRING,

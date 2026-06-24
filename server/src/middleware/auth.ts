@@ -64,21 +64,19 @@ export const verifySseToken = (req: Request, res: Response, next: NextFunction) 
 };
 
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-    // req.user logic depends on how you type the decoded token.
-    // Assuming decoded token has { role: string }
     const userRole = (req.user as jwt.JwtPayload)?.role;
 
-    if (userRole !== 'admin') {
+    if (userRole !== 'admin' && userRole !== 'root') {
         return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Admin Role'));
     }
     next();
 };
 
-export const isSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
+export const isRoot = (req: Request, res: Response, next: NextFunction) => {
     const userRole = (req.user as jwt.JwtPayload)?.role;
 
-    if (userRole !== 'superadmin') {
-        return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Super Admin Role'));
+    if (userRole !== 'root') {
+        return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Root Role'));
     }
     next();
 };

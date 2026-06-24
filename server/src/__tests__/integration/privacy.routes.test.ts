@@ -10,7 +10,7 @@ import {
 } from '../../schemas/privacy.schema';
 import { errorHandler } from '../../middleware/error';
 
-type Role = 'admin' | 'guard' | 'auditor';
+type Role = 'admin' | 'operador' | 'auditor';
 
 const fakeAuth = (req: Request, res: Response, next: NextFunction) => {
   const auth = req.headers.authorization;
@@ -20,7 +20,7 @@ const fakeAuth = (req: Request, res: Response, next: NextFunction) => {
     return next();
   }
   if (auth === 'Bearer guard-token') {
-    req.user = { id: 2, username: 'guard', role: 'guard' };
+    req.user = { id: 2, username: 'operador', role: 'operador' };
     return next();
   }
   if (auth === 'Bearer auditor-token') {
@@ -57,7 +57,7 @@ const buildApp = () => {
     res.json({ success: true, data: { id: 1, status: 'completed' } });
   });
 
-  app.patch('/api/v1/privacy/subjects/:cedula', fakeAuth, requireRole(['admin', 'guard']), validate(rectifyDataSchema), (_req, res) => {
+  app.patch('/api/v1/privacy/subjects/:cedula', fakeAuth, requireRole(['admin', 'operador']), validate(rectifyDataSchema), (_req, res) => {
     res.json({ success: true, data: { message: 'ok' } });
   });
 

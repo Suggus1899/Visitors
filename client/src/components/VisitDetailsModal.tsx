@@ -39,7 +39,7 @@ const VisitDetailsModal: React.FC<VisitDetailsModalProps> = ({ visit, onClose })
     const getPhotoSrc = (url: string | null | undefined) => {
         if (!url) return null;
         if (url.startsWith('http')) return url;
-        return `http://localhost:3000${url}`;
+        return url;
     };
 
     const fmt = (dt: string | null | undefined) =>

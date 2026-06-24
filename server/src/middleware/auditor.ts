@@ -5,7 +5,7 @@ interface AuthenticatedRequest extends Request {
     user?: {
         id: number;
         username: string;
-        role: 'admin' | 'guard' | 'auditor';
+        role: 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
     };
 }
 
@@ -22,7 +22,7 @@ export const verifyAuditor = (req: Request, res: Response, next: NextFunction) =
     
     const { role } = authReq.user;
     
-    if (role !== 'auditor' && role !== 'admin') {
+    if (role !== 'auditor' && role !== 'admin' && role !== 'root') {
         return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Acceso restringido a auditores'));
     }
     

@@ -1,7 +1,7 @@
 export interface User {
     id: number;
     username: string;
-    role: 'admin' | 'guard';
+    role: 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
 }
 
 export interface Visitor {

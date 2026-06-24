@@ -167,7 +167,7 @@ describe('RefreshTokenUseCase', () => {
             const mockUser = {
                 id: 1,
                 username: 'testuser',
-                role: 'guard'
+                role: 'operador'
             };
 
             const refreshToken = authService.generateRefreshToken(mockUser);
@@ -176,7 +176,7 @@ describe('RefreshTokenUseCase', () => {
             const result = await refreshTokenUseCase.execute(refreshToken);
             const payload = authService.verifyAccessToken(result.accessToken);
 
-            expect(payload?.role).toBe('guard');
+            expect(payload?.role).toBe('operador');
         });
     });
 });

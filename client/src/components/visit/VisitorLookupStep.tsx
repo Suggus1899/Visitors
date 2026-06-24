@@ -13,7 +13,7 @@ interface ValidationState {
 interface VisitorLookupStepProps {
     cedula: string;
     cedulaError: string;
-    formData: { first_name: string; last_name: string };
+    formData: { first_name: string; last_name: string; photo_url: string; id_photo_url: string };
     validation: ValidationState;
     loading: boolean;
     canProceed: boolean;
@@ -73,6 +73,27 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
                 </p>
             )}
         </div>
+
+        {/* Existing visitor photo */}
+        {validation.cedula === true && formData.photo_url && (
+            <div className="flex items-center gap-4 p-3 bg-[color:var(--surface-2)] rounded-lg border border-[color:var(--border-1)]">
+                <img
+                    src={formData.photo_url}
+                    alt="Foto del visitante"
+                    className="w-16 h-16 rounded-full object-cover border-2 border-[color:var(--accent-0)]"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                />
+                <div className="w-16 h-16 rounded-full bg-[color:var(--surface-1)] flex items-center justify-center border-2 border-[color:var(--border-1)] flex-shrink-0 hidden">
+                    <span className="text-[color:var(--text-3)] text-lg font-bold">
+                        {(formData.first_name?.[0] || '?').toUpperCase()}
+                    </span>
+                </div>
+                <div className="text-xs text-[color:var(--text-2)]">
+                    <span className="text-[color:var(--accent-0)] font-semibold">Foto existente</span>
+                    <br />Puede actualizarla en el paso final
+                </div>
+            </div>
+        )}
 
         {/* Names */}
         <div className="grid grid-cols-2 gap-4">

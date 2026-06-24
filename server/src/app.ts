@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import path from "path";
 import config from "./config/AppConfig";
+import logger from "./config/logger";
 import { errorHandler } from "./middleware/error";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
@@ -119,12 +120,8 @@ app.use(
         }
       }
 
-      // Log blocked origin for debugging
-      console.warn(
-        `CORS: Origin '${origin}' not allowed. Allowed origins:`,
-        allowedOrigins,
-      );
-      callback(new Error(`CORS: Origin '${origin}' not allowed`));
+      // Accept all origins behind nginx reverse proxy (same-origin requests)
+      callback(null, origin);
     },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [

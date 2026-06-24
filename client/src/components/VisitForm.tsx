@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { VisitService } from '../services/api.v1';
+import { API_URL } from '../config/env';
 import { Visitor } from '../types';
 import UserPlus from 'lucide-react/dist/esm/icons/user-plus';
 import { AxiosError } from 'axios';
-import toast, { Toaster } from 'react-hot-toast';
 import VisitorHistoryModal from './VisitorHistoryModal';
+import { safeNotify } from '../utils/safeNotify';
 import { BlockVisitorAlert } from './BlockVisitorAlert';
 import { useSoundFeedback } from '../hooks/useSoundFeedback';
 import { useVisitorQuery, useUpdateVisitorMutation } from '../hooks/useVisitQueries';
@@ -118,7 +119,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
 
     const handleSearch = async () => {
         if (!cedula || cedula.length < 7) {
-            toast.error('Ingrese una cédula válida (7-8 dígitos)');
+            safeNotify.error('Ingrese una cédula válida (7-8 dígitos)');
             return;
         }
         
@@ -133,8 +134,16 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 // Cargar datos del visitante encontrado
                 const visitor = freshData as Visitor;
                 
-                // Guardar datos originales para detectar cambios
-                setOriginalVisitorData(visitor);
+                // Construir URLs de fotos desde el endpoint BLOB (photo_url columna es siempre null)
+                const photoUrl = visitor.cedula
+                    ? `${API_URL}/visitors/${encodeURIComponent(visitor.cedula)}/photo?t=${Date.now()}`
+                    : '';
+                const idPhotoUrl = visitor.cedula
+                    ? `${API_URL}/visitors/${encodeURIComponent(visitor.cedula)}/id-photo?t=${Date.now()}`
+                    : '';
+                
+                // Guardar datos originales para detectar cambios (incluyendo URLs de fotos)
+                setOriginalVisitorData({ ...visitor, photo_url: photoUrl, id_photo_url: idPhotoUrl });
                 setHasVisitorDataChanged(false);
                 
                 setFormData(prev => ({
@@ -144,8 +153,8 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     company: visitor.company,
                     job_title: visitor.job_title || '',
                     phone: visitor.phone || '',
-                    photo_url: visitor.photo_url || '',
-                    id_photo_url: visitor.id_photo_url || ''
+                    photo_url: photoUrl,
+                    id_photo_url: idPhotoUrl,
                 }));
                 setValidation({ cedula: true, first_name: !!visitor.first_name, last_name: !!visitor.last_name, company: !!visitor.company, phone: null });
                 
@@ -166,15 +175,15 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                         photo_url: lastVisit.photo_url || prev.photo_url,
                         id_photo_url: lastVisit.id_photo_url || prev.id_photo_url,
                     }));
-                    toast.success('Visitante encontrado con datos de visita previa');
+                    safeNotify.success('Visitante encontrado con datos de visita previa');
                 } else {
-                    toast.success('Visitante encontrado');
+                    safeNotify.success('Visitante encontrado');
                 }
             } else {
-                toast.error('Visitante no encontrado');
+                safeNotify.error('Visitante no encontrado');
             }
         } catch {
-            toast.error('Error al buscar visitante');
+            safeNotify.error('Error al buscar visitante');
         } finally {
             setLoading(false);
         }
@@ -182,7 +191,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
 
     const handleLoadFromPreviousVisit = async () => {
         if (!cedula || cedula.length < 7) {
-            toast.error('Ingrese una cédula válida primero');
+            safeNotify.error('Ingrese una cédula válida primero');
             return;
         }
         
@@ -213,7 +222,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     id_photo_url: lastVisit.id_photo_url || prev.id_photo_url,
                 }));
                 
-                toast.success('Datos de visita previa cargados');
+                safeNotify.success('Datos de visita previa cargados');
             }
             
             // Abrir el modal de historial
@@ -227,7 +236,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
 
     const handleSubmit = async (status: 'active' | 'waiting') => {
         if (!formData.first_name || !formData.last_name || !cedula || !formData.reason.trim()) {
-            toast.error('Complete los campos obligatorios'); return;
+            safeNotify.error('Complete los campos obligatorios'); return;
         }
         setLoading(true);
         try {
@@ -249,9 +258,9 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                             ...(isNewIdPhoto && { idPhotoBase64: formData.id_photo_url }),
                         }
                     });
-                    toast.success('Datos del visitante actualizados');
+                    safeNotify.success('Datos del visitante actualizados');
                 } catch {
-                    toast.error('Error al actualizar datos del visitante, pero continuará el registro');
+                    safeNotify.error('Error al actualizar datos del visitante, pero continuará el registro');
                 }
             }
 
@@ -288,13 +297,13 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             playSuccess();
             
             if (status === 'waiting') {
-                toast.success('¡Visita puesta en espera! Se mantendrá en la lista de pendientes.');
+                safeNotify.success('¡Visita puesta en espera! Se mantendrá en la lista de pendientes.');
                 // No reiniciar el formulario, solo notificar al padre y mantener datos
                 onVisitAdded();
                 // Volver al paso 1 pero mantener la cédula para continuar si es necesario
                 setCurrentStep(1);
             } else {
-                toast.success('¡Entrada registrada correctamente!');
+                safeNotify.success('¡Entrada registrada correctamente!');
                 onVisitAdded();
                 // Reiniciar completamente para nueva visita
                 setCedula('');
@@ -302,12 +311,13 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 setFormData(INITIAL_FORM_DATA);
                 setValidation(INITIAL_VALIDATION);
             }
+            setLoading(false);
         } catch (err: unknown) {
             const error = err as AxiosError<{ message?: string; error?: { message: string } }>;
             playError();
             const errorData = error.response?.data;
             const backendMessage = errorData?.error?.message || errorData?.message;
-            toast.error(backendMessage || 'Error al registrar la visita. Intente nuevamente.');
+            safeNotify.error(backendMessage || 'Error al registrar la visita. Intente nuevamente.');
             setLoading(false);
         }
     };
@@ -323,10 +333,8 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         (!formData.has_companion || formData.companions.every(c => c.name.trim().length > 2)) &&
         (!formData.has_vehicle || (formData.vehicle_plate.length > 2 && formData.vehicle_brand.length > 2));
     
-    // Step 4 (Photos, Department, Host & Consent)
+    // Step 4 (Department, Host & Consent) — photos are optional
     const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3
-        && formData.photo_url.length > 0
-        && formData.id_photo_url.length > 0
         && formData.target_department.trim().length > 0
         && formData.host_person.trim().length > 0
         && formData.reason.trim().length > 0
@@ -366,15 +374,6 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     return (
         <div className="panel-tech p-6 rounded-2xl relative overflow-hidden">
             <div className="absolute inset-x-0 top-0 h-1 bg-[color:var(--accent-0)]" />
-            <Toaster
-                position="top-center"
-                toastOptions={{
-                    duration: 3000,
-                    style: { background: 'var(--surface-1)', color: 'var(--text-1)', borderRadius: '10px', border: '1px solid var(--border-1)' },
-                    success: { iconTheme: { primary: '#4dd7ff', secondary: '#081116' } },
-                    error: { iconTheme: { primary: '#ff6b6b', secondary: '#0b0f12' } }
-                }}
-            />
 
             {showBlockedAlert && (
                 <div className="mb-4 animate-slideUp">

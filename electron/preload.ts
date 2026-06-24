@@ -1,8 +1,16 @@
-// See the Electron documentation for details on how to use preload scripts:
-// https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
-
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-    // Add safe IPC exposure here if needed
+    platform: process.platform,
+    versions: {
+        node: process.versions.node,
+        chrome: process.versions.chrome,
+        electron: process.versions.electron,
+    },
+    onBackupCreated: (callback: (filePath: string) => void) => {
+        ipcRenderer.on('backup-created', (_event, filePath) => callback(filePath));
+    },
+    removeBackupCreatedListener: () => {
+        ipcRenderer.removeAllListeners('backup-created');
+    },
 });

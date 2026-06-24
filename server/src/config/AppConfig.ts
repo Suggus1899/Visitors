@@ -27,6 +27,7 @@ interface AppConfig {
 
   // Encryption
   encryptionKey: string;
+  piiEncryptionKey: string;
 
   // Backup
   backupPath: string;
@@ -42,6 +43,13 @@ interface AppConfig {
   rateLimitWindowMs: number;
   rateLimitMaxRequests: number;
   bcryptRounds: number;
+
+  // Seed default passwords (overridable via env)
+  seedAdminPassword: string;
+  seedGuardPassword: string;
+  seedDemoPassword: string;
+  seedAuditorPassword: string;
+  seedSuperadminPassword: string;
 }
 
 class Config implements AppConfig {
@@ -65,7 +73,8 @@ class Config implements AppConfig {
   jwtRefreshExpiration = process.env.JWT_REFRESH_EXPIRATION || '7d';
 
   // Encryption
-  encryptionKey = process.env.ENCRYPTION_KEY || '';
+  encryptionKey = process.env.ENCRYPTION_KEY || process.env.PII_ENCRYPTION_KEY || '';
+  piiEncryptionKey = process.env.PII_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY || '';
 
   // Backup
   backupPath = process.env.BACKUP_PATH || path.join(__dirname, '../../../Backups');
@@ -81,6 +90,15 @@ class Config implements AppConfig {
   rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
   rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10);
   bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+
+  // Seed default passwords (overridable via env — only used if SEED_DEFAULT_PASSWORDS=1)
+  seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || 'Trebol123*';
+  seedGuardPassword = process.env.SEED_GUARD_PASSWORD || 'Guard123!@#';
+  seedDemoPassword = process.env.SEED_DEMO_PASSWORD || 'Demo123!@#';
+  seedAuditorPassword = process.env.SEED_AUDITOR_PASSWORD || 'Audit2026!@#';
+  seedSuperadminPassword = process.env.SEED_SUPERADMIN_PASSWORD || 'TrebolMaster2026!';
+  seedRootPassword = process.env.SEED_ROOT_PASSWORD || 'TrebolMaster2026!';
+  seedOperadorPassword = process.env.SEED_OPERADOR_PASSWORD || 'Operador2026!';
 
   validate() {
     const errors: string[] = [];
@@ -98,8 +116,8 @@ class Config implements AppConfig {
       if (!this.dbPassword) {
         errors.push('DB_PASSWORD must be set in production');
       }
-      if (!this.encryptionKey) {
-        errors.push('ENCRYPTION_KEY must be set in production');
+      if (!this.encryptionKey && !this.piiEncryptionKey) {
+        errors.push('ENCRYPTION_KEY or PII_ENCRYPTION_KEY must be set in production');
       }
     }
 

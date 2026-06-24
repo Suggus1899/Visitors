@@ -38,11 +38,8 @@ set "PROJECT_ROOT=%CD%"
 popd
 cd /d "%PROJECT_ROOT%"
 
-:: Crear .env si no existe
-if not exist ".env" (
-    echo       Creando .env por primera vez...
-    call "scripts\auto-env.bat" >nul 2>&1
-)
+:: Crear .env si no existe y actualizar ALLOWED_ORIGINS siempre (IP cambia con DHCP)
+call "scripts\auto-env.bat" >nul 2>&1
 
 :: Detectar IP
 set "LOCAL_IP=localhost"
@@ -132,8 +129,9 @@ echo   Acceso desde Red LAN:
 echo      http://%LOCAL_IP%
 echo.
 echo   Credenciales de prueba:
-echo      Admin:  1234567890 / admin123
-echo      Guard:  0987654321 / guard123
+echo      Admin:  Admin@trebol.com / Trebol123*
+echo      Operador:  operador / Operador2026!
+echo      Root:  trebolmaster / TrebolMaster2026!
 echo.
 echo   Abriendo navegador...
 start http://localhost

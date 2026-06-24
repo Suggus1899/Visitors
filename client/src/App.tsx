@@ -32,6 +32,7 @@ import { Toaster } from 'react-hot-toast';
 import { Header } from './components/Header';
 import { useActiveVisitsQuery, useIntermittentVisitsQuery, useInvalidateVisitQueries } from './hooks/useVisitQueries';
 import { useVisitEvents } from './hooks/useVisitEvents';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Main Operations View (Guard + Admin)
 const OperationsView = () => {
@@ -121,7 +122,7 @@ const OperationsView = () => {
                 </button>
 
                 <div className="flex items-center gap-2">
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'admin' || user?.role === 'root') && (
                         <button
                             data-tour="admin-btn"
                             onClick={() => navigate('/admin')}
@@ -131,7 +132,7 @@ const OperationsView = () => {
                         </button>
                     )}
 
-                    {(user?.role === 'admin' || user?.role === 'auditor') && (
+                    {(user?.role === 'admin' || user?.role === 'auditor' || user?.role === 'root') && (
                         <button
                             onClick={() => navigate('/audit')}
                             className="bg-transparent border border-[color:var(--accent-2)] text-[color:var(--accent-0)] hover:text-[color:var(--text-1)] hover:border-[color:var(--accent-0)] hover:bg-[color:var(--surface-2)] px-3 py-2 rounded-md text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition-colors h-9"
@@ -145,7 +146,15 @@ const OperationsView = () => {
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="flex flex-col xl:flex-row gap-8">
                     <div className="w-full xl:w-1/3" data-tour="visit-form">
-                        <VisitForm onVisitAdded={invalidateVisitQueries} />
+                        <ErrorBoundary fallback={
+                            <div className="panel-tech rounded-2xl p-6 text-center">
+                                <div className="text-3xl mb-2">⚠️</div>
+                                <p className="text-sm text-[color:var(--text-2)] mb-3">Error en el formulario. Recarga la página.</p>
+                                <button onClick={() => window.location.reload()} className="btn-tech text-sm">Recargar</button>
+                            </div>
+                        }>
+                            <VisitForm onVisitAdded={invalidateVisitQueries} />
+                        </ErrorBoundary>
                     </div>
                     <div className="w-full xl:w-2/3" data-tour="active-visits">
 
@@ -178,7 +187,7 @@ const OperationsView = () => {
                                 )}
                                 {activeTab === 'intermittent' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-400" />}
                             </button>
-                            {user?.role === 'admin' && (
+                    {(user?.role === 'admin' || user?.role === 'root') && (
                                 <button
                                     onClick={() => setActiveTab('visitor-admin')}
                                     className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'visitor-admin' ? 'text-[color:var(--accent-0)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
@@ -276,21 +285,21 @@ const OperationsView = () => {
 const AdminRoute = ({ children }: { children: JSX.Element }) => {
     const { user, loading } = useAuth();
     if (loading) return <div>Loading...</div>;
-    if (user?.role !== 'admin') return <Navigate to="/" />;
+    if (user?.role !== 'admin' && user?.role !== 'root') return <Navigate to="/" />;
     return children;
 };
 
-const SuperAdminRoute = ({ children }: { children: JSX.Element }) => {
+const RootRoute = ({ children }: { children: JSX.Element }) => {
     const { user, loading } = useAuth();
     if (loading) return <div>Loading...</div>;
-    if (user?.role !== 'superadmin') return <Navigate to="/" />;
+    if (user?.role !== 'root') return <Navigate to="/" />;
     return children;
 };
 
 const AuditRoute = ({ children }: { children: JSX.Element }) => {
     const { user, loading } = useAuth();
     if (loading) return <div>Loading...</div>;
-    if (user?.role !== 'admin' && user?.role !== 'auditor' && user?.role !== 'superadmin') return <Navigate to="/" />;
+    if (user?.role !== 'admin' && user?.role !== 'auditor' && user?.role !== 'root') return <Navigate to="/" />;
     return children;
 };
 
@@ -342,10 +351,10 @@ function AppRoutes() {
                         <AdminDashboard />
                     </AdminRoute>
                 } />
-                <Route path="/superadmin" element={
-                    <SuperAdminRoute>
+                <Route path="/root" element={
+                    <RootRoute>
                         <SuperAdminDashboard />
-                    </SuperAdminRoute>
+                    </RootRoute>
                 } />
             </Routes>
 

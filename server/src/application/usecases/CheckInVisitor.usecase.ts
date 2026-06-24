@@ -59,6 +59,19 @@ export class CheckInVisitorUseCase {
       );
 
       visitor = await this.visitorRepository.create(visitor, photoData, idPhotoData);
+    } else if (visitor && dto.visitorData) {
+      const updateData: any = {};
+      if (dto.visitorData.photoBase64?.startsWith('data:')) {
+        const base64Clean = dto.visitorData.photoBase64.replace(/^data:image\/\w+;base64,/, '');
+        updateData.photoBlob = Buffer.from(base64Clean, 'base64');
+      }
+      if (dto.visitorData.idPhotoBase64?.startsWith('data:')) {
+        const base64Clean = dto.visitorData.idPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
+        updateData.idPhotoBlob = Buffer.from(base64Clean, 'base64');
+      }
+      if (updateData.photoBlob || updateData.idPhotoBlob) {
+        await this.visitorRepository.update(dto.visitorCedula, updateData);
+      }
     } else if (!visitor) {
       throw new Error('Visitor not found and no visitor data provided');
     }

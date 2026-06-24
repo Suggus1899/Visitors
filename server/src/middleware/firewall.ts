@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import logger from '../config/logger';
 
 // Blocked IPs and suspicious patterns
 const BLOCKED_IPS = new Set<string>();
 
 const SUSPICIOUS_USER_AGENTS = [
-  /bot/i,
-  /crawler/i,
+  /^lucid|^scrapy|^curl|^wget|^python/i,       // known aggressive crawlers (not "bot" — too broad)
   /scanner/i,
   /sqlmap/i,
   /nikto/i,
@@ -75,7 +75,7 @@ const logSecurityEvent = (req: Request, reason: string) => {
   securityEvents.push(event);
   cleanSecurityEvents();
 
-  console.warn(`🚨 Security Event: ${reason}`, {
+  logger.warn(`Security event: ${reason}`, {
     ip: event.ip,
     path: event.path,
     method: event.method,
@@ -111,6 +111,11 @@ export const firewall = (req: Request, res: Response, next: NextFunction) => {
         message: 'Too many suspicious activities, please try again later',
       },
     });
+  }
+
+  // Allow health checks through regardless of user agent
+  if (path.startsWith('/api/v1/health') || path === '/health') {
+    return next();
   }
 
   // Check for suspicious user agents

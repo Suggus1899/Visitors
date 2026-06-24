@@ -44,10 +44,11 @@ const UsersTab = ({ users, setShowCreateModal, openEditModal, openResetModal, ha
                 <td className="px-4 py-3 text-sm font-medium text-[color:var(--text-1)]">{u.username}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    u.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
+                    u.role === 'root' ? 'bg-purple-100 text-purple-700' :
                     u.role === 'admin' ? 'bg-blue-100 text-blue-700' :
                     u.role === 'auditor' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-gray-100 text-gray-700'
+                    u.role === 'operador' ? 'bg-gray-100 text-gray-700' :
+                    'bg-green-100 text-green-700'
                   }`}>
                     {u.role}
                   </span>
@@ -77,7 +78,7 @@ const UsersTab = ({ users, setShowCreateModal, openEditModal, openResetModal, ha
                     >
                       <Key className="w-4 h-4" />
                     </button>
-                    {u.role !== 'superadmin' && (
+                    {u.role !== 'root' && (
                       <button
                         onClick={() => handleDeleteUser(u.id)}
                         className="p-1.5 text-[color:var(--text-3)] hover:text-red-500 transition-colors"

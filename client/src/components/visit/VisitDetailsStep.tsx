@@ -80,7 +80,7 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                     Motivo de la Visita <span className="text-red-500">*</span>
                 </label>
                 <select
-                    value={formData.reason}
+                    value={formData.reason === 'Otro' || formData.reason.startsWith('Otro: ') ? 'Otro' : formData.reason}
                     onChange={(e) => onFormDataChange('reason', e.target.value)}
                     className={`${getInputClass(formData.reason.trim() ? true : null)} w-full bg-[color:var(--surface-0)]`}
                     required
@@ -90,11 +90,15 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                         <option key={purpose} value={purpose}>{purpose}</option>
                     ))}
                 </select>
-                {formData.reason === 'Otro' && (
+                {(formData.reason === 'Otro' || formData.reason.startsWith('Otro: ')) && (
                     <input
                         type="text"
-                        placeholder="Especifique el motivo..."
-                        onChange={(e) => onFormDataChange('reason', `Otro: ${e.target.value}`)}
+                        placeholder="Especifique el motivo (opcional)..."
+                        value={formData.reason.startsWith('Otro: ') ? formData.reason.slice(6) : ''}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            onFormDataChange('reason', val.trim() ? `Otro: ${val}` : 'Otro');
+                        }}
                         className={`${getInputClass(true)} w-full mt-2`}
                     />
                 )}
@@ -113,14 +117,11 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                 </span>
             </label>
 
-            {/* Photo Section - REQUIRED */}
-            <div className={`border-2 rounded-lg p-4 ${hasPhoto ? 'border-[color:var(--accent-0)] bg-[color:var(--surface-2)]' : 'border-red-400 bg-[color:var(--surface-2)]'}`}>
+            {/* Photo Section - OPCIONAL */}
+            <div className={`border-2 rounded-lg p-4 ${hasPhoto ? 'border-[color:var(--accent-0)] bg-[color:var(--surface-2)]' : 'border-[color:var(--border-1)] bg-[color:var(--surface-2)]'}`}>
                 <label className="block text-sm font-medium text-[color:var(--text-1)] mb-2 text-center">
-                    📸 Foto del Rostro <span className="text-red-500">*</span>
+                    📸 Foto del Rostro <span className="text-xs text-[color:var(--text-3)]">(Opcional)</span>
                 </label>
-                {!hasPhoto && (
-                    <p className="text-xs text-red-400 text-center mb-2">La foto del rostro es obligatoria</p>
-                )}
                 <PhotoCapture
                     onCapture={onPhotoCapture}
                     onRetake={onPhotoRetake}
@@ -128,14 +129,11 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                 />
             </div>
 
-            {/* ID Photo Section - REQUIRED */}
-            <div className={`border-2 rounded-lg p-4 ${hasIdPhoto ? 'border-[color:var(--accent-0)] bg-[color:var(--surface-2)]' : 'border-red-400 bg-[color:var(--surface-2)]'}`}>
+            {/* ID Photo Section - OPCIONAL */}
+            <div className={`border-2 rounded-lg p-4 ${hasIdPhoto ? 'border-[color:var(--accent-0)] bg-[color:var(--surface-2)]' : 'border-[color:var(--border-1)] bg-[color:var(--surface-2)]'}`}>
                 <label className="block text-sm font-medium text-[color:var(--text-1)] mb-2 text-center">
-                    🪪 Foto de Identificación <span className="text-red-500">*</span>
+                    🪪 Foto de Identificación <span className="text-xs text-[color:var(--text-3)]">(Opcional)</span>
                 </label>
-                {!hasIdPhoto && (
-                    <p className="text-xs text-red-400 text-center mb-2">La foto de Cédula/Carnet es obligatoria</p>
-                )}
                 <PhotoCapture
                     onCapture={onIdPhotoCapture}
                     onRetake={onIdPhotoRetake}

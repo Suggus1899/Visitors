@@ -35,14 +35,14 @@ export default function SuperAdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Form states
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'guard' as User['role'] });
-  const [editUser, setEditUser] = useState({ username: '', role: 'guard' as User['role'] });
+  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'operador' as User['role'] });
+  const [editUser, setEditUser] = useState({ username: '', role: 'operador' as User['role'] });
   const [newPassword, setNewPassword] = useState('');
 
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:3000/api/v1/superadmin/users', {
+      const response = await axios.get('/api/v1/root/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsers(response.data.data || []);
@@ -54,7 +54,7 @@ export default function SuperAdminDashboard() {
   const fetchAuditLogs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:3000/api/v1/superadmin/audit-logs', {
+      const response = await axios.get('/api/v1/root/audit-logs', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAuditLogs(response.data.data?.logs || []);
@@ -80,12 +80,12 @@ export default function SuperAdminDashboard() {
   const handleCreateUser = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:3000/api/v1/superadmin/users', newUser, {
+      await axios.post('/api/v1/root/users', newUser, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Usuario creado exitosamente');
       setShowCreateModal(false);
-      setNewUser({ username: '', password: '', role: 'guard' });
+      setNewUser({ username: '', password: '', role: 'operador' });
       fetchUsers();
     } catch (err) {
       const error = err as ApiError;
@@ -97,7 +97,7 @@ export default function SuperAdminDashboard() {
     if (!selectedUser) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:3000/api/v1/superadmin/users/${selectedUser.id}`, editUser, {
+      await axios.put(`/api/v1/root/users/${selectedUser.id}`, editUser, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Usuario actualizado exitosamente');
@@ -114,7 +114,7 @@ export default function SuperAdminDashboard() {
     if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:3000/api/v1/superadmin/users/${userId}`, {
+      await axios.delete(`/api/v1/root/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Usuario eliminado exitosamente');
@@ -129,7 +129,7 @@ export default function SuperAdminDashboard() {
     if (!selectedUser) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`http://localhost:3000/api/v1/superadmin/users/${selectedUser.id}/reset-password`, 
+      await axios.post(`/api/v1/root/users/${selectedUser.id}/reset-password`, 
         { newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );

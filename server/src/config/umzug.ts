@@ -1,12 +1,12 @@
 import { Umzug, SequelizeStorage } from 'umzug';
 import sequelize from '../database';
 import path from 'path';
+import logger from './logger';
 
 export const migrator = new Umzug({
   migrations: {
     glob: ['../migrations/*.{ts,sql}', { cwd: __dirname }],
     resolve: ({ name, path: filePath, context }) => {
-      // Custom resolver to support both .ts and .sql files
       const ext = path.extname(filePath || '');
       if (ext === '.sql') {
         return {
@@ -24,9 +24,8 @@ export const migrator = new Umzug({
               try {
                 await context.query(statement);
               } catch (error: any) {
-                // Ignore "duplicate column" for backwards compatibility
                 if (error.message && error.message.includes('duplicate column')) {
-                  console.log(`  ⚠ Column already exists, skipping...`);
+                  logger.warn(`Column already exists, skipping...`);
                 } else {
                   throw error;
                 }
@@ -34,13 +33,11 @@ export const migrator = new Umzug({
             }
           },
           down: async () => {
-            // Raw SQL down migrations not implemented by default
-            console.warn(`Down migration not explicitly supported for SQL file: ${name}`);
+            logger.warn(`Down migration not explicitly supported for SQL file: ${name}`);
           }
         };
       }
       
-      // Default TS resolver
       const migration = require(filePath as string);
       return {
         name,
@@ -51,7 +48,7 @@ export const migrator = new Umzug({
   },
   context: sequelize,
   storage: new SequelizeStorage({ sequelize }),
-  logger: console,
+  logger,
 });
 
 export type Migration = typeof migrator._types.migration;

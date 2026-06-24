@@ -22,7 +22,7 @@ const startServer = async () => {
 
         logger.info('Database synced (data persists).');
 
-        // Ensure base users (admin, guard, auditor, demo) always exist
+        // Ensure base users (root, admin, operador, auditor, demo) always exist
         await ensureBaseUsers();
 
         // Start daily retention cleanup (logs + photos)

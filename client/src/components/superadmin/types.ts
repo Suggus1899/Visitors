@@ -1,7 +1,7 @@
 export interface User {
   id: number;
   username: string;
-  role: 'admin' | 'guard' | 'auditor' | 'superadmin';
+  role: 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
   mustChangePassword: boolean;
   loginAttempts: number;
   lockedUntil: string | null;

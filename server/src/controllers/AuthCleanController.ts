@@ -6,6 +6,19 @@ import { getClientInfo } from '../middleware/ipCapture';
 import { logActivity } from '../models/ActivityLog';
 import logger from '../config/logger';
 
+interface AuthError {
+  message: string;
+  minutesRemaining?: number;
+  lockedUntil?: string;
+  attemptsRemaining?: number;
+  details?: string;
+  errors?: unknown[];
+}
+
+interface AuthenticatedRequest extends Request {
+  user?: { id: number; username: string; role: string };
+}
+
 /**
  * Clean Architecture Auth Controller
  */
@@ -36,7 +49,7 @@ export const login = async (req: Request, res: Response) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
     if (errorMessage === 'ACCOUNT_LOCKED') {
-      const err = error as any;
+      const err = error as AuthError;
       res.status(403).json(ResponseBuilder.error(
         'ACCOUNT_LOCKED',
         'Account locked due to multiple failed login attempts',
@@ -46,7 +59,7 @@ export const login = async (req: Request, res: Response) => {
         }
       ));
     } else if (errorMessage === 'INVALID_CREDENTIALS') {
-      const err = error as any;
+      const err = error as AuthError;
       const data = err.attemptsRemaining !== undefined ? {
         attemptsRemaining: err.attemptsRemaining
       } : undefined;
@@ -74,8 +87,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
     res.json(ResponseBuilder.success({
       message: 'If the account exists, a password reset has been initiated. Check your email or contact an administrator.'
     }));
-  } catch (error: any) {
-    if (error.message === 'USER_NOT_FOUND') {
+  } catch (error: unknown) {
+    const authErr = error as AuthError;
+    if (authErr.message === 'USER_NOT_FOUND') {
       res.status(404).json(ResponseBuilder.error('NOT_FOUND', 'User not found'));
     } else {
       logger.error('Forgot password error:', error);
@@ -91,11 +105,12 @@ export const resetPassword = async (req: Request, res: Response) => {
     await useCase.execute(token, newPassword);
 
     res.json(ResponseBuilder.success({ message: 'Password reset successful' }));
-  } catch (error: any) {
-    if (error.message === 'INVALID_TOKEN' || error.message === 'TOKEN_EXPIRED') {
+  } catch (error: unknown) {
+    const err = error as AuthError;
+    if (err.message === 'INVALID_TOKEN' || err.message === 'TOKEN_EXPIRED') {
       res.status(400).json(ResponseBuilder.error('INVALID_TOKEN', 'Invalid or expired token'));
-    } else if (error.message === 'PASSWORD_POLICY_VIOLATION') {
-      res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', error.details || 'Password does not meet security requirements', error.errors));
+    } else if (err.message === 'PASSWORD_POLICY_VIOLATION') {
+      res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', err.details || 'Password does not meet security requirements', err.errors));
     } else {
       logger.error('Reset password error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to reset password'));
@@ -114,8 +129,9 @@ export const refreshToken = async (req: Request, res: Response) => {
     const result = await useCase.execute(refreshToken);
 
     res.json(ResponseBuilder.success(result));
-  } catch (error: any) {
-    if (error.message === 'INVALID_REFRESH_TOKEN' || error.message === 'TOKEN_EXPIRED') {
+  } catch (error: unknown) {
+    const err = error as AuthError;
+    if (err.message === 'INVALID_REFRESH_TOKEN' || err.message === 'TOKEN_EXPIRED') {
       res.status(401).json(ResponseBuilder.error('INVALID_TOKEN', 'Invalid or expired refresh token'));
     } else {
       logger.error('Refresh token error:', error);
@@ -131,17 +147,18 @@ export const refreshToken = async (req: Request, res: Response) => {
 export const changePassword = async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = (req as any).user.id; // From verifyToken middleware
+    const userId = (req as AuthenticatedRequest).user!.id;
 
     const useCase = container.createChangePasswordUseCase();
     await useCase.execute(userId, currentPassword, newPassword);
 
     res.json(ResponseBuilder.success({ message: 'Password changed successfully' }));
-  } catch (error: any) {
-    if (error.message === 'INVALID_CURRENT_PASSWORD') {
+  } catch (error: unknown) {
+    const err = error as AuthError;
+    if (err.message === 'INVALID_CURRENT_PASSWORD') {
       res.status(401).json(ResponseBuilder.error('INVALID_PASSWORD', 'Current password is incorrect'));
-    } else if (error.message === 'PASSWORD_POLICY_VIOLATION') {
-      res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', error.details || 'Password does not meet security requirements', error.errors));
+    } else if (err.message === 'PASSWORD_POLICY_VIOLATION') {
+      res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', err.details || 'Password does not meet security requirements', err.errors));
     } else {
       logger.error('Change password error:', error);
       res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to change password'));

@@ -12,7 +12,7 @@ export interface ValidationResult {
 }
 
 export class PasswordPolicy {
-    private readonly MIN_LENGTH = 12;
+    private readonly MIN_LENGTH = 8;
     private readonly MAX_LENGTH = 128;
 
     /**

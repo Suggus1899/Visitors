@@ -21,7 +21,7 @@ const getActor = (req: Request) => {
 
 export class SuperAdminController {
   /**
-   * GET /api/v1/superadmin/users
+    * GET /api/v1/root/users
    * List all users
    */
   async listUsers(req: Request, res: Response) {
@@ -47,7 +47,7 @@ export class SuperAdminController {
   }
 
   /**
-   * POST /api/v1/superadmin/users
+   * POST /api/v1/root/users
    * Create a new user
    */
   async createUser(req: Request, res: Response) {
@@ -87,7 +87,7 @@ export class SuperAdminController {
   }
 
   /**
-   * PUT /api/v1/superadmin/users/:id
+    * PUT /api/v1/root/users/:id
    * Update a user
    */
   async updateUser(req: Request, res: Response) {
@@ -132,7 +132,7 @@ export class SuperAdminController {
   }
 
   /**
-   * DELETE /api/v1/superadmin/users/:id
+    * DELETE /api/v1/root/users/:id
    * Delete a user
    */
   async deleteUser(req: Request, res: Response) {
@@ -159,15 +159,15 @@ export class SuperAdminController {
       if (error.message === 'USER_NOT_FOUND') {
         return res.status(404).json(ResponseBuilder.error('USER_NOT_FOUND', 'User not found'));
       }
-      if (error.message === 'CANNOT_DELETE_SUPERADMIN') {
-        return res.status(403).json(ResponseBuilder.error('CANNOT_DELETE_SUPERADMIN', 'Cannot delete superadmin users'));
+      if (error.message === 'CANNOT_DELETE_ROOT') {
+        return res.status(403).json(ResponseBuilder.error('CANNOT_DELETE_ROOT', 'Cannot delete root users'));
       }
       res.status(500).json(ResponseBuilder.error('DELETE_USER_FAILED', 'Failed to delete user'));
     }
   }
 
   /**
-   * POST /api/v1/superadmin/users/:id/reset-password
+    * POST /api/v1/root/users/:id/reset-password
    * Reset user password
    */
   async resetPassword(req: Request, res: Response) {
@@ -209,7 +209,7 @@ export class SuperAdminController {
   }
 
   /**
-   * GET /api/v1/superadmin/audit-logs
+    * GET /api/v1/root/audit-logs
    * Get audit logs
    */
   async getAuditLogs(req: Request, res: Response) {

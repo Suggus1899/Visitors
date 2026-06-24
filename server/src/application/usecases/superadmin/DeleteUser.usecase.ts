@@ -10,9 +10,9 @@ export class DeleteUserUseCase {
       throw new Error('USER_NOT_FOUND');
     }
 
-    // Prevent deleting superadmin users
-    if (user.role === 'superadmin') {
-      throw new Error('CANNOT_DELETE_SUPERADMIN');
+    // Prevent deleting root users
+    if (user.role === 'root') {
+      throw new Error('CANNOT_DELETE_ROOT');
     }
 
     // Delete user from repository

@@ -6,6 +6,7 @@ import VisitModel from '../models/Visit';
 import IntermittentLogModel from '../models/IntermittentLog';
 import Encryption from './Encryption';
 import logger from '../config/logger';
+import config from '../config/AppConfig';
 
 /**
  * Generate a cryptographically secure random password
@@ -67,36 +68,35 @@ export const ensureBaseUsers = async () => {
     if (!adminExists) {
         logger.info('Seeding database with Enterprise Admin...');
 
-        // Default passwords for seeded accounts
-        const adminPassword = 'Trebol123*';
-        const guardPassword = 'Guard123!@#';
-        const legacyAdminPassword = 'Admin123!@#';
+        // Default passwords from config (overridable via env)
+        const adminPassword = config.seedAdminPassword;
+        const operadorPassword = config.seedOperadorPassword;
 
         const hashedAdmin = await bcrypt.hash(adminPassword, 12);
-        const hashedGuard = await bcrypt.hash(guardPassword, 12);
+        const hashedOperador = await bcrypt.hash(operadorPassword, 12);
 
         await User.create({
             username: adminEmail,
             password: hashedAdmin,
             role: 'admin',
-            mustChangePassword: false, // Default password, no change required
+            mustChangePassword: false,
             passwordChangedAt: null
         });
         await User.create({
-            username: 'guard',
-            password: hashedGuard,
-            role: 'guard',
+            username: 'operador',
+            password: hashedOperador,
+            role: 'operador',
             mustChangePassword: false,
             loginAttempts: 0,
             lockedUntil: null
         });
 
-        // Legacy admin fallback
+        // Legacy admin fallback (same password as main admin)
         const legacyAdmin = await User.findOne({ where: { username: 'admin' } });
         if (!legacyAdmin) {
             await User.create({
                 username: 'admin',
-                password: await bcrypt.hash(legacyAdminPassword, 12),
+                password: await bcrypt.hash(adminPassword, 12),
                 role: 'admin',
                 mustChangePassword: false,
                 loginAttempts: 0,
@@ -104,35 +104,52 @@ export const ensureBaseUsers = async () => {
             });
         }
 
-        // Security: Display initial passwords ONCE. These are never logged again.
-        logger.info('═══════════════════════════════════════════════════');
-        logger.info('  DEFAULT CREDENTIALS');
-        logger.info('═══════════════════════════════════════════════════');
-        logger.info(`  Admin@trebol.com : ${adminPassword}`);
-        logger.info(`  guard            : ${guardPassword}`);
-        logger.info(`  admin            : ${legacyAdminPassword}`);
-        logger.info('═══════════════════════════════════════════════════');
+        logger.info('[Seed] Base admin/operador users created. Passwords come from env (SEED_*_PASSWORD).');
     }
 
     // Always ensure demo user exists (separate check)
     const demoUser = await User.findOne({ where: { username: 'demo' } });
     if (!demoUser) {
-        const demoPassword = 'Demo123!@#';
+        const demoPassword = config.seedDemoPassword;
         const hashedDemo = await bcrypt.hash(demoPassword, 12);
         await User.create({
             username: 'demo',
             password: hashedDemo,
-            role: 'admin',
+            role: 'demo',
             mustChangePassword: false,
             loginAttempts: 0,
             lockedUntil: null
         });
-        logger.info(`✅ Demo user created: demo / ${demoPassword}`);
+        logger.info('[Seed] Demo user created.');
+    } else if (demoUser.role !== 'demo') {
+        demoUser.role = 'demo';
+        await demoUser.save();
+        logger.info('[Seed] Demo user role updated.');
+    }
+
+    // Always ensure operador user exists (separate check)
+    const operadorUser = await User.findOne({ where: { username: 'operador' } });
+    if (!operadorUser) {
+        const operadorPassword = config.seedOperadorPassword;
+        const hashedOperador = await bcrypt.hash(operadorPassword, 12);
+        await User.create({
+            username: 'operador',
+            password: hashedOperador,
+            role: 'operador',
+            mustChangePassword: false,
+            loginAttempts: 0,
+            lockedUntil: null
+        });
+        logger.info('[Seed] Operador user created.');
+    } else if (operadorUser.role !== 'operador') {
+        operadorUser.role = 'operador';
+        await operadorUser.save();
+        logger.info('[Seed] Operador user role updated.');
     }
 
     const auditorUser = await User.findOne({ where: { username: 'auditor' } });
     if (!auditorUser) {
-        const auditorPassword = 'Audit2026!@#';
+        const auditorPassword = config.seedAuditorPassword;
         const hashedAuditor = await bcrypt.hash(auditorPassword, 12);
         await User.create({
             username: 'auditor',
@@ -142,9 +159,9 @@ export const ensureBaseUsers = async () => {
             loginAttempts: 0,
             lockedUntil: null
         });
-        logger.info(`✅ Auditor user created: auditor / ${auditorPassword}`);
+        logger.info('[Seed] Auditor user created.');
     } else if (auditorUser.role !== 'auditor') {
-        const auditorPassword = 'Audit2026!@#';
+        const auditorPassword = config.seedAuditorPassword;
         const hashedAuditor = await bcrypt.hash(auditorPassword, 12);
         auditorUser.role = 'auditor';
         auditorUser.password = hashedAuditor;
@@ -152,29 +169,27 @@ export const ensureBaseUsers = async () => {
         auditorUser.loginAttempts = 0;
         auditorUser.lockedUntil = null;
         await auditorUser.save();
-        logger.info(`✅ Auditor user updated: auditor / ${auditorPassword}`);
+        logger.info('[Seed] Auditor user updated.');
     }
 
-    // Always ensure superadmin user exists
-    const superadminUser = await User.findOne({ where: { username: 'trebolmaster' } });
-    if (!superadminUser) {
-        const superadminPassword = 'TrebolMaster2026!';
-        const hashedSuperAdmin = await bcrypt.hash(superadminPassword, 12);
+    // Always ensure root user exists
+    const rootUser = await User.findOne({ where: { username: 'trebolmaster' } });
+    if (!rootUser) {
+        const rootPassword = config.seedRootPassword;
+        const hashedRoot = await bcrypt.hash(rootPassword, 12);
         await User.create({
             username: 'trebolmaster',
-            password: hashedSuperAdmin,
-            role: 'superadmin',
+            password: hashedRoot,
+            role: 'root',
             mustChangePassword: false,
             loginAttempts: 0,
             lockedUntil: null
         });
-        logger.info(`✅ SuperAdmin user created: trebolmaster / ${superadminPassword}`);
-        logger.info('   🔐 SuperAdmin has full system access');
-        logger.info('   ⚠️  SuperAdmin MUST change password on first login');
-    } else if (superadminUser.role !== 'superadmin') {
-        superadminUser.role = 'superadmin';
-        await superadminUser.save();
-        logger.info('✅ SuperAdmin user role updated: trebolmaster');
+        logger.info('[Seed] Root user created.');
+    } else if (rootUser.role !== 'root') {
+        rootUser.role = 'root';
+        await rootUser.save();
+        logger.info('[Seed] Root user role updated: trebolmaster');
     }
 };
 
@@ -537,7 +552,7 @@ export const seedComprehensive = async () => {
                 check_out: new Date(now.getTime() - (Math.floor(Math.random() * 60) + 10) * 60000), // exited 10-70 mins ago
                 re_entry: null,
                 notes: 'Salió a comprar comida',
-                registered_by: 'guard'
+                registered_by: 'operador'
             } as any);
         }
 

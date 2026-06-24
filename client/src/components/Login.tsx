@@ -34,7 +34,7 @@ const Login = () => {
             // Attempt auto-seed if first run (optional/dev convenience) - Removed as it is legacy
             // try { await axios.post('http://localhost:3000/api/auth/seed'); } catch { /* ignore */ }
 
-            const res = await axios.post('http://localhost:3000/api/v1/auth/login', { username, password });
+            const res = await axios.post('/api/v1/auth/login', { username, password });
             
             // Backend returns: { success: true, data: { token, user: { username, role } } }
             const { token, user } = res.data.data;
@@ -42,8 +42,8 @@ const Login = () => {
             toast.success(`¡Bienvenido, ${user.username}!`);
             login(token, { username: user.username, role: user.role });
 
-            if (user.role === 'superadmin') {
-                setTimeout(() => navigate('/superadmin'), 500);
+            if (user.role === 'root') {
+                setTimeout(() => navigate('/root'), 500);
             } else if (user.role === 'auditor') {
                 setTimeout(() => navigate('/audit'), 500);
             } else {
