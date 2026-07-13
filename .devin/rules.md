@@ -106,7 +106,7 @@ Testing:     Vitest (unit/integration) + Supertest
 2. Update Sequelize model in server/src/models/
 3. Update domain entity in server/src/domain/entities/
 4. Update repository implementation
-5. Run migration: npm run migrate
+5. Run migration: pnpm run migrate
 ```
 
 ---
@@ -173,7 +173,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
 ### Migrations (Umzug)
 
 - SQL migrations: `src/migrations/XXX-description.sql`
-- Run: `npm run migrate`
+- Run: `pnpm run migrate`
 - Umzug uses Winston logger (not console)
 - Never use `DB_SYNC_ALTER=1` in production
 
@@ -184,7 +184,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
 ### Server Tests
 
 ```bash
-npm run test:server    # Unit + integration
+pnpm run test:server    # Unit + integration
 # Config: server/vitest.config.ts
 ```
 
@@ -196,7 +196,7 @@ npm run test:server    # Unit + integration
 ### Client Tests
 
 ```bash
-npm run test:client    # Component + unit tests
+pnpm run test:client    # Component + unit tests
 # Config: client/vitest.config.ts (jsdom environment)
 ```
 
@@ -217,17 +217,17 @@ npm run test:client    # Component + unit tests
 
 ```bash
 # Development
-npm run dev              # Concurrent client (5173) + server (3000)
+pnpm run dev              # Concurrent client (5173) + server (3000)
 
 # Quality
-npm run test             # Full test suite (server + client)
-npm run release          # Test → Build → Package (USE THIS FOR DISTRIBUTION)
+pnpm run test             # Full test suite (server + client)
+pnpm run release          # Test → Build → Package (USE THIS FOR DISTRIBUTION)
 
 # Individual
-npm run test:server      # Backend tests only
-npm run test:client      # Frontend tests only
-npm run dist             # Build without tests (CI/CD use)
-npm run build:server     # Compile server TypeScript
+pnpm run test:server      # Backend tests only
+pnpm run test:client      # Frontend tests only
+pnpm run dist             # Build without tests (CI/CD use)
+pnpm run build:server     # Compile server TypeScript
 ```
 
 ---
@@ -238,7 +238,7 @@ npm run build:server     # Compile server TypeScript
 
 - Use `code_search` first when exploring unfamiliar code
 - Prefer `multi_edit` for multiple changes in one file
-- Run `npm run test` before marking tasks complete
+- Run `pnpm run test` before marking tasks complete
 - Use absolute paths in citations: `@/file.ts:10-15`
 - Set `cwd` in `run_command`, never use `cd` in commands
 
@@ -253,6 +253,6 @@ npm run build:server     # Compile server TypeScript
 ### Before Committing
 
 ```bash
-npm run test      # Must pass
-npm run release   # Produces dist/Visitor System-*.zip
+pnpm run test      # Must pass
+pnpm run release   # Produces dist/Visitor System-*.zip
 ```

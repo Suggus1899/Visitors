@@ -304,7 +304,7 @@ Respuesta:
 
 ```bash
 cd server
-npm run seed:clean
+pnpm run seed:clean
 ```
 
 ### Verificar Usuarios:

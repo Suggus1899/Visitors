@@ -22,7 +22,7 @@ LogMaster es un sistema de gestion de visitantes monorepo con frontend React + V
 | Software | Version Minima | Proposito |
 |---|---|---|
 | Node.js | 20.x LTS | Runtime del servidor |
-| npm | 9.x | Gestor de paquetes |
+| pnpm | 9.x | Gestor de paquetes |
 | PostgreSQL | 16 | Base de datos (instalado localmente) |
 | Git | 2.x | Control de versiones (desarrollo) |
 | Windows | 10/11 64-bit | Sistema operativo soportado |
@@ -570,8 +570,8 @@ Eventos: push, pull_request (ramas: main, develop, master)
 Jobs:
 1. **server-tests**: PostgreSQL service → `vitest run` en server/
 2. **client-tests**: `vitest run` en client/
-3. **lint**: `npm run lint` en client/
-4. **build**: `npm run build` en client/ + `tsc --noEmit` en server/
+3. **lint**: `pnpm run lint` en client/
+4. **build**: `pnpm run build` en client/ + `tsc --noEmit` en server/
 
 ---
 
@@ -581,11 +581,11 @@ Archivo: `.husky/pre-commit`
 
 Ejecuta automaticamente en cada `git commit`:
 
-1. `cd client && npm run lint`
-2. `cd client && npx tsc --noEmit`
-3. `cd client && npm test`
-4. `cd server && npx tsc --noEmit`
-5. `cd server && npm test`
+1. `cd client && pnpm run lint`
+2. `cd client && pnpm exec tsc --noEmit`
+3. `cd client && pnpm test`
+4. `cd server && pnpm exec tsc --noEmit`
+5. `cd server && pnpm test`
 
 Se salta en ramas: main, develop, master.
 
@@ -625,10 +625,10 @@ Se salta en ramas: main, develop, master.
 
 ```bash
 # Servidor (puerto 3000)
-cd server && npm run dev
+cd server && pnpm run dev
 
 # Cliente (puerto 5173)
-cd client && npm run dev
+cd client && pnpm run dev
 ```
 
 URLs de acceso:
@@ -653,10 +653,10 @@ URLs de acceso:
 ### 13.1 Servidor (Vitest)
 
 ```
-cd server && npm test              # Todas las pruebas
-cd server && npx vitest run        # Una ejecucion
-cd server && npx vitest --watch    # Modo watch
-cd server && npm run test:coverage # Cobertura
+cd server && pnpm test              # Todas las pruebas
+cd server && pnpm exec vitest run        # Una ejecucion
+cd server && pnpm exec vitest --watch    # Modo watch
+cd server && pnpm run test:coverage # Cobertura
 ```
 
 Archivos de prueba: `server/src/__tests__/**/*.test.ts`
@@ -666,7 +666,7 @@ Cobertura actual: ~142 tests en 14 archivos.
 ### 13.2 Cliente (Vitest)
 
 ```
-cd client && npm test
+cd client && pnpm test
 ```
 
 Cobertura actual: ~test en 7 archivos.
@@ -677,16 +677,16 @@ Cobertura actual: ~test en 7 archivos.
 
 ```bash
 # Aplicar migraciones SQL
-cd server && npm run migrate
+cd server && pnpm run migrate
 
 # Seed de datos de prueba
-cd server && npm run seed
+cd server && pnpm run seed
 
 # Seed + limpieza previa
-cd server && npm run seed:clean
+cd server && pnpm run seed:clean
 
 # Reset completo de BD
-cd server && npm run db:reset
+cd server && pnpm run db:reset
 ```
 
 ---

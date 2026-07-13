@@ -52,16 +52,8 @@ echo       [OK] PostgreSQL encontrado
 echo.
 echo  [3/4] Verificando dependencias...
 if not exist "node_modules" (
-    echo       Instalando dependencias raiz...
-    call npm install
-)
-if not exist "server\node_modules" (
-    echo       Instalando dependencias del servidor...
-    cd server && call npm install && cd ..
-)
-if not exist "client\node_modules" (
-    echo       Instalando dependencias del cliente...
-    cd client && call npm install && cd ..
+    echo       Instalando dependencias...
+    call pnpm install
 )
 echo       [OK] Dependencias listas
 
@@ -83,4 +75,4 @@ echo.
 echo   Presiona Ctrl+C para detener.
 echo.
 
-call npm run dev
+call pnpm run dev

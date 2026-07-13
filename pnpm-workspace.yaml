@@ -1,0 +1,11 @@
+packages:
+  - 'client'
+  - 'server'
+
+allowBuilds:
+  '@scarf/scarf': set this to true or false
+
+onlyBuiltDependencies:
+  - esbuild
+  - core-js
+  - '@scarf/scarf'

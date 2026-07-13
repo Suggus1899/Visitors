@@ -3,7 +3,7 @@
 ## 1. Requisitos
 
 - Node.js 20+
-- npm 9+
+- pnpm 9+
 - PostgreSQL 16 instalado y corriendo
 - Windows 10/11 recomendado
 
@@ -12,7 +12,7 @@
 ```bash
 git clone <repo-url>
 cd Visitors
-npm run install-all
+pnpm run install-all
 ```
 
 ## 3. Variables de entorno
@@ -71,7 +71,7 @@ Uso sugerido:
 Desde la raiz:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Esto inicia:
@@ -84,13 +84,13 @@ Esto inicia:
 Frontend:
 
 ```bash
-npm --prefix client run build
+pnpm --dir client run build
 ```
 
 Backend (type-check):
 
 ```bash
-npm --prefix server exec -- tsc -p server/tsconfig.json --noEmit
+pnpm --dir server exec -- tsc -p server/tsconfig.json --noEmit
 ```
 
 ## 7. Email / SMTP
@@ -122,9 +122,9 @@ El pipeline automatico en `.github/workflows/ci.yml` ejecuta en cada push/PR:
 
 Los hooks de Husky v9 ejecutan automaticamente antes de cada commit:
 
-- `npm run lint` en cliente y servidor
-- `npx tsc --noEmit` en cliente y servidor
-- `npm test` en cliente y servidor
+- `pnpm run lint` en cliente y servidor
+- `pnpm exec tsc --noEmit` en cliente y servidor
+- `pnpm test` en cliente y servidor
 
 Se salta en ramas `main`, `develop`, `master`.
 
@@ -132,21 +132,21 @@ Se salta en ramas `main`, `develop`, `master`.
 
 Raiz:
 
-- `npm run dev`
-- `npm run build:server`
+- `pnpm run dev`
+- `pnpm run build:server`
 
 Servidor:
 
-- `npm --prefix server run dev`
-- `npm --prefix server run seed`
-- `npm --prefix server run seed:clean`
-- `npm --prefix server run db:reset`
+- `pnpm --dir server run dev`
+- `pnpm --dir server run seed`
+- `pnpm --dir server run seed:clean`
+- `pnpm --dir server run db:reset`
 
 Cliente:
 
-- `npm --prefix client run dev`
-- `npm --prefix client run build`
-- `npm --prefix client run test`
+- `pnpm --dir client run dev`
+- `pnpm --dir client run build`
+- `pnpm --dir client run test`
 
 ## 13. Usuarios base (desarrollo)
 
@@ -171,7 +171,7 @@ Nota:
 2. API no levanta:
 
 - Confirmar `PORT` libre.
-- Revisar salida de `npm --prefix server run dev`.
+- Revisar salida de `pnpm --dir server run dev`.
 
 3. Frontend no conecta:
 

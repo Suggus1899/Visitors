@@ -6,7 +6,7 @@ The system auto-detects the host machine's LAN IP and configures CORS so other d
 
 ## Automatic Configuration
 
-When you run `npm run dev`:
+When you run `pnpm run dev`:
 
 1. The Vite dev server binds to all interfaces (`host: true`)
 2. The Express server accepts connections from `ALLOWED_ORIGINS` in `.env`

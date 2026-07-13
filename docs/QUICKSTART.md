@@ -19,7 +19,7 @@ Guía mínima para ejecutar LogMaster en cualquier PC con Windows.
 
 2. **Instalar dependencias**
    ```bash
-   npm run install-all
+   pnpm run install-all
    ```
 
 3. **Configurar entorno**
@@ -35,7 +35,7 @@ Guía mínima para ejecutar LogMaster en cualquier PC con Windows.
 
 5. **Ejecutar**
    ```bash
-   npm run dev
+   pnpm run dev
    ```
 
 6. **Acceder**
@@ -48,7 +48,7 @@ Guía mínima para ejecutar LogMaster en cualquier PC con Windows.
 
 | Acción | Comando |
 |--------|---------|
-| **Iniciar** | `npm run dev` |
+| **Iniciar** | `pnpm run dev` |
 | **Ver estado** | `scripts\status.bat` |
 
 ---
@@ -77,7 +77,7 @@ Guía mínima para ejecutar LogMaster en cualquier PC con Windows.
 ```bash
 psql -U postgres -c "DROP DATABASE visitors;"
 createdb -U postgres visitors
-npm run dev
+pnpm run dev
 ```
 ⚠️ Esto borra todos los datos.
 

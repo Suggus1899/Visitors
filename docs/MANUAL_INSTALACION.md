@@ -39,7 +39,7 @@
 ```batch
 :: Verificar Node.js
 node --version
-npm --version
+pnpm --version
 
 :: Verificar PostgreSQL
 psql --version
@@ -92,10 +92,10 @@ NODE_ENV=development   # Cambiar a production para despliegue real
 
 ```batch
 :: Instalar TODAS las dependencias (root + server + client)
-npm run install-all
+pnpm run install-all
 
 :: Iniciar servidor (puerto 3000) + cliente (puerto 5173) simultaneamente
-npm run dev
+pnpm run dev
 ```
 
 ### 2.6 Verificar que Todo Funciona
@@ -131,13 +131,13 @@ Acceder a las siguientes URLs para confirmar:
 
 ```bash
 :: Pruebas del servidor
-cd server && npm test
+cd server && pnpm test
 
 :: Pruebas del cliente
-cd client && npm test
+cd client && pnpm test
 
 :: Ambas
-npm test
+pnpm test
 ```
 
 ---
@@ -164,7 +164,7 @@ Editar `.env` y agregar la IP en `ALLOWED_ORIGINS`:
 ALLOWED_ORIGINS=http://localhost:5173,http://192.168.1.108:5173
 ```
 
-Reiniciar el servidor con `npm run dev`.
+Reiniciar el servidor con `pnpm run dev`.
 
 ### 4.4 DHCP: Cuando Cambia la IP
 
@@ -199,7 +199,7 @@ APP_URL=http://localhost:5173   # URL base para enlaces de reset
 :: O via linea de comandos:
 
 cd server
-npm run backup:full
+pnpm run backup:full
 :: Genera archivo en ./backups/backup_YYYYMMDD_HHmmss.dump
 ```
 
@@ -207,7 +207,7 @@ npm run backup:full
 
 ```bash
 cd server
-npm run backup:schema
+pnpm run backup:schema
 ```
 
 ### 6.3 Respaldo Automatico (Programado)
@@ -237,8 +237,8 @@ pg_restore -U postgres -d visitors < ./backups/backup_20260311_120000.dump
 
 ```bash
 git pull
-npm run install-all
-npm run dev
+pnpm run install-all
+pnpm run dev
 ```
 
 ### 7.2 Migraciones de Base de Datos
@@ -247,7 +247,7 @@ Las migraciones SQL se ejecutan automaticamente al iniciar el servidor. Si se ag
 
 ```bash
 cd server
-npm run migrate
+pnpm run migrate
 ```
 
 ### 7.3 Verificar Version
@@ -287,7 +287,7 @@ scripts\monitor-health.bat
 ### 8.4 Verificar Espacio en Disco
 
 ```bash
-cd server && npm run backup:monitor
+cd server && pnpm run backup:monitor
 :: Muestra el tamano de la tabla Visitors
 ```
 
@@ -307,7 +307,7 @@ cd server && npm run backup:monitor
 
 | Sintoma | Verificar | Solucion |
 |---|---|---|
-| server crash | Consola de `npm run dev` | Verificar JWT_SECRET en .env |
+| server crash | Consola de `pnpm run dev` | Verificar JWT_SECRET en .env |
 | client no responde | Consola de Vite | Verificar que server este corriendo |
 | Puerto 3000 ocupado | `netstat -ano \| findstr :3000` | Detener otro proceso o cambiar PORT en .env |
 
@@ -330,7 +330,7 @@ JWT_SECRET=<generar-con: node -e "console.log(require('crypto').randomBytes(64).
 
 ```batch
 :: Actualizar ALLOWED_ORIGINS en .env con la URL del cliente
-:: Reiniciar el servidor con npm run dev
+:: Reiniciar el servidor con pnpm run dev
 ```
 
 ### 9.6 Error "ECONNREFUSED" desde el cliente
@@ -339,18 +339,18 @@ JWT_SECRET=<generar-con: node -e "console.log(require('crypto').randomBytes(64).
 :: Verificar que el servidor este accesible
 curl http://localhost:3000/api/v1/health
 
-:: Si no responde, revisar la consola de npm run dev
+:: Si no responde, revisar la consola de pnpm run dev
 ```
 
 ### 9.7 Base de Datos Corrupta
 
 ```batch
 :: ADVERTENCIA: Esto borra TODOS los datos
-:: Detener el servidor (Ctrl+C en npm run dev)
+:: Detener el servidor (Ctrl+C en pnpm run dev)
 :: Recrear la BD:
 psql -U postgres -c "DROP DATABASE visitors;"
 psql -U postgres -c "CREATE DATABASE visitors;"
-:: Reiniciar con npm run dev
+:: Reiniciar con pnpm run dev
 ```
 
 ### 9.8 "Token has been revoked"
@@ -395,7 +395,7 @@ R: Iniciar sesion como Root > SuperAdmin Dashboard > Usuarios > Crear usuario.
 R: Contactar al usuario Root para que la resetee desde SuperAdmin Dashboard > Usuarios > Reset Password.
 
 **Q: Como hago una copia de seguridad?**  
-R: Admin > Backups > Crear Backup. O via `npm run backup` desde la raiz.
+R: Admin > Backups > Crear Backup. O via `pnpm run backup` desde la raiz.
 
 ---
 
@@ -403,20 +403,20 @@ R: Admin > Backups > Crear Backup. O via `npm run backup` desde la raiz.
 
 ```bash
 # === DESARROLLO ===
-npm run dev                     # Iniciar cliente + servidor
-npm run install-all             # Instalar todas las dependencias
-npm test                        # Ejecutar todas las pruebas
-cd server && npm test           # Pruebas del servidor
-cd client && npm test           # Pruebas del cliente
+pnpm run dev                     # Iniciar cliente + servidor
+pnpm run install-all             # Instalar todas las dependencias
+pnpm test                        # Ejecutar todas las pruebas
+cd server && pnpm test           # Pruebas del servidor
+cd client && pnpm test           # Pruebas del cliente
 
 # === BASE DE DATOS ===
 psql -U postgres -d visitors    # Conectar a la BD
-cd server && npm run migrate    # Ejecutar migraciones
+cd server && pnpm run migrate    # Ejecutar migraciones
 
 # === RESPALDOS ===
-cd server && npm run backup:full      # Backup completo
-cd server && npm run backup:schema    # Solo esquema
-cd server && npm run backup:monitor   # Ver tamano BD
+cd server && pnpm run backup:full      # Backup completo
+cd server && pnpm run backup:schema    # Solo esquema
+cd server && pnpm run backup:monitor   # Ver tamano BD
 pg_restore -U postgres -d visitors < ./backups/backup.dump  # Restaurar
 
 # === SCRIPTS WINDOWS ===

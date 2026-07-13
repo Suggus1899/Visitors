@@ -14,7 +14,7 @@
     "db:reset": "ts-node src/scripts/reset-db.ts",
     "migrate": "ts-node src/scripts/apply-migrations.ts",
     "migrate:photos": "ts-node src/scripts/migrate-photos-to-blob.ts",
-    "audit": "npm audit --audit-level=high",
+    "audit": "pnpm audit --audit-level=high",
     "backup:full": "powershell -NoProfile -Command \"$d=(Get-Date).ToString('yyyyMMdd_HHmmss'); pg_dump -Fc -U postgres -h localhost visitors > ('../backups/backup_' + $d + '.dump')\"",
     "backup:schema": "powershell -NoProfile -Command \"$d=(Get-Date).ToString('yyyyMMdd'); pg_dump -s -U postgres -h localhost visitors > ('../backups/schema_' + $d + '.sql')\"",
     "backup:monitor": "psql -U postgres -h localhost -c \"SELECT pg_size_pretty(pg_total_relation_size('\\\"Visitors\\\"'));\""

@@ -27,15 +27,15 @@ done
 if [ "$client" = 1 ]; then
   echo "--- Checking client ---"
   cd client
-  [ -f node_modules/.package-lock.json ] || npm ci
-  npm run lint && npx tsc --noEmit && npm test
+  [ -d node_modules ] || pnpm install --frozen-lockfile
+  pnpm run lint && pnpm exec tsc --noEmit && pnpm test
   cd ..
 fi
 
 if [ "$server" = 1 ]; then
   echo "--- Checking server ---"
   cd server
-  [ -f node_modules/.package-lock.json ] || npm ci
-  npx tsc --noEmit && npm test
+  [ -d node_modules ] || pnpm install --frozen-lockfile
+  pnpm exec tsc --noEmit && pnpm test
   cd ..
 fi

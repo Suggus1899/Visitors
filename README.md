@@ -37,7 +37,7 @@ git clone https://github.com/Suggus1899/Visitors.git
 cd Visitors
 
 # 2. Instalar dependencias en todos los módulos
-npm run install-all
+pnpm run install-all
 
 # 3. Configurar variables de entorno
 copy .env.example .env
@@ -47,7 +47,7 @@ copy .env.example .env
 createdb -U postgres visitors
 
 # 5. Iniciar en modo desarrollo
-npm run dev
+pnpm run dev
 ```
 
 El servidor corre en `http://localhost:3000` y el cliente en `http://localhost:5173`.
@@ -55,7 +55,7 @@ El servidor corre en `http://localhost:3000` y el cliente en `http://localhost:5
 ### Uso Diario
 
 ```bash
-npm run dev    # Inicia cliente y servidor
+pnpm run dev    # Inicia cliente y servidor
 ```
 
 O usa el script de Windows:
@@ -142,15 +142,15 @@ DB_PASSWORD=tu_contraseña_postgres
 
 ```bash
 # Desarrollo
-npm run dev              # Inicia cliente y servidor en modo desarrollo
-npm run client           # Solo cliente React
-npm run server           # Solo servidor Express
+pnpm run dev              # Inicia cliente y servidor en modo desarrollo
+pnpm run client           # Solo cliente React
+pnpm run server           # Solo servidor Express
 
 # Producción
-npm run build:server     # Compila servidor TypeScript
+pnpm run build:server     # Compila servidor TypeScript
 
 # Instalación
-npm run install-all      # Instala dependencias en todos los módulos
+pnpm run install-all      # Instala dependencias en todos los módulos
 
 # Scripts Windows (Batch)
 scripts\start.bat         # Iniciar sistema

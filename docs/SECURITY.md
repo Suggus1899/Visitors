@@ -65,9 +65,9 @@ Emails are logged (not sent) when SMTP is not configured.
 ## Pre-commit Checks (Husky)
 
 Husky v9 runs on every commit:
-- `npm run lint` (client)
-- `npx tsc --noEmit` (client + server)
-- `npm test` (client + server)
+- `pnpm run lint` (client)
+- `pnpm exec tsc --noEmit` (client + server)
+- `pnpm test` (client + server)
 
 ## CI/CD (GitHub Actions)
 
