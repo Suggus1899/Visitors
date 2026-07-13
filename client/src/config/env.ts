@@ -1,12 +1,8 @@
 /**
  * Environment configuration for the client.
- * Detects the runtime context (Electron production, dev server, etc.)
+ * Detects the runtime context (dev server, production build, etc.)
  * and exposes a single API base URL used by all services.
  */
-
-const isElectronProduction = (): boolean =>
-  typeof window !== 'undefined' &&
-  window.location.protocol === 'file:';
 
 const resolveApiBaseUrl = (): string => {
   // Vite injects env vars at build time via import.meta.env
@@ -20,11 +16,6 @@ const resolveApiBaseUrl = (): string => {
   // VITE_API_URL='' means relative paths (proxy mode)
   if (typeof viteApiUrl === 'string' && viteApiUrl === '') {
     return '';
-  }
-
-  // Electron production: server always runs on localhost:3000
-  if (isElectronProduction()) {
-    return 'http://localhost:3000';
   }
 
   // Development fallback

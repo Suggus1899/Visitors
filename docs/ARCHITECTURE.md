@@ -2,7 +2,7 @@
 
 ## Overview
 
-Monorepo with three main modules: `client/` (React SPA), `server/` (Express API), and root-level orchestration (Electron, scripts).
+Monorepo with two main modules: `client/` (React SPA) and `server/` (Express API), orchestrated by root-level scripts.
 
 ## System Stack
 

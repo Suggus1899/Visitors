@@ -1,7 +1,7 @@
 # Visitor System — Global Rules
 
 description: Project-specific rules for the Visitor Access Control System
-tags: [electron, react, express, clean-architecture, postgresql]
+tags: [react, express, clean-architecture, postgresql]
 
 ---
 
@@ -28,7 +28,6 @@ tags: [electron, react, express, clean-architecture, postgresql]
 Frontend:    React 18 + Vite + Tailwind + Lucide Icons
 Backend:     Node.js + Express + TypeScript + Sequelize
 Database:    PostgreSQL 16 (AES-256-GCM field-level encryption for PII)
-Desktop:     Electron 40 + electron-builder + auto-updater
 Testing:     Vitest (unit/integration) + Supertest
 ```
 
@@ -118,7 +117,7 @@ Testing:     Vitest (unit/integration) + Supertest
 | ------- | -------------------------- | ----------------------------------------------------------------- |
 | T-01    | PII encryption keys        | `PII_ENCRYPTION_KEY` with fallback to `ENCRYPTION_KEY` in AppConfig |
 | T-09    | Rate limiting              | `apiLimiter` middleware on all routes                             |
-| T-14    | Security headers           | Helmet middleware (CSP disabled for Electron)                     |
+| T-14    | Security headers           | Helmet middleware (CSP configured for web)                         |
 | T-JWT   | Token security             | Access (15min) + Refresh (7d) tokens, separate secrets            |
 | T-Enc   | Field encryption           | `Encryption.ts` utility for AES-256-GCM PII fields                |
 | T-Audit | Activity logging           | All auth/visit actions logged with IP/userAgent                   |
@@ -219,7 +218,6 @@ npm run test:client    # Component + unit tests
 ```bash
 # Development
 npm run dev              # Concurrent client (5173) + server (3000)
-npm run electron:dev     # Electron with HMR
 
 # Quality
 npm run test             # Full test suite (server + client)

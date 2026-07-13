@@ -128,11 +128,6 @@ DB_PASSWORD=tu_contraseña_postgres
 - **PostgreSQL** - Base de datos relacional
 - **JWT** - Autenticación
 
-### Desktop
-
-- **Electron** - Wrapper de aplicación de escritorio
-- **Electron Builder** - Empaquetado
-
 ## 🎯 Roles y Permisos
 
 | Rol           | Permisos                                                                            |
@@ -152,12 +147,7 @@ npm run client           # Solo cliente React
 npm run server           # Solo servidor Express
 
 # Producción
-npm run dist             # Genera ejecutable de producción
 npm run build:server     # Compila servidor TypeScript
-
-# Electron
-npm run electron:dev     # Inicia aplicación Electron en desarrollo
-npm run electron:start   # Inicia Electron (requiere build previo)
 
 # Instalación
 npm run install-all      # Instala dependencias en todos los módulos
@@ -195,7 +185,6 @@ Visitors/
 │   │   ├── controllers/ # Controladores HTTP
 │   │   └── routes/      # Definición de rutas
 │   └── package.json
-├── electron/            # Configuración Electron
 ├── backups/             # Respaldos automáticos
 ├── README.md            # Documentación principal
 └── .env                 # Variables de entorno (no commitear)

@@ -128,28 +128,11 @@ Los hooks de Husky v9 ejecutan automaticamente antes de cada commit:
 
 Se salta en ramas `main`, `develop`, `master`.
 
-## 10. Ejecutar Electron
-
-Modo desarrollo:
-
-```bash
-npm run electron:dev
-```
-
-Arranque Electron (requiere build de piezas):
-
-```bash
-npm run electron:start
-```
-
 ## 12. Scripts utiles
 
 Raiz:
 
 - `npm run dev`
-- `npm run electron:dev`
-- `npm run electron:start`
-- `npm run dist`
 - `npm run build:server`
 
 Servidor:

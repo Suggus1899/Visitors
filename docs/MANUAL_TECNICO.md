@@ -4,7 +4,7 @@
 
 ## 1. Introduccion
 
-LogMaster es un sistema de gestion de visitantes monorepo con frontend React + Vite, backend Express + Sequelize, base de datos PostgreSQL y empaquetado Electron para escritorio. Disenado para entornos empresariales con altos requisitos de seguridad, auditoria y cumplimiento normativo (GDPR).
+LogMaster es un sistema de gestion de visitantes monorepo con frontend React + Vite, backend Express + Sequelize y base de datos PostgreSQL. Disenado para entornos empresariales con altos requisitos de seguridad, auditoria y cumplimiento normativo (GDPR).
 
 ## 2. Requisitos Previos
 
@@ -53,7 +53,6 @@ LogMaster es un sistema de gestion de visitantes monorepo con frontend React + V
 | Backend | Node.js, Express, TypeScript | 20.x LTS |
 | ORM | Sequelize | 6.x |
 | Base de Datos | PostgreSQL | 16 |
-| Desktop | Electron + electron-builder | 40.x |
 | Pruebas | Vitest (server + client) | 4.x |
 | CI/CD | GitHub Actions | N/A |
 
@@ -646,13 +645,6 @@ URLs de acceso:
 | `verify-system.bat` | Verificacion completa de salud del sistema |
 | `auto-env.bat` | Detecta IP LAN y configura .env + CORS |
 | `monitor-health.bat` | Monitoreo continuo en tiempo real |
-
-### 12.3 Electron (Standalone)
-
-```bash
-npm run electron:dev   # Desarrollo
-npm run dist           # Generar ejecutable
-```
 
 ---
 

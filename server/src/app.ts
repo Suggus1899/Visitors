@@ -73,7 +73,6 @@ const getAllowedOrigins = (): string[] => {
     "http://localhost:80",
     "https://localhost:443",
     "https://localhost",
-    "app://.", // Electron production
   ];
 
   // Add origins from environment variable
@@ -98,7 +97,7 @@ const allowedOrigins = getAllowedOrigins();
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (Electron IPC, curl, mobile apps, server-to-server)
+      // Allow requests with no origin (curl, mobile apps, server-to-server)
       if (!origin) {
         return callback(null, true);
       }

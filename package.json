@@ -2,21 +2,18 @@
   "name": "logmaster",
   "version": "1.0.0",
   "description": "LogMaster - Sistema de Control de Acceso de Visitantes",
-  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--no-warnings concurrently \"npm run server\" \"npm run client\"",
     "start": "cross-env NODE_OPTIONS=--no-warnings concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm run dev",
     "install-all": "npm install && cd server && npm install && cd client && npm install",
-    "electron:dev": "cross-env NODE_OPTIONS=--no-warnings concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron:start\"",
-    "electron:start": "cross-env NODE_OPTIONS=--no-warnings tsc -p tsconfig.electron.json && electron dist-electron/main.js",
     "test:server": "npm --prefix server run test",
     "test:client": "npm --prefix client run test",
     "test": "npm run test:server && npm run test:client",
     "build:server": "npm --prefix server install && npx tsc -p server/tsconfig.json",
-    "dist": "cross-env NODE_OPTIONS=--no-warnings npm --prefix client run build && npm run build:server && tsc -p tsconfig.electron.json && electron-builder",
-    "release": "npm run test && npm run dist",
+    "build:client": "npm --prefix client run build",
+    "build": "npm run build:client && npm run build:server",
     "seed:clean": "cd server && npm run seed:clean",
     "backup": "npm --prefix server run backup:full",
     "backup:monitor": "npm --prefix server run backup:monitor"
@@ -25,41 +22,8 @@
     "@types/node": "^25.2.1",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
-    "electron": "^40.2.1",
-    "electron-builder": "^26.7.0",
-    "typescript": "^5.9.3",
-    "wait-on": "^9.0.3"
+    "typescript": "^5.9.3"
   },
   "author": "",
-  "license": "ISC",
-  "build": {
-    "appId": "com.logmaster.app",
-    "productName": "LogMaster",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "dist-electron/**/*",
-      "client/dist/**/*",
-      "server/dist/**/*",
-      "server/package.json",
-      "server/node_modules/**/*"
-    ],
-    "win": {
-      "target": "zip"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "Suggus1899",
-      "repo": "Visitors"
-    },
-    "asarUnpack": [
-      "server/dist/**/*",
-      "server/node_modules/**/*"
-    ]
-  },
-  "dependencies": {
-    "electron-squirrel-startup": "^1.0.1",
-    "electron-updater": "^6.7.3"
-  }
+  "license": "ISC"
 }

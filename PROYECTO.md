@@ -241,12 +241,6 @@ PostgreSQL 16
 
 - Eliminado archivo de migración SQLite (no usado con PostgreSQL)
 
-### 22. Electron Preload
-
-**Archivo**: `electron/preload.ts`
-
-- Implementado `contextBridge.exposeInMainWorld('electronAPI', ...)` con plataforma, versiones y listener para backup events
-
 ---
 
 ## Issues Conocidos

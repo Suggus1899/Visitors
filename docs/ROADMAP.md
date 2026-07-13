@@ -9,7 +9,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 - **Escalabilidad progresiva**: cada versión mayor amplía el mercado objetivo
 - **Backwards compatibility**: cambios breaking solo en versiones mayores
 - **Security-first**: los hotfixes de seguridad nunca esperan a la siguiente versión
-- **Modelo híbrido**: desktop Electron para operación diaria + panel web cloud para administración
+- **Modelo web-first**: aplicación web para operación diaria + panel cloud para administración
 
 ---
 
@@ -24,7 +24,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 | 2 | Eliminar passwords hardcodeadas en seeder.ts; reemplazar con variables de entorno | Backend |
 | 3 | Forzar `mustChangePassword: true` en TODOS los usuarios del seeder sin excepción | Backend |
 | 4 | Eliminar logging de contraseñas en texto plano al stdout | Backend |
-| 5 | Completar owner en package.json para auto-updater funcional | Electron |
+| 5 | ~~Completar owner en package.json para auto-updater funcional~~ (OBSOLETO: Electron eliminado, app es web-only) | N/A |
 
 ---
 
@@ -40,7 +40,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 | 3 | Reemplazar `Loading...` en blanco con skeletons/spinners por rol | Frontend |
 | 4 | Error boundaries React para evitar pantallas en blanco | Frontend |
 | 5 | Estabilizar flujo de migraciones SQL (apply-migrations.ts documentado) | Backend |
-| 6 | Firma del ejecutable Windows (Authenticode / self-signed) | Electron |
+| 6 | ~~Firma del ejecutable Windows~~ (OBSOLETO: sin Electron no hay ejecutable) | N/A |
 | 7 | Setup wizard de primer arranque (reemplaza usuarios default inseguros) | Frontend + Backend |
 
 ---
@@ -89,7 +89,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 |---|--------|------|
 | 1 | Arquitectura multi-tenant: separación de datos por cliente (tenant_id) | Backend |
 | 2 | Panel web de administración cloud: dashboard consolidado de todas las sedes | Web SaaS |
-| 3 | Sincronización desktop ↔ cloud: la app local sincroniza datos al servidor central | Electron + Backend |
+| 3 | Sincronización multi-sede: cada sede sincroniza datos al servidor central | Backend |
 | 4 | Gestión de sedes desde el panel: crear, configurar y monitorear cada sede | Web SaaS |
 | 5 | Dashboard de métricas en tiempo real: afluencia por hora, picos, tendencias entre sedes | Web SaaS |
 | 6 | Roles multi-sede: admin puede gestionar múltiples instalaciones | Backend |
@@ -108,7 +108,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 | 1 | API pública REST con autenticación por API Key para integraciones de terceros | Backend |
 | 2 | Webhooks: notificaciones en tiempo real a sistemas externos (check-in, check-out, alertas) | Backend |
 | 3 | Integración HR/ERP: importar empleados (anfitriones) desde SAP, Odoo, Google Workspace | Backend |
-| 4 | Integración con hardware: lectores de tarjetas, torniquetes, cámaras IP (API genérica) | Backend + Electron |
+| 4 | Integración con hardware: lectores de tarjetas, torniquetes, cámaras IP (API genérica) | Backend |
 | 5 | Integración con Slack / Teams: notificaciones de visitas al anfitrión | Backend |
 | 6 | Calendario de Outlook / Google Calendar: sincronizar pre-registros con calendario corporativo | Backend |
 | 7 | Firma digital de visitantes en tablet (consentimiento GDPR en el acto) | Frontend |
@@ -140,7 +140,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 
 | # | Mejora | Área |
 |---|--------|------|
-| 1 | Reconocimiento facial opcional: identificación automática de visitantes recurrentes | Backend + Electron |
+| 1 | Reconocimiento facial opcional: identificación automática de visitantes recurrentes | Backend |
 | 2 | Detección de anomalías: alertas por comportamiento inusual (visitas a horas extrañas, frecuencia) | Backend (ML) |
 | 3 | Predicción de afluencia: estimar picos de visitas por histórico para planificación | Backend (ML) |
 | 4 | Reportes ejecutivos automáticos: resumen semanal/mensual enviado por email al gerente | Backend |
@@ -174,7 +174,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 ## Visión General del Roadmap
 
 ```
-Estado actual: v1.0.0-rc.2 (desktop Electron, funcional, con brechas de seguridad)
+Estado actual: v1.0.0 (web app, funcional, PostgreSQL + React + Express)
         │
         ▼
 v1.0.1  ──  Hotfix seguridad crítica                    [1-2 días]

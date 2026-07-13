@@ -15,11 +15,11 @@ data/
 *.sqlite-wal
 
 # Backups
+backups/
 Backups/
 
 # Build outputs
 dist/
-dist-electron/
 client/dist/
 server/dist/
 
@@ -40,9 +40,11 @@ desktop.ini
 *.swo
 *~
 
-# Electron
-out/
-release/
+# SSL certificates (never commit)
+ssl/
+
+# Tool caches
+.atl/
 
 # Temporary files
 temp/
@@ -51,5 +53,4 @@ tmp/
 
 # Crash logs and debug files
 server_crash_log.txt
-electron_logs.txt
 debug_*.json
