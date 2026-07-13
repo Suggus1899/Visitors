@@ -58,11 +58,6 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
 
   if (!isOpen || !visit) return null;
 
-  const checkInDate = visit.check_in || visit.check_in_time || '';
-  const formattedDate = checkInDate ? new Date(checkInDate).toLocaleString('es-VE', {
-    dateStyle: 'medium', timeStyle: 'short'
-  }) : '—';
-
   const statusLabel = visit.status === 'active' ? 'Activa' : visit.status === 'waiting' ? 'En Espera' : 'Completada';
   const statusColor = visit.status === 'active'
     ? 'text-[color:var(--status-success)] bg-[color:var(--status-success)]/10 border-[color:var(--status-success)]/30'
@@ -197,7 +192,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                 <IconRow
                   icon={Clock}
                   label="Hora de Llegada"
-                  value={(visit.check_in || visit.check_in_time || visit.arrival_time) ? new Date(visit.check_in || visit.check_in_time || visit.arrival_time!).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                  value={visit.arrival_time ? new Date(visit.arrival_time).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' }) : visit.check_in_time ? new Date(visit.check_in_time).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
                   iconClass="text-blue-400"
                 />
                 <IconRow
@@ -220,9 +215,9 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                 />
 
                 {/* Area / Action / Department */}
-                {(visit.area || visit.action || visit.department) && (
+                {(visit.target_department || visit.action || visit.department) && (
                   <div className="grid grid-cols-3 gap-3 pt-1 border-t border-[color:var(--border-1)]">
-                    {visit.area && <InfoRow label="Área" value={visit.area} />}
+                    {visit.target_department && <InfoRow label="Área" value={visit.target_department} />}
                     {visit.action && <InfoRow label="Acción" value={visit.action} />}
                     {visit.department && <InfoRow label="Dpto." value={visit.department} />}
                   </div>
@@ -230,20 +225,37 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
 
               </div>
 
-              {/* Companion / Vehicle (if present) */}
-              {(visit.companionName || visit.vehiclePlate) && (
-                <div className="bg-[color:var(--surface-2)] rounded-xl p-4 border border-[color:var(--border-0)] space-y-4">
-                  <h3 className="text-[10px] font-bold text-[color:var(--accent-0)] uppercase tracking-[0.2em] border-b border-[color:var(--border-1)] pb-2">
-                    Acompañante / Vehículo
-                  </h3>
-                  {visit.companionName && (
-                    <IconRow icon={Users} label="Acompañante" value={`${visit.companionName}${visit.companionCedula ? ` · ${visit.companionCedula}` : ''}`} />
-                  )}
-                  {visit.vehiclePlate && (
-                    <IconRow icon={Car} label="Vehículo" value={`${visit.vehicleBrand || ''} ${visit.vehicleModel || ''} · ${visit.vehiclePlate}`.trim()} />
-                  )}
-                </div>
-              )}
+              {/* Companion */}
+              <div className="bg-[color:var(--surface-2)] rounded-xl p-4 border border-[color:var(--border-0)] space-y-4">
+                <h3 className="text-[10px] font-bold text-[color:var(--accent-0)] uppercase tracking-[0.2em] border-b border-[color:var(--border-1)] pb-2">
+                  Acompañante
+                </h3>
+                {visit.companionName ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[color:var(--text-1)]">{visit.companionName}{visit.companionCedula ? ` · ${visit.companionCedula}` : ''}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 opacity-50">
+                    <Users size={15} className="text-[color:var(--text-3)]" />
+                    <span className="text-xs font-medium text-[color:var(--text-3)]">Sin acompañante</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Vehicle */}
+              <div className="bg-[color:var(--surface-2)] rounded-xl p-4 border border-[color:var(--border-0)] space-y-4">
+                <h3 className="text-[10px] font-bold text-[color:var(--accent-0)] uppercase tracking-[0.2em] border-b border-[color:var(--border-1)] pb-2">
+                  Vehículo
+                </h3>
+                {visit.vehiclePlate ? (
+                  <IconRow icon={Car} label="Vehículo" value={`${visit.vehicleBrand || ''} ${visit.vehicleModel || ''} · ${visit.vehiclePlate}`.trim()} />
+                ) : (
+                  <div className="flex items-center gap-2 opacity-50">
+                    <Car size={15} className="text-[color:var(--text-3)]" />
+                    <span className="text-xs font-medium text-[color:var(--text-3)]">Sin vehículo</span>
+                  </div>
+                )}
+              </div>
 
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 ## Descripción General
 
-Sistema de control de visitas (check-in/check-out) con panel administrador, módulo de auditoría y soporte para visita intermitente. Desplegado en Docker con 3 contenedores (postgres, server, client) detrás de nginx con SSL.
+Sistema de control de visitas (check-in/check-out) con panel administrador, módulo de auditoría y soporte para visita intermitente. Desplegado con Node.js + Express (backend), React + Vite (frontend) y PostgreSQL 16.
 
 ---
 
@@ -34,7 +34,7 @@ Nginx sirve el frontend y redirige `/api/` → `server:3000`.
 | `auditor` | Solo panel de auditoría (redirigido automático desde `/`) |
 | `demo` | Operaciones con auto-tour guiado |
 
-No existe el rol `guard`. `superadmin` es el nombre del dashboard de gestión (ruta `/root`), accesible solo por el rol `root`.
+No existe el rol `guard` ni `superadmin`. El dashboard de gestión está en la ruta `/root`, accesible solo por el rol `root`. El usuario `guard` del seed tiene rol `operador` (es un username, no un rol).
 
 ### Credenciales (seed)
 
@@ -55,9 +55,9 @@ Password mínimo: 8 caracteres.
 ## Arquitectura
 
 ```
-Client (Vite + React + nginx:443)
+Client (Vite + React :5173)
     │
-    ▼ proxy_pass /api/
+    ▼ proxy /api/
 Server (Express + TypeScript :3000)
     │
     ▼
@@ -103,7 +103,7 @@ PostgreSQL 16
 
 **Archivos modificados**: servidor (entities/middleware/routes/schemas/controllers), frontend (types/routes/guards/modals)
 
-- Eliminadas todas las referencias a `guard` y `superadmin`
+- Eliminadas todas las referencias a los roles `guard` y `superadmin` (el usuario `guard` del seed conserva rol `operador`)
 - Roles actuales: `root`, `admin`, `operador`, `auditor`, `demo`
 - `AuditRoute` creado para redirigir auditor automáticamente
 - `OperationsRoute` redirige auditor a `/audit` si intenta acceder a operaciones
@@ -111,7 +111,7 @@ PostgreSQL 16
 
 ### 2. Variable de Cifrado PII
 
-**Archivo**: `server/src/config/AppConfig.ts`, `.env`, `.env.example`, `docker-compose.yml`
+**Archivo**: `server/src/config/AppConfig.ts`, `.env`, `.env.example`
 
 - `piiEncryptionKey` con fallback bidireccional:
   ```typescript
@@ -125,38 +125,14 @@ PostgreSQL 16
 - Regla `minLength(8)` en todos los schemas de creación/actualización de usuarios
 - Coherente con la política de backend
 
-### 4. Configuración Nginx
+### 4. Scripts Batch
 
-**Archivo**: `client/nginx.conf`
-
-- HTTP/2 habilitado
-- Gzip para CSS, JS, JSON, SVG
-- Asset caching (1 año para JS/CSS fingerprinted, 1 mes para imágenes/fonts)
-- Access log / error log configurados
-- Healthcheck endpoint `/health`
-
-### 5. Docker Compose
-
-**Archivo**: `docker-compose.yml`
-
-- Healthcheck interval reducido de 30s → 5s en postgres, server, client
-- Variable `PII_ENCRYPTION_KEY` en environment del server
-- Volúmenes bind para persistencia
-
-### 6. Scripts Batch
-
-8 scripts en `scripts/`:
+2 scripts en `scripts/`:
 
 | Script | Función |
 |---|---|
-| `auto-env.bat` | Configura variables de entorno automáticamente |
-| `deploy.bat` | Rebuild + seed + deploy |
-| `detener.bat` | Detiene contenedores |
-| `monitor-health.bat` | Monitoreo continuo de healthchecks |
-| `setup-ssl.bat` | Setup inicial con SSL (parámetro opcional: IP) |
-| `start.bat` | docker-compose up |
-| `status.bat` | Estado de contenedores |
-| `verify-system.bat` | Verifica requisitos del sistema |
+| `start.bat` | Inicia el sistema (verifica .env, dependencias, PostgreSQL) |
+| `status.bat` | Estado del sistema y URLs de acceso |
 
 ### 7. Seeders
 
@@ -188,7 +164,7 @@ PostgreSQL 16
 **Archivo**: `server/src/config/cors.ts`
 
 - Cambiado de error a `callback(null, origin)` en la función de origen
-- Acepta cualquier origen (detrás de nginx, el origen varía)
+- Acepta cualquier origen (en desarrollo, el origen varía)
 
 ### 11. Bugfix URLs Hardcoded
 
@@ -343,9 +319,8 @@ Submit → handleSubmit()
 | `JWT_SECRET` | — | Secreto JWT |
 | `ENCRYPTION_KEY` | — | Clave de cifrado PII |
 | `PII_ENCRYPTION_KEY` | (fallback ENCRYPTION_KEY) | Clave de cifrado PII específica |
-| `VITE_API_URL` | `""` | URL base API (vacío = relativo, nginx proxy) |
-| `CLIENT_HTTP_PORT` | `80` | Puerto HTTP |
-| `CLIENT_HTTPS_PORT` | `443` | Puerto HTTPS |
+| `VITE_API_URL` | `""` | URL base API (vacío = relativo, proxy mode) |
+| `PORT` | `3000` | Puerto del servidor Express |
 | `SERVER_PORT` | `3000` | Puerto servidor |
 
 ---
@@ -401,8 +376,6 @@ Visitors/
 │   │   └── config/
 │   │       └── env.ts                   ← API_URL resolution
 │   ├── index.html                       ← notranslate, CSP
-│   ├── nginx.conf
-│   └── Dockerfile
 ├── server/
 │   └── src/
 │       ├── application/
@@ -418,9 +391,8 @@ Visitors/
 │       └── config/
 │           ├── AppConfig.ts
 │           └── PasswordPolicy.ts
-├── docker-compose.yml
 ├── scripts/
-│   ├── *.bat (8 scripts)
+│   ├── *.bat (2 scripts)
 │   └── seeders/
 │       ├── seed-users.ts
 │       ├── seed-demo-data.ts

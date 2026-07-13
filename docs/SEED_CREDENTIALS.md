@@ -1,20 +1,36 @@
-# Credenciales de Usuarios del Sistema - Actualizado 2026-02-28
+# Credenciales de Usuarios del Sistema - Actualizado 2026-06-11
 
 ## ⚠️ IMPORTANTE: Política de Seguridad Actualizada
 
 A partir de la implementación de las mejoras de seguridad críticas (Fase 2), el sistema ahora requiere:
 
-- ✅ **Contraseñas robustas**: Mínimo 12 caracteres con complejidad completa
+- ✅ **Contraseñas robustas**: Mínimo 8 caracteres con complejidad completa
 - ✅ **Bcrypt 12 rounds**: Todas las contraseñas nuevas usan 12 rounds
 - ✅ **Cambio obligatorio**: La mayoría de usuarios deben cambiar contraseña en primer login
 - ✅ **Bloqueo de cuenta**: 5 intentos fallidos = 15 minutos de bloqueo
 - ✅ **Tokens seguros**: Access tokens (15 min) + Refresh tokens (7 días)
 
+> Las contraseñas seed se sobrescriben via variables de entorno: `SEED_ROOT_PASSWORD`, `SEED_ADMIN_PASSWORD`, `SEED_OPERADOR_PASSWORD`, `SEED_AUDITOR_PASSWORD`, `SEED_DEMO_PASSWORD`.
+
 ---
 
 ## 👥 Usuarios del Sistema
 
-### 1. Admin Principal (Producción)
+### 1. Root (SuperAdmin Dashboard)
+
+```
+Usuario: trebolmaster
+Contraseña: TrebolMaster2026!
+Rol: root
+Cambio obligatorio: NO
+Estado: Activo
+```
+
+**Uso**: Usuario con acceso total al sistema. Único rol que puede acceder al dashboard SuperAdmin (ruta `/root`) para gestion de usuarios, configuracion del sistema y auditoria.
+
+---
+
+### 2. Admin Principal
 
 ```
 Usuario: Admin@trebol.com
@@ -24,25 +40,25 @@ Cambio obligatorio: NO
 Estado: Activo
 ```
 
-**Uso**: Usuario administrador principal del sistema. Contraseña por defecto lista para usar.
+**Uso**: Usuario administrador. Gestion completa: respaldos, reportes, auditoria. No puede crear/modificar/eliminar usuarios.
 
 ---
 
-### 2. Guardia de Seguridad
+### 3. Operador
 
 ```
-Usuario: guard
-Contraseña: Guard123!@#
-Rol: guard
+Usuario: operador
+Contraseña: Operador2026!
+Rol: operador
 Cambio obligatorio: NO
 Estado: Activo
 ```
 
-**Uso**: Usuario para guardias de seguridad. Contraseña por defecto lista para usar.
+**Uso**: Usuario para operacion diaria: registro de visitantes, check-in/check-out, reportes basicos.
 
 **Nueva contraseña debe cumplir**:
 
-- Mínimo 12 caracteres
+- Mínimo 8 caracteres
 - Al menos 1 mayúscula
 - Al menos 1 minúscula
 - Al menos 1 número
@@ -51,35 +67,7 @@ Estado: Activo
 
 ---
 
-### 3. Admin Legacy (Compatibilidad)
-
-```
-Usuario: admin
-Contraseña: Admin123!@#
-Rol: admin
-Cambio obligatorio: NO
-Estado: Activo
-```
-
-**Uso**: Usuario admin legacy para compatibilidad. Contraseña por defecto lista para usar.
-
----
-
-### 4. Usuario Demo
-
-```
-Usuario: demo
-Contraseña: Demo123!@#
-Rol: admin
-Cambio obligatorio: NO
-Estado: Activo
-```
-
-**Uso**: Usuario de demostración con permisos de admin. Contraseña por defecto lista para usar.
-
----
-
-### 5. Auditor
+### 4. Auditor
 
 ```
 Usuario: auditor
@@ -89,7 +77,21 @@ Cambio obligatorio: NO
 Estado: Activo
 ```
 
-**Uso**: Usuario con permisos de auditoría. Contraseña por defecto lista para usar.
+**Uso**: Usuario con permisos de solo lectura: consulta de logs, reportes, solicitudes ARCO. Redirigido automaticamente a `/audit` al iniciar sesion.
+
+---
+
+### 5. Demo
+
+```
+Usuario: demo
+Contraseña: Demo123!@#
+Rol: demo
+Cambio obligatorio: NO
+Estado: Activo
+```
+
+**Uso**: Usuario de demostracion con auto-tour guiado. Permisos de operacion con tour interactivo.
 
 ---
 
@@ -102,8 +104,8 @@ Estado: Activo
    ```
    POST /api/v1/auth/login
    {
-     "username": "guard",
-     "password": "Guard123!@#"
+     "username": "operador",
+     "password": "Operador2026!"
    }
    ```
 
@@ -116,8 +118,8 @@ Estado: Activo
        "accessToken": "eyJ...",
        "refreshToken": "eyJ...",
        "user": {
-         "username": "guard",
-         "role": "guard",
+         "username": "operador",
+         "role": "operador",
          "mustChangePassword": true
        }
      }
@@ -149,7 +151,7 @@ Estado: Activo
    POST /api/v1/auth/change-password
    Authorization: Bearer eyJ...
    {
-     "currentPassword": "Guard123!@#",
+     "currentPassword": "Operador2026!",
      "newPassword": "MyNewSecureP@ssw0rd2026"
    }
    ```
@@ -162,7 +164,7 @@ Estado: Activo
 
 ### Requisitos Obligatorios:
 
-- ✅ Longitud: 12-128 caracteres
+- ✅ Longitud: 8-128 caracteres
 - ✅ Al menos 1 letra mayúscula (A-Z)
 - ✅ Al menos 1 letra minúscula (a-z)
 - ✅ Al menos 1 número (0-9)
@@ -173,7 +175,7 @@ Estado: Activo
 
 ```
 ✅ MySecureP@ssw0rd2026
-✅ Guard!Security#2026
+✅ Operador!Security#2026
 ✅ Tr3b0l*Admin$2026
 ✅ Aud1t0r!Secure#Pass
 ```
@@ -183,7 +185,7 @@ Estado: Activo
 ```
 ❌ password123        (común)
 ❌ Admin123          (sin carácter especial)
-❌ admin@123         (menos de 12 caracteres)
+❌ admin@123         (menos de 8 caracteres)
 ❌ ADMIN123!@#       (sin minúsculas)
 ❌ admin123!@#       (sin mayúsculas)
 ```
@@ -269,7 +271,7 @@ Respuesta:
    ```
    POST /api/v1/auth/forgot-password
    {
-     "username": "guard"
+     "username": "operador"
    }
    ```
 
@@ -311,7 +313,7 @@ npm run seed:clean
 # Login con usuario que requiere cambio
 curl -X POST http://localhost:3000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"guard","password":"Guard123!@#"}'
+  -d '{"username":"operador","password":"Operador2026!"}'
 
 # Intentar acceder (debe fallar con PASSWORD_CHANGE_REQUIRED)
 curl -X GET http://localhost:3000/api/v1/visits \
@@ -321,7 +323,7 @@ curl -X GET http://localhost:3000/api/v1/visits \
 curl -X POST http://localhost:3000/api/v1/auth/change-password \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"currentPassword":"Guard123!@#","newPassword":"MyNewSecureP@ssw0rd2026"}'
+  -d '{"currentPassword":"Operador2026!","newPassword":"MyNewSecureP@ssw0rd2026"}'
 ```
 
 ---
@@ -338,7 +340,7 @@ curl -X POST http://localhost:3000/api/v1/auth/change-password \
 
 ### Después (Fase 2):
 
-- ✅ Contraseñas robustas (12+ caracteres, complejidad completa)
+- ✅ Contraseñas robustas (8+ caracteres, complejidad completa)
 - ✅ Bcrypt 12 rounds
 - ✅ Cambio obligatorio en primer login
 - ✅ Bloqueo después de 5 intentos fallidos
@@ -370,5 +372,5 @@ SMTP_FROM=noreply@yourcompany.com
 
 ---
 
-**Última actualización**: 2026-02-28
+**Última actualización**: 2026-06-11
 **Versión**: Fase 2 - Backend Security Complete

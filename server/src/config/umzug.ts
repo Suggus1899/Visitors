@@ -33,7 +33,29 @@ export const migrator = new Umzug({
             }
           },
           down: async () => {
-            logger.warn(`Down migration not explicitly supported for SQL file: ${name}`);
+            if (!filePath) return;
+            const fs = require('fs');
+            const downPath = filePath.replace(/\.sql$/, '.down.sql');
+            if (!fs.existsSync(downPath)) {
+              logger.warn(`No down migration file found for ${name} (expected ${downPath})`);
+              return;
+            }
+            const sql = fs.readFileSync(downPath, 'utf8');
+            const statements = sql
+              .split(';')
+              .map((s: string) => s.trim())
+              .filter((s: string) => s.length > 0 && !s.startsWith('--'));
+            for (const statement of statements) {
+              try {
+                await context.query(statement);
+              } catch (error: any) {
+                if (error.message && (error.message.includes('does not exist') || error.message.includes('not found'))) {
+                  logger.warn(`Object already removed, skipping: ${statement.substring(0, 80)}`);
+                } else {
+                  throw error;
+                }
+              }
+            }
           }
         };
       }

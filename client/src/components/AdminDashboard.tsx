@@ -9,13 +9,11 @@ import CalendarIcon from 'lucide-react/dist/esm/icons/calendar';
 import FileSpreadsheet from 'lucide-react/dist/esm/icons/file-spreadsheet';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Visit } from '../types';
+import { Visit, CalendarEvent } from '../types';
 import StatisticsPanel from './StatisticsPanel';
 import BackupPanel from './BackupPanel';
 import ActivityLogPanel from './ActivityLogPanel';
 import { Header } from './Header';
-import { useSessionTimeout } from '../hooks/useSessionTimeout';
-import { SessionWarningModal } from './SessionWarningModal';
 import CalendarView from './admin/CalendarView';
 
 // Sub-components
@@ -28,7 +26,6 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 interface DashboardStats { totalVisits: number; activeVisits: number; visitsPerDay: { date: string; count: number }[]; }
 interface VisitStatsResponse { summary?: { totalVisits: number; activeVisits: number }; recentActivity?: { date: string; count: number }[]; }
 interface AlertsResponse { total: number; }
-interface CalendarEvent { id: number; title: string; start: Date; end: Date; resource?: Visit; }
 interface AlertSummary { total: number; warnings: number; critical: number; }
 
 const AdminDashboard = () => {
@@ -44,7 +41,6 @@ const AdminDashboard = () => {
 
     const { logout, user } = useAuth();
     const navigate = useNavigate();
-    const { showWarning: showTimeoutWarning, timeLeft, extendSession, logout: autoLogout } = useSessionTimeout();
 
     const fetchStats = useCallback(async () => {
         try {
@@ -63,8 +59,7 @@ const AdminDashboard = () => {
 
     const fetchVisits = useCallback(async () => {
         try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const params: any = { page: currentPage, limit: ITEMS_PER_PAGE };
+            const params: { page: number; limit: number; status?: string; search?: string; startDate?: string; endDate?: string } = { page: currentPage, limit: ITEMS_PER_PAGE };
             if (filters.status) params.status = filters.status;
             if (filters.search) params.search = filters.search;
             if (filters.startDate) params.startDate = filters.startDate;
@@ -123,8 +118,6 @@ const AdminDashboard = () => {
             <div className="absolute inset-0 bg-noise opacity-20 mix-blend-soft-light" />
             <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-[color:var(--accent-2)] opacity-15 blur-3xl" />
             <div className="absolute -bottom-48 -right-40 h-[28rem] w-[28rem] rounded-full bg-[color:var(--accent-0)] opacity-12 blur-3xl" />
-
-            <SessionWarningModal show={showTimeoutWarning} timeLeft={timeLeft} onExtend={extendSession} onLogout={autoLogout} />
 
             <Header user={user} logout={logout}>
                 {alertsSummary.total > 0 && (

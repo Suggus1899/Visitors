@@ -75,13 +75,13 @@ const IntermittentAccessLog: React.FC<IntermittentAccessLogProps> = ({ logs }) =
 
                             {/* Exit row */}
                             <div className="mb-1.5">
-                                <div className="absolute left-2 w-4 h-4 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center" style={{ top: showDate ? 28 : 0 }}>
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                <div className="absolute left-2 w-4 h-4 rounded-full bg-blue-600/20 border-2 border-blue-500 flex items-center justify-center" style={{ top: showDate ? 28 : 0 }}>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                                 </div>
                                 <div className="flex items-center gap-2 text-xs">
-                                    <LogOut size={12} className="text-amber-400 shrink-0" />
+                                    <LogOut size={12} className="text-blue-400 shrink-0" />
                                     <span className="text-[color:var(--text-3)]">Salida temporal</span>
-                                    <span className="font-mono font-semibold text-amber-300">
+                                    <span className="font-mono font-semibold text-blue-400">
                                         {formatTime(log.check_out)}
                                     </span>
                                 </div>
@@ -91,7 +91,7 @@ const IntermittentAccessLog: React.FC<IntermittentAccessLogProps> = ({ logs }) =
                             <div className="flex items-center gap-2 text-xs ml-0.5">
                                 <LogIn size={12} className={isStillOut ? 'text-[color:var(--text-3)]' : 'text-emerald-400'} />
                                 {isStillOut ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold border border-amber-400/50 text-amber-300 bg-amber-500/10">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold border border-blue-500/50 text-blue-400 bg-blue-600/10">
                                         Aún fuera
                                     </span>
                                 ) : (

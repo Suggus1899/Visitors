@@ -133,8 +133,6 @@ router.get('/v1/visits/waiting', verifyToken, denyAuditorOnly, asyncHandler(Visi
  */
 router.get('/v1/visits/active', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.getActiveVisits));
 
-router.get('/v1/visits/intermittent', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.getIntermittentVisits));
-
 router.post('/v1/visits/:id/intermittent', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.goIntermittent));
 
 router.post('/v1/visits/:id/reactivate', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.reactivateVisit));

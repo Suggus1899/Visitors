@@ -1,16 +1,16 @@
-import { User } from './types';
+import { User, UserFormData } from './types';
 
 interface UserModalsProps {
   showCreateModal: boolean;
   setShowCreateModal: (val: boolean) => void;
-  newUser: any;
-  setNewUser: (val: any) => void;
+  newUser: UserFormData;
+  setNewUser: (val: UserFormData) => void;
   handleCreateUser: () => void;
-  
+
   showEditModal: boolean;
   setShowEditModal: (val: boolean) => void;
-  editUser: any;
-  setEditUser: (val: any) => void;
+  editUser: Partial<UserFormData> & { id?: number };
+  setEditUser: (val: Partial<UserFormData> & { id?: number }) => void;
   handleUpdateUser: () => void;
   
   showResetModal: boolean;

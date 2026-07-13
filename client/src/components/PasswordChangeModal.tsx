@@ -23,43 +23,6 @@ const passwordRequirements: PasswordRequirement[] = [
     { label: 'Al menos un carácter especial', test: (p) => /[!@#$%^&*(),.?":{}|<>]/.test(p), icon: Shield },
 ];
 
-// Password strength calculator
-const calculatePasswordStrength = (password: string): number => {
-    if (!password) return 0;
-    
-    let strength = 0;
-    const requirements = passwordRequirements.filter(req => req.test(password));
-    strength += (requirements.length / passwordRequirements.length) * 50;
-    
-    // Bonus for length
-    if (password.length >= 16) strength += 25;
-    else if (password.length >= 12) strength += 15;
-    
-    // Bonus for complexity
-    const hasUpper = /[A-Z]/.test(password);
-    const hasLower = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    
-    if (hasUpper && hasLower && hasNumber && hasSpecial) strength += 25;
-    
-    return Math.min(100, Math.round(strength));
-};
-
-const getStrengthColor = (strength: number): string => {
-    if (strength < 30) return 'text-red-400';
-    if (strength < 60) return 'text-yellow-400';
-    if (strength < 80) return 'text-blue-400';
-    return 'text-green-400';
-};
-
-const getStrengthLabel = (strength: number): string => {
-    if (strength < 30) return 'Débil';
-    if (strength < 60) return 'Media';
-    if (strength < 80) return 'Fuerte';
-    return 'Muy Fuerte';
-};
-
 export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeModalProps) => {
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -69,9 +32,6 @@ export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeM
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
-
-    // Memoize password strength calculation
-    const passwordStrength = useMemo(() => calculatePasswordStrength(newPassword), [newPassword]);
 
     // Memoize password requirements validation
     const passwordValidation = useMemo(() => {
@@ -109,22 +69,6 @@ export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeM
     const isFormValid = useMemo(() => {
         return formValidation.length === 0 && currentPassword && newPassword && confirmPassword;
     }, [formValidation, currentPassword, newPassword, confirmPassword]);
-
-    // Optimized input handlers
-    const handleCurrentPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setCurrentPassword(e.target.value);
-        if (errors.length > 0) setErrors([]);
-    }, [errors.length]);
-
-    const handleNewPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setNewPassword(e.target.value);
-        if (errors.length > 0) setErrors([]);
-    }, [errors.length]);
-
-    const handleConfirmPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setConfirmPassword(e.target.value);
-        if (errors.length > 0) setErrors([]);
-    }, [errors.length]);
 
     // Optimized submit handler
     const handleSubmit = useCallback(async (e: React.FormEvent) => {

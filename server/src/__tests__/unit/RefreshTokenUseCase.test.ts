@@ -6,35 +6,52 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RefreshTokenUseCase } from '../../application/usecases/auth/RefreshToken.usecase';
 import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
-import UserModel from '../../models/User';
-
-// Mock UserModel
-vi.mock('../../models/User', () => ({
-    default: {
-        findByPk: vi.fn()
-    }
-}));
+import { IUserRepository } from '../../domain/repositories/IUserRepository';
+import { User, UserRole } from '../../domain/entities/User.entity';
 
 describe('RefreshTokenUseCase', () => {
     let refreshTokenUseCase: RefreshTokenUseCase;
     let authService: JwtAuthService;
+    let userRepository: IUserRepository;
 
     beforeEach(() => {
         vi.clearAllMocks();
         authService = new JwtAuthService();
-        refreshTokenUseCase = new RefreshTokenUseCase(authService);
+        userRepository = {
+            findAll: vi.fn(),
+            findByUsername: vi.fn(),
+            findById: vi.fn(),
+            findByResetToken: vi.fn(),
+            save: vi.fn(),
+            delete: vi.fn(),
+            updatePassword: vi.fn(),
+            updatePasswordChange: vi.fn(),
+            updateLoginAttempts: vi.fn(),
+            updateResetToken: vi.fn()
+        } as unknown as IUserRepository;
+        refreshTokenUseCase = new RefreshTokenUseCase(authService, userRepository);
     });
+
+    const buildUser = (overrides: Partial<{
+        id: number;
+        username: string;
+        role: UserRole;
+    }> = {}): User => {
+        return new User(
+            overrides.username ?? 'testuser',
+            overrides.role ?? 'admin',
+            undefined,
+            overrides.id ?? 1
+        );
+    };
 
     describe('Successful Token Refresh', () => {
         it('should generate new access token from valid refresh token', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                role: 'admin'
-            };
-
+            const mockUser = { id: 1, username: 'testuser', role: 'admin' };
             const refreshToken = authService.generateRefreshToken(mockUser);
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            const user = buildUser(mockUser);
+
+            (userRepository.findById as any).mockResolvedValue(user);
 
             const result = await refreshTokenUseCase.execute(refreshToken);
 
@@ -43,14 +60,11 @@ describe('RefreshTokenUseCase', () => {
         });
 
         it('should return valid access token that can be verified', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                role: 'admin'
-            };
-
+            const mockUser = { id: 1, username: 'testuser', role: 'admin' };
             const refreshToken = authService.generateRefreshToken(mockUser);
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            const user = buildUser(mockUser);
+
+            (userRepository.findById as any).mockResolvedValue(user);
 
             const result = await refreshTokenUseCase.execute(refreshToken);
 
@@ -62,18 +76,14 @@ describe('RefreshTokenUseCase', () => {
         });
 
         it('should generate different access tokens on multiple refreshes', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                role: 'admin'
-            };
-
+            const mockUser = { id: 1, username: 'testuser', role: 'admin' };
             const refreshToken = authService.generateRefreshToken(mockUser);
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            const user = buildUser(mockUser);
+
+            (userRepository.findById as any).mockResolvedValue(user);
 
             const result1 = await refreshTokenUseCase.execute(refreshToken);
 
-            // Wait 1 second to ensure different timestamps (JWT uses seconds precision)
             await new Promise(resolve => setTimeout(resolve, 1100));
 
             const result2 = await refreshTokenUseCase.execute(refreshToken);
@@ -90,12 +100,7 @@ describe('RefreshTokenUseCase', () => {
         });
 
         it('should throw INVALID_REFRESH_TOKEN for tampered refresh token', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                role: 'admin'
-            };
-
+            const mockUser = { id: 1, username: 'testuser', role: 'admin' };
             const refreshToken = authService.generateRefreshToken(mockUser);
             const tamperedToken = refreshToken.slice(0, -5) + 'xxxxx';
 
@@ -105,14 +110,10 @@ describe('RefreshTokenUseCase', () => {
         });
 
         it('should throw INVALID_REFRESH_TOKEN if user no longer exists', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                role: 'admin'
-            };
-
+            const mockUser = { id: 1, username: 'testuser', role: 'admin' };
             const refreshToken = authService.generateRefreshToken(mockUser);
-            (UserModel.findByPk as any).mockResolvedValue(null);
+
+            (userRepository.findById as any).mockResolvedValue(null);
 
             await expect(
                 refreshTokenUseCase.execute(refreshToken)
@@ -120,8 +121,6 @@ describe('RefreshTokenUseCase', () => {
         });
 
         it('should throw INVALID_REFRESH_TOKEN for expired refresh token', async () => {
-            // This test would require mocking time or using a very short expiration
-            // For now, we'll just verify the error handling structure exists
             const expiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid';
 
             await expect(
@@ -132,14 +131,11 @@ describe('RefreshTokenUseCase', () => {
 
     describe('Token Payload Integrity', () => {
         it('should preserve user id in new access token', async () => {
-            const mockUser = {
-                id: 42,
-                username: 'testuser',
-                role: 'admin'
-            };
-
+            const mockUser = { id: 42, username: 'testuser', role: 'admin' };
             const refreshToken = authService.generateRefreshToken(mockUser);
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            const user = buildUser(mockUser);
+
+            (userRepository.findById as any).mockResolvedValue(user);
 
             const result = await refreshTokenUseCase.execute(refreshToken);
             const payload = authService.verifyAccessToken(result.accessToken);
@@ -148,14 +144,11 @@ describe('RefreshTokenUseCase', () => {
         });
 
         it('should preserve username in new access token', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'johndoe',
-                role: 'admin'
-            };
-
+            const mockUser = { id: 1, username: 'johndoe', role: 'admin' };
             const refreshToken = authService.generateRefreshToken(mockUser);
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            const user = buildUser(mockUser);
+
+            (userRepository.findById as any).mockResolvedValue(user);
 
             const result = await refreshTokenUseCase.execute(refreshToken);
             const payload = authService.verifyAccessToken(result.accessToken);
@@ -164,14 +157,11 @@ describe('RefreshTokenUseCase', () => {
         });
 
         it('should preserve role in new access token', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                role: 'operador'
-            };
-
+            const mockUser = { id: 1, username: 'testuser', role: 'operador' };
             const refreshToken = authService.generateRefreshToken(mockUser);
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            const user = buildUser(mockUser);
+
+            (userRepository.findById as any).mockResolvedValue(user);
 
             const result = await refreshTokenUseCase.execute(refreshToken);
             const payload = authService.verifyAccessToken(result.accessToken);

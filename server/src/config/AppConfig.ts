@@ -91,14 +91,16 @@ class Config implements AppConfig {
   rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10);
   bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
 
-  // Seed default passwords (overridable via env — only used if SEED_DEFAULT_PASSWORDS=1)
-  seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || 'Trebol123*';
-  seedGuardPassword = process.env.SEED_GUARD_PASSWORD || 'Guard123!@#';
-  seedDemoPassword = process.env.SEED_DEMO_PASSWORD || 'Demo123!@#';
-  seedAuditorPassword = process.env.SEED_AUDITOR_PASSWORD || 'Audit2026!@#';
-  seedSuperadminPassword = process.env.SEED_SUPERADMIN_PASSWORD || 'TrebolMaster2026!';
-  seedRootPassword = process.env.SEED_ROOT_PASSWORD || 'TrebolMaster2026!';
-  seedOperadorPassword = process.env.SEED_OPERADOR_PASSWORD || 'Operador2026!';
+  // Seed default passwords (must be set via env — no hardcoded defaults)
+  seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || '';
+  seedGuardPassword = process.env.SEED_GUARD_PASSWORD || '';
+  seedDemoPassword = process.env.SEED_DEMO_PASSWORD || '';
+  seedAuditorPassword = process.env.SEED_AUDITOR_PASSWORD || '';
+  seedSuperadminPassword = process.env.SEED_ROOT_PASSWORD || '';
+  seedRootPassword = process.env.SEED_ROOT_PASSWORD || '';
+  seedOperadorPassword = process.env.SEED_OPERADOR_PASSWORD || '';
+
+
 
   validate() {
     const errors: string[] = [];

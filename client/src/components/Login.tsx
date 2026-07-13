@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import AuthService from '../services/AuthService';
+import type { User } from '../types';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import Eye from 'lucide-react/dist/esm/icons/eye';
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off';
@@ -31,16 +33,10 @@ const Login = () => {
         setIsLoading(true);
 
         try {
-            // Attempt auto-seed if first run (optional/dev convenience) - Removed as it is legacy
-            // try { await axios.post('http://localhost:3000/api/auth/seed'); } catch { /* ignore */ }
+            const user = await AuthService.login(username, password);
 
-            const res = await axios.post('/api/v1/auth/login', { username, password });
-            
-            // Backend returns: { success: true, data: { token, user: { username, role } } }
-            const { token, user } = res.data.data;
-            
             toast.success(`¡Bienvenido, ${user.username}!`);
-            login(token, { username: user.username, role: user.role });
+            login({ username: user.username, role: user.role as User['role'], mustChangePassword: user.mustChangePassword });
 
             if (user.role === 'root') {
                 setTimeout(() => navigate('/root'), 500);
@@ -50,7 +46,7 @@ const Login = () => {
                 setTimeout(() => navigate('/'), 500);
             }
         } catch (err) {
-            const error = err as AxiosError<{ error?: { message?: string } }>; 
+            const error = err as AxiosError<{ error?: { message?: string } }>;
             const status = error.response?.status;
             const message = error.response?.data?.error?.message;
 
@@ -142,15 +138,6 @@ const Login = () => {
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                 </button>
                             </div>
-                        </div>
-
-                        <div className="flex justify-end pt-1">
-                            <Link
-                                to="/forgot-password"
-                                className="text-[11px] uppercase tracking-[0.2em] text-[color:var(--text-3)] hover:text-[color:var(--accent-0)] transition-colors"
-                            >
-                                ¿Olvidaste tu contraseña?
-                            </Link>
                         </div>
 
                         <button

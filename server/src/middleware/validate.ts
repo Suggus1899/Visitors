@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema } from 'zod';
+import logger from '../config/logger';
 
 /**
  * Middleware factory that validates req.body against a Zod schema.
@@ -14,6 +15,13 @@ export const validate = (schema: ZodSchema) => {
       field: e.path.map(String).join('.'),
       message: e.message,
     }));
+
+      logger.warn('Validation failed', {
+        path: req.path,
+        method: req.method,
+        errors,
+        body: req.body,
+      });
 
       res.status(400).json({
         success: false,

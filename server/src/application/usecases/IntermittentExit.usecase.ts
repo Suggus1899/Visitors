@@ -1,15 +1,15 @@
 import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
-import IntermittentLogModel from '../../models/IntermittentLog';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const IntermittentLog = IntermittentLogModel as any;
+import { IIntermittentLogRepository } from '../../domain/repositories/IIntermittentLogRepository';
 
 /**
  * Use Case: Intermittent Exit
  * Transitions a visit from Active → Intermittent and creates a log entry.
  */
 export class IntermittentExitUseCase {
-  constructor(private visitRepository: IVisitRepository) {}
+  constructor(
+    private visitRepository: IVisitRepository,
+    private intermittentLogRepository: IIntermittentLogRepository
+  ) {}
 
   async execute(dto: {
     visitId: number;
@@ -31,11 +31,11 @@ export class IntermittentExitUseCase {
     });
 
     // 4. Create IntermittentLog entry
-    const log = await IntermittentLog.create({
-      visit_id: visit.id!,
-      check_out: new Date(),
+    const log = await this.intermittentLogRepository.create({
+      visitId: visit.id!,
+      checkOut: new Date(),
       notes: dto.notes || null,
-      registered_by: dto.registeredBy || null,
+      registeredBy: dto.registeredBy || null,
     });
 
     return {
@@ -46,12 +46,12 @@ export class IntermittentExitUseCase {
       },
       log: {
         id: log.id,
-        visit_id: log.visit_id,
-        check_out: log.check_out.toISOString(),
+        visit_id: log.visitId,
+        check_out: log.checkOut.toISOString(),
         notes: log.notes,
-        registered_by: log.registered_by,
+        registered_by: log.registeredBy,
       },
-      intermittentStartTime: log.check_out.toISOString(), // Tiempo de inicio para el contador UI
+      intermittentStartTime: log.checkOut.toISOString(), // Tiempo de inicio para el contador UI
     };
   }
 }

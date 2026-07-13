@@ -1,15 +1,15 @@
-import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MonthlyReportCard } from '../statistics/MonthlyReportCard';
+import MonthlyReportCard from '../statistics/MonthlyReportCard';
 import { Pie } from 'react-chartjs-2';
 
 // Mock dependencies
-jest.mock('react-chartjs-2', () => ({
-    Pie: jest.fn(() => <div data-testid="pie-chart">Mock Pie Chart</div>),
+vi.mock('react-chartjs-2', () => ({
+    Pie: vi.fn(() => <div data-testid="pie-chart">Mock Pie Chart</div>),
 }));
 
-jest.mock('./pdfExport', () => ({
-    downloadMonthlyPDF: jest.fn().mockResolvedValue(undefined),
+vi.mock('../statistics/pdfExport', () => ({
+    downloadMonthlyPDF: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockMonthlyReport = {
@@ -30,16 +30,16 @@ const defaultProps = {
     monthlyReport: mockMonthlyReport,
     pieChartRef: { current: null },
     selectedMonth: 0,
-    setSelectedMonth: jest.fn(),
+    setSelectedMonth: vi.fn(),
     selectedYear: 2025,
-    setSelectedYear: jest.fn(),
+    setSelectedYear: vi.fn(),
     months: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
     isLoading: false,
 };
 
 describe('MonthlyReportCard', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('renders correctly with monthly report data', () => {
@@ -66,7 +66,7 @@ describe('MonthlyReportCard', () => {
     });
 
     it('handles month selection change', () => {
-        const mockSetSelectedMonth = jest.fn();
+        const mockSetSelectedMonth = vi.fn();
         render(<MonthlyReportCard {...defaultProps} setSelectedMonth={mockSetSelectedMonth} />);
         
         const monthSelect = screen.getByDisplayValue('Enero');
@@ -76,7 +76,7 @@ describe('MonthlyReportCard', () => {
     });
 
     it('handles year selection change', () => {
-        const mockSetSelectedYear = jest.fn();
+        const mockSetSelectedYear = vi.fn();
         render(<MonthlyReportCard {...defaultProps} setSelectedYear={mockSetSelectedYear} />);
         
         const yearSelect = screen.getByDisplayValue('2025');
@@ -86,7 +86,7 @@ describe('MonthlyReportCard', () => {
     });
 
     it('handles PDF download', async () => {
-        const { downloadMonthlyPDF } = require('./pdfExport');
+        const { downloadMonthlyPDF } = require('../statistics/pdfExport');
         render(<MonthlyReportCard {...defaultProps} />);
         
         const downloadButton = screen.getByText('Descargar PDF');
@@ -98,7 +98,7 @@ describe('MonthlyReportCard', () => {
     });
 
     it('shows loading state during PDF download', async () => {
-        const { downloadMonthlyPDF } = require('./pdfExport');
+        const { downloadMonthlyPDF } = require('../statistics/pdfExport');
         downloadMonthlyPDF.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
         
         render(<MonthlyReportCard {...defaultProps} />);
@@ -170,7 +170,7 @@ describe('MonthlyReportCard', () => {
     });
 
     it('resets showAllReasons when changing month', () => {
-        const mockSetSelectedMonth = jest.fn();
+        const mockSetSelectedMonth = vi.fn();
         render(<MonthlyReportCard {...defaultProps} setSelectedMonth={mockSetSelectedMonth} />);
         
         // First expand to show all reasons
@@ -186,7 +186,7 @@ describe('MonthlyReportCard', () => {
     });
 
     it('resets showAllReasons when changing year', () => {
-        const mockSetSelectedYear = jest.fn();
+        const mockSetSelectedYear = vi.fn();
         render(<MonthlyReportCard {...defaultProps} setSelectedYear={mockSetSelectedYear} />);
         
         // First expand to show all reasons

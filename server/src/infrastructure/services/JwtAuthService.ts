@@ -2,26 +2,8 @@ import * as jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import config from '../../config/AppConfig';
-import { IAuthService } from '../../domain/services/IAuthService';
+import { IAuthService, TokenUser, TokenPayload, TokenPair } from '../../domain/services/IAuthService';
 import { User } from '../../domain/entities/User.entity';
-
-// Interface for user-like objects that can be used for token generation
-interface TokenUser {
-  id?: number;
-  username: string;
-  role: string;
-}
-
-export interface TokenPayload {
-  id: number;
-  username: string;
-  role: string;
-}
-
-export interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-}
 
 export class JwtAuthService implements IAuthService {
   /**

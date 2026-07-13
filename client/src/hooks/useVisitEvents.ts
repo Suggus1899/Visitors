@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_URL } from '../config/env';
+import AuthService from '../services/AuthService';
 import { visitQueryKeys } from './useVisitQueries';
 
 interface VisitEvent {
@@ -33,7 +34,7 @@ export const useVisitEvents = (options?: UseVisitEventsOptions) => {
             return;
         }
 
-        const token = localStorage.getItem('token');
+        const token = AuthService.getAccessToken();
         if (!token) {
             setIsConnected(false);
             setIsUsingFallbackPolling(true);

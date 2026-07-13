@@ -58,10 +58,9 @@ const BackupPanel = () => {
             const response = await api.post('/backups', {});
 
             if (response.data?.success) {
-                const restorePassword = response.data?.data?.restorePassword;
                 setMessage({ 
                     type: 'success', 
-                    text: `Backup completado. Contraseña de restauración: ${restorePassword}. ¡Guárdela en un lugar seguro!` 
+                    text: 'Backup completado exitosamente.' 
                 });
                 fetchBackups();
             }

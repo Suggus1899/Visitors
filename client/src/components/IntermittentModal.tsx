@@ -37,10 +37,10 @@ const IntermittentModal: React.FC<IntermittentModalProps> = ({
                 onClick={e => e.stopPropagation()}
             >
                 <div className="relative bg-[color:var(--surface-2)] border-b border-[color:var(--border-1)] p-4">
-                    <div className={`absolute inset-x-0 top-0 h-0.5 ${isExit ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                    <div className={`absolute inset-x-0 top-0 h-0.5 ${isExit ? 'bg-blue-500' : 'bg-emerald-400'}`} />
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <AlertTriangle size={20} className={isExit ? 'text-amber-400' : 'text-emerald-400'} />
+                            <AlertTriangle size={20} className={isExit ? 'text-blue-400' : 'text-emerald-400'} />
                             <h2 className="text-lg font-display uppercase tracking-[0.15em] text-[color:var(--text-1)]">{title}</h2>
                         </div>
                         <button onClick={onClose} className="p-1 text-[color:var(--text-3)] hover:text-[color:var(--text-1)] rounded-full hover:bg-[color:var(--surface-1)] transition-colors">
@@ -80,12 +80,12 @@ const IntermittentModal: React.FC<IntermittentModalProps> = ({
                             disabled={loading}
                             className={`flex-1 px-4 py-2 rounded-lg text-sm font-bold tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 ${
                                 isExit
-                                    ? 'bg-amber-500/20 border border-amber-400 text-amber-300 hover:bg-amber-500/30'
+                                    ? 'bg-blue-600/20 border border-blue-500 text-blue-400 hover:bg-blue-600/30'
                                     : 'bg-emerald-500/20 border border-emerald-400 text-emerald-300 hover:bg-emerald-500/30'
                             }`}
                         >
                             {loading ? (
-                                <div className={`w-4 h-4 border-2 ${isExit ? 'border-amber-400' : 'border-emerald-400'} border-t-transparent rounded-full animate-spin`} />
+                                <div className={`w-4 h-4 border-2 ${isExit ? 'border-blue-500' : 'border-emerald-400'} border-t-transparent rounded-full animate-spin`} />
                             ) : confirmLabel}
                         </button>
                     </div>

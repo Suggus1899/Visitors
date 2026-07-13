@@ -1,37 +1,42 @@
 import { useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
 import { AuthContext } from './AuthContextInstance';
+import AuthService from '../services/AuthService';
+import type { User } from '../types';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<{ username: string; role: string } | null>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Restore session from localStorage on page load
-        const token = localStorage.getItem('token');
-        const role = localStorage.getItem('role');
-        const username = localStorage.getItem('username');
+        const restoreSession = async () => {
+            const role = localStorage.getItem('role') as User['role'] | null;
+            const username = localStorage.getItem('username');
 
-        if (token && role && username) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            setUser({ username, role });
-        }
-        setLoading(false);
+            if (AuthService.isAuthenticated() && username && role) {
+                try {
+                    await AuthService.refreshAccessToken();
+                    setUser({ username, role });
+                } catch {
+                    AuthService.logout();
+                    localStorage.removeItem('role');
+                    localStorage.removeItem('username');
+                }
+            }
+            setLoading(false);
+        };
+        restoreSession();
     }, []);
 
-    const login = (token: string, userData: { username: string; role: string }) => {
-        localStorage.setItem('token', token);
+    const login = (userData: User) => {
         localStorage.setItem('role', userData.role);
         localStorage.setItem('username', userData.username);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setUser(userData);
     };
 
     const logout = () => {
-        localStorage.removeItem('token');
+        AuthService.logout();
         localStorage.removeItem('role');
         localStorage.removeItem('username');
-        delete axios.defaults.headers.common['Authorization'];
         setUser(null);
     };
 
@@ -41,4 +46,3 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         </AuthContext.Provider>
     );
 };
-

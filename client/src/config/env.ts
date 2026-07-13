@@ -17,8 +17,7 @@ const resolveApiBaseUrl = (): string => {
     return viteApiUrl as string;
   }
 
-  // VITE_API_URL='' means Docker/nginx: use empty string so axios calls are relative
-  // Nginx will proxy /api → server:3000
+  // VITE_API_URL='' means relative paths (proxy mode)
   if (typeof viteApiUrl === 'string' && viteApiUrl === '') {
     return '';
   }

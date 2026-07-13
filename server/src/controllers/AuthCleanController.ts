@@ -147,7 +147,7 @@ export const refreshToken = async (req: Request, res: Response) => {
 export const changePassword = async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = (req as AuthenticatedRequest).user!.id;
+    const userId = req.user!.id;
 
     const useCase = container.createChangePasswordUseCase();
     await useCase.execute(userId, currentPassword, newPassword);

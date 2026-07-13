@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage, dialog } from 'electron';
 import path from 'path';
-import { fork, ChildProcess } from 'child_process';
+import { fork, ChildProcess, execSync } from 'child_process';
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs';
 
@@ -55,16 +55,6 @@ const isDev = !app.isPackaged;
 const ALLOWED_RENDERER_ORIGINS = ['http://localhost:5173', 'file://'];
 
 // ============================================
-// HELPERS (Lazy Loading)
-// ============================================
-
-function getDbPath(): string {
-    return isDev
-        ? path.join(__dirname, '../server/visits.sqlite')
-        : path.join(app.getPath('userData'), 'visits.sqlite');
-}
-
-// ============================================
 // AUTO-UPDATER CONFIGURATION
 // ============================================
 function configureAutoUpdater() {
@@ -106,25 +96,18 @@ function configureAutoUpdater() {
 // BACKUP & RESTORE
 // ============================================
 async function createBackup() {
-    const dbPath = getDbPath();
-
-    if (!fs.existsSync(dbPath)) {
-        dialog.showErrorBox('Error', 'No se encontró la base de datos para respaldar.');
-        return;
-    }
-
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const defaultPath = path.join(app.getPath('documents'), `LogMasterBackup_${timestamp}.sqlite`);
+    const defaultPath = path.join(app.getPath('documents'), `LogMasterBackup_${timestamp}.dump`);
 
     const result = await dialog.showSaveDialog(mainWindow!, {
         title: 'Guardar Backup',
         defaultPath,
-        filters: [{ name: 'SQLite Database', extensions: ['sqlite'] }]
+        filters: [{ name: 'PostgreSQL Backup', extensions: ['dump'] }]
     });
 
     if (!result.canceled && result.filePath) {
         try {
-            fs.copyFileSync(dbPath, result.filePath);
+            execSync(`pg_dump -U postgres -h localhost -Fc visitors > "${result.filePath}"`);
             dialog.showMessageBox(mainWindow!, {
                 type: 'info',
                 title: 'Backup Exitoso',
@@ -139,13 +122,12 @@ async function createBackup() {
 async function restoreBackup() {
     const result = await dialog.showOpenDialog(mainWindow!, {
         title: 'Seleccionar Backup para Restaurar',
-        filters: [{ name: 'SQLite Database', extensions: ['sqlite'] }],
+        filters: [{ name: 'PostgreSQL Backup', extensions: ['dump'] }],
         properties: ['openFile']
     });
 
     if (!result.canceled && result.filePaths.length > 0) {
         const backupPath = result.filePaths[0];
-        const dbPath = getDbPath();
 
         const confirm = await dialog.showMessageBox(mainWindow!, {
             type: 'warning',
@@ -157,13 +139,7 @@ async function restoreBackup() {
 
         if (confirm.response === 0) {
             try {
-                // Create a backup of current before restoring
-                const currentBackup = dbPath + '.before-restore';
-                if (fs.existsSync(dbPath)) {
-                    fs.copyFileSync(dbPath, currentBackup);
-                }
-                fs.copyFileSync(backupPath, dbPath);
-
+                execSync(`pg_restore -U postgres -h localhost -d visitors -c "${backupPath}"`);
                 dialog.showMessageBox(mainWindow!, {
                     type: 'info',
                     title: 'Restauración Exitosa',
@@ -338,7 +314,7 @@ function startServer() {
     logger.info('Starting server from:', scriptPath);
 
     try {
-        const requiredEnvKeys = ['DB_ENCRYPTION_KEY', 'ENCRYPTION_KEY', 'JWT_SECRET', 'BACKUP_PASSWORD'];
+        const requiredEnvKeys = ['PII_ENCRYPTION_KEY', 'ENCRYPTION_KEY', 'JWT_SECRET', 'BACKUP_PASSWORD'];
         const missing = requiredEnvKeys.filter((key) => !process.env[key] || String(process.env[key]).trim().length === 0);
 
         if (missing.length > 0) {
@@ -356,8 +332,7 @@ function startServer() {
                 NODE_ENV: 'production',
                 NODE_PATH: serverNodeModulesPath,
                 PORT: SERVER_PORT.toString(), 
-                DB_PATH: path.join(app.getPath('userData'), 'database'),
-                DB_ENCRYPTION_KEY: process.env.DB_ENCRYPTION_KEY,
+                PII_ENCRYPTION_KEY: process.env.PII_ENCRYPTION_KEY,
                 ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
                 JWT_SECRET: process.env.JWT_SECRET,
                 BACKUP_PASSWORD: process.env.BACKUP_PASSWORD

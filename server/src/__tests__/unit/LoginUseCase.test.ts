@@ -6,15 +6,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LoginUseCase } from '../../application/usecases/auth/Login.usecase';
 import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
-import UserModel from '../../models/User';
+import { IUserRepository } from '../../domain/repositories/IUserRepository';
+import { User, UserRole } from '../../domain/entities/User.entity';
 import config from '../../config/AppConfig';
-
-// Mock UserModel
-vi.mock('../../models/User', () => ({
-    default: {
-        findOne: vi.fn()
-    }
-}));
 
 // Mock logActivity
 vi.mock('../../models/ActivityLog', () => ({
@@ -24,30 +18,57 @@ vi.mock('../../models/ActivityLog', () => ({
 describe('LoginUseCase - Account Lockout', () => {
     let loginUseCase: LoginUseCase;
     let authService: JwtAuthService;
-    let mockUserRepository: any;
+    let userRepository: IUserRepository;
 
     beforeEach(() => {
         vi.clearAllMocks();
         authService = new JwtAuthService();
-        mockUserRepository = {};
-        loginUseCase = new LoginUseCase(mockUserRepository, authService);
+        userRepository = {
+            findAll: vi.fn(),
+            findByUsername: vi.fn(),
+            findById: vi.fn(),
+            findByResetToken: vi.fn(),
+            save: vi.fn(),
+            delete: vi.fn(),
+            updatePassword: vi.fn().mockResolvedValue(undefined),
+            updatePasswordChange: vi.fn(),
+            updateLoginAttempts: vi.fn().mockResolvedValue(undefined),
+            updateResetToken: vi.fn()
+        } as unknown as IUserRepository;
+        loginUseCase = new LoginUseCase(userRepository, authService);
     });
+
+    const buildUser = async (overrides: Partial<{
+        id: number;
+        username: string;
+        password: string;
+        role: UserRole;
+        loginAttempts: number;
+        lockedUntil: Date | null;
+        mustChangePassword: boolean;
+    }> = {}): Promise<User> => {
+        const password = overrides.password ?? 'password123';
+        const hashed = await authService.hashPassword(password);
+        return new User(
+            overrides.username ?? 'testuser',
+            overrides.role ?? 'admin',
+            hashed,
+            overrides.id ?? 1,
+            undefined,
+            undefined,
+            overrides.mustChangePassword ?? false,
+            undefined,
+            overrides.loginAttempts ?? 0,
+            overrides.lockedUntil ?? null
+        );
+    };
 
     describe('Account Lockout Detection', () => {
         it('should reject login if account is locked', async () => {
-            const lockedUntil = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('password123'),
-                role: 'admin',
-                loginAttempts: 5,
-                lockedUntil: lockedUntil,
-                mustChangePassword: false,
-                update: vi.fn()
-            };
+            const lockedUntil = new Date(Date.now() + 10 * 60 * 1000);
+            const user = await buildUser({ loginAttempts: 5, lockedUntil });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             await expect(
                 loginUseCase.execute({ username: 'testuser', password: 'password123' })
@@ -56,18 +77,9 @@ describe('LoginUseCase - Account Lockout', () => {
 
         it('should include minutes remaining in lockout error', async () => {
             const lockedUntil = new Date(Date.now() + 10 * 60 * 1000);
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('password123'),
-                role: 'admin',
-                loginAttempts: 5,
-                lockedUntil: lockedUntil,
-                mustChangePassword: false,
-                update: vi.fn()
-            };
+            const user = await buildUser({ loginAttempts: 5, lockedUntil });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             try {
                 await loginUseCase.execute({ username: 'testuser', password: 'password123' });
@@ -80,144 +92,81 @@ describe('LoginUseCase - Account Lockout', () => {
         });
 
         it('should allow login if lockout has expired', async () => {
-            const lockedUntil = new Date(Date.now() - 1000); // 1 second ago
+            const lockedUntil = new Date(Date.now() - 1000);
             const password = 'ValidP@ssw0rd123';
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword(password),
-                role: 'admin',
-                loginAttempts: 5,
-                lockedUntil: lockedUntil,
-                mustChangePassword: false,
-                update: vi.fn().mockResolvedValue(true)
-            };
+            const user = await buildUser({ password, loginAttempts: 5, lockedUntil });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             const result = await loginUseCase.execute({ username: 'testuser', password });
 
             expect(result).toBeDefined();
             expect(result.accessToken).toBeDefined();
-            expect(mockUser.update).toHaveBeenCalledWith({
-                loginAttempts: 0,
-                lockedUntil: null
-            });
+            expect(userRepository.updateLoginAttempts).toHaveBeenCalledWith(1, 0, null);
         });
     });
 
     describe('Login Attempt Tracking', () => {
         it('should increment loginAttempts on failed login', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('correctpassword'),
-                role: 'admin',
-                loginAttempts: 2,
-                lockedUntil: null,
-                mustChangePassword: false,
-                update: vi.fn().mockResolvedValue(true)
-            };
+            const user = await buildUser({ password: 'correctpassword', loginAttempts: 2 });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             try {
                 await loginUseCase.execute({ username: 'testuser', password: 'wrongpassword' });
             } catch (error) {
-                expect(mockUser.update).toHaveBeenCalledWith({
-                    loginAttempts: 3
-                });
+                expect(userRepository.updateLoginAttempts).toHaveBeenCalledWith(1, 3, null);
             }
         });
 
         it('should lock account after 5 failed attempts', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('correctpassword'),
-                role: 'admin',
-                loginAttempts: 4,
-                lockedUntil: null,
-                mustChangePassword: false,
-                update: vi.fn().mockResolvedValue(true)
-            };
+            const user = await buildUser({ password: 'correctpassword', loginAttempts: 4 });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             try {
                 await loginUseCase.execute({ username: 'testuser', password: 'wrongpassword' });
             } catch (error: any) {
                 expect(error.message).toBe('ACCOUNT_LOCKED');
-                expect(mockUser.update).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        loginAttempts: 5,
-                        lockedUntil: expect.any(Date)
-                    })
+                expect(userRepository.updateLoginAttempts).toHaveBeenCalledWith(
+                    1,
+                    5,
+                    expect.any(Date)
                 );
             }
         });
 
         it('should notify user of remaining attempts after 3rd failure', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('correctpassword'),
-                role: 'admin',
-                loginAttempts: 2,
-                lockedUntil: null,
-                mustChangePassword: false,
-                update: vi.fn().mockResolvedValue(true)
-            };
+            const user = await buildUser({ password: 'correctpassword', loginAttempts: 2 });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             try {
                 await loginUseCase.execute({ username: 'testuser', password: 'wrongpassword' });
             } catch (error: any) {
                 expect(error.message).toBe('INVALID_CREDENTIALS');
-                expect(error.attemptsRemaining).toBe(2); // 5 - 3 = 2
+                expect(error.attemptsRemaining).toBe(config.maxLoginAttempts - 3);
             }
         });
 
         it('should reset loginAttempts on successful login', async () => {
             const password = 'ValidP@ssw0rd123';
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword(password),
-                role: 'admin',
-                loginAttempts: 3,
-                lockedUntil: null,
-                mustChangePassword: false,
-                update: vi.fn().mockResolvedValue(true)
-            };
+            const user = await buildUser({ password, loginAttempts: 3 });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             await loginUseCase.execute({ username: 'testuser', password });
 
-            expect(mockUser.update).toHaveBeenCalledWith({
-                loginAttempts: 0,
-                lockedUntil: null
-            });
+            expect(userRepository.updateLoginAttempts).toHaveBeenCalledWith(1, 0, null);
         });
     });
 
     describe('Token Generation', () => {
         it('should return both access and refresh tokens', async () => {
             const password = 'ValidP@ssw0rd123';
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword(password),
-                role: 'admin',
-                loginAttempts: 0,
-                lockedUntil: null,
-                mustChangePassword: false,
-                update: vi.fn().mockResolvedValue(true)
-            };
+            const user = await buildUser({ password });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             const result = await loginUseCase.execute({ username: 'testuser', password });
 
@@ -228,18 +177,9 @@ describe('LoginUseCase - Account Lockout', () => {
 
         it('should include user info in response', async () => {
             const password = 'ValidP@ssw0rd123';
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword(password),
-                role: 'admin',
-                loginAttempts: 0,
-                lockedUntil: null,
-                mustChangePassword: false,
-                update: vi.fn().mockResolvedValue(true)
-            };
+            const user = await buildUser({ password });
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             const result = await loginUseCase.execute({ username: 'testuser', password });
 
@@ -252,7 +192,7 @@ describe('LoginUseCase - Account Lockout', () => {
 
     describe('Error Handling', () => {
         it('should throw INVALID_CREDENTIALS for non-existent user', async () => {
-            (UserModel.findOne as any).mockResolvedValue(null);
+            (userRepository.findByUsername as any).mockResolvedValue(null);
 
             await expect(
                 loginUseCase.execute({ username: 'nonexistent', password: 'password' })
@@ -260,14 +200,9 @@ describe('LoginUseCase - Account Lockout', () => {
         });
 
         it('should throw INVALID_CREDENTIALS for user without password', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: null,
-                role: 'admin'
-            };
+            const user = new User('testuser', 'admin', undefined, 1);
 
-            (UserModel.findOne as any).mockResolvedValue(mockUser);
+            (userRepository.findByUsername as any).mockResolvedValue(user);
 
             await expect(
                 loginUseCase.execute({ username: 'testuser', password: 'password' })

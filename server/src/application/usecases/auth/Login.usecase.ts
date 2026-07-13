@@ -1,9 +1,7 @@
 import { IUserRepository } from '../../../domain/repositories/IUserRepository';
 import { IAuthService } from '../../../domain/services/IAuthService';
-import { JwtAuthService } from '../../../infrastructure/services/JwtAuthService';
 import { LoginDto, AuthResponseDto } from '../../dto/AuthDto';
 import { logActivity } from '../../../models/ActivityLog';
-import UserModel from '../../../models/User';
 import config from '../../../config/AppConfig';
 import bcrypt from 'bcryptjs';
 import logger from '../../../config/logger';
@@ -15,8 +13,7 @@ export class LoginUseCase {
   ) { }
 
   async execute(credentials: LoginDto): Promise<AuthResponseDto> {
-    // Find user using Sequelize model directly for update operations
-    const user = await UserModel.findOne({ where: { username: credentials.username } });
+    const user = await this.userRepository.findByUsername(credentials.username);
 
     if (!user) {
       throw new Error('INVALID_CREDENTIALS');
@@ -26,7 +23,6 @@ export class LoginUseCase {
       throw new Error('INVALID_CREDENTIALS');
     }
 
-    // Check account lockout (Requirements: 9.3, 9.4)
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const minutesRemaining = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
       const error: any = new Error('ACCOUNT_LOCKED');
@@ -35,24 +31,17 @@ export class LoginUseCase {
       throw error;
     }
 
-    // Verify password
     const isValid = await this.authService.verifyPassword(credentials.password, user.password);
 
     if (!isValid) {
-      // Increment login attempts (Requirement: 9.5)
       const newAttempts = (user.loginAttempts || 0) + 1;
 
-      // Check if we should lock the account (Requirement: 9.6)
       if (newAttempts >= config.maxLoginAttempts) {
-        const lockoutDuration = config.lockoutDurationMinutes * 60 * 1000; // Convert to milliseconds
+        const lockoutDuration = config.lockoutDurationMinutes * 60 * 1000;
         const lockedUntil = new Date(Date.now() + lockoutDuration);
 
-        await user.update({
-          loginAttempts: newAttempts,
-          lockedUntil: lockedUntil
-        });
+        await this.userRepository.updateLoginAttempts(user.id!, newAttempts, lockedUntil);
 
-        // Create audit log for account lockout (Requirement: 9.8)
         try {
           await logActivity(
             user.id!,
@@ -73,12 +62,8 @@ export class LoginUseCase {
         error.lockedUntil = lockedUntil;
         throw error;
       } else {
-        // Update login attempts
-        await user.update({
-          loginAttempts: newAttempts
-        });
+        await this.userRepository.updateLoginAttempts(user.id!, newAttempts, user.lockedUntil || null);
 
-        // Notify user of remaining attempts (Requirement: 9.10)
         if (newAttempts >= 3) {
           const attemptsRemaining = config.maxLoginAttempts - newAttempts;
           const error: any = new Error('INVALID_CREDENTIALS');
@@ -90,43 +75,25 @@ export class LoginUseCase {
       throw new Error('INVALID_CREDENTIALS');
     }
 
-    // Password is valid - reset login attempts (Requirement: 9.7)
-    await user.update({
-      loginAttempts: 0,
-      lockedUntil: null
-    });
+    await this.userRepository.updateLoginAttempts(user.id!, 0, null);
 
-    // Check if password needs re-hashing (Requirements: 8.7, 8.8)
     try {
       const currentRounds = bcrypt.getRounds(user.password);
       if (currentRounds < config.bcryptRounds) {
         logger.info(`Re-hashing password for user ${user.username} (${currentRounds} -> ${config.bcryptRounds} rounds)`);
         const newHash = await this.authService.hashPassword(credentials.password);
-        await user.update({ password: newHash });
+        await this.userRepository.updatePassword(user.id!, newHash);
       }
     } catch (error) {
       logger.error('Failed to check/update bcrypt rounds:', error);
-      // Don't throw - this is not critical for login
     }
 
-    // Generate token pair (Requirements: 3.1, 3.4, 3.5)
-    let accessToken: string;
-    let refreshToken: string;
-
-    if (this.authService instanceof JwtAuthService) {
-      const tokenPair = this.authService.generateTokenPair(user);
-      accessToken = tokenPair.accessToken;
-      refreshToken = tokenPair.refreshToken;
-    } else {
-      // Fallback for legacy auth service
-      accessToken = this.authService.generateToken(user);
-      refreshToken = accessToken; // Temporary fallback
-    }
+    const tokenPair = this.authService.generateTokenPair(user);
 
     return {
-      token: accessToken,
-      accessToken,
-      refreshToken,
+      token: tokenPair.accessToken,
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
       user: {
         username: user.username,
         role: user.role,

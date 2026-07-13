@@ -7,6 +7,12 @@ export interface User {
   lockedUntil: string | null;
 }
 
+export interface UserFormData {
+  username: string;
+  password: string;
+  role: 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
+}
+
 export interface AuditLog {
   id: number;
   userId: number;

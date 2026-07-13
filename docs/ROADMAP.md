@@ -20,7 +20,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 
 | # | Mejora | Área |
 |---|--------|------|
-| 1 | Sanitizar DB_ENCRYPTION_KEY antes de PRAGMA en database.ts (SQL Injection T-01) | Backend |
+| 1 | ~~Sanitizar DB_ENCRYPTION_KEY antes de PRAGMA en database.ts~~ (OBSOLETO: migrado a PostgreSQL, PII_ENCRYPTION_KEY con fallback a ENCRYPTION_KEY en AppConfig) | Backend |
 | 2 | Eliminar passwords hardcodeadas en seeder.ts; reemplazar con variables de entorno | Backend |
 | 3 | Forzar `mustChangePassword: true` en TODOS los usuarios del seeder sin excepción | Backend |
 | 4 | Eliminar logging de contraseñas en texto plano al stdout | Backend |
@@ -35,7 +35,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 
 | # | Mejora | Área |
 |---|--------|------|
-| 1 | Ampliar tests a 70%+ cobertura (Admin, Audit, Backup, SuperAdmin) | Testing |
+| 1 | Ampliar tests a 70%+ cobertura (Admin, Audit, Backup, Root/SuperAdmin) | Testing |
 | 2 | Tests E2E con Playwright: login → check-in → check-out | Testing |
 | 3 | Reemplazar `Loading...` en blanco con skeletons/spinners por rol | Frontend |
 | 4 | Error boundaries React para evitar pantallas en blanco | Frontend |
@@ -48,13 +48,13 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 ## v1.2.0 — Funcionalidades Operativas
 
 **Tiempo estimado:** 3-4 semanas  
-**Objetivo:** Aumentar el valor diario para el guardia y el administrador
+**Objetivo:** Aumentar el valor diario para el operador y el administrador
 
 | # | Mejora | Área |
 |---|--------|------|
 | 1 | Pase de visitante imprimible: PDF con foto, nombre, QR, hora de entrada | Frontend |
 | 2 | Alertas automáticas: visitante sin checkout > X horas, visitas pendientes al cierre del día | Backend + Frontend |
-| 3 | Lista negra de visitantes: bloquear ingreso con alerta al guardia | Backend + Frontend |
+| 3 | Lista negra de visitantes: bloquear ingreso con alerta al operador | Backend + Frontend |
 | 4 | Pre-registro de visitas: el anfitrión registra al visitante antes de llegar | Backend + Frontend |
 | 5 | Filtros avanzados en visitas activas (empresa, propósito, duración, área) | Frontend |
 | 6 | Exportación de fotos en reportes PDF | Backend |
@@ -69,14 +69,14 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 
 | # | Mejora | Área |
 |---|--------|------|
-| 1 | MFA/2FA con TOTP (Google Authenticator / Authy) para admin y superadmin | Backend + Frontend |
+| 1 | MFA/2FA con TOTP (Google Authenticator / Authy) para admin y root | Backend + Frontend |
 | 2 | SSO / Active Directory (LDAP básico) para autenticación corporativa | Backend |
 | 3 | Política de contraseñas por rol configurable desde el panel | Backend + Admin |
 | 4 | Auditoría de sesiones: registrar dispositivo, IP, duración de cada sesión | Backend |
 | 5 | Cifrado de extremo a extremo para fotos en reposo (nivel de archivo) | Backend |
 | 6 | Pen test automatizado con OWASP ZAP en el pipeline | CI/CD |
 | 7 | Reporte de cumplimiento ISO 27001 generado automáticamente | Backend + Admin |
-| 8 | Migraciones versionadas con Umzug (reemplaza DB_SYNC_ALTER) | Backend |
+| 8 | ~~Migraciones versionadas con Umzug (reemplaza DB_SYNC_ALTER)~~ (HECHO: Umzug ya implementado con Winston logger) | Backend |
 
 ---
 
@@ -94,7 +94,7 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 | 5 | Dashboard de métricas en tiempo real: afluencia por hora, picos, tendencias entre sedes | Web SaaS |
 | 6 | Roles multi-sede: admin puede gestionar múltiples instalaciones | Backend |
 | 7 | CI/CD con GitHub Actions: lint → test → build → release automático por plataforma | DevOps |
-| 8 | Infraestructura cloud con Docker + deploy automatizado | DevOps |
+| 8 | Infraestructura cloud con deploy automatizado | DevOps |
 
 ---
 
@@ -119,14 +119,14 @@ Planificación evolutiva del producto SaaS híbrido de gestión de visitantes, d
 ## v5.0.0 — Aplicación Móvil
 
 **Tiempo estimado:** 3-4 meses  
-**Objetivo:** Extender el sistema a dispositivos móviles para guardias y anfitriones
+**Objetivo:** Extender el sistema a dispositivos móviles para operadores y anfitriones
 
 | # | Mejora | Área |
 |---|--------|------|
-| 1 | App móvil para guardias (React Native): ver visitas activas, check-out desde móvil | Mobile |
+| 1 | App móvil para operadores (React Native): ver visitas activas, check-out desde móvil | Mobile |
 | 2 | App móvil para anfitriones: recibir notificación de llegada del visitante, confirmar entrada | Mobile |
 | 3 | Escaneo de QR / cédula con cámara: registro automático de visitante desde móvil | Mobile |
-| 4 | Modo offline con sincronización posterior: el guardia puede operar sin red y sincronizar | Mobile |
+| 4 | Modo offline con sincronización posterior: el operador puede operar sin red y sincronizar | Mobile |
 | 5 | Biometría opcional: desbloquear app con huella / Face ID | Mobile |
 | 6 | Push notifications nativas para alertas de visitantes | Mobile |
 | 7 | Publicación en Google Play Store y distribución enterprise (TestFlight / Firebase) | Mobile |
@@ -191,7 +191,7 @@ v3.0.0  ──  Multi-sede, Panel cloud, CI/CD             [2-3 meses]
 v4.0.0  ──  API pública, Webhooks, Integraciones ERP   [2-3 meses]
         │
         ▼
-v5.0.0  ──  App móvil (guardias + anfitriones)         [3-4 meses]
+v5.0.0  ──  App móvil (operadores + anfitriones)       [3-4 meses]
         │
         ▼
 v6.0.0  ──  Analytics, ML, Reportes ejecutivos         [3-4 meses]

@@ -1,5 +1,6 @@
 import { IVisitorRepository, VisitorFilters } from '../../domain/repositories/IVisitorRepository';
 import { VisitorDto } from '../dto/VisitorDto';
+import { VisitorMapper } from '../mappers/VisitorMapper';
 
 /**
  * Use Case: Get All Visitors
@@ -14,21 +15,7 @@ export class GetAllVisitorsUseCase {
       this.visitorRepository.count(filters)
     ]);
 
-    const visitorDtos = visitors.map(visitor => ({
-      id: visitor.id,
-      cedula: visitor.cedula,
-      firstName: visitor.firstName,
-      lastName: visitor.lastName,
-      company: visitor.company,
-      jobTitle: visitor.jobTitle,
-      photoUrl: visitor.photoUrl,
-      idPhotoUrl: visitor.idPhotoUrl,
-      email: visitor.email,
-      phone: visitor.phone,
-      isBlocked: visitor.isBlocked,
-      observations: visitor.observations,
-      createdAt: visitor.createdAt
-    }));
+    const visitorDtos = visitors.map(visitor => VisitorMapper.toVisitorListDto(visitor));
 
     return { visitors: visitorDtos, total };
   }

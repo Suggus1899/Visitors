@@ -4,16 +4,11 @@
  * Requirements: 11.1, 11.2, 11.6, 11.7, 11.10, 11.12
  */
 import logger from '../../config/logger';
+import { IEmailService } from '../../domain/services/IEmailService';
 
 // Note: nodemailer will be installed separately
 // import nodemailer from 'nodemailer';
 // import type { Transporter } from 'nodemailer';
-
-export interface IEmailService {
-  sendPasswordResetEmail(to: string, token: string, username: string): Promise<void>;
-  sendPasswordChangedEmail(to: string, username: string): Promise<void>;
-  isConfigured(): boolean;
-}
 
 export class EmailService implements IEmailService {
   private transporter: any | null = null;

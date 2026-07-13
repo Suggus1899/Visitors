@@ -1,14 +1,15 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './useAuth';
+import AuthService from '../services/AuthService';
 
 interface SessionTimeoutOptions {
-    warningTime?: number;  // Show warning this many ms before logout (default: 5 min)
-    logoutTime?: number;   // Auto logout after this many ms of inactivity (default: 30 min)
+    warningTime?: number;  // Show warning this many ms before logout (default: 2 min)
+    logoutTime?: number;   // Auto logout after this many ms of inactivity (default: 15 min, matching access token expiry)
 }
 
 export const useSessionTimeout = (options: SessionTimeoutOptions = {}) => {
-    const { warningTime = 5 * 60 * 1000, logoutTime = 30 * 60 * 1000 } = options;
+    const { warningTime = 2 * 60 * 1000, logoutTime = 15 * 60 * 1000 } = options;
     const { logout } = useAuth();
     const navigate = useNavigate();
     const [showWarning, setShowWarning] = useState(false);
@@ -27,18 +28,15 @@ export const useSessionTimeout = (options: SessionTimeoutOptions = {}) => {
     }, [logout, navigate]);
 
     const resetTimers = useCallback(() => {
-        // Clear existing timers
         clearTimeout(logoutTimerRef.current);
         clearTimeout(warningTimerRef.current);
         clearInterval(countdownRef.current);
         setShowWarning(false);
 
-        // Set warning timer
         warningTimerRef.current = setTimeout(() => {
             setShowWarning(true);
             setTimeLeft(Math.floor(warningTime / 1000));
 
-            // Start countdown
             countdownRef.current = setInterval(() => {
                 setTimeLeft(prev => {
                     if (prev <= 1) {
@@ -50,20 +48,21 @@ export const useSessionTimeout = (options: SessionTimeoutOptions = {}) => {
             }, 1000);
         }, logoutTime - warningTime);
 
-        // Set logout timer
         logoutTimerRef.current = setTimeout(handleLogout, logoutTime);
     }, [logoutTime, warningTime, handleLogout]);
 
-    const extendSession = useCallback(() => {
+    const extendSession = useCallback(async () => {
+        try {
+            await AuthService.refreshAccessToken();
+        } catch {
+            // If refresh fails, the 401 interceptor will handle it later
+        }
         resetTimers();
     }, [resetTimers]);
 
     useEffect(() => {
-        // Only run if user is logged in
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        if (!AuthService.isAuthenticated()) return;
 
-        // Set up event listeners for user activity
         const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
 
         const handleActivity = () => {
@@ -76,10 +75,8 @@ export const useSessionTimeout = (options: SessionTimeoutOptions = {}) => {
             window.addEventListener(event, handleActivity);
         });
 
-        // Initial timer setup
         resetTimers();
 
-        // Cleanup
         return () => {
             events.forEach(event => {
                 window.removeEventListener(event, handleActivity);

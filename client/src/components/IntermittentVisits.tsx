@@ -1,19 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LogIn from 'lucide-react/dist/esm/icons/log-in';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
 import User from 'lucide-react/dist/esm/icons/user';
-import { IntermittentVisit } from '../types';
+import { IntermittentVisit, IntermittentLog } from '../types';
 import { SkeletonVisitCard } from './ui/Skeleton';
-import { useReactivateVisitMutation, useLiveDuration } from '../hooks/useVisitQueries';
+import { useReactivateVisitMutation } from '../hooks/useVisitQueries';
 import { VisitService } from '../services/api.v1';
 import { sanitizeInput } from '../utils/sanitizer';
 import toast from 'react-hot-toast';
 import IntermittentAccessLog from './IntermittentAccessLog';
-import { IntermittentLog } from '../types';
 import { ConfirmDialog } from './ui/ConfirmDialog';
+
+function formatElapsed(ms: number): string {
+    const totalSec = Math.floor(ms / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    if (min < 60) return `${min}m ${sec.toString().padStart(2, '0')}s`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h}h ${m.toString().padStart(2, '0')}m`;
+}
 
 interface IntermittentVisitsProps {
     visits: IntermittentVisit[];
@@ -21,27 +30,16 @@ interface IntermittentVisitsProps {
     loading?: boolean;
 }
 
-const formatMinutes = (mins: number): string => {
-    if (mins < 60) return `${mins}m fuera`;
-    return `${Math.floor(mins / 60)}h ${mins % 60}m fuera`;
-};
-
-// Component for live duration counter
-const LiveDurationBadge: React.FC<{ startTime: string | Date }> = ({ startTime }) => {
-    const { formatted } = useLiveDuration(startTime);
-    
-    return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-400/50 whitespace-nowrap flex-shrink-0 animate-pulse">
-            <Clock size={10} />
-            {formatted} fuera
-        </span>
-    );
-};
-
 const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReactivated, loading = false }) => {
+    const [now, setNow] = useState(Date.now());
     const [reactivating, setReactivating] = useState<number | null>(null);
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const reactivateMutation = useReactivateVisitMutation();
+
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(id);
+    }, []);
 
     const [confirmDialog, setConfirmDialog] = useState<{
         isOpen: boolean;
@@ -116,7 +114,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                     return (
                         <div
                             key={visit.id}
-                            className="group panel-tech rounded-2xl transition-all duration-300 overflow-visible border border-amber-500/30 flex flex-col relative transform hover:-translate-y-1 hover:shadow-md"
+                            className="group panel-tech rounded-2xl transition-all duration-300 overflow-visible border border-blue-600/30 flex flex-col relative transform hover:-translate-y-1 hover:shadow-md"
                         >
                             <div className="p-5 flex items-start space-x-4 flex-grow">
                                 {/* Photo */}
@@ -125,36 +123,32 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                                         <img
                                             src={photoUrl}
                                             alt={visitorName}
-                                            className="w-14 h-14 rounded-2xl object-cover shadow-sm bg-[color:var(--surface-0)] border border-amber-400/30 group-hover:scale-105 transition-transform duration-500"
+                                            className="w-14 h-14 rounded-2xl object-cover shadow-sm bg-[color:var(--surface-0)] border border-blue-500/30 group-hover:scale-105 transition-transform duration-500"
                                             onError={(e) => {
                                                 (e.target as HTMLImageElement).src =
                                                     'https://ui-avatars.com/api/?background=1b232a&color=e5edf5&name=' + encodeURIComponent(visitorName);
                                             }}
                                         />
                                     ) : (
-                                        <div className="w-14 h-14 rounded-2xl bg-[color:var(--surface-2)] flex items-center justify-center text-[color:var(--text-2)] font-bold text-xl shadow-inner border border-amber-400/30">
+                                        <div className="w-14 h-14 rounded-2xl bg-[color:var(--surface-2)] flex items-center justify-center text-[color:var(--text-2)] font-bold text-xl shadow-inner border border-blue-500/30">
                                             {visitorName.charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                     {/* Amber pulse indicator */}
-                                    <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 animate-pulse border-2 border-[color:var(--bg-0)]" />
+                                    <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-blue-500 animate-pulse border-2 border-[color:var(--bg-0)]" />
                                 </div>
 
                                 <div className="flex-1 min-w-0">
                                     {/* Nombre y badge en una línea */}
                                     <div className="flex items-start justify-between gap-2">
-                                        <h3 className="text-base font-semibold text-[color:var(--text-1)] group-hover:text-amber-300 transition-colors leading-tight">
+                                        <h3 className="text-base font-semibold text-[color:var(--text-1)] group-hover:text-blue-400 transition-colors leading-tight">
                                             {visitorName}
                                         </h3>
                                         {/* Live counter for current intermittent period */}
-                                        {visit.lastExitTime ? (
-                                            <LiveDurationBadge startTime={visit.lastExitTime} />
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-400/50 whitespace-nowrap flex-shrink-0">
-                                                <Clock size={10} />
-                                                {formatMinutes(visit.minutesOutside)}
-                                            </span>
-                                        )}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-600/10 text-blue-400 border border-blue-500/50 whitespace-nowrap flex-shrink-0">
+                                            <Clock size={10} />
+                                            {formatElapsed(now - new Date(visit.lastExitTime || Date.now()).getTime())} fuera
+                                        </span>
                                     </div>
 
                                     {/* Info secundaria: empresa y cédula */}
@@ -178,7 +172,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                             </div>
 
                             {/* Footer */}
-                            <div className="px-4 py-3 border-t border-amber-500/20 bg-amber-500/5 mt-auto">
+                            <div className="px-4 py-3 border-t border-blue-600/20 bg-blue-600/5 mt-auto">
                                 <div className="flex items-center justify-between">
                                     {/* Exit time + intervals toggle */}
                                     <div className="flex items-center gap-2">
@@ -188,7 +182,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                                         </div>
                                         <button
                                             onClick={() => setExpandedId(isExpanded ? null : visit.id)}
-                                            className="flex items-center gap-0.5 text-[10px] text-[color:var(--text-3)] hover:text-amber-300 transition-colors px-1 py-0.5 rounded hover:bg-amber-500/10"
+                                            className="flex items-center gap-0.5 text-[10px] text-[color:var(--text-3)] hover:text-blue-400 transition-colors px-1 py-0.5 rounded hover:bg-blue-600/10"
                                         >
                                             {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                             <span className="font-medium">{visit.intervals.length}</span>
@@ -212,7 +206,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
 
                                 {/* Expanded interval history */}
                                 {isExpanded && (
-                                    <div className="mt-3 pt-3 border-t border-amber-500/20">
+                                    <div className="mt-3 pt-3 border-t border-blue-600/20">
                                         <IntermittentAccessLog logs={adaptedLogs} />
                                     </div>
                                 )}

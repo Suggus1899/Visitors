@@ -73,9 +73,9 @@ router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getComp
  *       200:
  *         description: List of visitors
  */
-router.get('/v1/visitors', verifyToken, VisitorCleanController.getAllVisitors);
+router.get('/v1/visitors', verifyToken, asyncHandler(VisitorCleanController.getAllVisitors));
 
-router.get('/v1/visitors/:cedula', verifyToken, VisitorCleanController.getVisitor);
+router.get('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanController.getVisitor));
 
 /**
  * @swagger
@@ -103,7 +103,7 @@ router.get('/v1/visitors/:cedula', verifyToken, VisitorCleanController.getVisito
  *       404:
  *         description: Visitor not found
  */
-router.patch('/v1/visitors/:cedula', verifyToken, VisitorCleanController.updateVisitor);
+router.patch('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanController.updateVisitor));
 
 /**
  * @swagger
@@ -117,8 +117,6 @@ router.patch('/v1/visitors/:cedula', verifyToken, VisitorCleanController.updateV
  *       200:
  *         description: List of companies
  */
-router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getCompanies);
-
 router.get('/v1/visitors/:cedula/photo', asyncHandler(VisitorCleanController.getVisitorPhoto));
 
 router.get('/v1/visitors/:cedula/id-photo', asyncHandler(VisitorCleanController.getVisitorIdPhoto));

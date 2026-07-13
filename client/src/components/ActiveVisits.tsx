@@ -4,6 +4,7 @@ import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
 import User from 'lucide-react/dist/esm/icons/user';
 import LogOutIcon from 'lucide-react/dist/esm/icons/log-out';
 import ArrowRightLeft from 'lucide-react/dist/esm/icons/arrow-right-left';
+import Car from 'lucide-react/dist/esm/icons/car';
 import { Visit } from '../types';
 import { SkeletonVisitCard } from './ui/Skeleton';
 import { useSoundFeedback } from '../hooks/useSoundFeedback';
@@ -88,20 +89,26 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
         });
     };
 
-    // Live clock that ticks every minute for time-in-site counters
-    const [now, setNow] = useState(() => Date.now());
+    // Live clock that ticks every second for time-in-site counters
+    const [now, setNow] = useState(Date.now());
     useEffect(() => {
-        const t = setInterval(() => setNow(Date.now()), 60000);
+        const t = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(t);
     }, []);
 
+    const formatElapsed = (ms: number): string => {
+        const totalSec = Math.floor(ms / 1000);
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        if (min < 60) return `${min}m ${sec.toString().padStart(2, '0')}s`;
+        const h = Math.floor(min / 60);
+        const m = min % 60;
+        return `${h}h ${m.toString().padStart(2, '0')}m`;
+    };
+
     // Calculate time in site (updates with live clock)
     const getTimeInSite = (checkIn: string) => {
-        const diff = now - new Date(checkIn).getTime();
-        const hours = Math.floor(diff / 3600000);
-        const minutes = Math.floor((diff % 3600000) / 60000);
-        if (hours > 0) return `${hours}h ${minutes}m`;
-        return `${minutes}m`;
+        return formatElapsed(now - new Date(checkIn).getTime());
     };
 
     // Loading skeleton
@@ -191,9 +198,15 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                             {sanitizedReason}
                                         </span>
                                         {visit.intermittent_logs && visit.intermittent_logs.length > 0 && (
-                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-400/30">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-blue-600/10 text-blue-400 border border-blue-500/30">
                                                 <ArrowRightLeft size={10} className="mr-1" />
                                                 {visit.intermittent_logs.length} {visit.intermittent_logs.length === 1 ? 'Intermitencia' : 'Intermitencias'}
+                                            </span>
+                                        )}
+                                        {visit.vehiclePlate && (
+                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-[color:var(--surface-2)] text-[color:var(--text-2)] border border-[color:var(--border-1)]">
+                                                <Car size={10} className="mr-1" />
+                                                {visit.vehiclePlate}
                                             </span>
                                         )}
                                     </div>
@@ -233,10 +246,10 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                             onClick={(e) => handleGoIntermittent(e, visit.id, visitorName)}
                                             disabled={isMarkingIntermittent || isCheckingOut}
                                             title="Salida temporal"
-                                            className="group/ibtn relative px-2.5 py-2 rounded-lg border border-amber-400/30 text-amber-400 text-[11px] font-semibold hover:bg-amber-500/10 hover:border-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
+                                            className="group/ibtn relative px-2.5 py-2 rounded-lg border border-blue-500/30 text-blue-400 text-[11px] font-semibold hover:bg-blue-600/10 hover:border-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
                                         >
                                             {isMarkingIntermittent ? (
-                                                <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                                                <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                                             ) : (
                                                 <ArrowRightLeft size={12} />
                                             )}

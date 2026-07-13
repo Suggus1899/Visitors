@@ -263,7 +263,7 @@ export const intermittentExit = async (req: Request, res: Response) => {
     const result = await useCase.execute({
       visitId,
       notes: req.body.notes,
-      registeredBy: (req as any).user?.username || null,
+      registeredBy: req.user?.username ?? undefined,
     });
 
     eventEmitterService.emitVisitEvent({
@@ -299,7 +299,7 @@ export const intermittentReEntry = async (req: Request, res: Response) => {
     const result = await useCase.execute({
       visitId,
       notes: req.body.notes,
-      registeredBy: (req as any).user?.username || null,
+      registeredBy: req.user?.username ?? undefined,
     });
 
     eventEmitterService.emitVisitEvent({

@@ -4,7 +4,8 @@ import { AppError } from '../shared/errors';
 import logger from '../config/logger';
 import config from '../config/AppConfig';
 
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+export const errorHandler = (err: unknown, req: Request, res: Response, next: NextFunction) => {
+  const error = err as Error & { statusCode?: number; code?: string; details?: unknown };
   // Log full error details server-side
   if (err instanceof AppError && err.isOperational) {
     logger.warn(`${err.code} [${err.statusCode}]: ${err.message}`, {
@@ -13,8 +14,8 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
     });
   } else {
     logger.error('Unhandled error:', {
-      message: err.message,
-      stack: err.stack,
+      message: error.message,
+      stack: error.stack,
       path: req.path,
       method: req.method,
     });
@@ -36,8 +37,8 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   }
 
   // Unknown/unhandled errors — never leak internals in production
-  const statusCode = err.statusCode || 500;
-  const message = isProduction ? 'Internal Server Error' : (err.message || 'Internal Server Error');
+  const statusCode = error.statusCode || 500;
+  const message = isProduction ? 'Internal Server Error' : (error.message || 'Internal Server Error');
 
   res.status(statusCode).json({
     success: false,

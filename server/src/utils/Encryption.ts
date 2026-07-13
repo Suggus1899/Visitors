@@ -30,7 +30,7 @@ export class Encryption {
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
 
-      const authTag = (cipher as any).getAuthTag();
+      const authTag = (cipher as crypto.CipherGCM).getAuthTag();
 
       // Return format: ENC:encrypted:iv:authTag
       return `${this.ENCRYPTED_PREFIX}${encrypted}:${iv.toString('hex')}:${authTag.toString('hex')}`;

@@ -23,14 +23,12 @@ import Activity from 'lucide-react/dist/esm/icons/activity';
 import ArrowRightLeft from 'lucide-react/dist/esm/icons/arrow-right-left';
 import Users from 'lucide-react/dist/esm/icons/users';
 import { startGuidedTour } from './utils/guidedTour';
-import { useSessionTimeout } from './hooks/useSessionTimeout';
-import { SessionWarningModal } from './components/SessionWarningModal';
 import { PasswordChangeModal } from './components/PasswordChangeModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
 import { Toaster } from 'react-hot-toast';
 import { Header } from './components/Header';
-import { useActiveVisitsQuery, useIntermittentVisitsQuery, useInvalidateVisitQueries } from './hooks/useVisitQueries';
+import { useActiveVisitsQuery, useIntermittentVisitsQuery, useWaitingVisitsQuery, useInvalidateVisitQueries } from './hooks/useVisitQueries';
 import { useVisitEvents } from './hooks/useVisitEvents';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -40,7 +38,6 @@ const OperationsView = () => {
     const [showShortcuts, setShowShortcuts] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'waiting' | 'intermittent' | 'visitor-admin'>('active');
     const { logout, user } = useAuth();
-    const { showWarning, timeLeft, extendSession, logout: sessionLogout } = useSessionTimeout();
     const navigate = useNavigate();
     const searchInputRef = useRef<HTMLInputElement>(null);
     const { isUsingFallbackPolling } = useVisitEvents();
@@ -56,6 +53,12 @@ const OperationsView = () => {
         data: intermittentVisits = [],
         isFetching: isIntermittentLoading,
     } = useIntermittentVisitsQuery({
+        refetchInterval: isUsingFallbackPolling ? 15_000 : false,
+    });
+
+    const {
+        data: waitingVisits = [],
+    } = useWaitingVisitsQuery({
         refetchInterval: isUsingFallbackPolling ? 15_000 : false,
     });
 
@@ -175,17 +178,20 @@ const OperationsView = () => {
                                 className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'waiting' ? 'text-[color:var(--status-warning)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
                             >
                                 <Clock size={16} /> En Espera
+                                {waitingVisits.length > 0 && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[color:var(--status-warning)]/20 text-[color:var(--status-warning)]">{waitingVisits.length}</span>
+                                )}
                                 {activeTab === 'waiting' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--status-warning)]" />}
                             </button>
                             <button
-                                onClick={() => setActiveTab('intermittent')}
-                                className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'intermittent' ? 'text-amber-400' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
-                            >
-                                <ArrowRightLeft size={16} /> Intermitencia
-                                {intermittentVisits.length > 0 && (
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300">{intermittentVisits.length}</span>
-                                )}
-                                {activeTab === 'intermittent' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-400" />}
+                                    onClick={() => setActiveTab('intermittent')}
+                                    className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'intermittent' ? 'text-blue-500' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
+                                >
+                                    <ArrowRightLeft size={16} /> Intermitencia
+                                    {intermittentVisits.length > 0 && (
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600/20 text-blue-400">{intermittentVisits.length}</span>
+                                    )}
+                                    {activeTab === 'intermittent' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500" />}
                             </button>
                     {(user?.role === 'admin' || user?.role === 'root') && (
                                 <button
@@ -202,7 +208,7 @@ const OperationsView = () => {
                             <VisitorAdmin />
                         ) : activeTab === 'intermittent' ? (
                             <>
-                                <h2 className="text-lg font-display uppercase tracking-[0.18em] text-amber-400 border-l-2 border-amber-400 pl-3 mb-4">
+                                <h2 className="text-lg font-display uppercase tracking-[0.18em] text-blue-500 border-l-2 border-blue-500 pl-3 mb-4">
                                     Visitas Intermitentes
                                     <span className="ml-2 text-xs font-semibold text-[color:var(--text-3)]">
                                         ({intermittentVisits.length})
@@ -270,12 +276,6 @@ const OperationsView = () => {
                 </div>
             </main>
 
-            <SessionWarningModal
-                show={showWarning}
-                timeLeft={timeLeft}
-                onExtend={extendSession}
-                onLogout={sessionLogout}
-            />
         </div>
     );
 };

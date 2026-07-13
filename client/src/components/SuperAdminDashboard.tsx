@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../services/api.v1';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -9,7 +9,7 @@ import SuperAdminTabs from './superadmin/SuperAdminTabs';
 import UsersTab from './superadmin/UsersTab';
 import AuditLogsTab from './superadmin/AuditLogsTab';
 import UserModals from './superadmin/UserModals';
-import { User, AuditLog } from './superadmin/types';
+import { User, AuditLog, UserFormData } from './superadmin/types';
 
 interface ApiError {
   response?: {
@@ -36,15 +36,12 @@ export default function SuperAdminDashboard() {
 
   // Form states
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'operador' as User['role'] });
-  const [editUser, setEditUser] = useState({ username: '', role: 'operador' as User['role'] });
+  const [editUser, setEditUser] = useState<Partial<UserFormData> & { id?: number }>({ username: '', role: 'operador' });
   const [newPassword, setNewPassword] = useState('');
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/v1/root/users', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/root/users');
       setUsers(response.data.data || []);
     } catch {
       toast.error('Error al cargar usuarios');
@@ -53,10 +50,7 @@ export default function SuperAdminDashboard() {
 
   const fetchAuditLogs = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/v1/root/audit-logs', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/root/audit-logs');
       setAuditLogs(response.data.data?.logs || []);
     } catch {
       toast.error('Error al cargar logs de auditoría');
@@ -79,10 +73,7 @@ export default function SuperAdminDashboard() {
 
   const handleCreateUser = async () => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.post('/api/v1/root/users', newUser, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/root/users', newUser);
       toast.success('Usuario creado exitosamente');
       setShowCreateModal(false);
       setNewUser({ username: '', password: '', role: 'operador' });
@@ -96,10 +87,7 @@ export default function SuperAdminDashboard() {
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/v1/root/users/${selectedUser.id}`, editUser, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/root/users/${selectedUser.id}`, editUser);
       toast.success('Usuario actualizado exitosamente');
       setShowEditModal(false);
       setSelectedUser(null);
@@ -113,10 +101,7 @@ export default function SuperAdminDashboard() {
   const handleDeleteUser = async (userId: number) => {
     if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/v1/root/users/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/root/users/${userId}`);
       toast.success('Usuario eliminado exitosamente');
       fetchUsers();
     } catch (err) {
@@ -128,10 +113,8 @@ export default function SuperAdminDashboard() {
   const handleResetPassword = async () => {
     if (!selectedUser) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`/api/v1/root/users/${selectedUser.id}/reset-password`, 
-        { newPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.post(`/root/users/${selectedUser.id}/reset-password`, 
+        { newPassword }
       );
       toast.success('Contraseña restablecida exitosamente');
       setShowResetModal(false);

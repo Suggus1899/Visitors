@@ -1,9 +1,7 @@
 import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
 import { IVisitorRepository } from '../../domain/repositories/IVisitorRepository';
-import IntermittentLogModel from '../../models/IntermittentLog';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const IntermittentLog = IntermittentLogModel as any;
+import { IIntermittentLogRepository } from '../../domain/repositories/IIntermittentLogRepository';
+import { VisitMapper, IntermittentVisitResponseDto } from '../mappers/VisitMapper';
 
 /**
  * Use Case: Get Intermittent Visits
@@ -12,66 +10,18 @@ const IntermittentLog = IntermittentLogModel as any;
 export class GetIntermittentVisitsUseCase {
   constructor(
     private visitRepository: IVisitRepository,
-    private visitorRepository: IVisitorRepository
+    private visitorRepository: IVisitorRepository,
+    private intermittentLogRepository: IIntermittentLogRepository
   ) {}
 
-  async execute(): Promise<any[]> {
+  async execute(): Promise<IntermittentVisitResponseDto[]> {
     const visits = await this.visitRepository.findIntermittent();
 
     const enriched = await Promise.all(
       visits.map(async (visit) => {
         const visitor = await this.visitorRepository.findByCedula(visit.visitorCedula);
-        const logs = await IntermittentLog.findAll({
-          where: { visit_id: visit.id! },
-          order: [['check_out', 'DESC']],
-        });
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const currentLog = logs.find((l: any) => !l.re_entry);
-
-        // Calcular minutos fuera
-        const minutesOutside = currentLog 
-          ? Math.floor((Date.now() - new Date(currentLog.check_out).getTime()) / 60000)
-          : 0;
-
-        return {
-          id: visit.id,
-          visitorCedula: visit.visitorCedula,
-          visitorName: visitor?.fullName || 'Desconocido',
-          firstName: visitor?.firstName,
-          lastName: visitor?.lastName,
-          company: visitor?.company || 'Sin empresa',
-          checkInTime: visit.checkInTime.toISOString(),
-          purpose: visit.purpose,
-          personToVisit: visit.personToVisit,
-          status: visit.status,
-          photoUrl: visitor?.photoUrl,
-          targetDepartment: visit.targetDepartment,
-          hostPerson: visit.hostPerson,
-          area: visit.area,
-          department: visit.department,
-          intermittentSince: currentLog?.check_out?.toISOString() || null,
-          intermittentNotes: currentLog?.notes || null,
-          totalIntermittentEvents: logs.length,
-          minutesOutside,
-          lastExitTime: currentLog?.check_out?.toISOString() || visit.checkInTime.toISOString(),
-          // Intervals es lo que el frontend espera
-          intervals: logs.map((l: any) => ({
-            id: l.id,
-            exitTime: l.check_out.toISOString(),
-            reentryTime: l.re_entry?.toISOString() || null,
-            notes: l.notes,
-          })),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          intermittent_logs: logs.map((l: any) => ({
-            id: l.id,
-            visit_id: l.visit_id,
-            check_out: l.check_out.toISOString(),
-            re_entry: l.re_entry?.toISOString() || null,
-            notes: l.notes,
-            registered_by: l.registered_by,
-          })),
-        };
+        const logs = await this.intermittentLogRepository.findByVisitId(visit.id!);
+        return VisitMapper.toIntermittentVisitDto(visit, visitor, logs);
       })
     );
 

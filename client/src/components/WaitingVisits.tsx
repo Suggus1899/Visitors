@@ -4,10 +4,21 @@ import toast from 'react-hot-toast';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import Timer from 'lucide-react/dist/esm/icons/timer';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
 import { useAdmitVisitorMutation, useWaitingVisitsQuery } from '../hooks/useVisitQueries';
 import { VisitService } from '../services/api.v1';
+
+function formatElapsed(ms: number): string {
+    const totalSec = Math.floor(ms / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    if (min < 60) return `${min}m ${sec.toString().padStart(2, '0')}s`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h}h ${m.toString().padStart(2, '0')}m`;
+}
 
 interface WaitingVisitsProps {
     onVisitAdmitted: () => void;
@@ -17,7 +28,13 @@ interface WaitingVisitsProps {
 const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallbackPollingMs = false }) => {
     const [admittingId, setAdmittingId] = useState<number | null>(null);
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+    const [now, setNow] = useState(Date.now());
     const admitMutation = useAdmitVisitorMutation();
+
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(id);
+    }, []);
     const {
         data: visits = [],
         isLoading: loading,
@@ -71,6 +88,9 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
         <div className="space-y-4">
             <h2 className="text-lg font-display uppercase tracking-[0.2em] mb-4 flex items-center text-[color:var(--text-1)]">
                 <Clock className="mr-2 text-[color:var(--status-warning)]" /> Visitas en Espera
+                <span className="ml-2 text-xs font-semibold text-[color:var(--text-3)]">
+                    ({visits.length})
+                </span>
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -108,6 +128,10 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                                         <p className="text-xs text-[color:var(--text-2)] flex items-center mt-1">
                                             <Building2 size={12} className="mr-1" />
                                             {sanitizedCompany}
+                                        </p>
+                                        <p className="text-xs text-[color:var(--status-warning)] flex items-center mt-1.5 font-semibold">
+                                            <Timer size={12} className="mr-1 animate-pulse" />
+                                            Esperando: {formatElapsed(now - new Date(visit.check_in_time || visit.check_in || now).getTime())}
                                         </p>
                                     </div>
                                 </div>

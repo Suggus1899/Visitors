@@ -62,8 +62,8 @@ type SeedLoadOptions = {
 };
 
 export const ensureBaseUsers = async () => {
-    const adminEmail = 'Admin@trebol.com';
-    const adminExists = await User.findOne({ where: { username: adminEmail } });
+    const adminUserName = 'Admin';
+    const adminExists = await User.findOne({ where: { username: adminUserName } });
 
     if (!adminExists) {
         logger.info('Seeding database with Enterprise Admin...');
@@ -76,7 +76,7 @@ export const ensureBaseUsers = async () => {
         const hashedOperador = await bcrypt.hash(operadorPassword, 12);
 
         await User.create({
-            username: adminEmail,
+            username: adminUserName,
             password: hashedAdmin,
             role: 'admin',
             mustChangePassword: false,
@@ -147,6 +147,26 @@ export const ensureBaseUsers = async () => {
         logger.info('[Seed] Operador user role updated.');
     }
 
+    // Always ensure guard user exists (separate check)
+    const guardUser = await User.findOne({ where: { username: 'guard' } });
+    if (!guardUser) {
+        const guardPassword = config.seedGuardPassword;
+        const hashedGuard = await bcrypt.hash(guardPassword, 12);
+        await User.create({
+            username: 'guard',
+            password: hashedGuard,
+            role: 'operador',
+            mustChangePassword: false,
+            loginAttempts: 0,
+            lockedUntil: null
+        });
+        logger.info('[Seed] Guard user created.');
+    } else if (guardUser.role !== 'operador') {
+        guardUser.role = 'operador';
+        await guardUser.save();
+        logger.info('[Seed] Guard user role updated.');
+    }
+
     const auditorUser = await User.findOne({ where: { username: 'auditor' } });
     if (!auditorUser) {
         const auditorPassword = config.seedAuditorPassword;
@@ -172,10 +192,11 @@ export const ensureBaseUsers = async () => {
         logger.info('[Seed] Auditor user updated.');
     }
 
+
     // Always ensure root user exists
     const rootUser = await User.findOne({ where: { username: 'trebolmaster' } });
     if (!rootUser) {
-        const rootPassword = config.seedRootPassword;
+        const rootPassword = config.seedSuperadminPassword;
         const hashedRoot = await bcrypt.hash(rootPassword, 12);
         await User.create({
             username: 'trebolmaster',

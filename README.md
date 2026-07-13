@@ -1,12 +1,12 @@
 # LogMaster - Sistema de Gestión de Visitas
 
-LogMaster es una aplicación web moderna y segura para la gestión de visitantes en empresas, desarrollada con React, Node.js, TypeScript y Docker. Sistema perfeccionado con seguridad de nivel empresarial, monitoreo completo y CI/CD automatizado.
+LogMaster es una aplicación web moderna y segura para la gestión de visitantes en empresas, desarrollada con React, Node.js, TypeScript y PostgreSQL. Sistema perfeccionado con seguridad de nivel empresarial, monitoreo completo y CI/CD automatizado.
 
 ## 🚀 Características Principales
 
 - **Control de Acceso Completo**: Check-in/check-out de visitantes con registro fotográfico
 - **Seguridad Robusta**: Base de datos PostgreSQL con cifrado de campos sensibles con AES-256-GCM
-- **Gestión de Usuarios**: Sistema de roles (Admin, Guardia, Auditor) con autenticación JWT
+- **Gestión de Usuarios**: Sistema de roles (Root, Admin, Operador, Auditor, Demo) con autenticación JWT
 - **Reportes Avanzados**: Exportación a PDF y Excel con filtros personalizables
 - **Auditoría Completa**: Registro detallado de todas las operaciones del sistema
 - **Respaldos Automáticos**: Copias de seguridad cifradas programables
@@ -19,58 +19,58 @@ LogMaster es una aplicación web moderna y segura para la gestión de visitantes
 - **RAM**: Mínimo 4GB
 - **Espacio en Disco**: 500MB para instalación + espacio para datos
 - **Resolución**: Mínimo 1366x768
+- **Node.js**: 20.x LTS
+- **PostgreSQL**: 16
 
-## ⚡ Inicio Rápido (Docker Portable)
-
-Sistema completo en 3 contenedores. Solo necesitas Docker Desktop.
+## ⚡ Inicio Rápido
 
 ### Requisitos
 
-- Docker Desktop instalado y corriendo: https://www.docker.com/products/docker-desktop
+- Node.js 20.x LTS instalado
+- PostgreSQL 16 instalado y corriendo en el puerto 5432
 
 ### Ejecutar (Primera vez)
 
 ```bash
-# Doble clic en:
-scripts\start.bat
+# 1. Clonar el repositorio
+git clone https://github.com/Suggus1899/Visitors.git
+cd Visitors
 
-# Esperar 3-5 minutos (construcción inicial)
-# Navegador se abre automáticamente en http://localhost
+# 2. Instalar dependencias en todos los módulos
+npm run install-all
+
+# 3. Configurar variables de entorno
+copy .env.example .env
+# Edita .env con tu contraseña de PostgreSQL y claves de seguridad
+
+# 4. Crear la base de datos
+createdb -U postgres visitors
+
+# 5. Iniciar en modo desarrollo
+npm run dev
 ```
+
+El servidor corre en `http://localhost:3000` y el cliente en `http://localhost:5173`.
 
 ### Uso Diario
 
-| Acción            | Script                      |
-| ----------------- | --------------------------- |
-| Iniciar           | `scripts\start.bat`         |
-| Detener           | `scripts\detener.bat`       |
-| Ver estado        | `scripts\status.bat`        |
-| Verificar sistema | `scripts\verify-system.bat` |
+```bash
+npm run dev    # Inicia cliente y servidor
+```
+
+O usa el script de Windows:
+
+```bash
+scripts\start.bat    # Inicia el sistema
+scripts\status.bat   # Ver estado y URLs
+```
 
 ### Acceso desde Red LAN
 
 1. Ejecutar `scripts\status.bat` para ver la IP (ej: `192.168.1.108`)
-2. Desde otra PC: `http://192.168.1.108`
+2. Desde otra PC: `http://192.168.1.108:5173`
 
 Ver guía completa: [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
-
-### Instalación para Desarrollo
-
-```bash
-# Clonar el repositorio
-git clone https://github.com/tu-usuario/logmaster.git
-cd logmaster
-
-# Instalar dependencias en todos los módulos
-npm run install-all
-
-# Configurar variables de entorno
-cp .env.example .env
-# Edita .env con tus claves de seguridad
-
-# Iniciar en modo desarrollo
-npm run dev
-```
 
 ## 🔐 Configuración de Seguridad
 
@@ -98,13 +98,17 @@ DB_PASSWORD=tu_contraseña_postgres
 
 ## 📚 Documentación
 
-- **[Inicio Rápido](docs/QUICKSTART.md)** 🚀: Guía mínima para ejecutar en cualquier PC
-- **[Guía de Instalación](docs/SETUP.md)**: Instrucciones detallas de instalación
-- **[Docker](docs/DOCKER.md)**: Stack de 3 contenedores y despliegue
-- **[API](docs/API.md)**: Documentación de endpoints REST
-- **[Manual de Usuario](docs/USER_MANUAL.md)**: Guía operativa por rol
-- **[Roadmap](docs/ROADMAP.md)**: Plan de desarrollo y características futuras
-- **[Credenciales Seed](docs/SEED_CREDENTIALS.md)**: Usuarios y contraseñas de desarrollo
+- **[Manual Tecnico](docs/MANUAL_TECNICO.md)**: Arquitectura, base de datos, API, seguridad, despliegue
+- **[Manual de Instalacion](docs/MANUAL_INSTALACION.md)**: Instalacion completa desde cero, troubleshooting
+- **[Manual de Usuario](docs/USER_MANUAL.md)**: Guia operativa completa por rol
+- **[Inicio Rapido](docs/QUICKSTART.md)**: Guia minima para ejecutar en cualquier PC
+- **[Guia de Instalacion](docs/SETUP.md)**: Instrucciones detalladas de instalacion
+- **[API](docs/API.md)**: Documentacion de endpoints REST
+- **[Seguridad](docs/SECURITY.md)**: Configuracion de seguridad, JWT, cifrado, firewall
+- **[LAN](docs/LAN_SETUP.md)**: Acceso desde red local
+- **[Arquitectura](docs/ARCHITECTURE.md)**: Estructura del sistema y flujo de datos
+- **[Roadmap](docs/ROADMAP.md)**: Plan de desarrollo y caracteristicas futuras
+- **[Credenciales Seed](docs/SEED_CREDENTIALS.md)**: Usuarios y contrasenas de desarrollo
 
 ## 🏗️ Stack Tecnológico
 
@@ -131,11 +135,13 @@ DB_PASSWORD=tu_contraseña_postgres
 
 ## 🎯 Roles y Permisos
 
-| Rol         | Permisos                                                                            |
-| ----------- | ----------------------------------------------------------------------------------- |
-| **Admin**   | Acceso completo: gestión de usuarios, configuración del sistema, todos los reportes |
-| **Guardia** | Check-in/check-out de visitantes, ver visitas activas, reportes básicos             |
-| **Auditor** | Solo lectura: ver logs de auditoría, generar reportes, sin modificar datos          |
+| Rol           | Permisos                                                                            |
+| ------------- | ----------------------------------------------------------------------------------- |
+| **Root**      | Acceso total: dashboard SuperAdmin (`/root`), gestión de usuarios, ops, auditoría   |
+| **Admin**     | Gestión completa: respaldos, reportes, auditoría. No crea/modifica/elimina usuarios |
+| **Operador**  | Check-in/check-out de visitantes, ver visitas activas, reportes básicos             |
+| **Auditor**   | Solo lectura: ver logs de auditoría, generar reportes, sin modificar datos          |
+| **Demo**      | Operaciones con auto-tour guiado interactivo                                        |
 
 ## 📦 Scripts Disponibles
 
@@ -157,31 +163,20 @@ npm run electron:start   # Inicia Electron (requiere build previo)
 npm run install-all      # Instala dependencias en todos los módulos
 
 # Scripts Windows (Batch)
-scripts\start.bat         # Iniciar todo (detecta primera vez o reinicio)
-scripts\detener.bat       # Detener servicios
-scripts\status.bat        # Ver estado de contenedores y URLs
-scripts\verify-system.bat # Verificación completa del sistema
-scripts\auto-env.bat      # Reconfigurar IP y entorno
-scripts\setup-ssl.bat     # Generar certificados SSL
-scripts\monitor-health.bat # Monitoreo continuo avanzado
+scripts\start.bat         # Iniciar sistema
+scripts\status.bat        # Ver estado y URLs de acceso
 ```
 
 ## 🗂️ Estructura del Proyecto
 
 ```
-logmaster/
+Visitors/
 ├── scripts/             # Scripts de automatización (Windows)
-│   ├── start.bat          # Iniciar todo (inteligente: build si es primera vez)
-│   ├── detener.bat        # Detener servicios
-│   ├── status.bat         # Ver estado y URLs de acceso
-│   ├── verify-system.bat  # Verificación completa del sistema
-│   ├── auto-env.bat       # Auto-detecta IP y configura .env
-│   ├── setup-ssl.bat      # Generar certificados SSL
-│   └── monitor-health.bat # Monitoreo continuo
-├── docs/                # Documentación centralizada (7 archivos)
-│   ├── QUICKSTART.md      # 🚀 Guía mínima (Docker Portable)
+│   ├── start.bat          # Iniciar sistema
+│   └── status.bat         # Ver estado y URLs de acceso
+├── docs/                # Documentación centralizada
+│   ├── QUICKSTART.md      # Guía mínima para ejecutar
 │   ├── SETUP.md           # Guía completa de instalación
-│   ├── DOCKER.md          # Stack de 3 contenedores
 │   ├── API.md             # Documentación de endpoints
 │   ├── USER_MANUAL.md     # Manual operativo por rol
 │   ├── ROADMAP.md         # Plan de desarrollo
@@ -201,15 +196,14 @@ logmaster/
 │   │   └── routes/      # Definición de rutas
 │   └── package.json
 ├── electron/            # Configuración Electron
-├── data/                # Base de datos PostgreSQL
 ├── backups/             # Respaldos automáticos
 ├── README.md            # Documentación principal
-└── docker-compose.yml   # Configuración Docker
+└── .env                 # Variables de entorno (no commitear)
 ```
 
 ## 🔄 Flujo de Trabajo Típico
 
-1. **Guardia inicia sesión** con sus credenciales
+1. **Operador inicia sesión** con sus credenciales
 2. **Registra visitante** con foto y datos personales
 3. **Check-in** al ingresar a las instalaciones
 4. **Check-out** al salir
@@ -238,9 +232,9 @@ logmaster/
 
 ### Error de base de datos
 
-- Verifica que PostgreSQL esté corriendo en el puerto configurado
+- Verifica que PostgreSQL esté corriendo en el puerto 5432
 - Comprueba que las variables de entorno `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` estén configuradas
-- Revisa que Docker esté corriendo si usas docker-compose
+- Verifica que la base de datos `visitors` exista
 
 ### Problemas de autenticación
 

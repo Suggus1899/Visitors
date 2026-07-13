@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
-import { SequelizeVisitorRepository } from '../infrastructure/database/repositories/SequelizeVisitorRepository';
 import logger from '../config/logger';
 
-const visitorRepo = new SequelizeVisitorRepository();
+const visitorRepo = container.visitorRepository;
 
 /**
  * Clean Architecture Visitor Controller

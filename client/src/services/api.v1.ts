@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { Visit, Visitor, VisitorWithHistory, StatsData, ComparisonStats, IntermittentVisit } from '../types';
-import { API_URL, API_BASE_URL } from '../config/env';
+import { API_URL } from '../config/env';
 
 // Configure axios instance
 const api = axios.create({
@@ -13,6 +13,7 @@ const api = axios.create({
 // Import AuthService for token management
 // Note: We use dynamic import to avoid circular dependencies
 type AuthServiceType = {
+    getAccessToken: () => string | null;
     refreshAccessToken: () => Promise<string>;
     logout: () => void;
 };
@@ -29,7 +30,8 @@ const getAuthService = async (): Promise<AuthServiceType> => {
  */
 api.interceptors.request.use(
     async (config) => {
-        const token = localStorage.getItem('token');
+        const authService = await getAuthService();
+        const token = authService.getAccessToken();
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -43,19 +45,13 @@ api.interceptors.request.use(
 );
 
 /**
- * Response interceptor for automatic token refresh and error handling
- * Requirements:
- * - 3.6: Automatic token refresh on 401
- * - 3.7: Retry original request with new token
- * - 3.8: Redirect to login if refresh fails
- * - 5.3: Handle PASSWORD_CHANGE_REQUIRED error
- * - 9.4: Handle ACCOUNT_LOCKED error with remaining time
+ * Response interceptor for:
+ * - Automatic token refresh on 401
+ * - Handle PASSWORD_CHANGE_REQUIRED error (5.3)
+ * - Handle ACCOUNT_LOCKED error (9.4)
  */
 api.interceptors.response.use(
-    (response) => {
-        // Pass through successful responses
-        return response;
-    },
+    (response) => response,
     async (error) => {
         const originalRequest = error.config;
 
@@ -309,12 +305,12 @@ export const VisitService = {
     },
 
     goIntermittent: async (id: number, notes?: string) => {
-        const response = await api.post(`/visits/${id}/intermittent`, { notes });
+        const response = await api.post(`/visits/${id}/intermittent-exit`, { notes });
         return unwrapResponse(response.data);
     },
 
     reactivateVisit: async (id: number) => {
-        const response = await api.post(`/visits/${id}/reactivate`);
+        const response = await api.post(`/visits/${id}/intermittent-reentry`);
         return unwrapResponse(response.data);
     },
 

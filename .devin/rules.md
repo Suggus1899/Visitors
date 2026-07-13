@@ -1,7 +1,7 @@
 # Visitor System — Global Rules
 
 description: Project-specific rules for the Visitor Access Control System
-tags: [electron, react, express, clean-architecture, sqlcipher]
+tags: [electron, react, express, clean-architecture, postgresql]
 
 ---
 
@@ -27,7 +27,7 @@ tags: [electron, react, express, clean-architecture, sqlcipher]
 ```
 Frontend:    React 18 + Vite + Tailwind + Lucide Icons
 Backend:     Node.js + Express + TypeScript + Sequelize
-Database:    SQLite + SQLCipher (AES-256 encryption)
+Database:    PostgreSQL 16 (AES-256-GCM field-level encryption for PII)
 Desktop:     Electron 40 + electron-builder + auto-updater
 Testing:     Vitest (unit/integration) + Supertest
 ```
@@ -114,14 +114,14 @@ Testing:     Vitest (unit/integration) + Supertest
 
 ## Security Requirements (T-XX)
 
-| ID      | Requirement                | Implementation                                         |
-| ------- | -------------------------- | ------------------------------------------------------ |
-| T-01    | Sanitize DB_ENCRYPTION_KEY | `database.ts` validates hex format before PRAGMA       |
-| T-09    | Rate limiting              | `apiLimiter` middleware on all routes                  |
-| T-14    | Security headers           | Helmet middleware (CSP disabled for Electron)          |
-| T-JWT   | Token security             | Access (15min) + Refresh (7d) tokens, separate secrets |
-| T-Enc   | Field encryption           | `Encryption.ts` utility for sensitive PII fields       |
-| T-Audit | Activity logging           | All auth/visit actions logged with IP/userAgent        |
+| ID      | Requirement                | Implementation                                                    |
+| ------- | -------------------------- | ----------------------------------------------------------------- |
+| T-01    | PII encryption keys        | `PII_ENCRYPTION_KEY` with fallback to `ENCRYPTION_KEY` in AppConfig |
+| T-09    | Rate limiting              | `apiLimiter` middleware on all routes                             |
+| T-14    | Security headers           | Helmet middleware (CSP disabled for Electron)                     |
+| T-JWT   | Token security             | Access (15min) + Refresh (7d) tokens, separate secrets            |
+| T-Enc   | Field encryption           | `Encryption.ts` utility for AES-256-GCM PII fields                |
+| T-Audit | Activity logging           | All auth/visit actions logged with IP/userAgent                   |
 
 **Never:**
 
@@ -134,19 +134,23 @@ Testing:     Vitest (unit/integration) + Supertest
 
 ## Database Patterns
 
-### Sequelize with SQLCipher
+### Sequelize with PostgreSQL 16
 
 ```typescript
-// Model definition with encrypted fields
+// Model definition with encrypted PII fields
+// Encryption is handled at the repository layer via Encryption.ts utility
+// (AES-256-GCM bidirectional + hash for cedulas)
 @Table
 class VisitorModel extends Model {
   @Column(DataType.STRING)
-  @Encrypted // Custom decorator
-  declare email: string;
-}
+  declare cedulaHash: string;  // hash for lookup
 
-// Access decrypted value
-const email = visitor.getDecrypted("email");
+  @Column(DataType.TEXT)
+  declare encrypted_cedula: string;  // AES-256-GCM ciphertext
+
+  @Column(DataType.TEXT)
+  declare first_name: string;  // stored encrypted
+}
 ```
 
 ### Repository Pattern
@@ -171,6 +175,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
 
 - SQL migrations: `src/migrations/XXX-description.sql`
 - Run: `npm run migrate`
+- Umzug uses Winston logger (not console)
 - Never use `DB_SYNC_ALTER=1` in production
 
 ---

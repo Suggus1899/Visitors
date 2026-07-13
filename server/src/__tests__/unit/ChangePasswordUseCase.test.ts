@@ -8,119 +8,98 @@ import { ChangePasswordUseCase } from '../../application/usecases/auth/ChangePas
 import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
 import { PasswordPolicy } from '../../domain/services/PasswordPolicy';
 import { EmailService } from '../../infrastructure/services/EmailService';
-import UserModel from '../../models/User';
-
-// Mock UserModel
-vi.mock('../../models/User', () => ({
-    default: {
-        findByPk: vi.fn()
-    }
-}));
+import { IUserRepository } from '../../domain/repositories/IUserRepository';
+import { User } from '../../domain/entities/User.entity';
 
 describe('ChangePasswordUseCase', () => {
     let changePasswordUseCase: ChangePasswordUseCase;
     let authService: JwtAuthService;
     let passwordPolicy: PasswordPolicy;
     let emailService: EmailService;
+    let userRepository: IUserRepository;
 
     beforeEach(() => {
         vi.clearAllMocks();
         authService = new JwtAuthService();
         passwordPolicy = new PasswordPolicy();
         emailService = new EmailService();
+        userRepository = {
+            findAll: vi.fn(),
+            findByUsername: vi.fn(),
+            findById: vi.fn(),
+            findByResetToken: vi.fn(),
+            save: vi.fn(),
+            delete: vi.fn(),
+            updatePassword: vi.fn(),
+            updatePasswordChange: vi.fn().mockResolvedValue(undefined),
+            updateLoginAttempts: vi.fn(),
+            updateResetToken: vi.fn()
+        } as unknown as IUserRepository;
         changePasswordUseCase = new ChangePasswordUseCase(
+            userRepository,
             authService,
             passwordPolicy,
             emailService
         );
     });
 
+    const buildUser = async (password: string): Promise<User> => {
+        const hashed = await authService.hashPassword(password);
+        return new User('testuser', 'admin', hashed, 1);
+    };
+
     describe('Successful Password Change', () => {
         it('should change password when current password is correct', async () => {
             const currentPassword = 'OldP@ssw0rd123';
             const newPassword = 'NewP@ssw0rd456';
-            const hashedOldPassword = await authService.hashPassword(currentPassword);
+            const user = await buildUser(currentPassword);
 
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                email: 'test@example.com',
-                password: hashedOldPassword,
-                mustChangePassword: true,
-                update: vi.fn().mockResolvedValue(true)
-            };
-
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            (userRepository.findById as any).mockResolvedValue(user);
 
             await changePasswordUseCase.execute(1, currentPassword, newPassword);
 
-            expect(mockUser.update).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    mustChangePassword: false,
-                    passwordChangedAt: expect.any(Date)
-                })
+            expect(userRepository.updatePasswordChange).toHaveBeenCalledWith(
+                1,
+                expect.any(String),
+                false,
+                expect.any(Date)
             );
         });
 
         it('should hash new password with bcrypt', async () => {
             const currentPassword = 'OldP@ssw0rd123';
             const newPassword = 'NewP@ssw0rd456';
-            const hashedOldPassword = await authService.hashPassword(currentPassword);
+            const user = await buildUser(currentPassword);
 
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                email: 'test@example.com',
-                password: hashedOldPassword,
-                mustChangePassword: true,
-                update: vi.fn().mockResolvedValue(true)
-            };
-
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            (userRepository.findById as any).mockResolvedValue(user);
 
             await changePasswordUseCase.execute(1, currentPassword, newPassword);
 
-            const updateCall = mockUser.update.mock.calls[0][0];
-            expect(updateCall.password).toBeDefined();
-            expect(updateCall.password).not.toBe(newPassword);
-            expect(updateCall.password.startsWith('$2')).toBe(true);
+            const call = (userRepository.updatePasswordChange as any).mock.calls[0];
+            expect(call[1]).toBeDefined();
+            expect(call[1]).not.toBe(newPassword);
+            expect(call[1].startsWith('$2')).toBe(true);
         });
 
         it('should set mustChangePassword to false', async () => {
             const currentPassword = 'OldP@ssw0rd123';
             const newPassword = 'NewP@ssw0rd456';
-            const hashedOldPassword = await authService.hashPassword(currentPassword);
+            const user = await buildUser(currentPassword);
 
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                email: 'test@example.com',
-                password: hashedOldPassword,
-                mustChangePassword: true,
-                update: vi.fn().mockResolvedValue(true)
-            };
-
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            (userRepository.findById as any).mockResolvedValue(user);
 
             await changePasswordUseCase.execute(1, currentPassword, newPassword);
 
-            expect(mockUser.update).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    mustChangePassword: false
-                })
-            );
+            const call = (userRepository.updatePasswordChange as any).mock.calls[0];
+            expect(call[2]).toBe(false);
         });
     });
 
     describe('Password Policy Validation', () => {
         it('should reject password shorter than 12 characters', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('OldP@ssw0rd123')
-            };
+            const user = await buildUser('OldP@ssw0rd123');
 
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            (userRepository.findById as any).mockResolvedValue(user);
 
             await expect(
                 changePasswordUseCase.execute(1, 'OldP@ssw0rd123', 'Short1@')
@@ -128,13 +107,9 @@ describe('ChangePasswordUseCase', () => {
         });
 
         it('should reject password without uppercase letter', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('OldP@ssw0rd123')
-            };
+            const user = await buildUser('OldP@ssw0rd123');
 
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            (userRepository.findById as any).mockResolvedValue(user);
 
             await expect(
                 changePasswordUseCase.execute(1, 'OldP@ssw0rd123', 'newp@ssw0rd123')
@@ -142,13 +117,9 @@ describe('ChangePasswordUseCase', () => {
         });
 
         it('should reject common passwords', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('OldP@ssw0rd123')
-            };
+            const user = await buildUser('OldP@ssw0rd123');
 
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            (userRepository.findById as any).mockResolvedValue(user);
 
             await expect(
                 changePasswordUseCase.execute(1, 'OldP@ssw0rd123', 'password')
@@ -158,7 +129,7 @@ describe('ChangePasswordUseCase', () => {
 
     describe('Error Handling', () => {
         it('should throw USER_NOT_FOUND if user does not exist', async () => {
-            (UserModel.findByPk as any).mockResolvedValue(null);
+            (userRepository.findById as any).mockResolvedValue(null);
 
             await expect(
                 changePasswordUseCase.execute(999, 'OldP@ssw0rd123', 'NewP@ssw0rd456')
@@ -166,13 +137,9 @@ describe('ChangePasswordUseCase', () => {
         });
 
         it('should throw INVALID_CURRENT_PASSWORD if current password is incorrect', async () => {
-            const mockUser = {
-                id: 1,
-                username: 'testuser',
-                password: await authService.hashPassword('OldP@ssw0rd123')
-            };
+            const user = await buildUser('OldP@ssw0rd123');
 
-            (UserModel.findByPk as any).mockResolvedValue(mockUser);
+            (userRepository.findById as any).mockResolvedValue(user);
 
             await expect(
                 changePasswordUseCase.execute(1, 'WrongPassword123!', 'NewP@ssw0rd456')

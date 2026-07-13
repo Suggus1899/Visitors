@@ -1,4 +1,5 @@
 import { Visitor, VisitorEntity } from '../entities/Visitor.entity';
+import { VisitEntity } from '../entities/Visit.entity';
 
 /**
  * Repository interface for Visitor
@@ -18,7 +19,7 @@ export interface IVisitorRepository {
   /**
    * Find visitor by cedula with visit history
    */
-  findByCedulaWithHistory(cedula: string, historyLimit?: number): Promise<{ visitor: Visitor | null; history: any[] }>;
+  findByCedulaWithHistory(cedula: string, historyLimit?: number): Promise<{ visitor: Visitor | null; history: VisitEntity[] }>;
 
   /**
    * Find all visitors with optional filters
@@ -69,6 +70,9 @@ export interface IVisitorRepository {
    * Get total count of visitors
    */
   count(filters?: VisitorFilters): Promise<number>;
+
+  getPhotoBlob(cedula: string): Promise<Buffer | null>;
+  getIdPhotoBlob(cedula: string): Promise<Buffer | null>;
 }
 
 /**

@@ -1,13 +1,13 @@
 import { IUserRepository } from '../../../domain/repositories/IUserRepository';
-import { JwtAuthService } from '../../../infrastructure/services/JwtAuthService';
-import { EmailService } from '../../../infrastructure/services/EmailService';
+import { IAuthService } from '../../../domain/services/IAuthService';
+import { IEmailService } from '../../../domain/services/IEmailService';
 import logger from '../../../config/logger';
 
 export class ForgotPasswordUseCase {
   constructor(
     private userRepository: IUserRepository,
-    private authService: JwtAuthService,
-    private emailService: EmailService
+    private authService: IAuthService,
+    private emailService: IEmailService
   ) { }
 
   async execute(username: string): Promise<string> {

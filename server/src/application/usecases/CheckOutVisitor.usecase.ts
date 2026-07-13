@@ -1,6 +1,6 @@
 import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
-import { Visit } from '../../domain/entities/Visit.entity';
 import { CheckOutDto, VisitResponseDto } from '../dto/VisitDto';
+import { VisitMapper } from '../mappers/VisitMapper';
 
 /**
  * Use Case: Check out a visitor
@@ -28,20 +28,6 @@ export class CheckOutVisitorUseCase {
     });
 
     // 4. Return response
-    return this.toResponseDto(updatedVisit);
-  }
-
-  private toResponseDto(visit: Visit): VisitResponseDto {
-    return {
-      id: visit.id!,
-      visitorCedula: visit.visitorCedula,
-      checkInTime: visit.checkInTime.toISOString(),
-      checkOutTime: visit.checkOutTime?.toISOString(),
-      purpose: visit.purpose,
-      personToVisit: visit.personToVisit,
-      status: visit.status,
-      durationMinutes: visit.getDurationMinutes() || undefined,
-      notes: visit.notes
-    };
+    return VisitMapper.toVisitResponseDto(updatedVisit);
   }
 }

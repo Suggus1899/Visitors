@@ -7,16 +7,15 @@ import { UpdateUserUseCase, UpdateUserDto } from '../application/usecases/supera
 import { DeleteUserUseCase } from '../application/usecases/superadmin/DeleteUser.usecase';
 import { ListUsersUseCase } from '../application/usecases/superadmin/ListUsers.usecase';
 import { ResetUserPasswordUseCase, ResetPasswordDto } from '../application/usecases/superadmin/ResetUserPassword.usecase';
-import { GetAuditLogsUseCase, AuditLogFilter } from '../application/usecases/superadmin/GetAuditLogs.usecase';
+import { GetAuditLogsUseCase, AuditLogFilters } from '../application/usecases/superadmin/GetAuditLogs.usecase';
 import { User } from '../domain/entities/User.entity';
+import { UserMapper } from '../application/mappers/UserMapper';
 import { logActivity } from '../models/ActivityLog';
 import { getClientInfo } from '../middleware/ipCapture';
 import { tokenBlacklist } from '../infrastructure/services/TokenBlacklist';
 
-// C-07: Helper to extract actor info from request
 const getActor = (req: Request) => {
-  const user = (req as any).user || {};
-  return { id: user.id || 0, username: user.username || 'system' };
+  return { id: req.user?.id ?? 0, username: req.user?.username ?? 'system' };
 };
 
 export class SuperAdminController {
@@ -30,14 +29,7 @@ export class SuperAdminController {
       const users = await useCase.execute();
 
       // Remove password from response
-      const sanitizedUsers = users.map((user: User) => ({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        mustChangePassword: user.mustChangePassword,
-        loginAttempts: user.loginAttempts,
-        lockedUntil: user.lockedUntil
-      }));
+      const sanitizedUsers = users.map((user: User) => UserMapper.toUserListDto(user));
 
       res.json(ResponseBuilder.success(sanitizedUsers));
     } catch (error) {
@@ -71,12 +63,7 @@ export class SuperAdminController {
       const clientInfo = getClientInfo(req);
       await logActivity(actor.id, actor.username, 'SUPERADMIN_CREATE_USER', 'User', String(user.id), `Created user: ${user.username} (role: ${user.role})`, clientInfo.ip, clientInfo.userAgent);
 
-      res.status(201).json(ResponseBuilder.success({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        mustChangePassword: user.mustChangePassword
-      }));
+      res.status(201).json(ResponseBuilder.success(UserMapper.toUserDto(user)));
     } catch (error: any) {
       logger.error('Create user error:', error);
       if (error.message === 'USERNAME_EXISTS') {
@@ -114,11 +101,7 @@ export class SuperAdminController {
       // T-05: Invalidate tokens for updated user (role may have changed)
       tokenBlacklist.invalidateUserTokens(userId);
 
-      res.json(ResponseBuilder.success({
-        id: user.id,
-        username: user.username,
-        role: user.role
-      }));
+      res.json(ResponseBuilder.success(UserMapper.toUserDto(user)));
     } catch (error: any) {
       logger.error('Update user error:', error);
       if (error.message === 'USER_NOT_FOUND') {
@@ -214,14 +197,14 @@ export class SuperAdminController {
    */
   async getAuditLogs(req: Request, res: Response) {
     try {
-      const filter: AuditLogFilter = {
+      const filter: AuditLogFilters = {
         userId: req.query.userId ? parseInt(req.query.userId as string) : undefined,
         action: req.query.action as string,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
         offset: req.query.offset ? parseInt(req.query.offset as string) : 0
       };
 
-      const useCase = new GetAuditLogsUseCase();
+      const useCase = container.createGetAuditLogsUseCase();
       const result = await useCase.execute(filter);
 
       res.json(ResponseBuilder.success({

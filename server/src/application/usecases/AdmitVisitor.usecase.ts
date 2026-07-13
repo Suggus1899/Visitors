@@ -1,6 +1,7 @@
 import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
 import { VisitStatus } from '../../domain/entities/Visit.entity';
 import { VisitResponseDto } from '../dto/VisitDto';
+import { VisitMapper } from '../mappers/VisitMapper';
 
 export class AdmitVisitorUseCase {
   constructor(private visitRepository: IVisitRepository) {}
@@ -19,22 +20,14 @@ export class AdmitVisitorUseCase {
     const now = new Date();
     const admittedVisit = visit.admit(now);
 
-    // Preservar arrivalTime original y solo actualizar entryTime
+    // Preservar arrivalTime original y checkInTime, solo actualizar entryTime
     const updatedVisit = await this.visitRepository.update(visitId, {
-      checkInTime: admittedVisit.checkInTime,
+      checkInTime: visit.checkInTime,  // Preservar hora original de check-in
       arrivalTime: visit.arrivalTime,  // Preservar hora original de llegada
-      entryTime: now,  // Hora actual de entrada (cuando se admite)
+      entryTime: now,                  // Hora actual de entrada (cuando se admite)
       status: admittedVisit.status
     });
 
-    return {
-      id: updatedVisit.id!,
-      visitorCedula: updatedVisit.visitorCedula,
-      checkInTime: updatedVisit.checkInTime.toISOString(),
-      purpose: updatedVisit.purpose,
-      personToVisit: updatedVisit.personToVisit,
-      status: updatedVisit.status,
-      notes: updatedVisit.notes
-    };
+    return VisitMapper.toVisitResponseDto(updatedVisit);
   }
 }

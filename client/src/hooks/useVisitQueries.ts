@@ -144,39 +144,3 @@ export const useUpdateVisitorMutation = () => {
     });
 };
 
-import { useState, useEffect } from 'react';
-
-/**
- * Hook for live duration counter
- * Returns formatted time string that updates every second
- * @param startTime - ISO 8601 timestamp when the intermittent period started
- */
-export const useLiveDuration = (startTime: string | Date | undefined): { minutes: number; seconds: number; formatted: string } => {
-    const [now, setNow] = useState(new Date());
-
-    useEffect(() => {
-        if (!startTime) return;
-        
-        const interval = setInterval(() => {
-            setNow(new Date());
-        }, 1000); // Update every second
-
-        return () => clearInterval(interval);
-    }, [startTime]);
-
-    if (!startTime) {
-        return { minutes: 0, seconds: 0, formatted: '0m 0s' };
-    }
-
-    const start = new Date(startTime);
-    const diffMs = now.getTime() - start.getTime();
-    const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    return {
-        minutes,
-        seconds,
-        formatted: minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
-    };
-};

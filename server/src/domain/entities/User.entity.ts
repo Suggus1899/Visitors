@@ -30,7 +30,7 @@ export class User {
   ) { }
 
   isAdmin(): boolean {
-    return this.role === 'admin';
+    return this.role === 'admin' || this.role === 'root';
   }
 
   // Factory

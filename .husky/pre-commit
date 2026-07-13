@@ -1,0 +1,41 @@
+#!/bin/sh
+# Husky pre-commit hook (v9)
+# Runs lint, type-check, and tests on staged changes
+
+set -e
+
+# Skip checks on main/develop/master branches
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "unknown")
+case "$branch" in
+  main|develop|master) exit 0 ;;
+esac
+
+# Gather staged files
+staged=$(git diff --cached --name-only)
+
+# If no code files changed, skip
+echo "$staged" | grep -qE '\.(ts|tsx|js|jsx|json|yml|yaml|sh|bat)$' || {
+  echo "husky - no code files staged, skipping checks"
+  exit 0
+}
+
+client=0; server=0
+for f in $staged; do
+  case "$f" in client/*) client=1 ;; server/*) server=1 ;; esac
+done
+
+if [ "$client" = 1 ]; then
+  echo "--- Checking client ---"
+  cd client
+  [ -f node_modules/.package-lock.json ] || npm ci
+  npm run lint && npx tsc --noEmit && npm test
+  cd ..
+fi
+
+if [ "$server" = 1 ]; then
+  echo "--- Checking server ---"
+  cd server
+  [ -f node_modules/.package-lock.json ] || npm ci
+  npx tsc --noEmit && npm test
+  cd ..
+fi

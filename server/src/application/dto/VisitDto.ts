@@ -49,7 +49,17 @@ export interface ActiveVisitDto {
   personToVisit: string;
   durationMinutes: number;
   photoUrl?: string;
-  entryTime?: string; // ISO string - hora cuando se admitió la entrada
+  arrivalTime?: string; // ISO string - hora de llegada a recepción
+  entryTime?: string;   // ISO string - hora cuando se admitió la entrada
+  companionName?: string;
+  companionCedula?: string;
+  vehicleBrand?: string;
+  vehicleModel?: string;
+  vehiclePlate?: string;
+  notes?: string;
+  area?: string;
+  action?: string;
+  department?: string;
 }
 
 /**
@@ -82,6 +92,7 @@ export interface VisitResponseDto {
   id: number;
   visitorCedula: string;
   visitorName?: string;
+  visitorCompany?: string;
   firstName?: string;
   lastName?: string;
   checkInTime: string; // ISO string

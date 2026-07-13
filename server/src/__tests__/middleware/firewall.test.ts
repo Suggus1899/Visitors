@@ -1,10 +1,6 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
-import { firewall, getSecurityStats, blockIP, unblockIP } from '../firewall';
-
-// Mock console.warn to avoid test output pollution
-jest.mock('../../../config/AppConfig', () => ({
-    nodeEnv: 'test',
-}));
+import { firewall, getSecurityStats, blockIP, unblockIP, clearSecurityEvents } from '../../middleware/firewall';
 
 describe('Firewall Middleware', () => {
     let mockRequest: Partial<Request>;
@@ -16,20 +12,18 @@ describe('Firewall Middleware', () => {
             ip: '192.168.1.1',
             path: '/api/test',
             method: 'GET',
-            get: jest.fn(),
+            get: vi.fn(),
             url: '/api/test',
         };
         
         mockResponse = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-            setHeader: jest.fn(),
+            status: vi.fn().mockReturnThis(),
+            json: vi.fn().mockReturnThis(),
+            setHeader: vi.fn(),
         };
         
-        nextFunction = jest.fn();
+        nextFunction = vi.fn();
         
-        // Clear security events before each test
-        const { clearSecurityEvents } = require('../firewall');
         clearSecurityEvents();
     });
 
@@ -41,7 +35,7 @@ describe('Firewall Middleware', () => {
     });
 
     it('blocks requests with suspicious user agents', () => {
-        mockRequest.get = jest.fn().mockReturnValue('sqlmap/1.0');
+        mockRequest.get = vi.fn().mockReturnValue('sqlmap/1.0');
         
         firewall(mockRequest as Request, mockResponse as Response, nextFunction);
         
@@ -89,7 +83,7 @@ describe('Firewall Middleware', () => {
     });
 
     it('blocks requests with large payload', () => {
-        mockRequest.get = jest.fn().mockReturnValue('15');
+        mockRequest.get = vi.fn().mockReturnValue('15');
         
         firewall(mockRequest as Request, mockResponse as Response, nextFunction);
         
@@ -136,22 +130,19 @@ describe('Firewall Middleware', () => {
         });
         expect(nextFunction).not.toHaveBeenCalled();
         
-        // Clean up
         unblockIP('192.168.1.1');
     });
 
     it('temporarily blocks IPs with too many suspicious activities', () => {
         const ip = '192.168.1.2';
         
-        // Simulate multiple suspicious activities
         for (let i = 0; i < 60; i++) {
             mockRequest.ip = ip;
-            mockRequest.get = jest.fn().mockReturnValue(`bot${i}`);
-            firewall(mockRequest as Request, mockResponse as Response, jest.fn());
+            mockRequest.get = vi.fn().mockReturnValue(`bot${i}`);
+            firewall(mockRequest as Request, mockResponse as Response, vi.fn());
         }
         
-        // Next request should be temporarily blocked
-        mockRequest.get = jest.fn().mockReturnValue('normal-agent');
+        mockRequest.get = vi.fn().mockReturnValue('normal-agent');
         firewall(mockRequest as Request, mockResponse as Response, nextFunction);
         
         expect(mockResponse.status).toHaveBeenCalledWith(429);
@@ -168,7 +159,7 @@ describe('Firewall Middleware', () => {
     it('tracks security events correctly', () => {
         const suspiciousRequest = {
             ...mockRequest,
-            get: jest.fn().mockReturnValue('sqlmap/1.0'),
+            get: vi.fn().mockReturnValue('sqlmap/1.0'),
         };
         
         firewall(suspiciousRequest as Request, mockResponse as Response, nextFunction);
@@ -188,7 +179,6 @@ describe('Firewall Middleware', () => {
         const stats = getSecurityStats();
         expect(stats.temporarilyBlockedIPs).toBe(2);
         
-        // Clean up
         unblockIP('192.168.1.100');
         unblockIP('192.168.1.200');
     });
@@ -196,33 +186,28 @@ describe('Firewall Middleware', () => {
     it('allows unblocking of IPs', () => {
         blockIP('192.168.1.100');
         
-        // Should be blocked
         mockRequest.ip = '192.168.1.100';
-        firewall(mockRequest as Request, mockResponse as Response, jest.fn());
+        firewall(mockRequest as Request, mockResponse as Response, vi.fn());
         expect(mockResponse.status).toHaveBeenCalledWith(403);
         
-        // Unblock IP
         unblockIP('192.168.1.100');
         
-        // Reset mock
-        mockResponse.status = jest.fn().mockReturnThis();
-        mockResponse.json = jest.fn().mockReturnThis();
+        mockResponse.status = vi.fn().mockReturnThis();
+        mockResponse.json = vi.fn().mockReturnThis();
         
-        // Should now be allowed
         firewall(mockRequest as Request, mockResponse as Response, nextFunction);
         expect(nextFunction).toHaveBeenCalled();
     });
 
     it('provides accurate security statistics', () => {
-        // Generate some security events
         const suspiciousRequests = [
-            { ...mockRequest, get: jest.fn().mockReturnValue('bot1') },
-            { ...mockRequest, get: jest.fn().mockReturnValue('bot2') },
-            { ...mockRequest, get: jest.fn().mockReturnValue('bot3') },
+            { ...mockRequest, get: vi.fn().mockReturnValue('bot1') },
+            { ...mockRequest, get: vi.fn().mockReturnValue('bot2') },
+            { ...mockRequest, get: vi.fn().mockReturnValue('bot3') },
         ];
         
         suspiciousRequests.forEach(req => {
-            firewall(req as Request, mockResponse as Response, jest.fn());
+            firewall(req as Request, mockResponse as Response, vi.fn());
         });
         
         const stats = getSecurityStats();

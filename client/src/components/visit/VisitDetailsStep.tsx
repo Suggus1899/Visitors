@@ -12,6 +12,18 @@ const VISIT_PURPOSES = [
     'Otro'
 ];
 
+const DEPARTMENTS = [
+    'Administracion',
+    'SySO',
+    'Almacén PT',
+    'Almacén de Repuestos',
+    'Servicios Generales',
+    'RRHH',
+    'Seguridad Patrimonial',
+    'Operaciones',
+    'Servicio Medico'
+];
+
 interface VisitDetailsStepProps {
     formData: {
         target_department: string;
@@ -50,14 +62,17 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                     Área / Departamento a Visitar <span className="text-red-500">*</span>
                 </label>
-                <input
-                    type="text"
-                    placeholder="Ej: Recursos Humanos, Finanzas, Almacén..."
+                <select
                     value={formData.target_department}
                     onChange={(e) => onFormDataChange('target_department', e.target.value)}
-                    className={getInputClass(formData.target_department.trim() ? true : null)}
+                    className={`${getInputClass(formData.target_department.trim() ? true : null)} w-full bg-[color:var(--surface-0)]`}
                     required
-                />
+                >
+                    <option value="">Seleccione un área...</option>
+                    {DEPARTMENTS.map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                </select>
             </div>
 
             <div>

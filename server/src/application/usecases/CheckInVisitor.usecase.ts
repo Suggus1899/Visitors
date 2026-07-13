@@ -3,6 +3,7 @@ import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
 import { Visit, VisitStatus } from '../../domain/entities/Visit.entity';
 import { Visitor } from '../../domain/entities/Visitor.entity';
 import { CheckInDto, VisitResponseDto } from '../dto/VisitDto';
+import { VisitMapper } from '../mappers/VisitMapper';
 
 /**
  * Use Case: Check in a visitor
@@ -81,15 +82,30 @@ export class CheckInVisitorUseCase {
       throw new Error(`Visitor is blocked: ${visitor.observations || 'No reason provided'}`);
     }
 
-    // 2. Check if visitor has an active or intermittent visit
-    const activeVisits = await this.visitRepository.findByVisitor(dto.visitorCedula);
-    const openVisit = activeVisits.find(v => v.isActive());
+    // 2. Check if visitor already has an open visit (active, intermittent, or waiting)
+    const existingVisits = await this.visitRepository.findByVisitor(dto.visitorCedula);
+    const openVisit = existingVisits.find(v => v.isActive() || v.status === VisitStatus.WAITING);
 
     if (openVisit) {
+      const statusLabel: Record<string, string> = {
+        active: 'ACTIVA',
+        waiting: 'EN ESPERA',
+        intermittent: 'SALIDA TEMPORAL',
+      };
+      const label = statusLabel[openVisit.status] || openVisit.status;
+      const time = openVisit.checkInTime.toISOString().replace('T', ' ').substring(0, 19);
+
       if (openVisit.status === VisitStatus.INTERMITTENT) {
-        throw new Error('Visitor has an active intermittent visit. Use reactivate to let them back in.');
+        throw new Error(
+          `El visitante ya tiene una visita en estado ${label} (#${openVisit.id} desde ${time}). ` +
+          `Use la opción "Reactivar" para permitir el reingreso.`
+        );
       }
-      throw new Error('Visitor already has an active visit');
+
+      throw new Error(
+        `El visitante ya tiene una visita en estado ${label} (#${openVisit.id} desde ${time}). ` +
+        `No puede registrar otra visita hasta que la actual sea finalizada.`
+      );
     }
 
     // 3. Create new visit
@@ -122,30 +138,6 @@ export class CheckInVisitorUseCase {
     const createdVisit = await this.visitRepository.create(visit);
 
     // 4. Return response
-    return this.toResponseDto(createdVisit, visitor);
-  }
-
-  private toResponseDto(visit: Visit, visitor: Visitor): VisitResponseDto {
-    return {
-      id: visit.id!,
-      visitorCedula: visit.visitorCedula,
-      visitorName: visitor.fullName,
-      firstName: visitor.firstName,
-      lastName: visitor.lastName,
-      checkInTime: visit.checkInTime.toISOString(),
-      checkOutTime: visit.checkOutTime?.toISOString(),
-      purpose: visit.purpose,
-      personToVisit: visit.personToVisit,
-      status: visit.status,
-      durationMinutes: visit.getDurationMinutes() || undefined,
-      notes: visit.notes,
-      companionName: visit.companionName,
-      companionCedula: visit.companionCedula,
-      vehicleBrand: visit.vehicleBrand,
-      vehicleModel: visit.vehicleModel,
-      vehiclePlate: visit.vehiclePlate,
-      action: visit.action,
-      department: visit.department
-    };
+    return VisitMapper.toVisitResponseDto(createdVisit, visitor);
   }
 }

@@ -1,7 +1,8 @@
 export interface User {
-    id: number;
+    id?: number;
     username: string;
     role: 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
+    mustChangePassword?: boolean;
 }
 
 export interface Visitor {
@@ -139,8 +140,8 @@ export interface ComparisonStats {
 }
 
 export interface AuthContextType {
-    user: { username: string; role: string } | null;
-    login: (token: string, userData: { username: string; role: string }) => void;
+    user: User | null;
+    login: (userData: User) => void;
     logout: () => void;
     loading: boolean;
 }
@@ -148,4 +149,13 @@ export interface AuthContextType {
 export interface ReasonData {
     reason: string;
     count: number;
+    percentage?: number;
+}
+
+export interface CalendarEvent {
+    id: number;
+    title: string;
+    start: Date;
+    end: Date;
+    resource?: Visit;
 }

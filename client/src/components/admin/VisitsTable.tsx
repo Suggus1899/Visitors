@@ -325,7 +325,8 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
             tableData.forEach((visit, index) => {
                 const rowNumber = headerRowNumber + 1 + index;
                 const row = worksheet.getRow(rowNumber);
-                row.values = visit;
+                const { intermittent_logs: _logs, Visitor: _visitor, ...exportable } = visit;
+                row.values = exportable as typeof row.values;
                 row.alignment = { vertical: 'middle', wrapText: true };
                 row.height = 22;
                 
@@ -410,28 +411,6 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
             setIsExporting(false);
         }
     }, [isExporting, tableData, visits, filters, username]);
-
-    // Optimized sort handler
-    const handleSort = useCallback((field: SortField) => {
-        onSort(field);
-    }, [onSort]);
-
-    // Optimized filter handlers
-    const handleFilterChange = useCallback((key: keyof Filters, value: string) => {
-        onFilterChange(key, value);
-    }, [onFilterChange]);
-
-    // Optimized pagination
-    const handlePageChange = useCallback((page: number) => {
-        onPageChange(page);
-    }, [onPageChange]);
-
-    // Memoized pagination info
-    const paginationInfo = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE + 1;
-        const end = Math.min(currentPage * ITEMS_PER_PAGE, totalVisitsCount);
-        return { start, end, total: totalVisitsCount };
-    }, [currentPage, totalVisitsCount]);
 
     return (
         <div className="panel-tech rounded-lg overflow-hidden">

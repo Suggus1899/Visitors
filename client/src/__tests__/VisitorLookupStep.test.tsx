@@ -5,7 +5,7 @@ import VisitorLookupStep from '../components/visit/VisitorLookupStep';
 const baseProps = {
   cedula: '',
   cedulaError: '',
-  formData: { first_name: '', last_name: '' },
+  formData: { first_name: '', last_name: '', photo_url: '', id_photo_url: '' },
   validation: { cedula: null as boolean | null, first_name: null as boolean | null, last_name: null as boolean | null },
   loading: false,
   canProceed: false,

@@ -10,6 +10,7 @@ import CalendarEventModal from '../CalendarEventModal';
 import CustomCalendarToolbar from '../CustomCalendarToolbar';
 import CalendarLegend from '../CalendarLegend';
 import { VisitService } from '../../services/api.v1';
+import { CalendarEvent, Visit } from '../../types';
 
 const locales = { 'es': es };
 const localizer = dateFnsLocalizer({
@@ -21,13 +22,13 @@ const localizer = dateFnsLocalizer({
 });
 
 interface CalendarViewProps {
-    calendarEvents: any[];
+    calendarEvents: CalendarEvent[];
     fetchVisits: () => void;
 }
 
 const CalendarView = ({ calendarEvents, fetchVisits }: CalendarViewProps) => {
     const [calendarFilter, setCalendarFilter] = useState<'all' | 'active' | 'completed'>('all');
-    const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<Visit | null>(null);
     const [showEventModal, setShowEventModal] = useState(false);
 
     const handleExport = () => {
@@ -99,7 +100,7 @@ const CalendarView = ({ calendarEvents, fetchVisits }: CalendarViewProps) => {
                         else if (reason.includes('emergencia') || reason.includes('urgente')) borderColor = '#f87171';
                         return { style: { backgroundColor: bgColor, borderLeft: `3px solid ${borderColor}`, color: textColor, borderRadius: '4px', fontSize: '11px', fontWeight: '600', padding: '2px 5px', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' } };
                     }}
-                    tooltipAccessor={(event: any) => `${event.title}\n${event.resource?.Visitor?.company || ''}\nEntrada: ${format(event.start, 'HH:mm', { locale: es })}`}
+                    tooltipAccessor={(event) => `${event.title}\n${event.resource?.Visitor?.company || ''}\nEntrada: ${format(event.start, 'HH:mm', { locale: es })}`}
                     dayPropGetter={(date) => {
                         const dayEvents = calendarEvents.filter(e => new Date(e.start).toDateString() === date.toDateString());
                         return dayEvents.length >= 5 ? { style: { backgroundColor: '#1b232a' } } : {};

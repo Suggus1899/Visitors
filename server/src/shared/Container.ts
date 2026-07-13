@@ -6,12 +6,15 @@ import { PostgresBackupService } from '../infrastructure/services/PostgresBackup
 import { IBackupService } from '../domain/services/IBackupService';
 import { IUserRepository } from '../domain/repositories/IUserRepository';
 import { IAuthService } from '../domain/services/IAuthService';
+import { IEmailService } from '../domain/services/IEmailService';
 import { SequelizeUserRepository } from '../infrastructure/database/repositories/SequelizeUserRepository';
 import { JwtAuthService } from '../infrastructure/services/JwtAuthService';
 import { PasswordPolicy } from '../domain/services/PasswordPolicy';
 import { EmailService } from '../infrastructure/services/EmailService';
-import { IVisitIntervalRepository } from '../domain/repositories/IVisitIntervalRepository';
-import { SequelizeVisitIntervalRepository } from '../infrastructure/database/repositories/SequelizeVisitIntervalRepository';
+import { IIntermittentLogRepository } from '../domain/repositories/IIntermittentLogRepository';
+import { SequelizeIntermittentLogRepository } from '../infrastructure/database/repositories/SequelizeIntermittentLogRepository';
+import { IAuditLogRepository } from '../domain/repositories/IAuditLogRepository';
+import { SequelizeAuditLogRepository } from '../infrastructure/database/repositories/SequelizeAuditLogRepository';
 import { CheckInVisitorUseCase } from '../application/usecases/CheckInVisitor.usecase';
 import { GoIntermittentUseCase } from '../application/usecases/GoIntermittent.usecase';
 import { ReactivateVisitUseCase } from '../application/usecases/ReactivateVisit.usecase';
@@ -38,6 +41,7 @@ import { RefreshTokenUseCase } from '../application/usecases/auth/RefreshToken.u
 import { ChangePasswordUseCase } from '../application/usecases/auth/ChangePassword.usecase';
 import { IntermittentExitUseCase } from '../application/usecases/IntermittentExit.usecase';
 import { IntermittentReEntryUseCase } from '../application/usecases/IntermittentReEntry.usecase';
+import { GetAuditLogsUseCase } from '../application/usecases/superadmin/GetAuditLogs.usecase';
 
 /**
  * Simple Dependency Injection Container
@@ -49,13 +53,14 @@ class Container {
   // Repositories (singletons)
   private _visitorRepository?: IVisitorRepository;
   private _visitRepository?: IVisitRepository;
-  private _visitIntervalRepository?: IVisitIntervalRepository;
+  private _intermittentLogRepository?: IIntermittentLogRepository;
   private _userRepository?: IUserRepository;
+  private _auditLogRepository?: IAuditLogRepository;
   // Services
   private _backupService?: IBackupService;
-  private _authService?: JwtAuthService;
+  private _authService?: IAuthService;
   private _passwordPolicy?: PasswordPolicy;
-  private _emailService?: EmailService;
+  private _emailService?: IEmailService;
 
   private constructor() { }
 
@@ -81,11 +86,11 @@ class Container {
     return this._visitRepository;
   }
 
-  get visitIntervalRepository(): IVisitIntervalRepository {
-    if (!this._visitIntervalRepository) {
-      this._visitIntervalRepository = new SequelizeVisitIntervalRepository();
+  get intermittentLogRepository(): IIntermittentLogRepository {
+    if (!this._intermittentLogRepository) {
+      this._intermittentLogRepository = new SequelizeIntermittentLogRepository();
     }
-    return this._visitIntervalRepository;
+    return this._intermittentLogRepository;
   }
 
   get userRepository(): IUserRepository {
@@ -93,6 +98,13 @@ class Container {
       this._userRepository = new SequelizeUserRepository();
     }
     return this._userRepository;
+  }
+
+  get auditLogRepository(): IAuditLogRepository {
+    if (!this._auditLogRepository) {
+      this._auditLogRepository = new SequelizeAuditLogRepository();
+    }
+    return this._auditLogRepository;
   }
 
   get backupService(): IBackupService {
@@ -111,7 +123,7 @@ class Container {
     return new GetAllVisitorsUseCase(this.visitorRepository);
   }
 
-  get authService(): JwtAuthService {
+  get authService(): IAuthService {
     if (!this._authService) {
       this._authService = new JwtAuthService();
     }
@@ -125,7 +137,7 @@ class Container {
     return this._passwordPolicy;
   }
 
-  get emailService(): EmailService {
+  get emailService(): IEmailService {
     if (!this._emailService) {
       this._emailService = new EmailService();
     }
@@ -161,8 +173,7 @@ class Container {
 
   createGetWaitingVisitsUseCase(): GetWaitingVisitsUseCase {
     return new GetWaitingVisitsUseCase(
-      this.visitRepository,
-      this.visitorRepository
+      this.visitRepository
     );
   }
 
@@ -217,14 +228,14 @@ class Container {
   createGoIntermittentUseCase(): GoIntermittentUseCase {
     return new GoIntermittentUseCase(
       this.visitRepository,
-      this.visitIntervalRepository
+      this.intermittentLogRepository
     );
   }
 
   createReactivateVisitUseCase(): ReactivateVisitUseCase {
     return new ReactivateVisitUseCase(
       this.visitRepository,
-      this.visitIntervalRepository
+      this.intermittentLogRepository
     );
   }
 
@@ -260,12 +271,14 @@ class Container {
 
   createRefreshTokenUseCase(): RefreshTokenUseCase {
     return new RefreshTokenUseCase(
-      this.authService
+      this.authService,
+      this.userRepository
     );
   }
 
   createChangePasswordUseCase(): ChangePasswordUseCase {
     return new ChangePasswordUseCase(
+      this.userRepository,
       this.authService,
       this.passwordPolicy,
       this.emailService
@@ -274,21 +287,28 @@ class Container {
 
   createIntermittentExitUseCase(): IntermittentExitUseCase {
     return new IntermittentExitUseCase(
-      this.visitRepository
+      this.visitRepository,
+      this.intermittentLogRepository
     );
   }
 
   createIntermittentReEntryUseCase(): IntermittentReEntryUseCase {
     return new IntermittentReEntryUseCase(
-      this.visitRepository
+      this.visitRepository,
+      this.intermittentLogRepository
     );
   }
 
   createGetIntermittentVisitsUseCase(): GetIntermittentVisitsUseCase {
     return new GetIntermittentVisitsUseCase(
       this.visitRepository,
-      this.visitorRepository
+      this.visitorRepository,
+      this.intermittentLogRepository
     );
+  }
+
+  createGetAuditLogsUseCase(): GetAuditLogsUseCase {
+    return new GetAuditLogsUseCase(this.auditLogRepository);
   }
 }
 

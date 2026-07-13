@@ -3,7 +3,7 @@ import { Visit, VisitEntity, VisitStatus } from '../../../domain/entities/Visit.
 import VisitModel from '../../../models/Visit';
 import VisitorModel from '../../../models/Visitor';
 import IntermittentLogModel from '../../../models/IntermittentLog';
-import { Op } from 'sequelize';
+import { Op, WhereOptions } from 'sequelize';
 import Encryption from '../../../utils/Encryption';
 
 /**
@@ -19,7 +19,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
   }
 
   async findAll(filters?: VisitFilters): Promise<Visit[]> {
-    const where: any = {};
+    const where: WhereOptions = {};
 
     if (filters?.status) {
       where.status = filters.status;
@@ -57,7 +57,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
         // Nota: La búsqueda por cédula numérica se maneja a través de visitorCedula filter
         // ya que ahora usamos visitor_id como FK en lugar de visitor_cedula
 
-        where[Op.and] = [...(where[Op.and] || []), { [Op.or]: orConditions }];
+        (where as Record<symbol, unknown>)[Op.and] = [...((where as Record<symbol, unknown>)[Op.and] as unknown[] || []), { [Op.or]: orConditions }];
       }
     }
 
@@ -222,7 +222,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
   }
 
   async count(filters?: VisitFilters): Promise<number> {
-    const where: any = {};
+    const where: WhereOptions = {};
 
     if (filters?.status) {
       where.status = filters.status;
@@ -260,7 +260,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
         // Nota: La búsqueda por cédula numérica se maneja a través de visitorCedula filter
         // ya que ahora usamos visitor_id como FK en lugar de visitor_cedula
 
-        where[Op.and] = [...(where[Op.and] || []), { [Op.or]: orConditions }];
+        (where as Record<symbol, unknown>)[Op.and] = [...((where as Record<symbol, unknown>)[Op.and] as unknown[] || []), { [Op.or]: orConditions }];
       }
     }
 
@@ -339,7 +339,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
   /**
    * Convert Sequelize model to domain entity
    */
-  private toDomain(model: InstanceType<typeof VisitModel> | any): Visit {
+  private toDomain(model: InstanceType<typeof VisitModel>): Visit {
     let visitorName = undefined;
     let visitorCompany = undefined;
     let visitorCedula = model.visitor_cedula;
@@ -374,7 +374,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
       model.vehicle_brand || undefined,
       model.vehicle_model || undefined,
       model.vehicle_plate || undefined,
-      model.area,
+      model.area || undefined,
       model.action,
       model.department || undefined,
       model.arrival_time || undefined,

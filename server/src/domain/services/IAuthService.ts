@@ -1,15 +1,32 @@
-import { User } from '../entities/User.entity';
+import { UserRole } from '../entities/User.entity';
 
-// Interface for user-like objects that can be used for token generation
 export interface TokenUser {
   id?: number;
   username: string;
-  role: string;
+  role: UserRole;
+}
+
+export interface TokenPayload {
+  id: number;
+  username: string;
+  role: UserRole;
+}
+
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface IAuthService {
+  generateAccessToken(user: TokenUser): string;
+  generateRefreshToken(user: TokenUser): string;
+  generateTokenPair(user: TokenUser): TokenPair;
   generateToken(user: TokenUser): string;
+  verifyAccessToken(token: string): TokenPayload | null;
+  verifyRefreshToken(token: string): TokenPayload | null;
+  refreshAccessToken(refreshToken: string): string | null;
   verifyPassword(password: string, hash: string): Promise<boolean>;
   hashPassword(password: string): Promise<string>;
   generateResetToken(): string;
+  hashResetToken(token: string): string;
 }

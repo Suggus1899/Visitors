@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import config from '../config/AppConfig';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { tokenBlacklist } from '../infrastructure/services/TokenBlacklist';
+import type { AuthPayload } from '../types/express';
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
@@ -15,7 +16,6 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Empty token'));
     }
 
-    // Check token blacklist
     if (tokenBlacklist.isBlacklisted(token)) {
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been revoked'));
     }
@@ -23,13 +23,12 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
     jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }, (err, decoded) => {
         if (err || !decoded) return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
 
-        // Check if user's tokens have been globally invalidated
-        const payload = decoded as jwt.JwtPayload;
+        const payload = decoded as AuthPayload;
         if (payload.id && payload.iat && tokenBlacklist.isTokenInvalidatedForUser(payload.id, payload.iat)) {
             return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been invalidated'));
         }
 
-        req.user = decoded;
+        req.user = payload;
         next();
     });
 };
@@ -46,7 +45,7 @@ export const verifySseToken = (req: Request, res: Response, next: NextFunction) 
     }
 
     try {
-        const decoded = jwt.verify(queryToken, config.jwtSecret, { algorithms: ['HS256'] }) as jwt.JwtPayload;
+        const decoded = jwt.verify(queryToken, config.jwtSecret, { algorithms: ['HS256'] }) as AuthPayload;
 
         if (!decoded) {
             return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
@@ -64,18 +63,14 @@ export const verifySseToken = (req: Request, res: Response, next: NextFunction) 
 };
 
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-    const userRole = (req.user as jwt.JwtPayload)?.role;
-
-    if (userRole !== 'admin' && userRole !== 'root') {
+    if (req.user?.role !== 'admin') {
         return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Admin Role'));
     }
     next();
 };
 
-export const isRoot = (req: Request, res: Response, next: NextFunction) => {
-    const userRole = (req.user as jwt.JwtPayload)?.role;
-
-    if (userRole !== 'root') {
+export const isSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.role !== 'root') {
         return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Root Role'));
     }
     next();

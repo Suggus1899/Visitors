@@ -39,11 +39,10 @@ export class SequelizeUserRepository implements IUserRepository {
   }
 
   async save(user: User): Promise<User> {
-    // If ID exists, update, else create
     if (user.id) {
       await UserModel.update({
         username: user.username,
-        role: user.role as any,
+        role: user.role,
         password: user.password,
         resetToken: user.resetToken,
         resetTokenExpiry: user.resetTokenExpiry
@@ -52,7 +51,7 @@ export class SequelizeUserRepository implements IUserRepository {
     } else {
       const newUser = await UserModel.create({
         username: user.username,
-        role: user.role as any,
+        role: user.role,
         password: user.password!,
         resetToken: user.resetToken,
         resetTokenExpiry: user.resetTokenExpiry
@@ -65,6 +64,21 @@ export class SequelizeUserRepository implements IUserRepository {
     await UserModel.update({ password: hashedPassword }, { where: { id } });
   }
 
+  async updatePasswordChange(id: number, hashedPassword: string, mustChangePassword: boolean, passwordChangedAt: Date): Promise<void> {
+    await UserModel.update({
+      password: hashedPassword,
+      mustChangePassword,
+      passwordChangedAt
+    }, { where: { id } });
+  }
+
+  async updateLoginAttempts(id: number, loginAttempts: number, lockedUntil: Date | null): Promise<void> {
+    await UserModel.update({
+      loginAttempts,
+      lockedUntil
+    }, { where: { id } });
+  }
+
   async updateResetToken(id: number, token: string | null, expiry: Date | null): Promise<void> {
     await UserModel.update({
       resetToken: token,
@@ -72,7 +86,7 @@ export class SequelizeUserRepository implements IUserRepository {
     }, { where: { id } });
   }
 
-  private toDomain(model: any): User {
+  private toDomain(model: InstanceType<typeof UserModel>): User {
     return new User(
       model.username,
       model.role,

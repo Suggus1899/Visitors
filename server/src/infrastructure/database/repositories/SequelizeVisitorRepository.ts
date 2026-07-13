@@ -1,7 +1,8 @@
 import { IVisitorRepository, VisitorFilters } from '../../../domain/repositories/IVisitorRepository';
 import { Visitor, VisitorEntity } from '../../../domain/entities/Visitor.entity';
+import { VisitEntity } from '../../../domain/entities/Visit.entity';
 import VisitorModel from '../../../models/Visitor';
-import { Op } from 'sequelize';
+import { Op, WhereOptions } from 'sequelize';
 import Encryption from '../../../utils/Encryption';
 
 /**
@@ -20,7 +21,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return model ? this.toDomain(model) : null;
   }
 
-  async findByCedulaWithHistory(cedula: string, historyLimit: number = 5): Promise<{ visitor: Visitor | null; history: any[] }> {
+  async findByCedulaWithHistory(cedula: string, historyLimit: number = 5): Promise<{ visitor: Visitor | null; history: VisitEntity[] }> {
     const visitor = await this.findByCedula(cedula);
     if (!visitor) {
       return { visitor: null, history: [] };
@@ -35,11 +36,12 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       limit: historyLimit
     });
 
-    return { visitor, history };
+    const mappedHistory: VisitEntity[] = history.map((h) => h.toJSON() as unknown as VisitEntity);
+    return { visitor, history: mappedHistory };
   }
 
   async findAll(filters?: VisitorFilters): Promise<Visitor[]> {
-    const where: any = {};
+    const where: WhereOptions = {};
 
     // Encryption limits partial search capabilities.
     // Exact match on company is still possible if we stored company identically? 
@@ -202,7 +204,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
   }
 
   async count(filters?: VisitorFilters): Promise<number> {
-    const where: any = {};
+    const where: WhereOptions = {};
 
     if (filters?.company) {
       where.company = { [Op.like]: `%${filters.company}%` };
@@ -212,7 +214,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
   }
 
   async findDistinctCompanies(query?: string): Promise<string[]> {
-    const where: any = {};
+    const where: WhereOptions = {};
     
     if (query) {
       where.company = { [Op.like]: `%${query}%` };
@@ -225,7 +227,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       limit: 10
     });
 
-    return companies.map((c: any) => c.company).filter((c: string) => c);
+    return companies.map((c: { company: string }) => c.company).filter((c: string) => c);
   }
 
   /**

@@ -2,8 +2,8 @@ import { useCallback, useRef } from 'react';
 
 // Audio URLs (using Web Audio API for lightweight sounds)
 const createBeep = (frequency: number, duration: number, type: OscillatorType = 'sine') => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const audioContext = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const audioContext = new AudioContextClass();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 

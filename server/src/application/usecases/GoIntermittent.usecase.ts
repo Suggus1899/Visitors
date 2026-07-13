@@ -1,13 +1,13 @@
 import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
-import { IVisitIntervalRepository } from '../../domain/repositories/IVisitIntervalRepository';
+import { IIntermittentLogRepository } from '../../domain/repositories/IIntermittentLogRepository';
 import { VisitStatus } from '../../domain/entities/Visit.entity';
-import { VisitInterval } from '../../domain/entities/VisitInterval.entity';
 import { VisitResponseDto } from '../dto/VisitDto';
+import { VisitMapper } from '../mappers/VisitMapper';
 
 export class GoIntermittentUseCase {
   constructor(
     private visitRepository: IVisitRepository,
-    private visitIntervalRepository: IVisitIntervalRepository
+    private intermittentLogRepository: IIntermittentLogRepository
   ) {}
 
   async execute(visitId: number, notes?: string): Promise<VisitResponseDto> {
@@ -28,31 +28,12 @@ export class GoIntermittentUseCase {
     });
 
     const exitTime = new Date();
-    await this.visitIntervalRepository.create(
-      new VisitInterval(visitId, exitTime, undefined, undefined, notes)
-    );
+    await this.intermittentLogRepository.create({
+      visitId,
+      checkOut: exitTime,
+      notes: notes || null,
+    });
 
-    return {
-      id: updatedVisit.id!,
-      visitorCedula: updatedVisit.visitorCedula,
-      visitorName: updatedVisit.visitorName,
-      firstName: updatedVisit.visitorName?.split(' ')[0],
-      lastName: updatedVisit.visitorName?.split(' ').slice(1).join(' '),
-      checkInTime: updatedVisit.checkInTime.toISOString(),
-      checkOutTime: updatedVisit.checkOutTime?.toISOString(),
-      purpose: updatedVisit.purpose,
-      personToVisit: updatedVisit.personToVisit,
-      status: updatedVisit.status,
-      durationMinutes: updatedVisit.getDurationMinutes() || undefined,
-      notes: updatedVisit.notes,
-      companionName: updatedVisit.companionName,
-      companionCedula: updatedVisit.companionCedula,
-      vehicleBrand: updatedVisit.vehicleBrand,
-      vehicleModel: updatedVisit.vehicleModel,
-      vehiclePlate: updatedVisit.vehiclePlate,
-      area: updatedVisit.area,
-      action: updatedVisit.action,
-      department: updatedVisit.department
-    };
+    return VisitMapper.toVisitResponseDto(updatedVisit);
   }
 }

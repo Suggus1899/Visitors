@@ -9,20 +9,15 @@
     "test:coverage": "vitest run --coverage",
     "start": "ts-node src/server.ts",
     "dev": "nodemon",
-    "migrate:sqlcipher": "ts-node src/scripts/migrate-sqlcipher.ts",
     "seed": "ts-node src/scripts/seed-comprehensive.ts",
     "seed:clean": "ts-node src/scripts/seed-comprehensive.ts --clean",
     "db:reset": "ts-node src/scripts/reset-db.ts",
     "migrate": "ts-node src/scripts/apply-migrations.ts",
     "migrate:photos": "ts-node src/scripts/migrate-photos-to-blob.ts",
     "audit": "npm audit --audit-level=high",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f postgres",
-    "docker:reset": "docker-compose down -v && docker-compose up -d",
-    "backup:full": "powershell -NoProfile -Command \"$d=(Get-Date).ToString('yyyyMMdd_HHmmss'); docker exec logmaster-postgres pg_dump -Fc -U postgres visitors > ('../backups/backup_' + $d + '.dump')\"",
-    "backup:schema": "powershell -NoProfile -Command \"$d=(Get-Date).ToString('yyyyMMdd'); docker exec logmaster-postgres pg_dump -s -U postgres visitors > ('../backups/schema_' + $d + '.sql')\"",
-    "backup:monitor": "docker exec logmaster-postgres psql -U postgres -c \"SELECT pg_size_pretty(pg_total_relation_size('\\\"Visitors\\\"'));\""
+    "backup:full": "powershell -NoProfile -Command \"$d=(Get-Date).ToString('yyyyMMdd_HHmmss'); pg_dump -Fc -U postgres -h localhost visitors > ('../backups/backup_' + $d + '.dump')\"",
+    "backup:schema": "powershell -NoProfile -Command \"$d=(Get-Date).ToString('yyyyMMdd'); pg_dump -s -U postgres -h localhost visitors > ('../backups/schema_' + $d + '.sql')\"",
+    "backup:monitor": "psql -U postgres -h localhost -c \"SELECT pg_size_pretty(pg_total_relation_size('\\\"Visitors\\\"'));\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -17,14 +17,12 @@ const CACHE_TTL_MS = 30_000; // 30 seconds
  * Allows access only to the change-password endpoint
  */
 export const mustChangePassword = async (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user;
+    const user = req.user;
 
-    // If user is not authenticated, skip this check (handled by auth middleware)
     if (!user || !user.id) {
         return next();
     }
 
-    // T-11: Check mustChangePassword from DB (with short cache) instead of JWT claims
     let mustChange = false;
     const cached = mustChangeCache.get(user.id);
     if (cached && Date.now() < cached.expiresAt) {
@@ -35,7 +33,6 @@ export const mustChangePassword = async (req: Request, res: Response, next: Next
             mustChange = dbUser?.mustChangePassword === true;
             mustChangeCache.set(user.id, { value: mustChange, expiresAt: Date.now() + CACHE_TTL_MS });
         } catch {
-            // On DB error, fall back to JWT claim
             mustChange = user.mustChangePassword === true;
         }
     }

@@ -5,7 +5,7 @@ import { initRetentionScheduler } from './utils/retention';
 import logger from './config/logger';
 import path from 'path';
 import fs from 'fs';
-import './models/VisitInterval';
+import './models/IntermittentLog';
 
 import config from './config/AppConfig';
 
@@ -14,7 +14,10 @@ const PORT = config.port;
 const startServer = async () => {
     try {
         const useAlter = process.env.DB_SYNC_ALTER === '1';
-        if (useAlter) {
+        if (useAlter && process.env.NODE_ENV === 'production') {
+            logger.warn('DB_SYNC_ALTER=1 is dangerous in production — forcing safe sync');
+            await sequelize.sync();
+        } else if (useAlter) {
             await sequelize.sync({ alter: true });
         } else {
             await sequelize.sync();
@@ -53,8 +56,11 @@ const startServer = async () => {
         logger.error('Unable to connect to the database:', err);
         try {
             const crashLogPath = path.join(config.dbPath, 'server_crash_log.txt');
-            fs.writeFileSync(crashLogPath, String(err.stack || err));
-        } catch (e) { }
+            const errMsg = err?.message || String(err);
+            fs.writeFileSync(crashLogPath, errMsg);
+        } catch (e) {
+            console.error('Failed to write crash log:', e);
+        }
     }
 };
 

@@ -1,8 +1,7 @@
 import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
 import { IVisitorRepository } from '../../domain/repositories/IVisitorRepository';
-import { Visit } from '../../domain/entities/Visit.entity';
-import { Visitor } from '../../domain/entities/Visitor.entity';
 import { ActiveVisitDto } from '../dto/VisitDto';
+import { VisitMapper } from '../mappers/VisitMapper';
 
 /**
  * Use Case: Get active visits
@@ -22,25 +21,10 @@ export class GetActiveVisitsUseCase {
     const visitsWithVisitors = await Promise.all(
       activeVisits.map(async (visit) => {
         const visitor = await this.visitorRepository.findByCedula(visit.visitorCedula);
-        return this.toDto(visit, visitor);
+        return VisitMapper.toActiveVisitDto(visit, visitor);
       })
     );
 
     return visitsWithVisitors;
-  }
-
-  private toDto(visit: Visit, visitor: Visitor | null): ActiveVisitDto {
-    return {
-      id: visit.id!,
-      visitorCedula: visit.visitorCedula,
-      visitorName: visitor?.fullName || 'Unknown',
-      company: visitor?.company || 'Unknown',
-      checkInTime: visit.checkInTime.toISOString(),
-      purpose: visit.purpose,
-      personToVisit: visit.personToVisit,
-      durationMinutes: visit.getDurationMinutes() || 0,
-      photoUrl: visitor?.photoUrl,
-      entryTime: visit.entryTime?.toISOString()
-    };
   }
 }

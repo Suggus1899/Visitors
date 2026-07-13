@@ -35,9 +35,16 @@ const baseProps = {
 };
 
 describe('VisitDetailsStep', () => {
-  it('renders the target_department input', () => {
+  it('renders the target_department select', () => {
     render(<VisitDetailsStep {...baseProps} />);
-    expect(screen.getByPlaceholderText(/Recursos Humanos, Finanzas/i)).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Seleccione un área...' })).toBeInTheDocument();
+  });
+
+  it('renders all department options', () => {
+    render(<VisitDetailsStep {...baseProps} />);
+    expect(screen.getByRole('option', { name: 'Administracion' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Almacén de Repuestos' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Operaciones' })).toBeInTheDocument();
   });
 
   it('renders the host_person input', () => {
@@ -45,16 +52,11 @@ describe('VisitDetailsStep', () => {
     expect(screen.getByPlaceholderText(/Ing\. Carlos Machado/i)).toBeInTheDocument();
   });
 
-  it('renders the area input', () => {
-    render(<VisitDetailsStep {...baseProps} />);
-    expect(screen.getByPlaceholderText(/Oficina Principal, Almacén 2/i)).toBeInTheDocument();
-  });
-
-  it('calls onFormDataChange when target_department input changes', () => {
+  it('calls onFormDataChange when target_department select changes', () => {
     const onFormDataChange = vi.fn();
     render(<VisitDetailsStep {...baseProps} onFormDataChange={onFormDataChange} />);
-    fireEvent.change(screen.getByPlaceholderText(/Recursos Humanos, Finanzas/i), { target: { value: 'Gerencia' } });
-    expect(onFormDataChange).toHaveBeenCalledWith('target_department', 'Gerencia');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Operaciones' } });
+    expect(onFormDataChange).toHaveBeenCalledWith('target_department', 'Operaciones');
   });
 
   it('calls onFormDataChange when host_person input changes', () => {

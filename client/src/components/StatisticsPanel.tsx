@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartData, ArcElement, ChartOptions } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, ChartData, ChartOptions } from 'chart.js';
+import type { Chart } from 'chart.js';
 import ComparisonCard from './statistics/ComparisonCard';
 import ChartsRow from './statistics/ChartsRow';
 import MonthlyReportCard from './statistics/MonthlyReportCard';
@@ -13,11 +14,11 @@ interface WeekData { label: string; count: number; }
 interface DayOfWeekData { dayName: string; count: number; }
 interface DayData { date: string; count: number; } // Removed reasons from daily as it is not provided by new API
 interface MonthlyReport {
-    period: { month: number; monthName: string; year: number };
-    summary: { totalVisits: number; completedVisits: number; activeVisits: number; avgVisitsPerDay: string };
+    totalVisits: number;
+    uniqueVisitors: number;
+    averageDuration: number;
+    completionRate: number;
     byReason: { reason: string; count: number; percentage: number }[];
-    byWeek: { weekStart: string; count: number; topReasons: ReasonData[] }[];
-    byDayOfWeek: { day: number; dayName: string; count: number; topReasons: ReasonData[] }[];
 }
 
 const StatisticsPanel = () => {
@@ -31,14 +32,10 @@ const StatisticsPanel = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const weekChartRef = useRef<any>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dayChartRef = useRef<any>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dayOfWeekChartRef = useRef<any>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pieChartRef = useRef<any>(null);
+    const weekChartRef = useRef<Chart | null>(null);
+    const dayChartRef = useRef<Chart | null>(null);
+    const dayOfWeekChartRef = useRef<Chart | null>(null);
+    const pieChartRef = useRef<Chart | null>(null);
 
     const fetchMonthlyReport = useCallback(async () => {
         try {

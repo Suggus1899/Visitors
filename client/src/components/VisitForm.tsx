@@ -5,6 +5,7 @@ import { Visitor } from '../types';
 import UserPlus from 'lucide-react/dist/esm/icons/user-plus';
 import { AxiosError } from 'axios';
 import VisitorHistoryModal from './VisitorHistoryModal';
+import toast from 'react-hot-toast';
 import { safeNotify } from '../utils/safeNotify';
 import { BlockVisitorAlert } from './BlockVisitorAlert';
 import { useSoundFeedback } from '../hooks/useSoundFeedback';

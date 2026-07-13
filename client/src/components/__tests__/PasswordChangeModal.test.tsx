@@ -1,32 +1,37 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PasswordChangeModal } from '../PasswordChangeModal';
+import { AuthAPI } from '../../services/api.v1';
 import toast from 'react-hot-toast';
 
 // Mock dependencies
-jest.mock('../services/api.v1', () => ({
+vi.mock('../../services/api.v1', () => ({
     AuthAPI: {
-        changePassword: jest.fn(),
+        changePassword: vi.fn(),
     },
 }));
 
-jest.mock('react-hot-toast', () => ({
-    success: jest.fn(),
-    error: jest.fn(),
+vi.mock('react-hot-toast', () => ({
+    default: {
+        success: vi.fn(),
+        error: vi.fn(),
+    },
+    success: vi.fn(),
+    error: vi.fn(),
 }));
 
-const mockAuthAPI = require('../services/api.v1').AuthAPI;
-const mockToast = require('react-hot-toast');
+const mockAuthAPI = vi.mocked(AuthAPI);
+const mockToast = vi.mocked(toast);
 
 describe('PasswordChangeModal', () => {
     const defaultProps = {
         show: true,
-        onPasswordChanged: jest.fn(),
+        onPasswordChanged: vi.fn(),
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('does not render when show is false', () => {

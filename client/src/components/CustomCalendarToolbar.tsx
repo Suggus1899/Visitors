@@ -1,13 +1,18 @@
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import CalendarIcon from 'lucide-react/dist/esm/icons/calendar';
-// import { ToolbarProps } from 'react-big-calendar';
+import { View, NavigateAction } from 'react-big-calendar';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomCalendarToolbar = (props: any) => {
+interface ToolbarProps {
+    label: string;
+    onNavigate: (action: NavigateAction) => void;
+    onView: (view: View) => void;
+    view: View;
+}
+
+const CustomCalendarToolbar = (props: ToolbarProps) => {
     const { label, onNavigate, onView, view } = props;
 
-    // Custom navigation handlers
     const goToBack = () => {
         onNavigate('PREV');
     };
@@ -20,9 +25,7 @@ const CustomCalendarToolbar = (props: any) => {
         onNavigate('TODAY');
     };
 
-    // Custom view handler
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const goToView = (viewName: any) => {
+    const goToView = (viewName: View) => {
         onView(viewName);
     };
 
@@ -62,12 +65,12 @@ const CustomCalendarToolbar = (props: any) => {
 
             {/* Right: View Selector (Segmented Control) */}
             <div className="flex bg-[color:var(--surface-1)] p-1 rounded-lg border border-[color:var(--border-1)]">
-                {[
-                    { id: 'month', label: 'Mes' },
-                    { id: 'week', label: 'Semana' },
-                    { id: 'day', label: 'Día' },
-                    { id: 'agenda', label: 'Agenda' }
-                ].map((v) => (
+                {([
+                    { id: 'month' as View, label: 'Mes' },
+                    { id: 'week' as View, label: 'Semana' },
+                    { id: 'day' as View, label: 'Día' },
+                    { id: 'agenda' as View, label: 'Agenda' }
+                ]).map((v) => (
                     <button
                         key={v.id}
                         onClick={() => goToView(v.id)}

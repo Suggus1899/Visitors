@@ -120,8 +120,8 @@ app.use(
         }
       }
 
-      // Accept all origins behind nginx reverse proxy (same-origin requests)
-      callback(null, origin);
+      // Reject unlisted origins
+      callback(new Error('Not allowed by CORS'));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
