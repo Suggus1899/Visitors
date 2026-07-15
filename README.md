@@ -11,7 +11,6 @@ LogMaster es una aplicación web moderna y segura para la gestión de visitantes
 - **Auditoría Completa**: Registro detallado de todas las operaciones del sistema
 - **Respaldos Automáticos**: Copias de seguridad cifradas programables
 - **Interfaz Moderna**: UI responsive con React y Tailwind CSS
-- **Aplicación de Escritorio**: Ejecutable standalone sin dependencias externas
 
 ## 📋 Requisitos del Sistema
 
@@ -233,7 +232,14 @@ Visitors/
 
 ## 📝 Licencia
 
-Este proyecto es privado y propietario. Todos los derechos reservados.
+© 2026 Gustavo Colina (@Suggus1899). Todos los derechos reservados.
+
+Este software y su código fuente son propiedad exclusiva de Gustavo Colina (@Suggus1899).
+
+No está permitido copiar, modificar, distribuir, sublicenciar ni usar este código, total o parcialmente, sin autorización expresa y por escrito del autor.
+No está permitido usar este código con fines comerciales ni privados sin una licencia válida.
+Cualquier uso no autorizado constituye una violación de los derechos de autor y será perseguido conforme a la ley.
+Este es un software propietario. No es código abierto (open source) ni software libre.
 
 ## 👥 Soporte
 
