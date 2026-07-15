@@ -26,25 +26,3 @@ export function sanitizeInput(input: string): string {
         KEEP_CONTENT: true
     });
 }
-
-/**
- * Sanitizes HTML by allowing only safe tags (b, i, em, strong, p, br).
- * Use this for fields that may contain basic formatting (notes, descriptions).
- * No attributes are allowed on any tags.
- * 
- * @param html - The HTML string to sanitize
- * @returns Sanitized HTML with only safe tags
- * 
- * @example
- * sanitizeHTML('<p>Hello <b>World</b></p>') // Returns: '<p>Hello <b>World</b></p>'
- * sanitizeHTML('<script>alert("xss")</script><p>Safe</p>') // Returns: '<p>Safe</p>'
- * sanitizeHTML('<a href="evil.com">Click</a>') // Returns: 'Click'
- */
-export function sanitizeHTML(html: string): string {
-    if (!html) return '';
-
-    return DOMPurify.sanitize(html, {
-        ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br'],
-        ALLOWED_ATTR: []
-    });
-}

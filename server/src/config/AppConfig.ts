@@ -97,7 +97,6 @@ class Config implements AppConfig {
   seedDemoPassword = process.env.SEED_DEMO_PASSWORD || '';
   seedAuditorPassword = process.env.SEED_AUDITOR_PASSWORD || '';
   seedSuperadminPassword = process.env.SEED_ROOT_PASSWORD || '';
-  seedRootPassword = process.env.SEED_ROOT_PASSWORD || '';
   seedOperadorPassword = process.env.SEED_OPERADOR_PASSWORD || '';
 
 

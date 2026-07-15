@@ -3,6 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "author": "Gustavo Colina (@Suggus1899)",
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -14,8 +16,6 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.96.2",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@types/dompurify": "^3.0.5",
     "@types/react-big-calendar": "^1.16.3",
     "axios": "^1.6.7",
     "chart.js": "^4.5.1",

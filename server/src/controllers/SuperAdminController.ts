@@ -2,12 +2,10 @@ import { Request, Response } from 'express';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import logger from '../config/logger';
-import { CreateUserUseCase, CreateUserDto } from '../application/usecases/superadmin/CreateUser.usecase';
-import { UpdateUserUseCase, UpdateUserDto } from '../application/usecases/superadmin/UpdateUser.usecase';
-import { DeleteUserUseCase } from '../application/usecases/superadmin/DeleteUser.usecase';
-import { ListUsersUseCase } from '../application/usecases/superadmin/ListUsers.usecase';
-import { ResetUserPasswordUseCase, ResetPasswordDto } from '../application/usecases/superadmin/ResetUserPassword.usecase';
-import { GetAuditLogsUseCase, AuditLogFilters } from '../application/usecases/superadmin/GetAuditLogs.usecase';
+import { CreateUserDto } from '../application/usecases/superadmin/CreateUser.usecase';
+import { UpdateUserDto } from '../application/usecases/superadmin/UpdateUser.usecase';
+import { ResetPasswordDto } from '../application/usecases/superadmin/ResetUserPassword.usecase';
+import { AuditLogFilters } from '../application/usecases/superadmin/GetAuditLogs.usecase';
 import { User } from '../domain/entities/User.entity';
 import { UserMapper } from '../application/mappers/UserMapper';
 import { getClientInfo } from '../middleware/ipCapture';
@@ -23,7 +21,7 @@ export class SuperAdminController {
    */
   async listUsers(req: Request, res: Response) {
     try {
-      const useCase = new ListUsersUseCase(container.userRepository);
+      const useCase = container.createListUsersUseCase();
       const users = await useCase.execute();
 
       // Remove password from response
@@ -53,7 +51,7 @@ export class SuperAdminController {
         return res.status(400).json(ResponseBuilder.error('MISSING_FIELDS', 'Username, password, and role are required'));
       }
 
-      const useCase = new CreateUserUseCase(container.userRepository, container.authService);
+      const useCase = container.createCreateUserUseCase();
       const user = await useCase.execute(data);
 
       // C-07: Audit log for user creation
@@ -91,7 +89,7 @@ export class SuperAdminController {
         role: req.body.role as any
       };
 
-      const useCase = new UpdateUserUseCase(container.userRepository);
+      const useCase = container.createUpdateUserUseCase();
       const user = await useCase.execute(data);
 
       // C-07: Audit log for user update
@@ -129,7 +127,7 @@ export class SuperAdminController {
         return res.status(400).json(ResponseBuilder.error('INVALID_ID', 'Invalid user ID'));
       }
 
-      const useCase = new DeleteUserUseCase(container.userRepository);
+      const useCase = container.createDeleteUserUseCase();
       await useCase.execute(userId);
 
       // C-07: Audit log for user deletion
@@ -177,7 +175,7 @@ export class SuperAdminController {
         newPassword
       };
 
-      const useCase = new ResetUserPasswordUseCase(container.userRepository, container.authService);
+      const useCase = container.createResetUserPasswordUseCase();
       await useCase.execute(data);
 
       // C-07: Audit log for password reset

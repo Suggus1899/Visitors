@@ -48,6 +48,11 @@ import { ChangePasswordUseCase } from '../application/usecases/auth/ChangePasswo
 import { IntermittentExitUseCase } from '../application/usecases/IntermittentExit.usecase';
 import { IntermittentReEntryUseCase } from '../application/usecases/IntermittentReEntry.usecase';
 import { GetAuditLogsUseCase } from '../application/usecases/superadmin/GetAuditLogs.usecase';
+import { CreateUserUseCase } from '../application/usecases/superadmin/CreateUser.usecase';
+import { UpdateUserUseCase } from '../application/usecases/superadmin/UpdateUser.usecase';
+import { DeleteUserUseCase } from '../application/usecases/superadmin/DeleteUser.usecase';
+import { ListUsersUseCase } from '../application/usecases/superadmin/ListUsers.usecase';
+import { ResetUserPasswordUseCase } from '../application/usecases/superadmin/ResetUserPassword.usecase';
 import { CreateArcoRequestUseCase } from '../application/usecases/privacy/CreateArcoRequest.usecase';
 import { ListArcoRequestsUseCase } from '../application/usecases/privacy/ListArcoRequests.usecase';
 import { UpdateArcoRequestStatusUseCase } from '../application/usecases/privacy/UpdateArcoRequestStatus.usecase';
@@ -347,6 +352,27 @@ class Container {
 
   createGetAuditLogsUseCase(): GetAuditLogsUseCase {
     return new GetAuditLogsUseCase(this.auditLogRepository);
+  }
+
+  // SuperAdmin use cases
+  createCreateUserUseCase(): CreateUserUseCase {
+    return new CreateUserUseCase(this.userRepository, this.authService);
+  }
+
+  createUpdateUserUseCase(): UpdateUserUseCase {
+    return new UpdateUserUseCase(this.userRepository);
+  }
+
+  createDeleteUserUseCase(): DeleteUserUseCase {
+    return new DeleteUserUseCase(this.userRepository);
+  }
+
+  createListUsersUseCase(): ListUsersUseCase {
+    return new ListUsersUseCase(this.userRepository);
+  }
+
+  createResetUserPasswordUseCase(): ResetUserPasswordUseCase {
+    return new ResetUserPasswordUseCase(this.userRepository, this.authService);
   }
 
   // Privacy use cases
