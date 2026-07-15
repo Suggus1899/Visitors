@@ -3,6 +3,7 @@ import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, Car, 
 import type { Visit } from '../../types';
 import { useMemo, useState, useEffect } from 'react';
 import { sanitizeInput } from '../../utils/sanitizer';
+import { VisitService } from '../../services/api.v1';
 
 interface VisitorDetailsModalProps {
   visit: Visit | null;
@@ -55,6 +56,21 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
   const sanitizedCedula = useMemo(() => sanitizeInput(visit?.visitor_cedula || '—'), [visit]);
   const sanitizedPersonToVisit = useMemo(() => sanitizeInput(visit?.person_to_visit || ''), [visit]);
   const sanitizedPurpose = useMemo(() => sanitizeInput(visit?.purpose || ''), [visit]);
+
+  // Build photo URLs dynamically from cédula — photos are stored as BLOB in DB,
+  // so photo_url/id_photo_url fields are always null. We use the BLOB endpoints.
+  const cedulaForPhotos = visit?.visitor_cedula || visit?.Visitor?.cedula || '';
+  const visitorPhotoUrl = useMemo(() => {
+    if (!cedulaForPhotos) return null;
+    // Prefer explicit photo_url if present (e.g. base64 from form), else build BLOB URL
+    if (visit?.Visitor?.photo_url) return visit.Visitor.photo_url;
+    return VisitService.getVisitorPhotoUrl(cedulaForPhotos);
+  }, [cedulaForPhotos, visit]);
+  const visitorIdPhotoUrl = useMemo(() => {
+    if (!cedulaForPhotos) return null;
+    if (visit?.Visitor?.id_photo_url) return visit.Visitor.id_photo_url;
+    return VisitService.getVisitorIdPhotoUrl(cedulaForPhotos);
+  }, [cedulaForPhotos, visit]);
 
   if (!isOpen || !visit) return null;
 
@@ -112,10 +128,10 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                 <p className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em] mb-2">
                   Fotografía del Visitante
                 </p>
-                {visit.Visitor?.photo_url && !photoError ? (
+                {visitorPhotoUrl && !photoError ? (
                   <div className="aspect-square w-full sm:w-56 rounded-xl overflow-hidden border border-[color:var(--border-1)] bg-[color:var(--surface-2)] shadow-inner">
                     <img
-                      src={visit.Visitor.photo_url}
+                      src={visitorPhotoUrl}
                       alt={`Foto de ${sanitizedFirstName}`}
                       className="w-full h-full object-cover"
                       onError={() => setPhotoError(true)}
@@ -135,10 +151,10 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                   Identificación (Cédula / Carnet)
                 </p>
                 <p className="text-xs font-mono text-[color:var(--text-2)] mb-2">C.I. {sanitizedCedula}</p>
-                {visit.Visitor?.id_photo_url && !idPhotoError ? (
+                {visitorIdPhotoUrl && !idPhotoError ? (
                   <div className="aspect-video w-full rounded-xl overflow-hidden border border-[color:var(--border-1)] bg-[color:var(--surface-2)] shadow-inner">
                     <img
-                      src={visit.Visitor.id_photo_url}
+                      src={visitorIdPhotoUrl}
                       alt={`ID de ${sanitizedFirstName}`}
                       className="w-full h-full object-contain"
                       onError={() => setIdPhotoError(true)}

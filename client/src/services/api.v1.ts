@@ -318,6 +318,10 @@ export const VisitService = {
         return `${API_URL}/visitors/${encodeURIComponent(cedula)}/photo`;
     },
 
+    getVisitorIdPhotoUrl: (cedula: string) => {
+        return `${API_URL}/visitors/${encodeURIComponent(cedula)}/id-photo`;
+    },
+
     // Visitors
     getVisitorByCedula: async (cedula: string, includeHistory: boolean = false): Promise<Visitor | VisitorWithHistory> => {
         const response = await api.get(`/visitors/${cedula}?history=${includeHistory}`);

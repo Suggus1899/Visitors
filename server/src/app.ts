@@ -48,6 +48,7 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false, // Needed for some third-party scripts
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow BLOB image endpoints to be loaded cross-origin (frontend on :5173, API on :3000)
     hsts: {
       maxAge: 31536000, // 1 year
       includeSubDomains: true,
