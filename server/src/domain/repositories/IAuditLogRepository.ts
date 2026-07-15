@@ -11,6 +11,17 @@ export interface AuditLogEntity {
   createdAt: Date;
 }
 
+export interface AuditLogEntry {
+  userId: number;
+  username: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  details?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
 export interface AuditLogFilters {
   userId?: number;
   action?: string;
@@ -39,6 +50,7 @@ export interface AuditLogStats {
 }
 
 export interface IAuditLogRepository {
+  log(entry: AuditLogEntry): Promise<void>;
   findAll(filters?: AuditLogFilters): Promise<{ logs: AuditLogEntity[]; total: number }>;
   getStats(): Promise<AuditLogStats>;
   getDistinctActions(): Promise<string[]>;

@@ -3,7 +3,6 @@ import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { LoginDto } from '../application/dto/AuthDto';
 import { getClientInfo } from '../middleware/ipCapture';
-import { logActivity } from '../models/ActivityLog';
 import logger from '../config/logger';
 
 interface AuthError {
@@ -33,16 +32,16 @@ export const login = async (req: Request, res: Response) => {
     const clientInfo = getClientInfo(req);
 
     // Registrar login en log de actividad
-    await logActivity(
-      0, // userId temporal, se actualiza luego
-      result.user.username,
-      'LOGIN',
-      'User',
-      result.user.username,
-      `Inicio de sesión exitoso (rol: ${result.user.role})`,
-      clientInfo.ip,
-      clientInfo.userAgent
-    );
+    await container.auditLogRepository.log({
+      userId: 0,
+      username: result.user.username,
+      action: 'LOGIN',
+      entity: 'User',
+      entityId: result.user.username,
+      details: `Inicio de sesión exitoso (rol: ${result.user.role})`,
+      ipAddress: clientInfo.ip,
+      userAgent: clientInfo.userAgent
+    });
 
     res.json(ResponseBuilder.success(result));
   } catch (error: unknown) {

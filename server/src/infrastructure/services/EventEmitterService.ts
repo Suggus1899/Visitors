@@ -1,12 +1,9 @@
 import { EventEmitter } from 'events';
+import { IEventEmitter, VisitRealtimeEvent } from '../../domain/services/IEventEmitter';
 
-export interface VisitRealtimeEvent {
-  type: 'system:connected' | 'visit:checked-in' | 'visit:checked-out' | 'visit:admitted' | 'visit:intermittent' | 'visit:reactivated' | 'visit:intermittent-exit' | 'visit:intermittent-reentry';
-  timestamp: string;
-  visitId?: number;
-}
+export type { VisitRealtimeEvent };
 
-class EventEmitterService {
+class EventEmitterService implements IEventEmitter {
   private emitter = new EventEmitter();
 
   emitVisitEvent(event: VisitRealtimeEvent): void {

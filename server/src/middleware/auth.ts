@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config/AppConfig';
 import { ResponseBuilder } from '../shared/ApiResponse';
-import { tokenBlacklist } from '../infrastructure/services/TokenBlacklist';
+import { container } from '../shared/Container';
 import type { AuthPayload } from '../types/express';
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
@@ -16,7 +16,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Empty token'));
     }
 
-    if (tokenBlacklist.isBlacklisted(token)) {
+    if (container.tokenBlacklist.isBlacklisted(token)) {
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been revoked'));
     }
 
@@ -24,7 +24,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         if (err || !decoded) return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
 
         const payload = decoded as AuthPayload;
-        if (payload.id && payload.iat && tokenBlacklist.isTokenInvalidatedForUser(payload.id, payload.iat)) {
+        if (payload.id && payload.iat && container.tokenBlacklist.isTokenInvalidatedForUser(payload.id, payload.iat)) {
             return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been invalidated'));
         }
 
@@ -40,7 +40,7 @@ export const verifySseToken = (req: Request, res: Response, next: NextFunction) 
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'No token provided'));
     }
 
-    if (tokenBlacklist.isBlacklisted(queryToken)) {
+    if (container.tokenBlacklist.isBlacklisted(queryToken)) {
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been revoked'));
     }
 
@@ -51,7 +51,7 @@ export const verifySseToken = (req: Request, res: Response, next: NextFunction) 
             return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
         }
 
-        if (decoded.id && decoded.iat && tokenBlacklist.isTokenInvalidatedForUser(decoded.id, decoded.iat)) {
+        if (decoded.id && decoded.iat && container.tokenBlacklist.isTokenInvalidatedForUser(decoded.id, decoded.iat)) {
             return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been invalidated'));
         }
 

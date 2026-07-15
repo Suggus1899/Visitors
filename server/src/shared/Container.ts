@@ -15,6 +15,12 @@ import { IIntermittentLogRepository } from '../domain/repositories/IIntermittent
 import { SequelizeIntermittentLogRepository } from '../infrastructure/database/repositories/SequelizeIntermittentLogRepository';
 import { IAuditLogRepository } from '../domain/repositories/IAuditLogRepository';
 import { SequelizeAuditLogRepository } from '../infrastructure/database/repositories/SequelizeAuditLogRepository';
+import { ITokenBlacklist } from '../domain/services/ITokenBlacklist';
+import { tokenBlacklist } from '../infrastructure/services/TokenBlacklist';
+import { IEventEmitter } from '../domain/services/IEventEmitter';
+import { eventEmitterService } from '../infrastructure/services/EventEmitterService';
+import { IArcoRequestRepository } from '../domain/repositories/IArcoRequestRepository';
+import { SequelizeArcoRequestRepository } from '../infrastructure/database/repositories/SequelizeArcoRequestRepository';
 import { CheckInVisitorUseCase } from '../application/usecases/CheckInVisitor.usecase';
 import { GoIntermittentUseCase } from '../application/usecases/GoIntermittent.usecase';
 import { ReactivateVisitUseCase } from '../application/usecases/ReactivateVisit.usecase';
@@ -42,6 +48,13 @@ import { ChangePasswordUseCase } from '../application/usecases/auth/ChangePasswo
 import { IntermittentExitUseCase } from '../application/usecases/IntermittentExit.usecase';
 import { IntermittentReEntryUseCase } from '../application/usecases/IntermittentReEntry.usecase';
 import { GetAuditLogsUseCase } from '../application/usecases/superadmin/GetAuditLogs.usecase';
+import { CreateArcoRequestUseCase } from '../application/usecases/privacy/CreateArcoRequest.usecase';
+import { ListArcoRequestsUseCase } from '../application/usecases/privacy/ListArcoRequests.usecase';
+import { UpdateArcoRequestStatusUseCase } from '../application/usecases/privacy/UpdateArcoRequestStatus.usecase';
+import { AccessSubjectDataUseCase } from '../application/usecases/privacy/AccessSubjectData.usecase';
+import { RectifySubjectDataUseCase } from '../application/usecases/privacy/RectifySubjectData.usecase';
+import { CancelSubjectDataUseCase } from '../application/usecases/privacy/CancelSubjectData.usecase';
+import { CreateOppositionRequestUseCase } from '../application/usecases/privacy/CreateOppositionRequest.usecase';
 
 /**
  * Simple Dependency Injection Container
@@ -56,11 +69,14 @@ class Container {
   private _intermittentLogRepository?: IIntermittentLogRepository;
   private _userRepository?: IUserRepository;
   private _auditLogRepository?: IAuditLogRepository;
+  private _arcoRequestRepository?: IArcoRequestRepository;
   // Services
   private _backupService?: IBackupService;
   private _authService?: IAuthService;
   private _passwordPolicy?: PasswordPolicy;
   private _emailService?: IEmailService;
+  private _tokenBlacklist?: ITokenBlacklist;
+  private _eventEmitter?: IEventEmitter;
 
   private constructor() { }
 
@@ -107,6 +123,13 @@ class Container {
     return this._auditLogRepository;
   }
 
+  get arcoRequestRepository(): IArcoRequestRepository {
+    if (!this._arcoRequestRepository) {
+      this._arcoRequestRepository = new SequelizeArcoRequestRepository();
+    }
+    return this._arcoRequestRepository;
+  }
+
   get backupService(): IBackupService {
     if (!this._backupService) {
       this._backupService = new PostgresBackupService();
@@ -142,6 +165,20 @@ class Container {
       this._emailService = new EmailService();
     }
     return this._emailService;
+  }
+
+  get tokenBlacklist(): ITokenBlacklist {
+    if (!this._tokenBlacklist) {
+      this._tokenBlacklist = tokenBlacklist;
+    }
+    return this._tokenBlacklist;
+  }
+
+  get eventEmitter(): IEventEmitter {
+    if (!this._eventEmitter) {
+      this._eventEmitter = eventEmitterService;
+    }
+    return this._eventEmitter;
   }
 
   // Use case factories (new instance each time)
@@ -248,7 +285,8 @@ class Container {
   createLoginUseCase(): LoginUseCase {
     return new LoginUseCase(
       this.userRepository,
-      this.authService
+      this.authService,
+      this.auditLogRepository
     );
   }
 
@@ -309,6 +347,35 @@ class Container {
 
   createGetAuditLogsUseCase(): GetAuditLogsUseCase {
     return new GetAuditLogsUseCase(this.auditLogRepository);
+  }
+
+  // Privacy use cases
+  createCreateArcoRequestUseCase(): CreateArcoRequestUseCase {
+    return new CreateArcoRequestUseCase(this.arcoRequestRepository, this.auditLogRepository);
+  }
+
+  createListArcoRequestsUseCase(): ListArcoRequestsUseCase {
+    return new ListArcoRequestsUseCase(this.arcoRequestRepository);
+  }
+
+  createUpdateArcoRequestStatusUseCase(): UpdateArcoRequestStatusUseCase {
+    return new UpdateArcoRequestStatusUseCase(this.arcoRequestRepository, this.auditLogRepository);
+  }
+
+  createAccessSubjectDataUseCase(): AccessSubjectDataUseCase {
+    return new AccessSubjectDataUseCase(this.visitorRepository, this.visitRepository, this.auditLogRepository);
+  }
+
+  createRectifySubjectDataUseCase(): RectifySubjectDataUseCase {
+    return new RectifySubjectDataUseCase(this.visitorRepository, this.auditLogRepository);
+  }
+
+  createCancelSubjectDataUseCase(): CancelSubjectDataUseCase {
+    return new CancelSubjectDataUseCase(this.visitorRepository, this.arcoRequestRepository, this.auditLogRepository);
+  }
+
+  createCreateOppositionRequestUseCase(): CreateOppositionRequestUseCase {
+    return new CreateOppositionRequestUseCase(this.arcoRequestRepository, this.auditLogRepository);
   }
 }
 

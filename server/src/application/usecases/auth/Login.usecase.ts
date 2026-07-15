@@ -1,7 +1,7 @@
 import { IUserRepository } from '../../../domain/repositories/IUserRepository';
+import { IAuditLogRepository } from '../../../domain/repositories/IAuditLogRepository';
 import { IAuthService } from '../../../domain/services/IAuthService';
 import { LoginDto, AuthResponseDto } from '../../dto/AuthDto';
-import { logActivity } from '../../../models/ActivityLog';
 import config from '../../../config/AppConfig';
 import bcrypt from 'bcryptjs';
 import logger from '../../../config/logger';
@@ -9,7 +9,8 @@ import logger from '../../../config/logger';
 export class LoginUseCase {
   constructor(
     private userRepository: IUserRepository,
-    private authService: IAuthService
+    private authService: IAuthService,
+    private auditLogRepository: IAuditLogRepository
   ) { }
 
   async execute(credentials: LoginDto): Promise<AuthResponseDto> {
@@ -43,16 +44,14 @@ export class LoginUseCase {
         await this.userRepository.updateLoginAttempts(user.id!, newAttempts, lockedUntil);
 
         try {
-          await logActivity(
-            user.id!,
-            user.username,
-            'ACCOUNT_LOCKED',
-            'User',
-            user.id!.toString(),
-            `Account locked after ${newAttempts} failed login attempts`,
-            undefined,
-            undefined
-          );
+          await this.auditLogRepository.log({
+            userId: user.id!,
+            username: user.username,
+            action: 'ACCOUNT_LOCKED',
+            entity: 'User',
+            entityId: user.id!.toString(),
+            details: `Account locked after ${newAttempts} failed login attempts`
+          });
         } catch (error) {
           logger.error('Failed to log account lockout:', error);
         }

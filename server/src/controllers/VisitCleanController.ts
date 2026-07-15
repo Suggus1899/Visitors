@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import logger from '../config/logger';
-import { eventEmitterService } from '../infrastructure/services/EventEmitterService';
 
 /**
  * Clean Architecture Visit Controller
@@ -22,7 +21,7 @@ export const checkIn = async (req: Request, res: Response) => {
       ? (result as { id: number }).id
       : undefined;
 
-    eventEmitterService.emitVisitEvent({
+    container.eventEmitter.emitVisitEvent({
       type: 'visit:checked-in',
       timestamp: new Date().toISOString(),
       visitId,
@@ -57,7 +56,7 @@ export const checkOut = async (req: Request, res: Response) => {
       notes: req.body.notes
     });
 
-    eventEmitterService.emitVisitEvent({
+    container.eventEmitter.emitVisitEvent({
       type: 'visit:checked-out',
       timestamp: new Date().toISOString(),
       visitId,
@@ -89,7 +88,7 @@ export const admitVisitor = async (req: Request, res: Response) => {
     const useCase = container.createAdmitVisitorUseCase();
     const result = await useCase.execute(visitId);
 
-    eventEmitterService.emitVisitEvent({
+    container.eventEmitter.emitVisitEvent({
       type: 'visit:admitted',
       timestamp: new Date().toISOString(),
       visitId,
@@ -153,7 +152,7 @@ export const goIntermittent = async (req: Request, res: Response) => {
     const useCase = container.createGoIntermittentUseCase();
     const result = await useCase.execute(visitId, req.body.notes);
 
-    eventEmitterService.emitVisitEvent({
+    container.eventEmitter.emitVisitEvent({
       type: 'visit:intermittent',
       timestamp: new Date().toISOString(),
       visitId,
@@ -185,7 +184,7 @@ export const reactivateVisit = async (req: Request, res: Response) => {
     const useCase = container.createReactivateVisitUseCase();
     const result = await useCase.execute(visitId);
 
-    eventEmitterService.emitVisitEvent({
+    container.eventEmitter.emitVisitEvent({
       type: 'visit:reactivated',
       timestamp: new Date().toISOString(),
       visitId,
@@ -266,7 +265,7 @@ export const intermittentExit = async (req: Request, res: Response) => {
       registeredBy: req.user?.username ?? undefined,
     });
 
-    eventEmitterService.emitVisitEvent({
+    container.eventEmitter.emitVisitEvent({
       type: 'visit:intermittent-exit',
       timestamp: new Date().toISOString(),
       visitId,
@@ -302,7 +301,7 @@ export const intermittentReEntry = async (req: Request, res: Response) => {
       registeredBy: req.user?.username ?? undefined,
     });
 
-    eventEmitterService.emitVisitEvent({
+    container.eventEmitter.emitVisitEvent({
       type: 'visit:intermittent-reentry',
       timestamp: new Date().toISOString(),
       visitId,

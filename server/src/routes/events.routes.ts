@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { verifySseToken } from '../middleware/auth';
-import { eventEmitterService, VisitRealtimeEvent } from '../infrastructure/services/EventEmitterService';
+import { container } from '../shared/Container';
+import { VisitRealtimeEvent } from '../domain/services/IEventEmitter';
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.get('/v1/events/visits', verifySseToken, (_req: Request, res: Response) =
     res.write(':heartbeat\n\n');
   }, 25_000);
 
-  const unsubscribe = eventEmitterService.subscribeToVisitEvents((event) => {
+  const unsubscribe = container.eventEmitter.subscribeToVisitEvents((event) => {
     send(event);
   });
 

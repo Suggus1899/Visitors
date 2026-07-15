@@ -1,3 +1,5 @@
+import { ITokenBlacklist } from '../../domain/services/ITokenBlacklist';
+
 /**
  * In-memory token blacklist for JWT revocation
  * Tracks invalidated tokens until their natural expiry
@@ -9,7 +11,7 @@ interface BlacklistEntry {
   expiresAt: number; // Unix timestamp (ms)
 }
 
-class TokenBlacklistService {
+class TokenBlacklistService implements ITokenBlacklist {
   private blacklist: Map<string, BlacklistEntry> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
 

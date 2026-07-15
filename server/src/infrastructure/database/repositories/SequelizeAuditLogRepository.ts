@@ -2,12 +2,31 @@ import { Op, fn, col, literal } from 'sequelize';
 import {
   IAuditLogRepository,
   AuditLogEntity,
+  AuditLogEntry,
   AuditLogFilters,
   AuditLogStats
 } from '../../../domain/repositories/IAuditLogRepository';
 import ActivityLog from '../../../models/ActivityLog';
+import logger from '../../../config/logger';
 
 export class SequelizeAuditLogRepository implements IAuditLogRepository {
+  async log(entry: AuditLogEntry): Promise<void> {
+    try {
+      await ActivityLog.create({
+        userId: entry.userId,
+        username: entry.username,
+        action: entry.action,
+        entity: entry.entity,
+        entityId: entry.entityId,
+        details: entry.details || null,
+        ipAddress: entry.ipAddress || null,
+        userAgent: entry.userAgent || null
+      });
+    } catch (error) {
+      logger.error('Failed to log activity:', error);
+    }
+  }
+
   async findAll(filters?: AuditLogFilters): Promise<{ logs: AuditLogEntity[]; total: number }> {
     const where = this.buildWhere(filters);
     const { count, rows } = await ActivityLog.findAndCountAll({

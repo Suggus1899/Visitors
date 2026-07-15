@@ -7,18 +7,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LoginUseCase } from '../../application/usecases/auth/Login.usecase';
 import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
 import { IUserRepository } from '../../domain/repositories/IUserRepository';
+import { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import { User, UserRole } from '../../domain/entities/User.entity';
 import config from '../../config/AppConfig';
-
-// Mock logActivity
-vi.mock('../../models/ActivityLog', () => ({
-    logActivity: vi.fn()
-}));
 
 describe('LoginUseCase - Account Lockout', () => {
     let loginUseCase: LoginUseCase;
     let authService: JwtAuthService;
     let userRepository: IUserRepository;
+    let auditLogRepository: IAuditLogRepository;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -35,7 +32,15 @@ describe('LoginUseCase - Account Lockout', () => {
             updateLoginAttempts: vi.fn().mockResolvedValue(undefined),
             updateResetToken: vi.fn()
         } as unknown as IUserRepository;
-        loginUseCase = new LoginUseCase(userRepository, authService);
+        auditLogRepository = {
+            log: vi.fn().mockResolvedValue(undefined),
+            findAll: vi.fn(),
+            getStats: vi.fn(),
+            getDistinctActions: vi.fn(),
+            getDistinctUsers: vi.fn(),
+            count: vi.fn()
+        } as unknown as IAuditLogRepository;
+        loginUseCase = new LoginUseCase(userRepository, authService, auditLogRepository);
     });
 
     const buildUser = async (overrides: Partial<{

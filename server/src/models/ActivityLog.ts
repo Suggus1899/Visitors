@@ -115,34 +115,4 @@ ActivityLog.init({
     updatedAt: false
 });
 
-/**
- * Helper function to log an activity
- */
-export async function logActivity(
-    userId: number,
-    username: string,
-    action: string,
-    entity: string,
-    entityId: string,
-    details?: string,
-    ipAddress?: string,
-    userAgent?: string
-): Promise<void> {
-    try {
-        await ActivityLog.create({
-            userId,
-            username,
-            action,
-            entity,
-            entityId,
-            details: details || null,
-            ipAddress: ipAddress || null,
-            userAgent: userAgent || null
-        });
-    } catch (error) {
-        logger.error('Failed to log activity:', error);
-        // Don't throw - logging failure shouldn't break the main operation
-    }
-}
-
 export default ActivityLog;

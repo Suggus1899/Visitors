@@ -10,9 +10,7 @@ import { ResetUserPasswordUseCase, ResetPasswordDto } from '../application/useca
 import { GetAuditLogsUseCase, AuditLogFilters } from '../application/usecases/superadmin/GetAuditLogs.usecase';
 import { User } from '../domain/entities/User.entity';
 import { UserMapper } from '../application/mappers/UserMapper';
-import { logActivity } from '../models/ActivityLog';
 import { getClientInfo } from '../middleware/ipCapture';
-import { tokenBlacklist } from '../infrastructure/services/TokenBlacklist';
 
 const getActor = (req: Request) => {
   return { id: req.user?.id ?? 0, username: req.user?.username ?? 'system' };
@@ -61,7 +59,10 @@ export class SuperAdminController {
       // C-07: Audit log for user creation
       const actor = getActor(req);
       const clientInfo = getClientInfo(req);
-      await logActivity(actor.id, actor.username, 'SUPERADMIN_CREATE_USER', 'User', String(user.id), `Created user: ${user.username} (role: ${user.role})`, clientInfo.ip, clientInfo.userAgent);
+      await container.auditLogRepository.log({
+        userId: actor.id, username: actor.username, action: 'SUPERADMIN_CREATE_USER', entity: 'User', entityId: String(user.id),
+        details: `Created user: ${user.username} (role: ${user.role})`, ipAddress: clientInfo.ip, userAgent: clientInfo.userAgent
+      });
 
       res.status(201).json(ResponseBuilder.success(UserMapper.toUserDto(user)));
     } catch (error: any) {
@@ -96,10 +97,13 @@ export class SuperAdminController {
       // C-07: Audit log for user update
       const actor = getActor(req);
       const clientInfo = getClientInfo(req);
-      await logActivity(actor.id, actor.username, 'SUPERADMIN_UPDATE_USER', 'User', String(userId), `Updated user: ${user.username} (role: ${user.role})`, clientInfo.ip, clientInfo.userAgent);
+      await container.auditLogRepository.log({
+        userId: actor.id, username: actor.username, action: 'SUPERADMIN_UPDATE_USER', entity: 'User', entityId: String(userId),
+        details: `Updated user: ${user.username} (role: ${user.role})`, ipAddress: clientInfo.ip, userAgent: clientInfo.userAgent
+      });
 
       // T-05: Invalidate tokens for updated user (role may have changed)
-      tokenBlacklist.invalidateUserTokens(userId);
+      container.tokenBlacklist.invalidateUserTokens(userId);
 
       res.json(ResponseBuilder.success(UserMapper.toUserDto(user)));
     } catch (error: any) {
@@ -131,10 +135,13 @@ export class SuperAdminController {
       // C-07: Audit log for user deletion
       const actor = getActor(req);
       const clientInfo = getClientInfo(req);
-      await logActivity(actor.id, actor.username, 'SUPERADMIN_DELETE_USER', 'User', String(userId), `Deleted user ID: ${userId}`, clientInfo.ip, clientInfo.userAgent);
+      await container.auditLogRepository.log({
+        userId: actor.id, username: actor.username, action: 'SUPERADMIN_DELETE_USER', entity: 'User', entityId: String(userId),
+        details: `Deleted user ID: ${userId}`, ipAddress: clientInfo.ip, userAgent: clientInfo.userAgent
+      });
 
       // T-05: Invalidate all tokens for deleted user
-      tokenBlacklist.invalidateUserTokens(userId);
+      container.tokenBlacklist.invalidateUserTokens(userId);
 
       res.json(ResponseBuilder.success({ message: 'User deleted successfully' }));
     } catch (error: any) {
@@ -176,10 +183,13 @@ export class SuperAdminController {
       // C-07: Audit log for password reset
       const actor = getActor(req);
       const clientInfo = getClientInfo(req);
-      await logActivity(actor.id, actor.username, 'SUPERADMIN_RESET_PASSWORD', 'User', String(userId), `Password reset for user ID: ${userId}`, clientInfo.ip, clientInfo.userAgent);
+      await container.auditLogRepository.log({
+        userId: actor.id, username: actor.username, action: 'SUPERADMIN_RESET_PASSWORD', entity: 'User', entityId: String(userId),
+        details: `Password reset for user ID: ${userId}`, ipAddress: clientInfo.ip, userAgent: clientInfo.userAgent
+      });
 
       // T-05: Invalidate all tokens for user whose password was reset
-      tokenBlacklist.invalidateUserTokens(userId);
+      container.tokenBlacklist.invalidateUserTokens(userId);
 
       res.json(ResponseBuilder.success({ message: 'Password reset successfully' }));
     } catch (error: any) {
