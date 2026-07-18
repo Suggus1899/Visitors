@@ -50,6 +50,9 @@ interface AppConfig {
   seedDemoPassword: string;
   seedAuditorPassword: string;
   seedSuperadminPassword: string;
+
+  // Edit protection
+  editPassword: string;
 }
 
 class Config implements AppConfig {
@@ -98,6 +101,9 @@ class Config implements AppConfig {
   seedAuditorPassword = process.env.SEED_AUDITOR_PASSWORD || '';
   seedSuperadminPassword = process.env.SEED_ROOT_PASSWORD || '';
   seedOperadorPassword = process.env.SEED_OPERADOR_PASSWORD || '';
+
+  // Edit protection password (bcrypt hash or plaintext — compared with bcrypt.compare)
+  editPassword = process.env.EDIT_PASSWORD || '';
 
 
 

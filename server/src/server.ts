@@ -6,6 +6,7 @@ import logger from './config/logger';
 import path from 'path';
 import fs from 'fs';
 import './models/IntermittentLog';
+import './models/VisitorEditHistory';
 
 import config from './config/AppConfig';
 

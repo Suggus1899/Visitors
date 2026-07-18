@@ -317,6 +317,14 @@ export const VisitorAdmin: React.FC = () => {
                 } as Visit : null}
                 isOpen={!!selectedVisitor}
                 onClose={() => setSelectedVisitor(null)}
+                onVisitorUpdated={async () => {
+                    const result = await refetch();
+                    // Update selectedVisitor with fresh data from the refetched list
+                    if (selectedVisitor && result.data?.visitors) {
+                        const updated = result.data.visitors.find((v: any) => v.cedula === selectedVisitor.cedula);
+                        if (updated) setSelectedVisitor(updated);
+                    }
+                }}
             />
         </div>
     );

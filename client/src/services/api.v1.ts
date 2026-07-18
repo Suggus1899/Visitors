@@ -144,6 +144,19 @@ const unwrapResponse = <T>(payload: { success?: boolean; data?: T; error?: { mes
 };
 
 // Helper to adapt backend V1 Visit (CamelCase, flat) to Frontend Visit (snake_case, nested Visitor)
+
+export interface EditHistoryEntry {
+    id: number;
+    visitId: number;
+    visitorId: number;
+    field: string;
+    oldValue: string | null;
+    newValue: string | null;
+    editedBy: number;
+    editedByUsername: string;
+    editedAt: string;
+}
+
 interface VisitDTO {
     id: number;
     visitorCedula: string;
@@ -335,9 +348,25 @@ export const VisitService = {
         return unwrapResponse(response.data);
     },
 
-    updateVisitor: async (cedula: string, data: Partial<Visitor> & { photoBase64?: string; idPhotoBase64?: string; firstName?: string; lastName?: string; jobTitle?: string; photoUrl?: string; idPhotoUrl?: string }): Promise<Visitor> => {
+    updateVisitor: async (cedula: string, data: Partial<Visitor> & { photoBase64?: string; idPhotoBase64?: string; firstName?: string; lastName?: string; jobTitle?: string; photoUrl?: string; idPhotoUrl?: string; visitId?: number }): Promise<Visitor> => {
         const response = await api.patch(`/visitors/${cedula}`, data);
         return unwrapResponse<Visitor>(response.data);
+    },
+
+    verifyEditPassword: async (password: string): Promise<boolean> => {
+        const response = await api.post('/visitors/verify-edit-password', { password });
+        const data = unwrapResponse<{ valid: boolean }>(response.data);
+        return data.valid;
+    },
+
+    getEditHistory: async (visitId: number): Promise<EditHistoryEntry[]> => {
+        const response = await api.get(`/visits/${visitId}/edit-history`);
+        return unwrapResponse<EditHistoryEntry[]>(response.data);
+    },
+
+    getEditHistoryByCedula: async (cedula: string): Promise<EditHistoryEntry[]> => {
+        const response = await api.get(`/visitors/${encodeURIComponent(cedula)}/edit-history`);
+        return unwrapResponse<EditHistoryEntry[]>(response.data);
     },
 
     getCompanies: async (): Promise<string[]> => {

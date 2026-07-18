@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
+import config from '../config/AppConfig';
 import logger from '../config/logger';
 
 const visitorRepo = container.visitorRepository;
@@ -58,7 +60,7 @@ export const getAllVisitors = async (req: Request, res: Response) => {
 export const updateVisitor = async (req: Request, res: Response) => {
   try {
     const cedula = req.params.cedula as string;
-    const { photoBase64, idPhotoBase64, photoUrl, idPhotoUrl, ...rest } = req.body;
+    const { photoBase64, idPhotoBase64, photoUrl, idPhotoUrl, visitId, ...rest } = req.body;
 
     // Normalize snake_case fields from frontend to camelCase for DTO
     const firstName = rest.firstName || rest.first_name;
@@ -81,8 +83,14 @@ export const updateVisitor = async (req: Request, res: Response) => {
 
     const visitorData = { ...rest, firstName, lastName, jobTitle, photoBlob, idPhotoBlob };
 
+    // Build edit context if visitId is provided (for audit trail)
+    // visitId=0 means editing from visitor profile (no specific visit) — still log with visitId=0
+    const editContext = (visitId !== undefined && req.user)
+      ? { visitId: Number(visitId), editedBy: req.user.id, editedByUsername: req.user.username }
+      : undefined;
+
     const useCase = container.updateVisitorUseCase;
-    const updatedVisitor = await useCase.execute(cedula, visitorData);
+    const updatedVisitor = await useCase.execute(cedula, visitorData, editContext);
 
     res.json(ResponseBuilder.success(updatedVisitor));
   } catch (error: any) {
@@ -91,6 +99,82 @@ export const updateVisitor = async (req: Request, res: Response) => {
       return res.status(404).json(ResponseBuilder.error('VISITOR_NOT_FOUND', error.message));
     }
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error updating visitor'));
+  }
+};
+
+/**
+ * Verify the edit protection password.
+ * Compares the provided password against the EDIT_PASSWORD env var.
+ */
+export const verifyEditPassword = async (req: Request, res: Response) => {
+  try {
+    const { password } = req.body;
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', 'Password is required'));
+    }
+
+    const storedPassword = config.editPassword;
+    if (!storedPassword) {
+      return res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Edit password not configured'));
+    }
+
+    // If stored password is a bcrypt hash (starts with $2), use bcrypt.compare
+    // Otherwise do a direct comparison (for plaintext env values)
+    let valid: boolean;
+    if (storedPassword.startsWith('$2')) {
+      valid = await bcrypt.compare(password, storedPassword);
+    } else {
+      valid = password === storedPassword;
+    }
+
+    res.json(ResponseBuilder.success({ valid }));
+  } catch (error) {
+    logger.error('Verify edit password error:', error);
+    res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error verifying password'));
+  }
+};
+
+/**
+ * Get edit history for a specific visit.
+ */
+export const getEditHistory = async (req: Request, res: Response) => {
+  try {
+    const visitId = parseInt(String(req.params.visitId), 10);
+    if (isNaN(visitId)) {
+      return res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', 'Invalid visit ID'));
+    }
+
+    // If visitId is 0, return empty (no visit context)
+    if (visitId === 0) {
+      res.json(ResponseBuilder.success([]));
+      return;
+    }
+
+    const history = await container.visitorEditHistoryRepository.findByVisitId(visitId);
+    res.json(ResponseBuilder.success(history));
+  } catch (error) {
+    logger.error('Get edit history error:', error);
+    res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error fetching edit history'));
+  }
+};
+
+/**
+ * Get edit history for a specific visitor (by cedula).
+ */
+export const getEditHistoryByCedula = async (req: Request, res: Response) => {
+  try {
+    const cedula = String(req.params.cedula);
+    const visitor = await visitorRepo.findByCedula(cedula);
+    if (!visitor || !visitor.id) {
+      res.json(ResponseBuilder.success([]));
+      return;
+    }
+
+    const history = await container.visitorEditHistoryRepository.findByVisitorId(visitor.id);
+    res.json(ResponseBuilder.success(history));
+  } catch (error) {
+    logger.error('Get edit history by cedula error:', error);
+    res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error fetching edit history'));
   }
 };
 

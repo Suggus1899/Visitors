@@ -1,14 +1,16 @@
 
-import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, Car, Users } from 'lucide-react';
+import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, Car, Users, Lock, Save, Pencil, History } from 'lucide-react';
 import type { Visit } from '../../types';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { sanitizeInput } from '../../utils/sanitizer';
-import { VisitService } from '../../services/api.v1';
+import { VisitService, type EditHistoryEntry } from '../../services/api.v1';
+import toast from 'react-hot-toast';
 
 interface VisitorDetailsModalProps {
   visit: Visit | null;
   isOpen: boolean;
   onClose: () => void;
+  onVisitorUpdated?: () => void;
 }
 
 const InfoRow = ({ label, value }: { label: string; value: string | React.ReactNode }) => (
@@ -37,14 +39,78 @@ const IconRow = ({
   </div>
 );
 
-export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsModalProps) {
+const EditField = ({ label, name, value, onChange, type = 'text' }: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (name: string, value: string) => void;
+  type?: string;
+}) => (
+  <div className="flex flex-col gap-0.5">
+    <span className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em]">{label}</span>
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(name, e.target.value)}
+      className="input-tech px-3 py-2 rounded-lg text-sm text-[color:var(--text-1)] border border-[color:var(--border-1)] bg-[color:var(--surface-0)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-0)]/20"
+    />
+  </div>
+);
+
+const FIELD_LABELS: Record<string, string> = {
+  first_name: 'Nombre',
+  last_name: 'Apellido',
+  company: 'Empresa',
+  job_title: 'Cargo',
+  email: 'Email',
+  phone: 'Teléfono',
+  observations: 'Observaciones',
+  isBlocked: 'Bloqueado',
+};
+
+export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }: VisitorDetailsModalProps) {
   const [photoError, setPhotoError] = useState(false);
   const [idPhotoError, setIdPhotoError] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [editPassword, setEditPassword] = useState('');
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editHistory, setEditHistory] = useState<EditHistoryEntry[]>([]);
+  const [editFormData, setEditFormData] = useState({
+    first_name: '',
+    last_name: '',
+    company: '',
+    job_title: '',
+    email: '',
+    phone: '',
+    observations: '',
+    isBlocked: false,
+  });
 
   useEffect(() => {
     if (isOpen) {
       setPhotoError(false);
       setIdPhotoError(false);
+      setIsEditMode(false);
+      setShowPasswordPrompt(false);
+      setEditPassword('');
+    }
+  }, [isOpen, visit]);
+
+  // Load edit history when modal opens
+  useEffect(() => {
+    if (isOpen && visit) {
+      // If we have a real visitId, use it; otherwise fetch by cedula (visitor profile view)
+      if (visit.id && visit.id > 0) {
+        VisitService.getEditHistory(visit.id)
+          .then(setEditHistory)
+          .catch(() => setEditHistory([]));
+      } else if (visit.visitor_cedula) {
+        VisitService.getEditHistoryByCedula(visit.visitor_cedula)
+          .then(setEditHistory)
+          .catch(() => setEditHistory([]));
+      }
     }
   }, [isOpen, visit]);
 
@@ -62,7 +128,6 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
   const cedulaForPhotos = visit?.visitor_cedula || visit?.Visitor?.cedula || '';
   const visitorPhotoUrl = useMemo(() => {
     if (!cedulaForPhotos) return null;
-    // Prefer explicit photo_url if present (e.g. base64 from form), else build BLOB URL
     if (visit?.Visitor?.photo_url) return visit.Visitor.photo_url;
     return VisitService.getVisitorPhotoUrl(cedulaForPhotos);
   }, [cedulaForPhotos, visit]);
@@ -71,6 +136,88 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
     if (visit?.Visitor?.id_photo_url) return visit.Visitor.id_photo_url;
     return VisitService.getVisitorIdPhotoUrl(cedulaForPhotos);
   }, [cedulaForPhotos, visit]);
+
+  const handleEditClick = useCallback(() => {
+    setShowPasswordPrompt(true);
+    setEditPassword('');
+  }, []);
+
+  const handleVerifyPassword = useCallback(async () => {
+    if (!editPassword) {
+      toast.error('Ingrese la contraseña de edición');
+      return;
+    }
+    setVerifyingPassword(true);
+    try {
+      const valid = await VisitService.verifyEditPassword(editPassword);
+      if (valid) {
+        // Populate form with current visitor data
+        setEditFormData({
+          first_name: visit?.Visitor?.first_name || '',
+          last_name: visit?.Visitor?.last_name || '',
+          company: visit?.Visitor?.company || '',
+          job_title: visit?.Visitor?.job_title || '',
+          email: visit?.Visitor?.email || '',
+          phone: visit?.Visitor?.phone || '',
+          observations: visit?.Visitor?.observations || '',
+          isBlocked: visit?.Visitor?.isBlocked || false,
+        });
+        setIsEditMode(true);
+        setShowPasswordPrompt(false);
+        setEditPassword('');
+        toast.success('Contraseña validada — modo edición activado');
+      } else {
+        toast.error('Contraseña incorrecta');
+      }
+    } catch {
+      toast.error('Error al validar la contraseña');
+    } finally {
+      setVerifyingPassword(false);
+    }
+  }, [editPassword, visit]);
+
+  const handleEditFieldChange = useCallback((name: string, value: string) => {
+    setEditFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!visit?.visitor_cedula) return;
+    setSaving(true);
+    try {
+      await VisitService.updateVisitor(visit.visitor_cedula, {
+        firstName: editFormData.first_name,
+        lastName: editFormData.last_name,
+        company: editFormData.company,
+        jobTitle: editFormData.job_title,
+        email: editFormData.email,
+        phone: editFormData.phone,
+        observations: editFormData.observations,
+        isBlocked: editFormData.isBlocked,
+        visitId: visit.id,
+      });
+      toast.success('Cambios guardados correctamente');
+      setIsEditMode(false);
+      // Reload edit history
+      if (visit.id && visit.id > 0) {
+        const history = await VisitService.getEditHistory(visit.id);
+        setEditHistory(history);
+      } else if (visit.visitor_cedula) {
+        const history = await VisitService.getEditHistoryByCedula(visit.visitor_cedula);
+        setEditHistory(history);
+      }
+      // Notify parent to refresh data
+      onVisitorUpdated?.();
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message || err?.message || 'Error al guardar los cambios';
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }, [visit, editFormData, onVisitorUpdated]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditMode(false);
+  }, []);
 
   if (!isOpen || !visit) return null;
 
@@ -91,10 +238,10 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[color:var(--border-1)] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <UserCircle2 className="text-[color:var(--accent-0)]" size={22} />
+            <UserCircle2 className="text-[color:var(--accent-0)] size={22}" />
             <div>
               <h2 className="text-base font-display uppercase tracking-[0.18em] text-[color:var(--text-1)]">
-                Detalles de la Visita
+                {isEditMode ? 'Editar Visitante' : 'Detalles de la Visita'}
               </h2>
             </div>
           </div>
@@ -172,28 +319,63 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
             {/* RIGHT: Info */}
             <div className="space-y-6">
 
-              {/* Visitor Data */}
+              {/* Visitor Data — View or Edit mode */}
               <div className="bg-[color:var(--surface-2)] rounded-xl p-4 border border-[color:var(--border-0)] space-y-4">
                 <h3 className="text-[10px] font-bold text-[color:var(--accent-0)] uppercase tracking-[0.2em] border-b border-[color:var(--border-1)] pb-2">
                   Datos del Visitante
                 </h3>
 
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em]">Nombre Completo</span>
-                  <span className="text-lg font-semibold text-[color:var(--text-1)]">
-                    {sanitizedFirstName} {sanitizedLastName}
-                  </span>
-                </div>
+                {isEditMode ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <EditField label="Nombre" name="first_name" value={editFormData.first_name} onChange={handleEditFieldChange} />
+                      <EditField label="Apellido" name="last_name" value={editFormData.last_name} onChange={handleEditFieldChange} />
+                    </div>
+                    <EditField label="Empresa" name="company" value={editFormData.company} onChange={handleEditFieldChange} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <EditField label="Cargo" name="job_title" value={editFormData.job_title} onChange={handleEditFieldChange} />
+                      <EditField label="Teléfono" name="phone" value={editFormData.phone} onChange={handleEditFieldChange} />
+                    </div>
+                    <EditField label="Email" name="email" value={editFormData.email} onChange={handleEditFieldChange} type="email" />
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em]">Observaciones</span>
+                      <textarea
+                        value={editFormData.observations}
+                        onChange={(e) => handleEditFieldChange('observations', e.target.value)}
+                        rows={2}
+                        className="input-tech px-3 py-2 rounded-lg text-sm text-[color:var(--text-1)] border border-[color:var(--border-1)] bg-[color:var(--surface-0)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-0)]/20"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editFormData.isBlocked}
+                        onChange={(e) => handleEditFieldChange('isBlocked', e.target.checked ? 'true' : 'false')}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-[color:var(--text-1)]">Bloquear visitante</span>
+                    </label>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em]">Nombre Completo</span>
+                      <span className="text-lg font-semibold text-[color:var(--text-1)]">
+                        {sanitizedFirstName} {sanitizedLastName}
+                      </span>
+                    </div>
 
-                <InfoRow label="Documento (Cédula)" value={sanitizedCedula} />
+                    <InfoRow label="Documento (Cédula)" value={sanitizedCedula} />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <IconRow icon={Building2} label="Empresa" value={sanitizedCompany} />
-                  <IconRow icon={Briefcase} label="Cargo" value={sanitizedJobTitle} />
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <IconRow icon={Building2} label="Empresa" value={sanitizedCompany} />
+                      <IconRow icon={Briefcase} label="Cargo" value={sanitizedJobTitle} />
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Visit Data */}
+              {/* Visit Data — always read-only */}
               <div className="bg-[color:var(--surface-2)] rounded-xl p-4 border border-[color:var(--border-0)] space-y-4">
                 <h3 className="text-[10px] font-bold text-[color:var(--accent-0)] uppercase tracking-[0.2em] border-b border-[color:var(--border-1)] pb-2">
                   Detalles de la Visita
@@ -273,21 +455,147 @@ export function VisitorDetailsModal({ visit, isOpen, onClose }: VisitorDetailsMo
                 )}
               </div>
 
+              {/* Edit History Section */}
+              <div className="bg-[color:var(--surface-2)] rounded-xl p-4 border border-[color:var(--border-0)] space-y-4">
+                <h3 className="text-[10px] font-bold text-[color:var(--accent-0)] uppercase tracking-[0.2em] border-b border-[color:var(--border-1)] pb-2 flex items-center gap-2">
+                  <History size={14} />
+                  Ediciones
+                </h3>
+                {editHistory.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-[color:var(--text-3)] border-b border-[color:var(--border-1)]">
+                          <th className="text-left py-2 px-2 font-semibold uppercase tracking-wider">Campo</th>
+                          <th className="text-left py-2 px-2 font-semibold uppercase tracking-wider">Valor Viejo</th>
+                          <th className="text-left py-2 px-2 font-semibold uppercase tracking-wider">Valor Nuevo</th>
+                          <th className="text-left py-2 px-2 font-semibold uppercase tracking-wider">Editado por</th>
+                          <th className="text-left py-2 px-2 font-semibold uppercase tracking-wider">Fecha</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editHistory.map((entry) => (
+                          <tr key={entry.id} className="border-b border-[color:var(--border-0)] hover:bg-[color:var(--surface-1)]/50">
+                            <td className="py-2 px-2 font-medium text-[color:var(--text-1)]">
+                              {FIELD_LABELS[entry.field] || entry.field}
+                            </td>
+                            <td className="py-2 px-2 text-[color:var(--text-3)]">
+                              {entry.oldValue || '—'}
+                            </td>
+                            <td className="py-2 px-2 text-[color:var(--text-1)]">
+                              {entry.newValue || '—'}
+                            </td>
+                            <td className="py-2 px-2 text-[color:var(--text-2)]">
+                              {entry.editedByUsername}
+                            </td>
+                            <td className="py-2 px-2 text-[color:var(--text-3)]">
+                              {new Date(entry.editedAt).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 opacity-50">
+                    <History size={15} className="text-[color:var(--text-3)]" />
+                    <span className="text-xs font-medium text-[color:var(--text-3)]">Sin ediciones registradas</span>
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[color:var(--border-1)] flex justify-end flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="btn-ghost px-6"
-          >
-            Cerrar
-          </button>
+        <div className="px-6 py-4 border-t border-[color:var(--border-1)] flex justify-between items-center flex-shrink-0">
+          {isEditMode ? (
+            <>
+              <button
+                onClick={handleCancelEdit}
+                className="btn-ghost px-6"
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="btn-primary px-6 flex items-center gap-2"
+              >
+                <Save size={16} />
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleEditClick}
+                className="btn-primary px-6 flex items-center gap-2"
+              >
+                <Pencil size={16} />
+                Editar
+              </button>
+              <button
+                onClick={onClose}
+                className="btn-ghost px-6"
+              >
+                Cerrar
+              </button>
+            </>
+          )}
         </div>
 
       </div>
+
+      {/* Password Prompt Overlay */}
+      {showPasswordPrompt && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="panel-tech rounded-2xl w-full max-w-md p-6 relative">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-[color:var(--accent-0)] rounded-t-2xl" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-full bg-[color:var(--accent-0)]/10">
+                <Lock className="text-[color:var(--accent-0)]" size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-display uppercase tracking-[0.18em] text-[color:var(--text-1)]">
+                  Contraseña de Edición
+                </h3>
+                <p className="text-xs text-[color:var(--text-3)] mt-0.5">
+                  Ingrese la contraseña para editar los datos del visitante
+                </p>
+              </div>
+            </div>
+            <input
+              type="password"
+              value={editPassword}
+              onChange={(e) => setEditPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleVerifyPassword(); }}
+              placeholder="••••••••"
+              autoFocus
+              className="input-tech w-full px-4 py-3 rounded-lg text-sm text-[color:var(--text-1)] border border-[color:var(--border-1)] bg-[color:var(--surface-0)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-0)]/20"
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => { setShowPasswordPrompt(false); setEditPassword(''); }}
+                className="btn-ghost px-5"
+                disabled={verifyingPassword}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleVerifyPassword}
+                disabled={verifyingPassword}
+                className="btn-primary px-5 flex items-center gap-2"
+              >
+                {verifyingPassword ? 'Validando...' : 'Validar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

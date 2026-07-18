@@ -105,6 +105,12 @@ router.get('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanControl
  */
 router.patch('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanController.updateVisitor));
 
+router.post('/v1/visitors/verify-edit-password', verifyToken, asyncHandler(VisitorCleanController.verifyEditPassword));
+
+router.get('/v1/visits/:visitId/edit-history', verifyToken, asyncHandler(VisitorCleanController.getEditHistory));
+
+router.get('/v1/visitors/:cedula/edit-history', verifyToken, asyncHandler(VisitorCleanController.getEditHistoryByCedula));
+
 /**
  * @swagger
  * /companies:

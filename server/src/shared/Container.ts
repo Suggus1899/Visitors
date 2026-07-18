@@ -21,6 +21,8 @@ import { IEventEmitter } from '../domain/services/IEventEmitter';
 import { eventEmitterService } from '../infrastructure/services/EventEmitterService';
 import { IArcoRequestRepository } from '../domain/repositories/IArcoRequestRepository';
 import { SequelizeArcoRequestRepository } from '../infrastructure/database/repositories/SequelizeArcoRequestRepository';
+import { IVisitorEditHistoryRepository } from '../domain/repositories/IVisitorEditHistoryRepository';
+import { SequelizeVisitorEditHistoryRepository } from '../infrastructure/database/repositories/SequelizeVisitorEditHistoryRepository';
 import { CheckInVisitorUseCase } from '../application/usecases/CheckInVisitor.usecase';
 import { GoIntermittentUseCase } from '../application/usecases/GoIntermittent.usecase';
 import { ReactivateVisitUseCase } from '../application/usecases/ReactivateVisit.usecase';
@@ -75,6 +77,7 @@ class Container {
   private _userRepository?: IUserRepository;
   private _auditLogRepository?: IAuditLogRepository;
   private _arcoRequestRepository?: IArcoRequestRepository;
+  private _visitorEditHistoryRepository?: IVisitorEditHistoryRepository;
   // Services
   private _backupService?: IBackupService;
   private _authService?: IAuthService;
@@ -135,6 +138,13 @@ class Container {
     return this._arcoRequestRepository;
   }
 
+  get visitorEditHistoryRepository(): IVisitorEditHistoryRepository {
+    if (!this._visitorEditHistoryRepository) {
+      this._visitorEditHistoryRepository = new SequelizeVisitorEditHistoryRepository();
+    }
+    return this._visitorEditHistoryRepository;
+  }
+
   get backupService(): IBackupService {
     if (!this._backupService) {
       this._backupService = new PostgresBackupService();
@@ -144,7 +154,7 @@ class Container {
 
   // New use cases
   get updateVisitorUseCase(): UpdateVisitorUseCase {
-    return new UpdateVisitorUseCase(this.visitorRepository);
+    return new UpdateVisitorUseCase(this.visitorRepository, this.visitorEditHistoryRepository);
   }
 
   get getAllVisitorsUseCase(): GetAllVisitorsUseCase {
