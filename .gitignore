@@ -8,6 +8,9 @@ node_modules/
 client/node_modules/
 server/node_modules/
 
+# Turborepo cache
+.turbo/
+
 # Database and data files
 data/
 *.sqlite

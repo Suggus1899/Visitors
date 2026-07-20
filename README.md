@@ -14,7 +14,7 @@ Plataforma **multi-tenant** para gestión de visitantes en organizaciones de cua
 
 [![CI](https://github.com/Suggus1899/Visitors/actions/workflows/ci.yml/badge.svg)](https://github.com/Suggus1899/Visitors/actions/workflows/ci.yml)
 [![Security](https://github.com/Suggus1899/Visitors/actions/workflows/security.yml/badge.svg)](https://github.com/Suggus1899/Visitors/actions/workflows/security.yml)
-[![License](https://img.shields.io/badge/license-UNLICENSED-red)](./LICENSE)
+[![License](https://img.shields.io/badge/license-Proprietary-red)](./LICENSE)
 
 </div>
 

@@ -14,8 +14,6 @@ name: Deploy
 # deploy mechanism (kubectl, helm, ssh+docker-compose, aws ecs, etc.).
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
