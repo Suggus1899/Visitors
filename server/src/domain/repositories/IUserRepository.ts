@@ -6,6 +6,8 @@ export interface IUserRepository {
   findByEmail(email: string): Promise<User | null>;
   findById(id: number): Promise<User | null>;
   findByResetToken(token: string): Promise<User | null>;
+  /** Returns only the mustChangePassword flag for a user, or null if not found. */
+  getMustChangePassword(id: number): Promise<boolean | null>;
   save(user: User): Promise<User>;
   delete(id: number): Promise<void>;
   updatePassword(id: number, hashedPassword: string): Promise<void>;

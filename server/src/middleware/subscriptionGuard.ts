@@ -1,16 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import { getSubscriptionLimits, normalizeSubscriptionPlan, SubscriptionFeature } from '../config/subscription';
-import Tenant from '../models/Tenant';
 import { ResponseBuilder } from '../shared/ApiResponse';
+import { container } from '../shared/Container';
 import { usageCounterService } from '../services/UsageCounterService';
-import Visitor from '../models/Visitor';
-import Encryption from '../utils/Encryption';
-import { TenantRole } from '../models/TenantUser';
+import { TenantRole } from '../domain/entities/TenantUser.entity';
 
 const tenantFromRequest = async (req: Request) => {
-  if (req.user?.tid) return Tenant.findByPk(req.user.tid);
+  if (req.user?.tid) return container.tenantRepository.findById(req.user.tid);
   const slug = typeof req.params.tenantSlug === 'string' ? req.params.tenantSlug : undefined;
-  return slug ? Tenant.findOne({ where: { slug } }) : null;
+  return slug ? container.tenantRepository.findBySlug(slug) : null;
 };
 
 export const subscriptionGuard = (feature: SubscriptionFeature) =>
@@ -51,7 +49,7 @@ export const enforceCheckInLimits = async (req: Request, res: Response, next: Ne
     await usageCounterService.assertCanCreateVisit(req.user.tid);
     const cedula = typeof req.body?.visitorCedula === 'string' ? req.body.visitorCedula : undefined;
     if (cedula) {
-      const exists = await Visitor.count({ where: { tenantId: req.user.tid, cedula: Encryption.hash(cedula) } });
+      const exists = await container.visitorRepository.exists(req.user.tid, cedula);
       if (!exists) await usageCounterService.assertCanCreateVisitor(req.user.tid);
     }
     next();

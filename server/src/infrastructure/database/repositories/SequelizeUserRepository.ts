@@ -40,6 +40,12 @@ export class SequelizeUserRepository implements IUserRepository {
     return this.toDomain(userModel);
   }
 
+  async getMustChangePassword(id: number): Promise<boolean | null> {
+    const row = await UserModel.findByPk(id, { attributes: ['mustChangePassword'] });
+    if (!row) return null;
+    return row.mustChangePassword === true;
+  }
+
   async findByIdModel(id: number): Promise<typeof UserModel.prototype | null> {
     return await UserModel.findByPk(id);
   }

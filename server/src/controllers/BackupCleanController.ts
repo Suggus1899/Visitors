@@ -3,7 +3,6 @@ import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import logger from '../config/logger';
 import { getSubscriptionLimits, normalizeSubscriptionPlan } from '../config/subscription';
-import Tenant from '../models/Tenant';
 
 const requireTenantId = (req: Request): number => {
   if (!req.tenantId) throw new Error('Tenant context is required');
@@ -58,7 +57,7 @@ export const listBackups = async (req: Request, res: Response) => {
  */
 export const createTenantBackup = async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req);
-  const tenant = await Tenant.findByPk(tenantId);
+  const tenant = await container.tenantRepository.findById(tenantId);
   if (!tenant) return res.status(404).json(ResponseBuilder.error('TENANT_NOT_FOUND', 'Tenant not found'));
   const limits = getSubscriptionLimits(tenant.subscriptionPlan);
   const result = await container.backupService.createBackup(tenantId);
@@ -88,7 +87,7 @@ export const restoreTenantBackup = async (req: Request, res: Response) => {
 
 export const getTenantBackupSchedule = async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req);
-  const tenant = await Tenant.findByPk(tenantId);
+  const tenant = await container.tenantRepository.findById(tenantId);
   if (!tenant) return res.status(404).json(ResponseBuilder.error('TENANT_NOT_FOUND', 'Tenant not found'));
   const limits = getSubscriptionLimits(tenant.subscriptionPlan);
   const intervalHours = limits.backupFrequency === 'daily' ? 24 : limits.backupFrequency === 'four-hour' ? 4 : null;

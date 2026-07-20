@@ -2,11 +2,11 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { getSubscriptionLimits, normalizeSubscriptionPlan } from '../config/subscription';
 import ActivityLog from '../models/ActivityLog';
-import Tenant from '../models/Tenant';
 import Visit from '../models/Visit';
 import Visitor from '../models/Visitor';
 import VisitorEditHistory, { PII_EDIT_FIELDS } from '../models/VisitorEditHistory';
 import { ResponseBuilder } from '../shared/ApiResponse';
+import { container } from '../shared/Container';
 import { usageCounterService } from '../services/UsageCounterService';
 import Encryption from '../utils/Encryption';
 
@@ -41,7 +41,7 @@ const requireTenantId = (req: Request): number => {
 
 export const getSubscription = async (req: Request, res: Response) => {
   const tenantId = requireTenantId(req);
-  const tenant = await Tenant.findByPk(tenantId);
+  const tenant = await container.tenantRepository.findById(tenantId);
   if (!tenant) return res.status(404).json(ResponseBuilder.error('TENANT_NOT_FOUND', 'Tenant not found'));
   const limits = getSubscriptionLimits(tenant.subscriptionPlan);
   const usage = await usageCounterService.getUsage(tenantId);

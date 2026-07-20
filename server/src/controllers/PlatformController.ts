@@ -15,6 +15,12 @@ import ActivityLog from '../models/ActivityLog';
 import VisitorEditHistory from '../models/VisitorEditHistory';
 import IntermittentLog from '../models/IntermittentLog';
 
+// TODO(architecture): PlatformController still imports Sequelize models directly for complex
+// cross-tenant queries (findAndCountAll with joins, aggregations, cascade deletes). These
+// operations don't map cleanly to the existing per-tenant repository interfaces which are
+// scoped to a single tenantId. A PlatformRepository abstraction or dedicated platform use
+// cases would be needed to fully remove this domain leak. Tracked as follow-up work.
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
