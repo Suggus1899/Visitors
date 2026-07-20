@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   PNPM_VERSION: '11.3.0'
   # TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   # TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
@@ -45,46 +45,8 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: Debug pnpm
-        run: |
-          echo "PATH: $PATH"
-          which pnpm || echo "pnpm NOT FOUND"
-          pnpm --version || echo "pnpm --version FAILED"
-          node --version
-          npm --version
-          echo "--- ls -la ---"
-          ls -la
-          echo "--- pnpm-workspace.yaml ---"
-          cat pnpm-workspace.yaml || echo "NO pnpm-workspace.yaml"
-          echo "--- .npmrc ---"
-          cat .npmrc || echo "NO .npmrc"
-
       - name: Install dependencies
-        id: install
-        continue-on-error: true
-        run: |
-          set +e
-          pnpm install > install.log 2>&1
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
-
-      - name: Show install result
-        if: steps.install.outputs.exit_code != '0'
-        run: |
-          echo "::error::pnpm install failed with exit code ${{ steps.install.outputs.exit_code }}"
-          echo "::error::$(cat install.log)"
-          cat install.log
-
-      - name: Upload install log
-        if: steps.install.outputs.exit_code != '0'
-        uses: actions/upload-artifact@v4
-        with:
-          name: install-log
-          path: install.log
-          if-no-files-found: ignore
-
-      - name: Fail if install failed
-        if: steps.install.outputs.exit_code != '0'
-        run: exit 1
+        run: pnpm install --frozen-lockfile
 
       - name: Build package matrix
         id: matrix
