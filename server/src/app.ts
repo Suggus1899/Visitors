@@ -10,6 +10,7 @@ import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { apiLimiter } from "./middleware/rateLimiter";
 import { mustChangePassword } from "./middleware/mustChangePassword";
+import { correlationId } from "./middleware/correlationId";
 // Routes
 import visitRoutes from "./routes/visit.routes";
 import reportRoutes from "./routes/report.routes";
@@ -31,6 +32,10 @@ const app = express();
 
 // Application-level firewall (IP blocking, attack pattern detection)
 app.use(firewall);
+
+// Correlation ID — must run before any handler that can log, so every
+// log line within a request carries the same x-request-id.
+app.use(correlationId);
 
 // Enhanced security headers via helmet
 app.use(

@@ -5,6 +5,7 @@ import { ResponseBuilder } from '../shared/ApiResponse';
 import { container } from '../shared/Container';
 import type { AuthPayload } from '../types/express';
 import { ACCESS_COOKIE } from '../utils/authCookies';
+import { enrichCorrelationContext } from './correlationId';
 
 /**
  * Extract access token from either the Authorization header (Bearer) or the
@@ -120,6 +121,7 @@ export const verifyTenantMembership = async (req: Request, res: Response, next: 
     if (!membership) return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Tenant membership is required'));
     req.user.role = membership.role;
     req.tenantRole = membership.role;
+    enrichCorrelationContext({ tenantId: req.user.tid, userId: req.user.id });
     next();
 };
 

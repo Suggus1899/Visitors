@@ -2,24 +2,43 @@ import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
 import config from './AppConfig';
+import { getCorrelationContext } from '../shared/correlationStorage';
 
 const { combine, timestamp, printf, colorize, json, errors } = winston.format;
 
+/**
+ * Format that injects the current correlation context (correlationId,
+ * tenantId, userId) from AsyncLocalStorage into every log entry's meta.
+ * No-op outside a request context.
+ */
+const correlationFormat = winston.format((info) => {
+  const ctx = getCorrelationContext();
+  if (ctx) {
+    info.correlationId = ctx.correlationId;
+    if (ctx.tenantId !== undefined) info.tenantId = ctx.tenantId;
+    if (ctx.userId !== undefined) info.userId = ctx.userId;
+  }
+  return info;
+});
+
 // Custom format for development (colorized, readable)
 const devFormat = combine(
+  correlationFormat(),
   colorize(),
   timestamp({ format: 'HH:mm:ss' }),
   errors({ stack: true }),
-  printf(({ level, message, timestamp, stack, ...meta }) => {
+  printf(({ level, message, timestamp, stack, correlationId, ...meta }) => {
+    const cid = correlationId ? `[${correlationId}] ` : '';
     const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
     return stack
-      ? `${timestamp} ${level}: ${message}\n${stack}${metaStr}`
-      : `${timestamp} ${level}: ${message}${metaStr}`;
+      ? `${timestamp} ${level}: ${cid}${message}\n${stack}${metaStr}`
+      : `${timestamp} ${level}: ${cid}${message}${metaStr}`;
   })
 );
 
 // Structured JSON format for production
 const prodFormat = combine(
+  correlationFormat(),
   timestamp(),
   errors({ stack: true }),
   json()
