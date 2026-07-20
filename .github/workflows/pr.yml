@@ -15,7 +15,7 @@ permissions:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '11'
+  PNPM_VERSION: '11.3.0'
 
 jobs:
   label-check:
@@ -110,7 +110,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
 
