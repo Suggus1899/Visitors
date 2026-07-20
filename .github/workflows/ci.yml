@@ -45,6 +45,14 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
 
+      - name: Debug pnpm
+        run: |
+          echo "PATH: $PATH"
+          which pnpm || echo "pnpm NOT FOUND"
+          pnpm --version || echo "pnpm --version FAILED"
+          node --version
+          npm --version
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
