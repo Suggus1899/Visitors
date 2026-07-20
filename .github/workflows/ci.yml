@@ -62,15 +62,20 @@ jobs:
       - name: Install dependencies
         id: install
         continue-on-error: true
-        run: pnpm install 2>&1 | tee install.log
+        run: |
+          set +e
+          pnpm install > install.log 2>&1
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Show install result
+        if: steps.install.outputs.exit_code != '0'
         run: |
-          echo "Install outcome: ${{ steps.install.outcome }}"
-          echo "--- install.log ---"
-          cat install.log || echo "No install.log"
+          echo "::error::pnpm install failed with exit code ${{ steps.install.outputs.exit_code }}"
+          echo "::error::$(cat install.log)"
+          cat install.log
 
       - name: Upload install log
+        if: steps.install.outputs.exit_code != '0'
         uses: actions/upload-artifact@v4
         with:
           name: install-log
@@ -78,7 +83,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Fail if install failed
-        if: steps.install.outcome == 'failure'
+        if: steps.install.outputs.exit_code != '0'
         run: exit 1
 
       - name: Build package matrix
