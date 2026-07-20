@@ -68,6 +68,20 @@ router.post('/v1/auth/login', authLimiter, validate(loginSchema), asyncHandler(A
 
 /**
  * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout and clear auth cookies
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ */
+router.post('/v1/auth/logout', verifyToken, asyncHandler(AuthCleanController.logout));
+
+/**
+ * @swagger
  * /auth/forgot-password:
  *   post:
  *     summary: Request password reset token

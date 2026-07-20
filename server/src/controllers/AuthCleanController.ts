@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { LoginDto, SelectTenantDto, CreateDemoDto, RefreshTokenDto } from '../application/dto/AuthDto';
 import { getClientInfo } from '../middleware/ipCapture';
+import { setAuthCookies, clearAuthCookies } from '../utils/authCookies';
 import logger from '../config/logger';
 
 interface AuthError {
@@ -39,6 +41,10 @@ export const login = async (req: Request, res: Response) => {
       ipAddress: clientInfo.ip,
       userAgent: clientInfo.userAgent
     });
+
+    // Hybrid auth: set httpOnly cookies for SSR/Next.js, keep JSON body for API clients.
+    const access = result.accessToken ?? result.token;
+    if (access) setAuthCookies(res, access, result.refreshToken ?? undefined);
 
     res.json(ResponseBuilder.success(result));
   } catch (error: unknown) {
@@ -121,9 +127,18 @@ export const resetPassword = async (req: Request, res: Response) => {
  */
 export const refreshToken = async (req: Request, res: Response) => {
   try {
-    const { refreshToken, tenantSlug } = req.body as RefreshTokenDto;
+    // Accept refresh token from body (API clients) or httpOnly cookie (SSR).
+    const bodyDto = req.body as Partial<RefreshTokenDto>;
+    const refreshToken = bodyDto?.refreshToken || req.cookies?.lm_refresh_token;
+    const tenantSlug = bodyDto?.tenantSlug;
+    if (!refreshToken) {
+      return res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', 'refreshToken is required'));
+    }
     const useCase = container.createRefreshTokenUseCase();
     const result = await useCase.execute(refreshToken, tenantSlug);
+
+    // Rotate access cookie; refresh cookie stays the same (not rotated).
+    setAuthCookies(res, result.accessToken);
 
     res.json(ResponseBuilder.success(result));
   } catch (error: unknown) {
@@ -225,6 +240,9 @@ export const selectTenant = async (req: Request, res: Response) => {
     };
     const accessToken = container.authService.generateAccessToken(tokenUser);
 
+    // Rotate access cookie with the new tenant-scoped token.
+    setAuthCookies(res, accessToken);
+
     res.json(ResponseBuilder.success({
       accessToken,
       tenant: {
@@ -237,6 +255,48 @@ export const selectTenant = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     logger.error('Select tenant error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Failed to select tenant'));
+  }
+};
+
+/**
+ * Logout — clears auth cookies and invalidates the access token in the
+ * blacklist. Accepts token from Authorization header or access cookie.
+ */
+export const logout = async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = (authHeader && authHeader.startsWith('Bearer '))
+      ? authHeader.slice(7).trim()
+      : req.cookies?.lm_access_token;
+
+    if (token) {
+      container.tokenBlacklist.add(token);
+      const decoded = jwt.decode(token) as { id?: number; iat?: number } | null;
+      if (decoded && typeof decoded === 'object' && decoded.id) {
+        container.tokenBlacklist.invalidateUserTokens(decoded.id);
+      }
+      if (req.user?.username) {
+        const clientInfo = getClientInfo(req);
+        await container.auditLogRepository.log({
+          tenantId: req.user.tid ?? 0,
+          userId: req.user.id ?? 0,
+          username: req.user.username,
+          action: 'LOGOUT',
+          entity: 'User',
+          entityId: req.user.username,
+          details: 'Cierre de sesión',
+          ipAddress: clientInfo.ip,
+          userAgent: clientInfo.userAgent
+        });
+      }
+    }
+
+    clearAuthCookies(res);
+    res.json(ResponseBuilder.success({ message: 'Logged out successfully' }));
+  } catch (error: unknown) {
+    logger.error('Logout error:', error);
+    clearAuthCookies(res);
+    res.json(ResponseBuilder.success({ message: 'Logged out' }));
   }
 };
 

@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import path from "path";
 import config from "./config/AppConfig";
 import logger from "./config/logger";
@@ -142,6 +143,7 @@ app.use(
 
 // T-09: Set body size limit to prevent DoS via large payloads
 app.use(express.json({ limit: "5mb" }));
+app.use(cookieParser()); // Hybrid cookie+header auth (Next.js SSR + API clients)
 app.use(captureClientInfo); // Captura IP y userAgent para auditoría
 
 // Static photos directory routing removed - photos are served from DB BLOB via API endpoints

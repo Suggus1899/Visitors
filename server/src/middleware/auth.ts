@@ -4,16 +4,29 @@ import config from '../config/AppConfig';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { container } from '../shared/Container';
 import type { AuthPayload } from '../types/express';
+import { ACCESS_COOKIE } from '../utils/authCookies';
+
+/**
+ * Extract access token from either the Authorization header (Bearer) or the
+ * httpOnly cookie set by the hybrid cookie+header auth flow.
+ * - Header path: programmatic API clients, webhooks, integrations.
+ * - Cookie path: Next.js Server Components (SSR) and same-origin browsers.
+ */
+const extractAccessToken = (req: Request): string | null => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const headerToken = authHeader.slice(7).trim();
+        if (headerToken) return headerToken;
+    }
+    const cookieToken = req.cookies?.[ACCESS_COOKIE];
+    if (typeof cookieToken === 'string' && cookieToken) return cookieToken;
+    return null;
+};
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'No Bearer token provided'));
-    }
-
-    const token = authHeader.slice(7).trim();
+    const token = extractAccessToken(req);
     if (!token) {
-        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Empty token'));
+        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'No Bearer token provided'));
     }
 
     if (container.tokenBlacklist.isBlacklisted(token)) {
