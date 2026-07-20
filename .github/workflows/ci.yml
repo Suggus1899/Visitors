@@ -87,7 +87,7 @@ jobs:
             turbo-lint-
 
       - name: Lint (turbo filter)
-        run: pnpm turbo run lint --filter=${{ matrix.package }}
+        run: pnpm turbo run lint --filter=./${{ matrix.package }}
 
   typecheck:
     name: Typecheck (${{ matrix.package }})
@@ -159,7 +159,7 @@ jobs:
             turbo-build-
 
       - name: Build (turbo filter)
-        run: pnpm turbo run build --filter=${{ matrix.package }}
+        run: pnpm turbo run build --filter=./${{ matrix.package }}
 
       - name: Upload build artifacts
         if: success()
@@ -208,7 +208,7 @@ jobs:
         run: |
           pkg="${{ matrix.package }}"
           if jq -e '.scripts.test' "${pkg}/package.json" >/dev/null 2>&1; then
-            pnpm turbo run test --filter="${pkg}"
+            pnpm turbo run test --filter="./${pkg}"
           else
             echo "No test script in ${pkg}, skipping."
           fi

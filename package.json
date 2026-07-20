@@ -49,5 +49,6 @@
     "typescript": "^5.9.3"
   },
   "author": "Gustavo Colina (@Suggus1899)",
-  "license": "SEE LICENSE IN LICENSE"
+  "license": "SEE LICENSE IN LICENSE",
+  "packageManager": "pnpm@11.3.0"
 }
