@@ -1,6 +1,7 @@
 {
   "name": "@logmaster/types",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "version": "1.0.0",
   "type": "module",
   "main": "./src/index.ts",

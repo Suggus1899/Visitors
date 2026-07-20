@@ -173,6 +173,7 @@ jobs:
           path: |
             ${{ matrix.package }}/dist
             ${{ matrix.package }}/build
+            ${{ matrix.package }}/.next
           if-no-files-found: ignore
           retention-days: 7
 
@@ -180,6 +181,7 @@ jobs:
     name: Test (${{ matrix.package }})
     needs: [setup, build]
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:

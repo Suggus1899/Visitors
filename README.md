@@ -240,21 +240,6 @@ logmaster/
 └── turbo.json             ← Turborepo pipeline
 ```
 
-## ✨ Features
-
-- **Multi-tenant isolation** — cada record lleva `tenantId`; JWT tokens llevan contexto de tenant (`tid`, `tslug`, `role`) y toda query está scoped.
-- **Visitor management** — CRUD con captura de foto y foto-ID (BLOBs), directorio de empresas, historial de ediciones con PII encryption.
-- **Visit lifecycle** — check-in, waiting → admit, active → intermittent (salida temporal / reingreso), check-out, reactivación, alertas de missed-checkout.
-- **Calendar** — calendario de visitas programadas (subscription-gated).
-- **Audit trail** — `ActivityLogs` inmutable con IP, user-agent, method, path, status code, duration, severity; exportable a CSV.
-- **Privacy / ARCO** — access, rectification, cancellation, opposition (GDPR / Ley 25.326 Argentina).
-- **Backups** — PostgreSQL dumps cifrados (`pg_dump` + AES-256-GCM) con passwords one-time, per-tenant y global, retención programada.
-- **Subscriptions** — planes `free`, `starter`, `professional`, `enterprise` con límites por plan y feature flags.
-- **Real-time** — Server-Sent Events (SSE) para updates de visitas, tenant-filtered.
-- **Security** — PII encryption at rest, JWT access + refresh, token blacklist, rate limiting (9 limiters), application firewall, Helmet, CORS allow-list, XSS sanitization.
-- **Platform admin** — consola superadmin para tenant CRUD, user management, cambios de subscription, MRR, cascade delete.
-- **Demo tenants** — self-service demo creation con 3 usuarios pre-provisionados y seed data, time-limited y aislado.
-
 ## 🚀 Quick Start
 
 ### Prerrequisitos
@@ -316,80 +301,6 @@ docker compose up -d --build
 # postgres :5432, server :3001, landing :8080, platform :8081,
 # admin :8082, auditor :8083, system :8084
 ```
-
-## 💳 Planes de Suscripción
-
-| Plan | Precio/mes | Visitas/mes | Usuarios | Retención | Features |
-|------|-----------|-------------|----------|-----------|----------|
-| **Free** | $0 | 100 | 3 | 7 días | backup on-demand |
-| **Starter** | $29 | 500 | 7 | 30 días | + auditor, calendario, reportes |
-| **Professional** | $79 | 2,000 | 21 | 90 días | + API, analytics, backups 4h |
-| **Enterprise** | $299 | ∞ | ∞ | 365 días | + SLA, webhooks, backups continuos |
-
-## 🔧 Variables de Entorno
-
-### Backend (server/)
-
-| Variable | Requerida | Default | Descripción |
-|----------|-----------|---------|-------------|
-| `JWT_SECRET` | ✅ | — | Secret para JWT (min 32 chars) |
-| `JWT_REFRESH_SECRET` | ❌ | auto-derived | Secret para refresh tokens |
-| `ENCRYPTION_KEY` | ✅ prod | — | Llave AES-256-GCM (64 hex chars) |
-| `PII_ENCRYPTION_KEY` | ❌ | = ENCRYPTION_KEY | Llave PII (forward compat) |
-| `DB_HOST` | ❌ | `localhost` | Host PostgreSQL |
-| `DB_PASSWORD` | ✅ prod | — | Password PostgreSQL |
-| `NODE_ENV` | ❌ | `development` | `production` relaja rate limits, deshabilita Swagger |
-| `ALLOWED_ORIGINS` | ✅ prod | — | Origins permitidos (coma-separados) |
-| `PRODUCTION_DOMAIN` | ❌ | — | Dominio prod (permite subdomains en CORS) |
-| `ALLOW_SWAGGER` | ❌ | `false` | `true` habilita Swagger en prod (debug only) |
-
-### Frontend (apps Next.js)
-
-| Variable | Requerida | Default | Descripción |
-|----------|-----------|---------|-------------|
-| `NEXT_PUBLIC_API_URL` | ✅ | `http://localhost:3001` | URL del backend Express |
-
-Ver `.env.example` para la lista completa.
-
-## 🧪 Testing & CI
-
-```bash
-# Lint todo
-pnpm lint
-
-# Typecheck todo
-pnpm typecheck
-
-# Build todo
-pnpm build
-
-# Tests unit + integration (server)
-pnpm test:server        # 321 tests · Vitest
-
-# E2E (Playwright)
-pnpm e2e                # 39 tests · 5 apps
-pnpm e2e:ui             # modo interactivo
-pnpm e2e:report         # ver reporte HTML
-```
-
-### CI Pipeline (GitHub Actions)
-
-| Workflow | Descripción |
-|----------|-------------|
-| **ci.yml** | Lint + typecheck + build + test (matrix por package) |
-| **security.yml** | `pnpm audit --audit-level=high` en cada PR |
-| **pr.yml** | Validación de PRs + conventional commits |
-| **deploy.yml** | Build + push a registry en merge a main |
-
-## 📊 Estado del Proyecto
-
-| Componente | Tests | Estado |
-|-----------|-------|--------|
-| Backend (server/) | 321 passing | ✅ Producción |
-| Landing (Next.js 14) | — | ✅ Migrada |
-| Platform / Admin / Auditor / System | — | ⏳ Migración Next pendiente |
-| E2E (Playwright) | 39 passing | ✅ 5 apps |
-| Seguridad | 3 suites | ✅ 8.4/10 scorecard |
 
 ## 📜 Licencia
 

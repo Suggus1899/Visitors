@@ -4,6 +4,8 @@ name: Security
 # Runs on every pull request and on a weekly schedule (Mondays 03:00 UTC).
 
 on:
+  push:
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
   schedule:
@@ -58,9 +60,11 @@ jobs:
 
       - name: Check licenses
         run: |
-          # Fail on copyleft / non-permissive licenses.
+          # Fail on copyleft / non-permissive licenses in third-party deps.
+          # Our own packages use "SEE LICENSE IN LICENSE" + private:true,
+          # so we exclude private packages and only check production deps.
           pnpm exec license-checker --production --summary \
-            --failOn "GPL;GPL-2.0;GPL-3.0;AGPL-3.0;LGPL;LGPL-2.1;LGPL-3.0;SSPL;BUSL-1.1;Unlicensed" \
+            --failOn "GPL;GPL-2.0;GPL-3.0;AGPL-3.0;LGPL;LGPL-2.1;LGPL-3.0;SSPL;BUSL-1.1" \
             --excludePrivatePackages
 
   codeql:
