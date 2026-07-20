@@ -3,13 +3,21 @@ import { UserRole } from '../entities/User.entity';
 export interface TokenUser {
   id?: number;
   username: string;
-  role: UserRole;
+  role?: UserRole;
+  email?: string | null;
+  tenantId?: number;
+  tenantSlug?: string;
 }
 
 export interface TokenPayload {
+  /** JWT standard subject: user id. `id` remains for legacy middleware. */
+  sub: number;
   id: number;
   username: string;
-  role: UserRole;
+  email?: string | null;
+  tid?: number;
+  tslug?: string;
+  role?: UserRole;
 }
 
 export interface TokenPair {

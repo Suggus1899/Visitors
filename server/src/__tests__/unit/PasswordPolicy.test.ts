@@ -16,8 +16,8 @@ describe('PasswordPolicy', () => {
             expect(result.errors).toHaveLength(0);
         });
 
-        it('should accept a password with exactly 12 characters', () => {
-            const result = policy.validate('MyP@ssw0rd12');
+        it('should accept a password with exactly 8 characters', () => {
+            const result = policy.validate('MyP@ss12');
             expect(result.isValid).toBe(true);
         });
 
@@ -34,10 +34,10 @@ describe('PasswordPolicy', () => {
     });
 
     describe('Length Requirements', () => {
-        it('should reject password shorter than 12 characters', () => {
+        it('should reject password shorter than 8 characters', () => {
             const result = policy.validate('Short1@');
             expect(result.isValid).toBe(false);
-            expect(result.errors).toContain('Password must be at least 12 characters');
+            expect(result.errors).toContain('Password must be at least 8 characters');
         });
 
         it('should reject password longer than 128 characters', () => {

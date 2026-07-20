@@ -1,0 +1,111 @@
+# ============================================================
+# LogMaster — Development Docker Compose override
+# ============================================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#   (or set COMPOSE_FILE in .env)
+# Mounts source code as volumes so changes do not require rebuilds.
+# ============================================================
+
+services:
+  postgres:
+    ports:
+      - "5433:5432"
+
+  server:
+    build:
+      target: builder
+    working_dir: /app/server
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+    volumes:
+      - ./server/src:/app/server/src
+      - ./server/package.json:/app/server/package.json
+      - ./server/tsconfig.json:/app/server/tsconfig.json
+      - ./server/nodemon.json:/app/server/nodemon.json
+      - server_data:/app/data
+      - server_backups:/app/backups
+    command: ["pnpm", "exec", "nodemon"]
+    healthcheck:
+      disable: true
+
+  landing:
+    build:
+      target: builder
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/landing/src:/app/apps/landing/src
+      - ./apps/landing/public:/app/apps/landing/public
+      - ./apps/landing/index.html:/app/apps/landing/index.html
+      - ./apps/landing/vite.config.ts:/app/apps/landing/vite.config.ts
+      - ./apps/landing/package.json:/app/apps/landing/package.json
+      - ./packages:/app/packages
+    ports:
+      - "5173:5173"
+    command: ["pnpm", "--dir", "apps/landing", "run", "dev", "--", "--host", "0.0.0.0"]
+
+  platform:
+    build:
+      target: builder
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/platform/src:/app/apps/platform/src
+      - ./apps/platform/public:/app/apps/platform/public
+      - ./apps/platform/index.html:/app/apps/platform/index.html
+      - ./apps/platform/vite.config.ts:/app/apps/platform/vite.config.ts
+      - ./apps/platform/package.json:/app/apps/platform/package.json
+      - ./packages:/app/packages
+    ports:
+      - "5174:5174"
+    command: ["pnpm", "--dir", "apps/platform", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5174"]
+
+  admin:
+    build:
+      target: builder
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/admin/src:/app/apps/admin/src
+      - ./apps/admin/public:/app/apps/admin/public
+      - ./apps/admin/index.html:/app/apps/admin/index.html
+      - ./apps/admin/vite.config.ts:/app/apps/admin/vite.config.ts
+      - ./apps/admin/package.json:/app/apps/admin/package.json
+      - ./packages:/app/packages
+    ports:
+      - "5175:5175"
+    command: ["pnpm", "--dir", "apps/admin", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5175"]
+
+  auditor:
+    build:
+      target: builder
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/auditor/src:/app/apps/auditor/src
+      - ./apps/auditor/public:/app/apps/auditor/public
+      - ./apps/auditor/index.html:/app/apps/auditor/index.html
+      - ./apps/auditor/vite.config.ts:/app/apps/auditor/vite.config.ts
+      - ./apps/auditor/package.json:/app/apps/auditor/package.json
+      - ./packages:/app/packages
+    ports:
+      - "5176:5176"
+    command: ["pnpm", "--dir", "apps/auditor", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5176"]
+
+  system:
+    build:
+      target: builder
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/system/src:/app/apps/system/src
+      - ./apps/system/public:/app/apps/system/public
+      - ./apps/system/index.html:/app/apps/system/index.html
+      - ./apps/system/vite.config.ts:/app/apps/system/vite.config.ts
+      - ./apps/system/package.json:/app/apps/system/package.json
+      - ./packages:/app/packages
+    ports:
+      - "5177:5177"
+    command: ["pnpm", "--dir", "apps/system", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5177"]

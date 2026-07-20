@@ -5,7 +5,7 @@ import { VisitRealtimeEvent } from '../domain/services/IEventEmitter';
 
 const router = express.Router();
 
-router.get('/v1/events/visits', verifySseToken, (_req: Request, res: Response) => {
+router.get('/v1/events/visits', verifySseToken, (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
@@ -14,7 +14,15 @@ router.get('/v1/events/visits', verifySseToken, (_req: Request, res: Response) =
     res.flushHeaders();
   }
 
+  // Tenant scope for this SSE connection. Events emitted without a tenantId
+  // (e.g. system:connected) are always delivered; visit events are delivered
+  // only when their tenantId matches the authenticated user's tenant.
+  const tenantScope = req.user?.tid;
+
   const send = (event: VisitRealtimeEvent) => {
+    if (event.tenantId !== undefined && event.tenantId !== tenantScope) {
+      return;
+    }
     res.write(`data: ${JSON.stringify(event)}\n\n`);
   };
 
@@ -31,7 +39,7 @@ router.get('/v1/events/visits', verifySseToken, (_req: Request, res: Response) =
     send(event);
   });
 
-  _req.on('close', () => {
+  req.on('close', () => {
     clearInterval(heartbeat);
     unsubscribe();
     res.end();

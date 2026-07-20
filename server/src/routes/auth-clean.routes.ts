@@ -1,8 +1,8 @@
 import express from 'express';
 import * as AuthCleanController from '../controllers/AuthCleanController';
-import { authLimiter } from '../middleware/rateLimiter';
+import { authLimiter, refreshLimiter, demoLimiter } from '../middleware/rateLimiter';
 import { validate } from '../middleware/validate';
-import { loginSchema, forgotPasswordSchema, resetPasswordSchema, refreshTokenSchema, changePasswordSchema } from '../schemas/auth.schema';
+import { loginSchema, forgotPasswordSchema, resetPasswordSchema, refreshTokenSchema, changePasswordSchema, selectTenantSchema, createDemoSchema } from '../schemas/auth.schema';
 import { asyncHandler } from '../utils/asyncHandler';
 import { verifyToken } from '../middleware/auth';
 
@@ -154,7 +154,7 @@ router.post('/v1/auth/reset-password', authLimiter, validate(resetPasswordSchema
  *       401:
  *         description: Invalid or expired refresh token
  */
-router.post('/v1/auth/refresh', authLimiter, validate(refreshTokenSchema), asyncHandler(AuthCleanController.refreshToken));
+router.post('/v1/auth/refresh', refreshLimiter, validate(refreshTokenSchema), asyncHandler(AuthCleanController.refreshToken));
 
 /**
  * @swagger
@@ -189,5 +189,80 @@ router.post('/v1/auth/refresh', authLimiter, validate(refreshTokenSchema), async
  *         description: Invalid current password
  */
 router.post('/v1/auth/change-password', verifyToken, validate(changePasswordSchema), asyncHandler(AuthCleanController.changePassword));
+
+/**
+ * @swagger
+ * /auth/tenants:
+ *   get:
+ *     summary: List tenants the authenticated user belongs to
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of tenants with the user role in each
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/v1/auth/tenants', verifyToken, asyncHandler(AuthCleanController.listTenants));
+
+/**
+ * @swagger
+ * /auth/select-tenant:
+ *   post:
+ *     summary: Select a working tenant and receive a tenant-scoped access token
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tenantSlug
+ *             properties:
+ *               tenantSlug:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: New tenant-scoped access token
+ *       403:
+ *         description: Forbidden or tenant unavailable
+ */
+router.post('/v1/auth/select-tenant', verifyToken, validate(selectTenantSchema), asyncHandler(AuthCleanController.selectTenant));
+
+/**
+ * @swagger
+ * /auth/demo:
+ *   post:
+ *     summary: Create a demo tenant with pre-provisioned users and seed data
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               company:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Demo tenant created
+ *       429:
+ *         description: Rate limit exceeded
+ */
+router.post('/v1/auth/demo', demoLimiter, validate(createDemoSchema), asyncHandler(AuthCleanController.createDemo));
 
 export default router;

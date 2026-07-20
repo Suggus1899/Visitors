@@ -1,20 +1,33 @@
 import { IUserRepository } from '../../../domain/repositories/IUserRepository';
 import { IAuditLogRepository } from '../../../domain/repositories/IAuditLogRepository';
-import { IAuthService } from '../../../domain/services/IAuthService';
-import { LoginDto, AuthResponseDto } from '../../dto/AuthDto';
+import { ITenantUserRepository, TenantMembershipWithTenant } from '../../../domain/repositories/ITenantUserRepository';
+import { IAuthService, TokenUser } from '../../../domain/services/IAuthService';
+import { LoginDto, AuthResponseDto, TenantSummaryDto } from '../../dto/AuthDto';
+import { TenantEntity } from '../../../domain/entities/Tenant.entity';
 import config from '../../../config/AppConfig';
 import bcrypt from 'bcryptjs';
 import logger from '../../../config/logger';
+
+/**
+ * Returns true when the tenant is usable for login (not suspended and, for demo
+ * tenants, the demo window has not expired).
+ */
+export const isTenantAccessible = (tenant: TenantEntity): boolean => {
+  if (tenant.status === 'suspended') return false;
+  if (tenant.isDemo && tenant.demoExpiresAt && tenant.demoExpiresAt < new Date()) return false;
+  return true;
+};
 
 export class LoginUseCase {
   constructor(
     private userRepository: IUserRepository,
     private authService: IAuthService,
-    private auditLogRepository: IAuditLogRepository
+    private auditLogRepository: IAuditLogRepository,
+    private tenantUserRepository: ITenantUserRepository
   ) { }
 
   async execute(credentials: LoginDto): Promise<AuthResponseDto> {
-    const user = await this.userRepository.findByUsername(credentials.username);
+    const user = await this.findUserByIdentifier(credentials.username);
 
     if (!user) {
       throw new Error('INVALID_CREDENTIALS');
@@ -45,6 +58,7 @@ export class LoginUseCase {
 
         try {
           await this.auditLogRepository.log({
+            tenantId: 0,
             userId: user.id!,
             username: user.username,
             action: 'ACCOUNT_LOCKED',
@@ -87,17 +101,97 @@ export class LoginUseCase {
       logger.error('Failed to check/update bcrypt rounds:', error);
     }
 
-    const tokenPair = this.authService.generateTokenPair(user);
+    // Resolve tenant memberships to decide token context.
+    const memberships = await this.tenantUserRepository.findByUserIdWithTenant(user.id!);
+    const accessibleMemberships = memberships.filter(m => isTenantAccessible(m.tenant));
+
+    const refreshToken = this.authService.generateRefreshToken(this.toTokenUser(user, undefined, undefined, undefined));
+
+    let accessToken: string;
+    let responseRole: AuthResponseDto['user']['role'];
+    let tenants: TenantSummaryDto[] | undefined;
+    let requiresTenantSelection = false;
+
+    if (accessibleMemberships.length === 1) {
+      const membership = accessibleMemberships[0];
+      accessToken = this.authService.generateAccessToken(
+        this.toTokenUser(user, membership.tenant.id!, membership.tenant.slug, membership.role)
+      );
+      responseRole = membership.role;
+    } else if (accessibleMemberships.length > 1) {
+      // Multiple tenants: issue a tenant-agnostic token so the frontend can
+      // call /auth/select-tenant to pick the working context.
+      accessToken = this.authService.generateAccessToken(this.toTokenUser(user, 0, '', undefined));
+      responseRole = user.role;
+      tenants = accessibleMemberships.map(m => this.toTenantSummary(m));
+      requiresTenantSelection = true;
+    } else {
+      // No accessible memberships. Super admins get a root token; regular users
+      // get a tenant-agnostic token with their legacy role (effectively unusable
+      // for tenant-scoped operations until they are granted a membership).
+      const role = user.isSuperAdmin ? 'root' : user.role;
+      accessToken = this.authService.generateAccessToken(this.toTokenUser(user, 0, '', role));
+      responseRole = role;
+    }
 
     return {
-      token: tokenPair.accessToken,
-      accessToken: tokenPair.accessToken,
-      refreshToken: tokenPair.refreshToken,
+      token: accessToken,
+      accessToken,
+      refreshToken,
       user: {
+        id: user.id,
         username: user.username,
-        role: user.role,
+        role: responseRole,
+        email: user.email,
         mustChangePassword: user.mustChangePassword || false
-      }
+      },
+      tenants,
+      requiresTenantSelection
+    };
+  }
+
+  /**
+   * Resolve a login identifier to a user. Accepts either a username or an email
+   * address (detected via the presence of `@`).
+   */
+  private async findUserByIdentifier(identifier: string) {
+    if (identifier.includes('@')) {
+      const byEmail = await this.userRepository.findByEmail(identifier);
+      if (byEmail) return byEmail;
+      // Fall back to username lookup in case a username legitimately contains `@`.
+      return this.userRepository.findByUsername(identifier);
+    }
+    const byUsername = await this.userRepository.findByUsername(identifier);
+    if (byUsername) return byUsername;
+    return this.userRepository.findByEmail(identifier);
+  }
+
+  private toTokenUser(
+    user: { id?: number; username: string; email?: string | null },
+    tenantId: number | undefined,
+    tenantSlug: string | undefined,
+    role: TokenUser['role']
+  ): TokenUser {
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      tenantId,
+      tenantSlug,
+      role
+    };
+  }
+
+  private toTenantSummary(membership: TenantMembershipWithTenant): TenantSummaryDto {
+    return {
+      id: membership.tenant.id!,
+      slug: membership.tenant.slug,
+      name: membership.tenant.name,
+      role: membership.role,
+      status: membership.tenant.status || 'active',
+      isDemo: !!membership.tenant.isDemo,
+      plan: membership.tenant.subscriptionPlan || 'free',
+      subscriptionExpiresAt: membership.tenant.subscriptionExpiresAt || null
     };
   }
 }

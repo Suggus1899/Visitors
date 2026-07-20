@@ -1,0 +1,99 @@
+name: Security
+
+# Security checks for the LogMaster monorepo.
+# Runs on every pull request and on a weekly schedule (Mondays 03:00 UTC).
+
+on:
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit (high and above)
+        run: pnpm audit --audit-level=high
+        continue-on-error: ${{ github.event_name == 'schedule' }}
+
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install license-checker
+        run: pnpm add -w -D license-checker
+
+      - name: Check licenses
+        run: |
+          # Fail on copyleft / non-permissive licenses.
+          pnpm exec license-checker --production --summary \
+            --failOn "GPL;GPL-2.0;GPL-3.0;AGPL-3.0;LGPL;LGPL-2.1;LGPL-3.0;SSPL;BUSL-1.1;Unlicensed" \
+            --excludePrivatePackages
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # Use default security queries; add extended if needed.
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
+
+  secret-scan:
+    name: Secret Scan (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: .
+          extra_args: --debug --only-verified

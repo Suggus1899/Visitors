@@ -6,6 +6,7 @@ export class GetAuditLogsUseCase {
   constructor(private readonly auditLogRepository: IAuditLogRepository) {}
 
   async execute(filter?: AuditLogFilters): Promise<{ logs: AuditLogEntity[]; total: number }> {
-    return await this.auditLogRepository.findAll(filter);
+    // SuperAdmin queries are global (cross-tenant); tenantId=0 means "all tenants"
+    return await this.auditLogRepository.findAll(0, filter);
   }
 }

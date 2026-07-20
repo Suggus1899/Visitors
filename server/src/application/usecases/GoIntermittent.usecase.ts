@@ -10,8 +10,8 @@ export class GoIntermittentUseCase {
     private intermittentLogRepository: IIntermittentLogRepository
   ) {}
 
-  async execute(visitId: number, notes?: string): Promise<VisitResponseDto> {
-    const visit = await this.visitRepository.findById(visitId);
+  async execute(tenantId: number, visitId: number, notes?: string): Promise<VisitResponseDto> {
+    const visit = await this.visitRepository.findById(tenantId, visitId);
 
     if (!visit) {
       throw new Error('Visit not found');
@@ -23,12 +23,12 @@ export class GoIntermittentUseCase {
 
     const intermittentVisit = visit.goIntermittent();
 
-    const updatedVisit = await this.visitRepository.update(visitId, {
+    const updatedVisit = await this.visitRepository.update(tenantId, visitId, {
       status: intermittentVisit.status
     });
 
     const exitTime = new Date();
-    await this.intermittentLogRepository.create({
+    await this.intermittentLogRepository.create(tenantId, {
       visitId,
       checkOut: exitTime,
       notes: notes || null,

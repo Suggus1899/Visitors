@@ -1,0 +1,47 @@
+# Dependencies
+**/node_modules
+node_modules
+
+# Build artifacts
+**/dist
+**/build
+dist
+build
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+
+# Logs
+**/*.log
+logs
+
+# Test / coverage
+**/coverage
+coverage
+**/.nyc_output
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+**/Dockerfile
+docker-compose*.yml
+
+# Misc
+backups
+data
+*.md
+.husky
+.github
+.devin

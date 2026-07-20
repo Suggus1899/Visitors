@@ -10,19 +10,19 @@ import Encryption from '../../../utils/Encryption';
  * Adapts between domain entities and Sequelize models
  */
 export class SequelizeVisitorRepository implements IVisitorRepository {
-  async findByCedula(cedula: string): Promise<Visitor | null> {
+  async findByCedula(tenantId: number, cedula: string): Promise<Visitor | null> {
     const hashed = Encryption.hash(cedula);
-    const model = await VisitorModel.findOne({ where: { cedula: hashed } });
+    const model = await VisitorModel.findOne({ where: { tenantId, cedula: hashed } });
     return model ? this.toDomain(model) : null;
   }
 
-  async findById(id: number): Promise<Visitor | null> {
-    const model = await VisitorModel.findByPk(id);
+  async findById(tenantId: number, id: number): Promise<Visitor | null> {
+    const model = await VisitorModel.findOne({ where: { id, tenantId } });
     return model ? this.toDomain(model) : null;
   }
 
-  async findByCedulaWithHistory(cedula: string, historyLimit: number = 5): Promise<{ visitor: Visitor | null; history: VisitEntity[] }> {
-    const visitor = await this.findByCedula(cedula);
+  async findByCedulaWithHistory(tenantId: number, cedula: string, historyLimit: number = 5): Promise<{ visitor: Visitor | null; history: VisitEntity[] }> {
+    const visitor = await this.findByCedula(tenantId, cedula);
     if (!visitor) {
       return { visitor: null, history: [] };
     }
@@ -31,7 +31,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     const VisitModel = (await import('../../../models/Visit')).default;
     const hashedCedula = Encryption.hash(cedula);
     const history = await VisitModel.findAll({
-      where: { visitor_cedula: hashedCedula },
+      where: { tenantId, visitor_cedula: hashedCedula },
       order: [['check_in_time', 'DESC']],
       limit: historyLimit
     });
@@ -40,8 +40,8 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return { visitor, history: mappedHistory };
   }
 
-  async findAll(filters?: VisitorFilters): Promise<Visitor[]> {
-    const where: WhereOptions = {};
+  async findAll(tenantId: number, filters?: VisitorFilters): Promise<Visitor[]> {
+    const where: WhereOptions = { tenantId };
 
     // Encryption limits partial search capabilities.
     // Exact match on company is still possible if we stored company identically? 
@@ -72,7 +72,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return models.map(m => this.toDomain(m));
   }
 
-  async search(query: string): Promise<Visitor[]> {
+  async search(tenantId: number, query: string): Promise<Visitor[]> {
     // Search is severely limited by encryption.
     // We can only reliably search by Exact Cedula (Blind Index).
     // Searching by Name or partial text is not supported with current encryption scheme.
@@ -80,7 +80,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     const hashed = Encryption.hash(query);
     
     // Check if it matches a cedula
-    const byCedula = await VisitorModel.findByPk(hashed);
+    const byCedula = await VisitorModel.findOne({ where: { tenantId, cedula: hashed } });
     if (byCedula) {
         return [this.toDomain(byCedula)];
     }
@@ -88,6 +88,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     // Fallback: Search by Company (Unencrypted)
     const byCompany = await VisitorModel.findAll({
         where: {
+            tenantId,
             company: { [Op.like]: `%${query}%` }
         },
         limit: 20
@@ -96,9 +97,10 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return byCompany.map(m => this.toDomain(m));
   }
 
-  async create(visitor: Visitor, photoData?: Buffer, idPhotoData?: Buffer): Promise<Visitor> {
+  async create(tenantId: number, visitor: Visitor, photoData?: Buffer, idPhotoData?: Buffer): Promise<Visitor> {
     // Model hooks handle encryption
     const model = await VisitorModel.create({
+      tenantId,
       cedula: visitor.cedula,
       first_name: visitor.firstName,
       last_name: visitor.lastName,
@@ -118,9 +120,9 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return this.toDomain(model);
   }
 
-  async update(cedula: string, data: Partial<VisitorEntity>): Promise<Visitor> {
+  async update(tenantId: number, cedula: string, data: Partial<VisitorEntity>): Promise<Visitor> {
     const hashed = Encryption.hash(cedula);
-    const model = await VisitorModel.findOne({ where: { cedula: hashed } });
+    const model = await VisitorModel.findOne({ where: { tenantId, cedula: hashed } });
     
     if (!model) {
       throw new Error('Visitor not found');
@@ -145,8 +147,8 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return this.toDomain(model);
   }
 
-  async updateById(id: number, data: Partial<VisitorEntity>): Promise<Visitor> {
-    const model = await VisitorModel.findByPk(id);
+  async updateById(tenantId: number, id: number, data: Partial<VisitorEntity>): Promise<Visitor> {
+    const model = await VisitorModel.findOne({ where: { id, tenantId } });
     
     if (!model) {
       throw new Error('Visitor not found');
@@ -170,41 +172,41 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return this.toDomain(model);
   }
 
-  async getPhotoBlob(cedula: string): Promise<Buffer | null> {
+  async getPhotoBlob(tenantId: number, cedula: string): Promise<Buffer | null> {
     const hashed = Encryption.hash(cedula);
     const model = await VisitorModel.findOne({
-      where: { cedula: hashed },
+      where: { tenantId, cedula: hashed },
       attributes: ['photo_data']
     });
     return model?.photo_data || null;
   }
 
-  async getIdPhotoBlob(cedula: string): Promise<Buffer | null> {
+  async getIdPhotoBlob(tenantId: number, cedula: string): Promise<Buffer | null> {
     const hashed = Encryption.hash(cedula);
     const model = await VisitorModel.findOne({
-      where: { cedula: hashed },
+      where: { tenantId, cedula: hashed },
       attributes: ['id_photo_data']
     });
     return model?.id_photo_data || null;
   }
 
-  async delete(cedula: string): Promise<void> {
+  async delete(tenantId: number, cedula: string): Promise<void> {
     const hashed = Encryption.hash(cedula);
-    await VisitorModel.destroy({ where: { cedula: hashed } });
+    await VisitorModel.destroy({ where: { tenantId, cedula: hashed } });
   }
 
-  async deleteById(id: number): Promise<void> {
-    await VisitorModel.destroy({ where: { id } });
+  async deleteById(tenantId: number, id: number): Promise<void> {
+    await VisitorModel.destroy({ where: { tenantId, id } });
   }
 
-  async exists(cedula: string): Promise<boolean> {
+  async exists(tenantId: number, cedula: string): Promise<boolean> {
     const hashed = Encryption.hash(cedula);
-    const count = await VisitorModel.count({ where: { cedula: hashed } });
+    const count = await VisitorModel.count({ where: { tenantId, cedula: hashed } });
     return count > 0;
   }
 
-  async count(filters?: VisitorFilters): Promise<number> {
-    const where: WhereOptions = {};
+  async count(tenantId: number, filters?: VisitorFilters): Promise<number> {
+    const where: WhereOptions = { tenantId };
 
     if (filters?.company) {
       where.company = { [Op.like]: `%${filters.company}%` };
@@ -213,8 +215,8 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return await VisitorModel.count({ where });
   }
 
-  async findDistinctCompanies(query?: string): Promise<string[]> {
-    const where: WhereOptions = {};
+  async findDistinctCompanies(tenantId: number, query?: string): Promise<string[]> {
+    const where: WhereOptions = { tenantId };
     
     if (query) {
       where.company = { [Op.like]: `%${query}%` };

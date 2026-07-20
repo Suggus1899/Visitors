@@ -5,6 +5,8 @@ export interface UserEntity {
   username: string;
   password?: string; // Hashed
   role: UserRole;
+  email?: string | null;
+  isSuperAdmin?: boolean;
   resetToken?: string | null;
   resetTokenExpiry?: Date | null;
   // Password policy fields
@@ -26,7 +28,9 @@ export class User {
     public readonly mustChangePassword?: boolean,
     public readonly passwordChangedAt?: Date | null,
     public readonly loginAttempts?: number,
-    public readonly lockedUntil?: Date | null
+    public readonly lockedUntil?: Date | null,
+    public readonly email?: string | null,
+    public readonly isSuperAdmin?: boolean
   ) { }
 
   isAdmin(): boolean {
@@ -45,7 +49,9 @@ export class User {
       obj.mustChangePassword,
       obj.passwordChangedAt,
       obj.loginAttempts,
-      obj.lockedUntil
+      obj.lockedUntil,
+      obj.email,
+      obj.isSuperAdmin
     );
   }
 }

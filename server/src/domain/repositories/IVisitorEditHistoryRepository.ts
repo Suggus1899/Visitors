@@ -4,6 +4,7 @@
  */
 export interface VisitorEditHistoryEntity {
   id?: number;
+  tenantId: number;
   visitId: number;
   visitorId: number;
   field: string;
@@ -18,15 +19,15 @@ export interface IVisitorEditHistoryRepository {
   /**
    * Create a single edit history record
    */
-  create(entry: Omit<VisitorEditHistoryEntity, 'id' | 'editedAt'>): Promise<VisitorEditHistoryEntity>;
+  create(tenantId: number, entry: Omit<VisitorEditHistoryEntity, 'id' | 'editedAt' | 'tenantId'>): Promise<VisitorEditHistoryEntity>;
 
   /**
    * Find all edit history records for a specific visit
    */
-  findByVisitId(visitId: number): Promise<VisitorEditHistoryEntity[]>;
+  findByVisitId(tenantId: number, visitId: number): Promise<VisitorEditHistoryEntity[]>;
 
   /**
    * Find all edit history records for a specific visitor
    */
-  findByVisitorId(visitorId: number): Promise<VisitorEditHistoryEntity[]>;
+  findByVisitorId(tenantId: number, visitorId: number): Promise<VisitorEditHistoryEntity[]>;
 }

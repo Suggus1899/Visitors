@@ -15,7 +15,7 @@ export class CheckInVisitorUseCase {
     private visitRepository: IVisitRepository
   ) { }
 
-  async execute(dto: CheckInDto): Promise<VisitResponseDto> {
+  async execute(tenantId: number, dto: CheckInDto): Promise<VisitResponseDto> {
     if (!dto.consent?.accepted) {
       throw new Error('Consent is required before processing check-in');
     }
@@ -24,7 +24,7 @@ export class CheckInVisitorUseCase {
     const mergedNotes = [dto.notes, consentAuditNote].filter(Boolean).join(' ');
 
     // 1. Check if visitor exists, if not create new visitor
-    let visitor = await this.visitorRepository.findByCedula(dto.visitorCedula);
+    let visitor = await this.visitorRepository.findByCedula(tenantId, dto.visitorCedula);
 
     if (!visitor && dto.visitorData) {
       // Create new visitor — photos stored as BYTEA in PostgreSQL
@@ -59,7 +59,7 @@ export class CheckInVisitorUseCase {
         new Date() // createdAt
       );
 
-      visitor = await this.visitorRepository.create(visitor, photoData, idPhotoData);
+      visitor = await this.visitorRepository.create(tenantId, visitor, photoData, idPhotoData);
     } else if (visitor && dto.visitorData) {
       const updateData: any = {};
       if (dto.visitorData.photoBase64?.startsWith('data:')) {
@@ -71,7 +71,7 @@ export class CheckInVisitorUseCase {
         updateData.idPhotoBlob = Buffer.from(base64Clean, 'base64');
       }
       if (updateData.photoBlob || updateData.idPhotoBlob) {
-        await this.visitorRepository.update(dto.visitorCedula, updateData);
+        await this.visitorRepository.update(tenantId, dto.visitorCedula, updateData);
       }
     } else if (!visitor) {
       throw new Error('Visitor not found and no visitor data provided');
@@ -83,7 +83,7 @@ export class CheckInVisitorUseCase {
     }
 
     // 2. Check if visitor already has an open visit (active, intermittent, or waiting)
-    const existingVisits = await this.visitRepository.findByVisitor(dto.visitorCedula);
+    const existingVisits = await this.visitRepository.findByVisitor(tenantId, dto.visitorCedula);
     const openVisit = existingVisits.find(v => v.isActive() || v.status === VisitStatus.WAITING);
 
     if (openVisit) {
@@ -135,7 +135,7 @@ export class CheckInVisitorUseCase {
       entryTime,   // entryTime - solo si es active directo
     );
 
-    const createdVisit = await this.visitRepository.create(visit);
+    const createdVisit = await this.visitRepository.create(tenantId, visit);
 
     // 4. Return response
     return VisitMapper.toVisitResponseDto(createdVisit, visitor);

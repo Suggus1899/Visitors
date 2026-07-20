@@ -9,8 +9,9 @@ import {
 import ArcoRequest from '../../../models/ArcoRequest';
 
 export class SequelizeArcoRequestRepository implements IArcoRequestRepository {
-  async create(data: CreateArcoRequestData): Promise<ArcoRequestEntity> {
+  async create(tenantId: number, data: CreateArcoRequestData): Promise<ArcoRequestEntity> {
     const record = await ArcoRequest.create({
+      tenantId,
       requestType: data.requestType,
       subjectCedulaHash: data.subjectCedulaHash,
       subjectCedulaEncrypted: data.subjectCedulaEncrypted,
@@ -24,13 +25,13 @@ export class SequelizeArcoRequestRepository implements IArcoRequestRepository {
     return this.toDomain(record);
   }
 
-  async findById(id: number): Promise<ArcoRequestEntity | null> {
-    const record = await ArcoRequest.findByPk(id);
+  async findById(tenantId: number, id: number): Promise<ArcoRequestEntity | null> {
+    const record = await ArcoRequest.findOne({ where: { tenantId, id } });
     return record ? this.toDomain(record) : null;
   }
 
-  async findAll(filters?: ArcoRequestFilters): Promise<{ rows: ArcoRequestEntity[]; count: number }> {
-    const where: Record<string, unknown> = {};
+  async findAll(tenantId: number, filters?: ArcoRequestFilters): Promise<{ rows: ArcoRequestEntity[]; count: number }> {
+    const where: Record<string, unknown> = { tenantId };
     if (filters?.status) where.status = filters.status;
     if (filters?.requestType) where.requestType = filters.requestType;
     if (filters?.search) {
@@ -54,8 +55,8 @@ export class SequelizeArcoRequestRepository implements IArcoRequestRepository {
     };
   }
 
-  async update(id: number, data: Partial<UpdateArcoRequestData>): Promise<ArcoRequestEntity | null> {
-    const record = await ArcoRequest.findByPk(id);
+  async update(tenantId: number, id: number, data: Partial<UpdateArcoRequestData>): Promise<ArcoRequestEntity | null> {
+    const record = await ArcoRequest.findOne({ where: { tenantId, id } });
     if (!record) return null;
     await record.update(data);
     return this.toDomain(record);
@@ -64,6 +65,7 @@ export class SequelizeArcoRequestRepository implements IArcoRequestRepository {
   private toDomain(model: typeof ArcoRequest.prototype): ArcoRequestEntity {
     return {
       id: model.id,
+      tenantId: model.tenantId,
       requestType: model.requestType,
       subjectCedulaHash: model.subjectCedulaHash,
       subjectCedulaEncrypted: model.subjectCedulaEncrypted,

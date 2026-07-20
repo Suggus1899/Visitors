@@ -6,6 +6,7 @@ export type ArcoRequestStatus = 'pending' | 'in_progress' | 'completed' | 'rejec
 
 class ArcoRequest extends Model<InferAttributes<ArcoRequest>, InferCreationAttributes<ArcoRequest>> {
     declare id: CreationOptional<number>;
+    declare tenantId: CreationOptional<number>;
     declare requestType: ArcoRequestType;
     declare subjectCedulaHash: string;
     declare subjectCedulaEncrypted: CreationOptional<string | null>;
@@ -26,6 +27,11 @@ ArcoRequest.init({
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
+    },
+    tenantId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: { model: 'Tenants', key: 'id' }
     },
     requestType: {
         type: DataTypes.ENUM('access', 'rectification', 'cancellation', 'opposition'),

@@ -53,6 +53,22 @@ interface AppConfig {
 
   // Edit protection
   editPassword: string;
+
+  // Multi-tenant SaaS
+  demoExpiryHours: number;
+  defaultTrialDays: number;
+  defaultTenantMaxUsers: number;
+  defaultTenantMaxVisitors: number;
+  freeVisitsPerMonth: number;
+  starterVisitsPerMonth: number;
+  professionalVisitsPerMonth: number;
+  freeMaxUsers: number;
+  starterMaxUsers: number;
+  professionalMaxUsers: number;
+  freeMaxVisitors: number;
+  starterMaxVisitors: number;
+  professionalMaxVisitors: number;
+  backupSchedulerPollMinutes: number;
 }
 
 class Config implements AppConfig {
@@ -105,7 +121,21 @@ class Config implements AppConfig {
   // Edit protection password (bcrypt hash or plaintext — compared with bcrypt.compare)
   editPassword = process.env.EDIT_PASSWORD || '';
 
-
+  // Multi-tenant SaaS
+  demoExpiryHours = parseInt(process.env.DEMO_EXPIRY_HOURS || '24', 10);
+  defaultTrialDays = parseInt(process.env.DEFAULT_TRIAL_DAYS || '14', 10);
+  defaultTenantMaxUsers = parseInt(process.env.DEFAULT_TENANT_MAX_USERS || '5', 10);
+  defaultTenantMaxVisitors = parseInt(process.env.DEFAULT_TENANT_MAX_VISITORS || '1000', 10);
+  freeVisitsPerMonth = parseInt(process.env.PLAN_FREE_VISITS_PER_MONTH || '100', 10);
+  starterVisitsPerMonth = parseInt(process.env.PLAN_STARTER_VISITS_PER_MONTH || '500', 10);
+  professionalVisitsPerMonth = parseInt(process.env.PLAN_PROFESSIONAL_VISITS_PER_MONTH || '2000', 10);
+  freeMaxUsers = parseInt(process.env.PLAN_FREE_MAX_USERS || '3', 10);
+  starterMaxUsers = parseInt(process.env.PLAN_STARTER_MAX_USERS || '7', 10);
+  professionalMaxUsers = parseInt(process.env.PLAN_PROFESSIONAL_MAX_USERS || '21', 10);
+  freeMaxVisitors = parseInt(process.env.PLAN_FREE_MAX_VISITORS || String(this.defaultTenantMaxVisitors), 10);
+  starterMaxVisitors = parseInt(process.env.PLAN_STARTER_MAX_VISITORS || '5000', 10);
+  professionalMaxVisitors = parseInt(process.env.PLAN_PROFESSIONAL_MAX_VISITORS || '25000', 10);
+  backupSchedulerPollMinutes = parseInt(process.env.BACKUP_SCHEDULER_POLL_MINUTES || '15', 10);
 
   validate() {
     const errors: string[] = [];

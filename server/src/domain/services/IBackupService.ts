@@ -3,6 +3,7 @@ export interface BackupFile {
   date: Date;
   sizeBytes: number;
   path: string;
+  tenantId?: number;
   restorePassword?: string; // Solo disponible al crear, no se almacena
 }
 
@@ -12,9 +13,10 @@ export interface BackupResult {
 }
 
 export interface IBackupService {
-  createBackup(): Promise<BackupResult>;
-  listBackups(): Promise<BackupFile[]>;
-  restoreBackup(filename: string, restorePassword: string): Promise<void>;
+  createBackup(tenantId?: number): Promise<BackupResult>;
+  listBackups(tenantId?: number): Promise<BackupFile[]>;
+  restoreBackup(filename: string, restorePassword: string, tenantId?: number): Promise<void>;
+  applyRetention(tenantId: number, keepLast: number | null): Promise<number>;
   deleteBackup(filename: string): Promise<void>;
   verifyRestorePassword(filename: string, password: string): Promise<boolean>;
 }

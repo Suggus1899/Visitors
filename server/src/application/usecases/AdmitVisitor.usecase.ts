@@ -6,8 +6,8 @@ import { VisitMapper } from '../mappers/VisitMapper';
 export class AdmitVisitorUseCase {
   constructor(private visitRepository: IVisitRepository) {}
 
-  async execute(visitId: number): Promise<VisitResponseDto> {
-    const visit = await this.visitRepository.findById(visitId);
+  async execute(tenantId: number, visitId: number): Promise<VisitResponseDto> {
+    const visit = await this.visitRepository.findById(tenantId, visitId);
 
     if (!visit) {
       throw new Error('Visit not found');
@@ -21,7 +21,7 @@ export class AdmitVisitorUseCase {
     const admittedVisit = visit.admit(now);
 
     // Preservar arrivalTime original y checkInTime, solo actualizar entryTime
-    const updatedVisit = await this.visitRepository.update(visitId, {
+    const updatedVisit = await this.visitRepository.update(tenantId, visitId, {
       checkInTime: visit.checkInTime,  // Preservar hora original de check-in
       arrivalTime: visit.arrivalTime,  // Preservar hora original de llegada
       entryTime: now,                  // Hora actual de entrada (cuando se admite)

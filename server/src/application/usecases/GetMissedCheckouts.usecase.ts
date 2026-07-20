@@ -10,11 +10,11 @@ export interface MissedCheckoutsDto {
 export class GetMissedCheckoutsUseCase {
   constructor(private visitRepository: IVisitRepository) {}
 
-  async execute(hoursThreshold: number = 8): Promise<MissedCheckoutsDto> {
+  async execute(tenantId: number, hoursThreshold: number = 8): Promise<MissedCheckoutsDto> {
     const thresholdDate = new Date();
     thresholdDate.setHours(thresholdDate.getHours() - hoursThreshold);
 
-    const missedVisits = await this.visitRepository.findMissedCheckouts(thresholdDate);
+    const missedVisits = await this.visitRepository.findMissedCheckouts(tenantId, thresholdDate);
 
     // Group by date
     const dateCounts: Record<string, number> = {};

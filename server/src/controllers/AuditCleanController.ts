@@ -4,6 +4,11 @@ import { container } from '../shared/Container';
 import { AuditLogFilters } from '../domain/repositories/IAuditLogRepository';
 import logger from '../config/logger';
 
+const requireTenantId = (req: Request): number => {
+  if (!req.tenantId) throw new Error('Tenant context is required');
+  return req.tenantId;
+};
+
 /**
  * Controller para endpoints de auditoría
  * Solo accesible por usuarios con rol 'auditor' o 'admin'
@@ -15,6 +20,7 @@ import logger from '../config/logger';
  */
 export const getLogs = async (req: Request, res: Response) => {
     try {
+        const tenantId = requireTenantId(req);
         const {
             page = '1',
             limit = '50',
@@ -43,7 +49,7 @@ export const getLogs = async (req: Request, res: Response) => {
             offset
         };
 
-        const { logs, total } = await container.auditLogRepository.findAll(filters);
+        const { logs, total } = await container.auditLogRepository.findAll(tenantId, filters);
 
         res.json(ResponseBuilder.success({
             logs: logs.map(log => ({
@@ -75,9 +81,9 @@ export const getLogs = async (req: Request, res: Response) => {
  * GET /api/v1/audit/stats
  * Obtener estadísticas de auditoría
  */
-export const getStats = async (_req: Request, res: Response) => {
+export const getStats = async (req: Request, res: Response) => {
     try {
-        const stats = await container.auditLogRepository.getStats();
+        const stats = await container.auditLogRepository.getStats(requireTenantId(req));
 
         res.json(ResponseBuilder.success({
             today: stats.today,
@@ -95,6 +101,7 @@ export const getStats = async (_req: Request, res: Response) => {
  */
 export const exportLogs = async (req: Request, res: Response) => {
     try {
+        const tenantId = requireTenantId(req);
         const { startDate, endDate, action, username } = req.query;
 
         const filters: AuditLogFilters = {
@@ -105,7 +112,7 @@ export const exportLogs = async (req: Request, res: Response) => {
             limit: 10000
         };
 
-        const { logs } = await container.auditLogRepository.findAll(filters);
+        const { logs } = await container.auditLogRepository.findAll(tenantId, filters);
 
         const headers = ['ID', 'Fecha', 'Usuario', 'Acción', 'Entidad', 'ID Entidad', 'Detalles', 'IP', 'User Agent'];
         const rows = logs.map(log => [
@@ -138,9 +145,9 @@ export const exportLogs = async (req: Request, res: Response) => {
  * GET /api/v1/audit/actions
  * Obtener lista de acciones únicas para filtros
  */
-export const getActions = async (_req: Request, res: Response) => {
+export const getActions = async (req: Request, res: Response) => {
     try {
-        const actions = await container.auditLogRepository.getDistinctActions();
+        const actions = await container.auditLogRepository.getDistinctActions(requireTenantId(req));
 
         res.json(ResponseBuilder.success(actions));
     } catch (error) {
@@ -153,9 +160,9 @@ export const getActions = async (_req: Request, res: Response) => {
  * GET /api/v1/audit/users
  * Obtener lista de usuarios para filtros
  */
-export const getUsers = async (_req: Request, res: Response) => {
+export const getUsers = async (req: Request, res: Response) => {
     try {
-        const users = await container.auditLogRepository.getDistinctUsers();
+        const users = await container.auditLogRepository.getDistinctUsers(requireTenantId(req));
 
         res.json(ResponseBuilder.success(users));
     } catch (error) {

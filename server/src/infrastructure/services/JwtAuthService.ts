@@ -12,8 +12,12 @@ export class JwtAuthService implements IAuthService {
    */
   generateAccessToken(user: TokenUser): string {
     const payload: TokenPayload = {
-      id: user.id!,
+      sub: user.id!,
+      id: user.id!, // legacy compatibility
       username: user.username,
+      email: user.email,
+      tid: user.tenantId,
+      tslug: user.tenantSlug,
       role: user.role
     };
     return jwt.sign(
@@ -28,10 +32,12 @@ export class JwtAuthService implements IAuthService {
    * Requirements: 3.1, 3.5
    */
   generateRefreshToken(user: TokenUser): string {
+    // Refresh tokens intentionally carry no tenant context; tenant selection is revalidated.
     const payload: TokenPayload = {
+      sub: user.id!,
       id: user.id!,
       username: user.username,
-      role: user.role
+      email: user.email
     };
     return jwt.sign(
       payload,
@@ -65,7 +71,7 @@ export class JwtAuthService implements IAuthService {
    */
   verifyAccessToken(token: string): TokenPayload | null {
     try {
-      const decoded = jwt.verify(token, config.jwtSecret) as TokenPayload;
+      const decoded = jwt.verify(token, config.jwtSecret) as unknown as TokenPayload;
       return decoded;
     } catch (error) {
       return null;
@@ -78,7 +84,7 @@ export class JwtAuthService implements IAuthService {
    */
   verifyRefreshToken(token: string): TokenPayload | null {
     try {
-      const decoded = jwt.verify(token, config.jwtRefreshSecret) as TokenPayload;
+      const decoded = jwt.verify(token, config.jwtRefreshSecret) as unknown as TokenPayload;
       return decoded;
     } catch (error) {
       return null;
@@ -97,8 +103,12 @@ export class JwtAuthService implements IAuthService {
 
     // Create new payload without exp/iat fields
     const newPayload: TokenPayload = {
+      sub: payload.sub || payload.id,
       id: payload.id,
       username: payload.username,
+      email: payload.email,
+      tid: payload.tid,
+      tslug: payload.tslug,
       role: payload.role
     };
 

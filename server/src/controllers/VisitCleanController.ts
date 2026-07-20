@@ -3,6 +3,11 @@ import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import logger from '../config/logger';
 
+const requireTenantId = (req: Request): number => {
+  if (!req.tenantId) throw new Error('Tenant context is required');
+  return req.tenantId;
+};
+
 /**
  * Clean Architecture Visit Controller
  * Uses use cases instead of direct model access
@@ -14,8 +19,9 @@ import logger from '../config/logger';
  */
 export const checkIn = async (req: Request, res: Response) => {
   try {
+    const tenantId = requireTenantId(req);
     const useCase = container.createCheckInVisitorUseCase();
-    const result = await useCase.execute(req.body);
+    const result = await useCase.execute(tenantId, req.body);
 
     const visitId = typeof (result as { id?: unknown }).id === 'number'
       ? (result as { id: number }).id
@@ -25,6 +31,7 @@ export const checkIn = async (req: Request, res: Response) => {
       type: 'visit:checked-in',
       timestamp: new Date().toISOString(),
       visitId,
+      tenantId,
     });
 
     res.status(201).json(ResponseBuilder.success(result));
@@ -51,7 +58,8 @@ export const checkOut = async (req: Request, res: Response) => {
     }
 
     const useCase = container.createCheckOutVisitorUseCase();
-    const result = await useCase.execute({
+    const tenantId = requireTenantId(req);
+    const result = await useCase.execute(tenantId, {
       visitId,
       notes: req.body.notes
     });
@@ -60,6 +68,7 @@ export const checkOut = async (req: Request, res: Response) => {
       type: 'visit:checked-out',
       timestamp: new Date().toISOString(),
       visitId,
+      tenantId,
     });
 
     res.json(ResponseBuilder.success(result));
@@ -86,12 +95,14 @@ export const admitVisitor = async (req: Request, res: Response) => {
     }
 
     const useCase = container.createAdmitVisitorUseCase();
-    const result = await useCase.execute(visitId);
+    const tenantId = requireTenantId(req);
+    const result = await useCase.execute(tenantId, visitId);
 
     container.eventEmitter.emitVisitEvent({
       type: 'visit:admitted',
       timestamp: new Date().toISOString(),
       visitId,
+      tenantId,
     });
 
     res.json(ResponseBuilder.success(result));
@@ -108,10 +119,10 @@ export const admitVisitor = async (req: Request, res: Response) => {
  * Get all active visits
  * GET /api/v1/visits/active
  */
-export const getActiveVisits = async (_req: Request, res: Response) => {
+export const getActiveVisits = async (req: Request, res: Response) => {
   try {
     const useCase = container.createGetActiveVisitsUseCase();
-    const visits = await useCase.execute();
+    const visits = await useCase.execute(requireTenantId(req));
 
     res.json(ResponseBuilder.success(visits));
   } catch (error) {
@@ -124,10 +135,10 @@ export const getActiveVisits = async (_req: Request, res: Response) => {
  * Get all waiting visits
  * GET /api/v1/visits/waiting
  */
-export const getWaitingVisits = async (_req: Request, res: Response) => {
+export const getWaitingVisits = async (req: Request, res: Response) => {
   try {
     const useCase = container.createGetWaitingVisitsUseCase();
-    const visits = await useCase.execute();
+    const visits = await useCase.execute(requireTenantId(req));
 
     res.json(ResponseBuilder.success(visits));
   } catch (error) {
@@ -150,12 +161,14 @@ export const goIntermittent = async (req: Request, res: Response) => {
     }
 
     const useCase = container.createGoIntermittentUseCase();
-    const result = await useCase.execute(visitId, req.body.notes);
+    const tenantId = requireTenantId(req);
+    const result = await useCase.execute(tenantId, visitId, req.body.notes);
 
     container.eventEmitter.emitVisitEvent({
       type: 'visit:intermittent',
       timestamp: new Date().toISOString(),
       visitId,
+      tenantId,
     });
 
     res.json(ResponseBuilder.success(result));
@@ -182,12 +195,14 @@ export const reactivateVisit = async (req: Request, res: Response) => {
     }
 
     const useCase = container.createReactivateVisitUseCase();
-    const result = await useCase.execute(visitId);
+    const tenantId = requireTenantId(req);
+    const result = await useCase.execute(tenantId, visitId);
 
     container.eventEmitter.emitVisitEvent({
       type: 'visit:reactivated',
       timestamp: new Date().toISOString(),
       visitId,
+      tenantId,
     });
 
     res.json(ResponseBuilder.success(result));
@@ -204,10 +219,10 @@ export const reactivateVisit = async (req: Request, res: Response) => {
  * Get all intermittent visits
  * GET /api/v1/visits/intermittent
  */
-export const getIntermittentVisits = async (_req: Request, res: Response) => {
+export const getIntermittentVisits = async (req: Request, res: Response) => {
   try {
     const useCase = container.createGetIntermittentVisitsUseCase();
-    const visits = await useCase.execute();
+    const visits = await useCase.execute(requireTenantId(req));
     res.json(ResponseBuilder.success(visits));
   } catch (error) {
     logger.error('Get intermittent visits error:', error);
@@ -231,7 +246,7 @@ export const getVisits = async (req: Request, res: Response) => {
 
     const useCase = container.createGetVisitsUseCase();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await useCase.execute(filters as any);
+    const result = await useCase.execute(requireTenantId(req), filters as any);
 
     res.json(ResponseBuilder.success(result, {
       page,
@@ -259,7 +274,8 @@ export const intermittentExit = async (req: Request, res: Response) => {
     }
 
     const useCase = container.createIntermittentExitUseCase();
-    const result = await useCase.execute({
+    const tenantId = requireTenantId(req);
+    const result = await useCase.execute(tenantId, {
       visitId,
       notes: req.body.notes,
       registeredBy: req.user?.username ?? undefined,
@@ -269,6 +285,7 @@ export const intermittentExit = async (req: Request, res: Response) => {
       type: 'visit:intermittent-exit',
       timestamp: new Date().toISOString(),
       visitId,
+      tenantId,
     });
 
     res.json(ResponseBuilder.success(result));
@@ -295,7 +312,8 @@ export const intermittentReEntry = async (req: Request, res: Response) => {
     }
 
     const useCase = container.createIntermittentReEntryUseCase();
-    const result = await useCase.execute({
+    const tenantId = requireTenantId(req);
+    const result = await useCase.execute(tenantId, {
       visitId,
       notes: req.body.notes,
       registeredBy: req.user?.username ?? undefined,
@@ -305,6 +323,7 @@ export const intermittentReEntry = async (req: Request, res: Response) => {
       type: 'visit:intermittent-reentry',
       timestamp: new Date().toISOString(),
       visitId,
+      tenantId,
     });
 
     res.json(ResponseBuilder.success(result));

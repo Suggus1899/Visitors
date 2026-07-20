@@ -8,6 +8,7 @@ import logger from '../config/logger';
  */
 class ActivityLog extends Model<InferAttributes<ActivityLog>, InferCreationAttributes<ActivityLog>> {
     declare id: CreationOptional<number>;
+    declare tenantId: CreationOptional<number>;
     declare userId: number;
     declare username: string;
     declare action: string;
@@ -35,6 +36,11 @@ ActivityLog.init({
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
+    },
+    tenantId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: { model: 'Tenants', key: 'id' }
     },
     userId: {
         type: DataTypes.INTEGER,

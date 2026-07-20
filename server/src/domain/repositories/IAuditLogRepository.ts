@@ -1,5 +1,6 @@
 export interface AuditLogEntity {
   id: number;
+  tenantId: number;
   userId: number;
   username: string;
   action: string;
@@ -12,6 +13,7 @@ export interface AuditLogEntity {
 }
 
 export interface AuditLogEntry {
+  tenantId: number;
   userId: number;
   username: string;
   action: string;
@@ -51,9 +53,9 @@ export interface AuditLogStats {
 
 export interface IAuditLogRepository {
   log(entry: AuditLogEntry): Promise<void>;
-  findAll(filters?: AuditLogFilters): Promise<{ logs: AuditLogEntity[]; total: number }>;
-  getStats(): Promise<AuditLogStats>;
-  getDistinctActions(): Promise<string[]>;
-  getDistinctUsers(): Promise<string[]>;
-  count(filters?: AuditLogFilters): Promise<number>;
+  findAll(tenantId: number, filters?: AuditLogFilters): Promise<{ logs: AuditLogEntity[]; total: number }>;
+  getStats(tenantId: number): Promise<AuditLogStats>;
+  getDistinctActions(tenantId: number): Promise<string[]>;
+  getDistinctUsers(tenantId: number): Promise<string[]>;
+  count(tenantId: number, filters?: AuditLogFilters): Promise<number>;
 }

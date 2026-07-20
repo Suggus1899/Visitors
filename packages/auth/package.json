@@ -1,0 +1,24 @@
+{
+  "name": "@logmaster/auth",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured\"",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "@tanstack/react-query": "^5.96.2",
+    "@logmaster/types": "workspace:*",
+    "@logmaster/api": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.28",
+    "typescript": "^5.9.3"
+  }
+}

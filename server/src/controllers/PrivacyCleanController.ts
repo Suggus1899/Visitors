@@ -11,6 +11,11 @@ const getActor = (req: Request) => {
   };
 };
 
+const requireTenantId = (req: Request): number => {
+  if (!req.tenantId) throw new Error('Tenant context is required');
+  return req.tenantId;
+};
+
 const getSingleParam = (value: string | string[]): string => Array.isArray(value) ? value[0] : value;
 
 /**
@@ -22,6 +27,7 @@ export const createArcoRequest = async (req: Request, res: Response) => {
     const clientInfo = getClientInfo(req);
     const useCase = container.createCreateArcoRequestUseCase();
     const result = await useCase.execute(
+      requireTenantId(req),
       {
         requestType: req.body.requestType,
         cedula: req.body.cedula,
@@ -54,7 +60,7 @@ export const listArcoRequests = async (req: Request, res: Response) => {
     const offset = (pageNum - 1) * limitNum;
 
     const useCase = container.createListArcoRequestsUseCase();
-    const result = await useCase.execute({
+    const result = await useCase.execute(requireTenantId(req), {
       status: status as string | undefined,
       requestType: requestType as string | undefined,
       search: search as string | undefined,
@@ -85,6 +91,7 @@ export const updateArcoRequestStatus = async (req: Request, res: Response) => {
     const { status, resolutionNotes } = req.body;
     const useCase = container.createUpdateArcoRequestStatusUseCase();
     const result = await useCase.execute(
+      requireTenantId(req),
       requestId,
       { status, resolutionNotes },
       actor.id,
@@ -116,7 +123,7 @@ export const accessSubjectData = async (req: Request, res: Response) => {
     const actor = getActor(req);
     const clientInfo = getClientInfo(req);
     const useCase = container.createAccessSubjectDataUseCase();
-    const result = await useCase.execute(cedula, limit, actor.id, actor.username, clientInfo.ip, clientInfo.userAgent);
+    const result = await useCase.execute(requireTenantId(req), cedula, limit, actor.id, actor.username, clientInfo.ip, clientInfo.userAgent);
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
@@ -139,6 +146,7 @@ export const rectifySubjectData = async (req: Request, res: Response) => {
     const clientInfo = getClientInfo(req);
     const useCase = container.createRectifySubjectDataUseCase();
     const result = await useCase.execute(
+      requireTenantId(req),
       {
         cedula,
         firstName: req.body.firstName,
@@ -174,7 +182,7 @@ export const cancelSubjectData = async (req: Request, res: Response) => {
     const actor = getActor(req);
     const clientInfo = getClientInfo(req);
     const useCase = container.createCancelSubjectDataUseCase();
-    const result = await useCase.execute(cedula, actor.id, actor.username, clientInfo.ip, clientInfo.userAgent);
+    const result = await useCase.execute(requireTenantId(req), cedula, actor.id, actor.username, clientInfo.ip, clientInfo.userAgent);
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
@@ -197,6 +205,7 @@ export const createOppositionRequest = async (req: Request, res: Response) => {
     const clientInfo = getClientInfo(req);
     const useCase = container.createCreateOppositionRequestUseCase();
     const result = await useCase.execute(
+      requireTenantId(req),
       {
         cedula,
         requestedByName: req.body.requestedByName,

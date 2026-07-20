@@ -8,8 +8,8 @@ export class RectifySubjectDataUseCase {
     private auditLogRepository: IAuditLogRepository
   ) { }
 
-  async execute(dto: RectifySubjectDataDto, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<{ message: string; visitor: unknown }> {
-    const visitor = await this.visitorRepository.findByCedula(dto.cedula.trim());
+  async execute(tenantId: number, dto: RectifySubjectDataDto, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<{ message: string; visitor: unknown }> {
+    const visitor = await this.visitorRepository.findByCedula(tenantId, dto.cedula.trim());
     if (!visitor) {
       throw new Error('NOT_FOUND');
     }
@@ -22,9 +22,10 @@ export class RectifySubjectDataUseCase {
     if (dto.email !== undefined) updates.email = dto.email;
     if (dto.phone !== undefined) updates.phone = dto.phone;
 
-    const updated = await this.visitorRepository.update(visitor.cedula, updates);
+    const updated = await this.visitorRepository.update(tenantId, visitor.cedula, updates);
 
     await this.auditLogRepository.log({
+      tenantId,
       userId: actorId,
       username: actorUsername,
       action: 'ARCO_RECTIFICATION_EXECUTED',

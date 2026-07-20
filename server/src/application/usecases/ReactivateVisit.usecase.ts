@@ -10,8 +10,8 @@ export class ReactivateVisitUseCase {
     private intermittentLogRepository: IIntermittentLogRepository
   ) {}
 
-  async execute(visitId: number): Promise<VisitResponseDto> {
-    const visit = await this.visitRepository.findById(visitId);
+  async execute(tenantId: number, visitId: number): Promise<VisitResponseDto> {
+    const visit = await this.visitRepository.findById(tenantId, visitId);
 
     if (!visit) {
       throw new Error('Visit not found');
@@ -23,14 +23,14 @@ export class ReactivateVisitUseCase {
 
     const reactivatedVisit = visit.reactivate();
 
-    const updatedVisit = await this.visitRepository.update(visitId, {
+    const updatedVisit = await this.visitRepository.update(tenantId, visitId, {
       status: reactivatedVisit.status
     });
 
     const reentryTime = new Date();
-    const openLog = await this.intermittentLogRepository.findOpenByVisitId(visitId);
+    const openLog = await this.intermittentLogRepository.findOpenByVisitId(tenantId, visitId);
     if (openLog) {
-      await this.intermittentLogRepository.closeLog(openLog.id, { reEntry: reentryTime });
+      await this.intermittentLogRepository.closeLog(tenantId, openLog.id, { reEntry: reentryTime });
     }
 
     return VisitMapper.toVisitResponseDto(updatedVisit);

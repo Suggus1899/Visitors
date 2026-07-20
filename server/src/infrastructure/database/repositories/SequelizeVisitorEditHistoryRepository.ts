@@ -1,12 +1,27 @@
 import { IVisitorEditHistoryRepository, VisitorEditHistoryEntity } from '../../../domain/repositories/IVisitorEditHistoryRepository';
-import VisitorEditHistoryModel from '../../../models/VisitorEditHistory';
+import VisitorEditHistoryModel, { PII_EDIT_FIELDS } from '../../../models/VisitorEditHistory';
+import Encryption from '../../../utils/Encryption';
+
+/**
+ * Decrypts an edit-history value when the tracked field is PII. Non-PII
+ * values are returned unchanged. Legacy plain-text PII rows (encrypted
+ * after the hook was introduced) are handled transparently by
+ * Encryption.decrypt, which returns plain text as-is when not encrypted.
+ */
+const decryptEditValue = (field: string, value: string | null): string | null => {
+    if (value === null || value === undefined) return null;
+    if (!PII_EDIT_FIELDS.has(field)) return value;
+    if (!Encryption.isEncrypted(value)) return value;
+    return Encryption.decrypt(value);
+};
 
 /**
  * Sequelize implementation of IVisitorEditHistoryRepository
  */
 export class SequelizeVisitorEditHistoryRepository implements IVisitorEditHistoryRepository {
-  async create(entry: Omit<VisitorEditHistoryEntity, 'id' | 'editedAt'>): Promise<VisitorEditHistoryEntity> {
+  async create(tenantId: number, entry: Omit<VisitorEditHistoryEntity, 'id' | 'editedAt' | 'tenantId'>): Promise<VisitorEditHistoryEntity> {
     const model = await VisitorEditHistoryModel.create({
+      tenantId,
       visitId: entry.visitId,
       visitorId: entry.visitorId,
       field: entry.field,
@@ -18,17 +33,17 @@ export class SequelizeVisitorEditHistoryRepository implements IVisitorEditHistor
     return this.toEntity(model);
   }
 
-  async findByVisitId(visitId: number): Promise<VisitorEditHistoryEntity[]> {
+  async findByVisitId(tenantId: number, visitId: number): Promise<VisitorEditHistoryEntity[]> {
     const models = await VisitorEditHistoryModel.findAll({
-      where: { visitId },
+      where: { tenantId, visitId },
       order: [['editedAt', 'ASC']],
     });
     return models.map(m => this.toEntity(m));
   }
 
-  async findByVisitorId(visitorId: number): Promise<VisitorEditHistoryEntity[]> {
+  async findByVisitorId(tenantId: number, visitorId: number): Promise<VisitorEditHistoryEntity[]> {
     const models = await VisitorEditHistoryModel.findAll({
-      where: { visitorId },
+      where: { tenantId, visitorId },
       order: [['editedAt', 'ASC']],
     });
     return models.map(m => this.toEntity(m));
@@ -37,11 +52,12 @@ export class SequelizeVisitorEditHistoryRepository implements IVisitorEditHistor
   private toEntity(model: InstanceType<typeof VisitorEditHistoryModel>): VisitorEditHistoryEntity {
     return {
       id: model.id,
+      tenantId: model.tenantId,
       visitId: model.visitId,
       visitorId: model.visitorId,
       field: model.field,
-      oldValue: model.oldValue,
-      newValue: model.newValue,
+      oldValue: decryptEditValue(model.field, model.oldValue),
+      newValue: decryptEditValue(model.field, model.newValue),
       editedBy: model.editedBy,
       editedByUsername: model.editedByUsername,
       editedAt: model.editedAt,

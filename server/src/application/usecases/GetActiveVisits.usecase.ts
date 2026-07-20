@@ -13,14 +13,14 @@ export class GetActiveVisitsUseCase {
     private visitorRepository: IVisitorRepository
   ) {}
 
-  async execute(): Promise<ActiveVisitDto[]> {
+  async execute(tenantId: number): Promise<ActiveVisitDto[]> {
     // 1. Get all active visits
-    const activeVisits = await this.visitRepository.findActive();
+    const activeVisits = await this.visitRepository.findActive(tenantId);
 
     // 2. Get visitor information for each visit
     const visitsWithVisitors = await Promise.all(
       activeVisits.map(async (visit) => {
-        const visitor = await this.visitorRepository.findByCedula(visit.visitorCedula);
+        const visitor = await this.visitorRepository.findByCedula(tenantId, visit.visitorCedula);
         return VisitMapper.toActiveVisitDto(visit, visitor);
       })
     );

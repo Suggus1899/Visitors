@@ -18,6 +18,12 @@ export class SequelizeUserRepository implements IUserRepository {
     return this.toDomain(userModel);
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    const userModel = await UserModel.findOne({ where: { email } });
+    if (!userModel) return null;
+    return this.toDomain(userModel);
+  }
+
   async findByUsernameModel(username: string): Promise<typeof UserModel.prototype | null> {
     return await UserModel.findOne({ where: { username } });
   }
@@ -44,6 +50,8 @@ export class SequelizeUserRepository implements IUserRepository {
         username: user.username,
         role: user.role,
         password: user.password,
+        email: user.email,
+        isSuperAdmin: user.isSuperAdmin,
         resetToken: user.resetToken,
         resetTokenExpiry: user.resetTokenExpiry
       }, { where: { id: user.id } });
@@ -53,6 +61,8 @@ export class SequelizeUserRepository implements IUserRepository {
         username: user.username,
         role: user.role,
         password: user.password!,
+        email: user.email,
+        isSuperAdmin: user.isSuperAdmin,
         resetToken: user.resetToken,
         resetTokenExpiry: user.resetTokenExpiry
       });
@@ -97,7 +107,9 @@ export class SequelizeUserRepository implements IUserRepository {
       model.mustChangePassword,
       model.passwordChangedAt,
       model.loginAttempts,
-      model.lockedUntil
+      model.lockedUntil,
+      model.email,
+      model.isSuperAdmin
     );
   }
 }

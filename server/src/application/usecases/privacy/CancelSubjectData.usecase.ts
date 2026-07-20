@@ -10,13 +10,13 @@ export class CancelSubjectDataUseCase {
     private auditLogRepository: IAuditLogRepository
   ) { }
 
-  async execute(cedula: string, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<{ message: string }> {
-    const visitor = await this.visitorRepository.findByCedula(cedula.trim());
+  async execute(tenantId: number, cedula: string, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<{ message: string }> {
+    const visitor = await this.visitorRepository.findByCedula(tenantId, cedula.trim());
     if (!visitor) {
       throw new Error('NOT_FOUND');
     }
 
-    await this.visitorRepository.update(visitor.cedula, {
+    await this.visitorRepository.update(tenantId, visitor.cedula, {
       firstName: 'ANONIMO',
       lastName: 'ANONIMO',
       company: 'ANONIMIZADO',
@@ -30,7 +30,7 @@ export class CancelSubjectDataUseCase {
     const normalizedCedula = cedula.trim();
     const hash = Encryption.hash(normalizedCedula);
 
-    await this.arcoRepository.create({
+    await this.arcoRepository.create(tenantId, {
       requestType: 'cancellation',
       subjectCedulaHash: hash,
       subjectCedulaEncrypted: null,
@@ -43,6 +43,7 @@ export class CancelSubjectDataUseCase {
     });
 
     await this.auditLogRepository.log({
+      tenantId,
       userId: actorId,
       username: actorUsername,
       action: 'ARCO_CANCELLATION_EXECUTED',

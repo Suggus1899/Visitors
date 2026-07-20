@@ -8,8 +8,8 @@ export class GetWaitingVisitsUseCase {
     private visitRepository: IVisitRepository
   ) {}
 
-  async execute(): Promise<ActiveVisitDto[]> {
-    const visits = await this.visitRepository.findAll({ status: VisitStatus.WAITING });
+  async execute(tenantId: number): Promise<ActiveVisitDto[]> {
+    const visits = await this.visitRepository.findAll(tenantId, { status: VisitStatus.WAITING });
 
     return visits.map(visit => VisitMapper.toWaitingVisitDto(visit));
   }

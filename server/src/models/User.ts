@@ -5,7 +5,10 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
     declare id: CreationOptional<number>;
     declare username: string;
     declare password: string;
+    /** @deprecated Tenant roles are stored in TenantUsers. */
     declare role: CreationOptional<'root' | 'admin' | 'operador' | 'auditor' | 'demo'>;
+    declare email: CreationOptional<string | null>;
+    declare isSuperAdmin: CreationOptional<boolean>;
     declare resetToken: CreationOptional<string | null>;
     declare resetTokenExpiry: CreationOptional<Date | null>;
 
@@ -34,8 +37,20 @@ User.init({
         allowNull: false
     },
     role: {
+        // Deprecated legacy column retained until existing installations complete migration.
         type: DataTypes.ENUM('root', 'admin', 'operador', 'auditor', 'demo'),
+        allowNull: true,
         defaultValue: 'operador'
+    },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true
+    },
+    isSuperAdmin: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
     },
     resetToken: {
         type: DataTypes.STRING,

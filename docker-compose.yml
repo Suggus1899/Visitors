@@ -1,0 +1,130 @@
+# ============================================================
+# LogMaster — Production Docker Compose
+# ============================================================
+# Usage:
+#   docker compose up -d --build
+#   docker compose logs -f server
+#   docker compose down
+# ============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: logmaster-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-visitors}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-visitors}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - logmaster
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: logmaster-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Override DB host to reach the postgres service on the compose network
+      DB_HOST: postgres
+      DB_PORT: 5432
+      NODE_ENV: production
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - server_backups:/app/backups
+      - server_data:/app/data
+    networks:
+      - logmaster
+
+  landing:
+    build:
+      context: .
+      dockerfile: apps/landing/Dockerfile
+    container_name: logmaster-landing
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8080:80"
+    networks:
+      - logmaster
+
+  platform:
+    build:
+      context: .
+      dockerfile: apps/platform/Dockerfile
+    container_name: logmaster-platform
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8081:80"
+    networks:
+      - logmaster
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: logmaster-admin
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8082:80"
+    networks:
+      - logmaster
+
+  auditor:
+    build:
+      context: .
+      dockerfile: apps/auditor/Dockerfile
+    container_name: logmaster-auditor
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8083:80"
+    networks:
+      - logmaster
+
+  system:
+    build:
+      context: .
+      dockerfile: apps/system/Dockerfile
+    container_name: logmaster-system
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8084:80"
+    networks:
+      - logmaster
+
+networks:
+  logmaster:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  server_backups:
+  server_data:

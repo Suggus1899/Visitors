@@ -5,14 +5,14 @@ import { VisitStatus } from '../../domain/entities/Visit.entity';
 export class GetMonthlyReportUseCase {
   constructor(private visitRepository: IVisitRepository) {}
 
-  async execute(month?: number, year?: number): Promise<MonthlyReportDto> {
+  async execute(tenantId: number, month?: number, year?: number): Promise<MonthlyReportDto> {
     const targetMonth = month !== undefined ? month : new Date().getMonth();
     const targetYear = year || new Date().getFullYear();
 
     const startDate = new Date(targetYear, targetMonth, 1);
     const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
 
-    const visits = await this.visitRepository.findForReport(startDate, endDate);
+    const visits = await this.visitRepository.findForReport(tenantId, startDate, endDate);
 
     // Statistics
     const totalVisits = visits.length;

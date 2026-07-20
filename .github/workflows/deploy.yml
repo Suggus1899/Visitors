@@ -1,0 +1,140 @@
+name: Deploy
+
+# Continuous Deployment for the LogMaster monorepo.
+# Triggers automatically on push to main after CI passes.
+# Staging is automatic; production requires manual approval.
+#
+# Prerequisites (repository secrets):
+#   REGISTRY         -> container registry host, e.g. ghcr.io
+#   REGISTRY_USERNAME
+#   REGISTRY_PASSWORD / token
+#   IMAGE_NAMESPACE  -> e.g. ghcr.io/<org>/logmaster
+#
+# TODO: Replace the placeholder deploy steps with the real staging/production
+# deploy mechanism (kubectl, helm, ssh+docker-compose, aws ecs, etc.).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '11'
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    outputs:
+      image-matrix: ${{ steps.images.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tags
+        id: meta
+        run: |
+          echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image matrix
+        id: images
+        run: |
+          # server + each Vite app are deployable images.
+          targets=$(find server apps -maxdepth 2 -name Dockerfile -printf '%h\n' 2>/dev/null | sort -u)
+          matrix=$(jq -nc --args '$ARGS.positional' --args $targets)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push images
+        run: |
+          sha="${{ steps.meta.outputs.sha }}"
+          for target in ${{ join(fromJson(steps.images.outputs.matrix), ' ') }}; do
+            name=$(basename "${target}")
+            image="${REGISTRY}/${IMAGE_NAMESPACE}/${name}"
+            echo "Building ${target} -> ${image}"
+            docker buildx build \
+              --push \
+              --tag "${image}:${sha}" \
+              --tag "${image}:latest" \
+              "${target}"
+          done
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-images
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying images tagged ${{ github.sha }} to staging..."
+          # TODO: replace with real staging deploy command, e.g.:
+          #   kubectl set image deployment/logmaster-server server=${REGISTRY}/${IMAGE_NAMESPACE}/server:${GITHUB_SHA::7}
+          #   kubectl rollout status deployment/logmaster-server
+          # or:
+          #   ssh staging-host "docker compose pull && docker compose up -d"
+          echo "Placeholder: staging deploy not implemented yet."
+
+      - name: Notify staging deploy
+        if: always()
+        run: echo "Staging deploy status: ${{ job.status }}"
+
+  approve-production:
+    name: Approve Production Deploy
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.approval.outputs.url }}
+    outputs:
+      url: ${{ steps.approval.outputs.url }}
+    steps:
+      - id: approval
+        run: |
+          # GitHub "environment" with required reviewers provides the manual
+          # approval gate. No extra step needed beyond declaring the env.
+          echo "url=https://logmaster.example.com" >> "$GITHUB_OUTPUT"
+          echo "Production deployment approved."
+
+  deploy-production:
+    name: Deploy to Production
+    needs: approve-production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying images tagged ${{ github.sha }} to production..."
+          # TODO: replace with real production deploy command, e.g.:
+          #   kubectl set image deployment/logmaster-server server=${REGISTRY}/${IMAGE_NAMESPACE}/server:${GITHUB_SHA::7} -n prod
+          #   kubectl rollout status deployment/logmaster-server -n prod
+          # or:
+          #   ssh prod-host "docker compose pull && docker compose up -d"
+          echo "Placeholder: production deploy not implemented yet."
+
+      - name: Notify production deploy
+        if: always()
+        run: echo "Production deploy status: ${{ job.status }}"

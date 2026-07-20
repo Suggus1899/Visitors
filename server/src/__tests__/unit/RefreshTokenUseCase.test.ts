@@ -7,12 +7,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RefreshTokenUseCase } from '../../application/usecases/auth/RefreshToken.usecase';
 import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
 import { IUserRepository } from '../../domain/repositories/IUserRepository';
+import { ITenantUserRepository } from '../../domain/repositories/ITenantUserRepository';
 import { User, UserRole } from '../../domain/entities/User.entity';
 
 describe('RefreshTokenUseCase', () => {
     let refreshTokenUseCase: RefreshTokenUseCase;
     let authService: JwtAuthService;
     let userRepository: IUserRepository;
+    let tenantUserRepository: ITenantUserRepository;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -20,6 +22,7 @@ describe('RefreshTokenUseCase', () => {
         userRepository = {
             findAll: vi.fn(),
             findByUsername: vi.fn(),
+            findByEmail: vi.fn(),
             findById: vi.fn(),
             findByResetToken: vi.fn(),
             save: vi.fn(),
@@ -29,7 +32,13 @@ describe('RefreshTokenUseCase', () => {
             updateLoginAttempts: vi.fn(),
             updateResetToken: vi.fn()
         } as unknown as IUserRepository;
-        refreshTokenUseCase = new RefreshTokenUseCase(authService, userRepository);
+        tenantUserRepository = {
+            findMembership: vi.fn(),
+            findMembershipBySlug: vi.fn(),
+            findByUserIdWithTenant: vi.fn().mockResolvedValue([]),
+            create: vi.fn()
+        } as unknown as ITenantUserRepository;
+        refreshTokenUseCase = new RefreshTokenUseCase(authService, userRepository, tenantUserRepository);
     });
 
     const buildUser = (overrides: Partial<{

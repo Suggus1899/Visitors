@@ -1,0 +1,34 @@
+{
+  "name": "@logmaster/ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./index.css": "./src/index.css"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured\"",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-hot-toast": "^2.6.0",
+    "lucide-react": "^0.330.0",
+    "react-big-calendar": "^1.19.4",
+    "@logmaster/auth": "workspace:*",
+    "@logmaster/api": "workspace:*",
+    "@logmaster/types": "workspace:*",
+    "@logmaster/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.9.3"
+  }
+}

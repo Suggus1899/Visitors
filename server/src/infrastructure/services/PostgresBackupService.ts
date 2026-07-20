@@ -54,9 +54,11 @@ export class PostgresBackupService implements IBackupService {
   /**
    * Creates an encrypted PostgreSQL dump using pg_dump
    */
-  async createBackup(): Promise<BackupResult> {
+  async createBackup(tenantId?: number): Promise<BackupResult> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupName = `backup-${timestamp}.dump.enc`;
+    const backupName = tenantId
+      ? `tenant-${tenantId}-backup-${timestamp}.dump.enc`
+      : `backup-${timestamp}.dump.enc`;
     const targetPath = path.join(this.backupPath, backupName);
 
     const restorePassword = this.generateRestorePassword();
@@ -101,6 +103,8 @@ export class PostgresBackupService implements IBackupService {
       createdAt: new Date().toISOString(),
       passwordHash,
       originalName: backupName,
+      tenantId: tenantId ?? null,
+      scope: tenantId ? 'tenant-tagged-full-dump' : 'full-database',
       salt: salt.toString('hex'),
       engine: 'postgresql'
     };
@@ -109,7 +113,7 @@ export class PostgresBackupService implements IBackupService {
     return { filePath: targetPath, restorePassword };
   }
 
-  async listBackups(): Promise<BackupFile[]> {
+  async listBackups(tenantId?: number): Promise<BackupFile[]> {
     if (!fs.existsSync(this.backupPath)) {
       return [];
     }
@@ -120,12 +124,20 @@ export class PostgresBackupService implements IBackupService {
     for (const file of files) {
       if (file.endsWith('.dump.enc') || file.endsWith('.dump') || file.endsWith('.sqlite.enc')) {
         const filePath = path.join(this.backupPath, file);
+        const metaPath = this.getMetaPath(file);
+        let backupTenantId: number | undefined;
+        if (fs.existsSync(metaPath)) {
+          const metadata = JSON.parse(await fs.promises.readFile(metaPath, 'utf-8')) as { tenantId?: number | null };
+          backupTenantId = metadata.tenantId ?? undefined;
+        }
+        if (tenantId !== undefined && backupTenantId !== tenantId) continue;
         const stats = await fs.promises.stat(filePath);
         backupFiles.push({
           name: file,
           date: stats.mtime,
           sizeBytes: stats.size,
-          path: filePath
+          path: filePath,
+          tenantId: backupTenantId,
         });
       }
     }
@@ -143,18 +155,27 @@ export class PostgresBackupService implements IBackupService {
     return this.hashPassword(password) === metaData.passwordHash;
   }
 
-  async restoreBackup(filename: string, restorePassword: string): Promise<void> {
-    const sourcePath = path.join(this.backupPath, filename);
+  async restoreBackup(filename: string, restorePassword: string, tenantId?: number): Promise<void> {
+    const safeFilename = path.basename(filename);
+    if (safeFilename !== filename) throw new Error('Invalid backup filename');
+    const sourcePath = path.join(this.backupPath, safeFilename);
     if (!fs.existsSync(sourcePath)) {
       throw new Error('Backup file not found');
     }
 
-    const isValid = await this.verifyRestorePassword(filename, restorePassword);
+    const metaPath = this.getMetaPath(safeFilename);
+    if (tenantId !== undefined) {
+      if (!fs.existsSync(metaPath)) throw new Error('Backup does not belong to tenant');
+      const metadata = JSON.parse(await fs.promises.readFile(metaPath, 'utf-8')) as { tenantId?: number | null };
+      if (metadata.tenantId !== tenantId) throw new Error('Backup does not belong to tenant');
+    }
+
+    const isValid = await this.verifyRestorePassword(safeFilename, restorePassword);
     if (!isValid) {
       throw new Error('Invalid restore password');
     }
 
-    if (filename.endsWith('.enc')) {
+    if (safeFilename.endsWith('.enc')) {
       await this.restoreEncrypted(sourcePath);
     } else {
       await this.restoreDump(sourcePath);
@@ -203,6 +224,14 @@ export class PostgresBackupService implements IBackupService {
       ],
       { env }
     );
+  }
+
+  async applyRetention(tenantId: number, keepLast: number | null): Promise<number> {
+    if (keepLast === null) return 0;
+    const backups = await this.listBackups(tenantId);
+    const expired = backups.slice(Math.max(keepLast, 0));
+    await Promise.all(expired.map(backup => this.deleteBackup(backup.name)));
+    return expired.length;
   }
 
   async deleteBackup(filename: string): Promise<void> {

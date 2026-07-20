@@ -9,9 +9,9 @@ import { VisitMapper } from '../mappers/VisitMapper';
 export class GetVisitsUseCase {
   constructor(private visitRepository: IVisitRepository) {}
 
-  async execute(filters: VisitFilters): Promise<{ visits: VisitResponseDto[], total: number }> {
-    const visits = await this.visitRepository.findAll(filters);
-    const total = await this.visitRepository.count(filters);
+  async execute(tenantId: number, filters: VisitFilters): Promise<{ visits: VisitResponseDto[], total: number }> {
+    const visits = await this.visitRepository.findAll(tenantId, filters);
+    const total = await this.visitRepository.count(tenantId, filters);
 
     const visitDtos = visits.map(visit => VisitMapper.toVisitResponseDto(visit));
 

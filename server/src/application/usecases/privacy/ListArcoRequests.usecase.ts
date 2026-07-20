@@ -4,8 +4,8 @@ import { ArcoRequestListResponseDto } from '../../dto/ArcoRequestDto';
 export class ListArcoRequestsUseCase {
   constructor(private arcoRepository: IArcoRequestRepository) { }
 
-  async execute(filters: ArcoRequestFilters): Promise<{ requests: ArcoRequestListResponseDto[]; pagination: { page: number; limit: number; total: number; pages: number } }> {
-    const { rows, count } = await this.arcoRepository.findAll(filters);
+  async execute(tenantId: number, filters: ArcoRequestFilters): Promise<{ requests: ArcoRequestListResponseDto[]; pagination: { page: number; limit: number; total: number; pages: number } }> {
+    const { rows, count } = await this.arcoRepository.findAll(tenantId, filters);
 
     return {
       requests: rows.map((r) => ({

@@ -10,16 +10,17 @@ export class AccessSubjectDataUseCase {
     private auditLogRepository: IAuditLogRepository
   ) { }
 
-  async execute(cedula: string, limit: number, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<AccessSubjectDataResponseDto> {
-    const visitor = await this.visitorRepository.findByCedula(cedula.trim());
+  async execute(tenantId: number, cedula: string, limit: number, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<AccessSubjectDataResponseDto> {
+    const visitor = await this.visitorRepository.findByCedula(tenantId, cedula.trim());
     if (!visitor) {
       throw new Error('NOT_FOUND');
     }
 
-    const allVisits = await this.visitRepository.findByVisitor(visitor.cedula);
+    const allVisits = await this.visitRepository.findByVisitor(tenantId, visitor.cedula);
     const visits = allVisits.slice(0, limit);
 
     await this.auditLogRepository.log({
+      tenantId,
       userId: actorId,
       username: actorUsername,
       action: 'ARCO_ACCESS_EXECUTED',

@@ -58,7 +58,7 @@ export class SuperAdminController {
       const actor = getActor(req);
       const clientInfo = getClientInfo(req);
       await container.auditLogRepository.log({
-        userId: actor.id, username: actor.username, action: 'SUPERADMIN_CREATE_USER', entity: 'User', entityId: String(user.id),
+        tenantId: 0, userId: actor.id, username: actor.username, action: 'SUPERADMIN_CREATE_USER', entity: 'User', entityId: String(user.id),
         details: `Created user: ${user.username} (role: ${user.role})`, ipAddress: clientInfo.ip, userAgent: clientInfo.userAgent
       });
 
@@ -96,7 +96,7 @@ export class SuperAdminController {
       const actor = getActor(req);
       const clientInfo = getClientInfo(req);
       await container.auditLogRepository.log({
-        userId: actor.id, username: actor.username, action: 'SUPERADMIN_UPDATE_USER', entity: 'User', entityId: String(userId),
+        tenantId: 0, userId: actor.id, username: actor.username, action: 'SUPERADMIN_UPDATE_USER', entity: 'User', entityId: String(userId),
         details: `Updated user: ${user.username} (role: ${user.role})`, ipAddress: clientInfo.ip, userAgent: clientInfo.userAgent
       });
 
@@ -134,7 +134,7 @@ export class SuperAdminController {
       const actor = getActor(req);
       const clientInfo = getClientInfo(req);
       await container.auditLogRepository.log({
-        userId: actor.id, username: actor.username, action: 'SUPERADMIN_DELETE_USER', entity: 'User', entityId: String(userId),
+        tenantId: 0, userId: actor.id, username: actor.username, action: 'SUPERADMIN_DELETE_USER', entity: 'User', entityId: String(userId),
         details: `Deleted user ID: ${userId}`, ipAddress: clientInfo.ip, userAgent: clientInfo.userAgent
       });
 
@@ -182,7 +182,7 @@ export class SuperAdminController {
       const actor = getActor(req);
       const clientInfo = getClientInfo(req);
       await container.auditLogRepository.log({
-        userId: actor.id, username: actor.username, action: 'SUPERADMIN_RESET_PASSWORD', entity: 'User', entityId: String(userId),
+        tenantId: 0, userId: actor.id, username: actor.username, action: 'SUPERADMIN_RESET_PASSWORD', entity: 'User', entityId: String(userId),
         details: `Password reset for user ID: ${userId}`, ipAddress: clientInfo.ip, userAgent: clientInfo.userAgent
       });
 

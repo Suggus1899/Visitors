@@ -11,13 +11,13 @@ export class IntermittentExitUseCase {
     private intermittentLogRepository: IIntermittentLogRepository
   ) {}
 
-  async execute(dto: {
+  async execute(tenantId: number, dto: {
     visitId: number;
     notes?: string;
     registeredBy?: string;
   }): Promise<{ visit: any; log: any; intermittentStartTime?: string }> {
     // 1. Find the visit
-    const visit = await this.visitRepository.findById(dto.visitId);
+    const visit = await this.visitRepository.findById(tenantId, dto.visitId);
     if (!visit) {
       throw new Error('Visita no encontrada');
     }
@@ -26,12 +26,12 @@ export class IntermittentExitUseCase {
     const intermittentVisit = visit.toIntermittent();
 
     // 3. Update visit status in repository
-    const updatedVisit = await this.visitRepository.update(visit.id!, {
+    const updatedVisit = await this.visitRepository.update(tenantId, visit.id!, {
       status: intermittentVisit.status,
     });
 
     // 4. Create IntermittentLog entry
-    const log = await this.intermittentLogRepository.create({
+    const log = await this.intermittentLogRepository.create(tenantId, {
       visitId: visit.id!,
       checkOut: new Date(),
       notes: dto.notes || null,

@@ -23,6 +23,10 @@ import { IArcoRequestRepository } from '../domain/repositories/IArcoRequestRepos
 import { SequelizeArcoRequestRepository } from '../infrastructure/database/repositories/SequelizeArcoRequestRepository';
 import { IVisitorEditHistoryRepository } from '../domain/repositories/IVisitorEditHistoryRepository';
 import { SequelizeVisitorEditHistoryRepository } from '../infrastructure/database/repositories/SequelizeVisitorEditHistoryRepository';
+import { ITenantRepository } from '../domain/repositories/ITenantRepository';
+import { ITenantUserRepository } from '../domain/repositories/ITenantUserRepository';
+import { SequelizeTenantRepository } from '../infrastructure/database/repositories/SequelizeTenantRepository';
+import { SequelizeTenantUserRepository } from '../infrastructure/database/repositories/SequelizeTenantUserRepository';
 import { CheckInVisitorUseCase } from '../application/usecases/CheckInVisitor.usecase';
 import { GoIntermittentUseCase } from '../application/usecases/GoIntermittent.usecase';
 import { ReactivateVisitUseCase } from '../application/usecases/ReactivateVisit.usecase';
@@ -47,6 +51,7 @@ import { ForgotPasswordUseCase } from '../application/usecases/auth/ForgotPasswo
 import { ResetPasswordUseCase } from '../application/usecases/auth/ResetPassword.usecase';
 import { RefreshTokenUseCase } from '../application/usecases/auth/RefreshToken.usecase';
 import { ChangePasswordUseCase } from '../application/usecases/auth/ChangePassword.usecase';
+import { CreateDemoTenantUseCase } from '../application/usecases/auth/CreateDemoTenant.usecase';
 import { IntermittentExitUseCase } from '../application/usecases/IntermittentExit.usecase';
 import { IntermittentReEntryUseCase } from '../application/usecases/IntermittentReEntry.usecase';
 import { GetAuditLogsUseCase } from '../application/usecases/superadmin/GetAuditLogs.usecase';
@@ -78,6 +83,8 @@ class Container {
   private _auditLogRepository?: IAuditLogRepository;
   private _arcoRequestRepository?: IArcoRequestRepository;
   private _visitorEditHistoryRepository?: IVisitorEditHistoryRepository;
+  private _tenantRepository?: ITenantRepository;
+  private _tenantUserRepository?: ITenantUserRepository;
   // Services
   private _backupService?: IBackupService;
   private _authService?: IAuthService;
@@ -143,6 +150,16 @@ class Container {
       this._visitorEditHistoryRepository = new SequelizeVisitorEditHistoryRepository();
     }
     return this._visitorEditHistoryRepository;
+  }
+
+  get tenantRepository(): ITenantRepository {
+    if (!this._tenantRepository) this._tenantRepository = new SequelizeTenantRepository();
+    return this._tenantRepository;
+  }
+
+  get tenantUserRepository(): ITenantUserRepository {
+    if (!this._tenantUserRepository) this._tenantUserRepository = new SequelizeTenantUserRepository();
+    return this._tenantUserRepository;
   }
 
   get backupService(): IBackupService {
@@ -301,7 +318,8 @@ class Container {
     return new LoginUseCase(
       this.userRepository,
       this.authService,
-      this.auditLogRepository
+      this.auditLogRepository,
+      this.tenantUserRepository
     );
   }
 
@@ -325,7 +343,8 @@ class Container {
   createRefreshTokenUseCase(): RefreshTokenUseCase {
     return new RefreshTokenUseCase(
       this.authService,
-      this.userRepository
+      this.userRepository,
+      this.tenantUserRepository
     );
   }
 
@@ -335,6 +354,17 @@ class Container {
       this.authService,
       this.passwordPolicy,
       this.emailService
+    );
+  }
+
+  createCreateDemoTenantUseCase(): CreateDemoTenantUseCase {
+    return new CreateDemoTenantUseCase(
+      this.tenantRepository,
+      this.tenantUserRepository,
+      this.userRepository,
+      this.visitorRepository,
+      this.visitRepository,
+      this.authService
     );
   }
 

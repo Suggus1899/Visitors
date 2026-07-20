@@ -3,6 +3,7 @@ export type ArcoRequestStatus = 'pending' | 'in_progress' | 'completed' | 'rejec
 
 export interface ArcoRequestEntity {
   id: number;
+  tenantId: number;
   requestType: ArcoRequestType;
   subjectCedulaHash: string;
   subjectCedulaEncrypted: string | null;
@@ -44,8 +45,8 @@ export interface UpdateArcoRequestData {
 }
 
 export interface IArcoRequestRepository {
-  create(data: CreateArcoRequestData): Promise<ArcoRequestEntity>;
-  findById(id: number): Promise<ArcoRequestEntity | null>;
-  findAll(filters?: ArcoRequestFilters): Promise<{ rows: ArcoRequestEntity[]; count: number }>;
-  update(id: number, data: Partial<UpdateArcoRequestData>): Promise<ArcoRequestEntity | null>;
+  create(tenantId: number, data: CreateArcoRequestData): Promise<ArcoRequestEntity>;
+  findById(tenantId: number, id: number): Promise<ArcoRequestEntity | null>;
+  findAll(tenantId: number, filters?: ArcoRequestFilters): Promise<{ rows: ArcoRequestEntity[]; count: number }>;
+  update(tenantId: number, id: number, data: Partial<UpdateArcoRequestData>): Promise<ArcoRequestEntity | null>;
 }

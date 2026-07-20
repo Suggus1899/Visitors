@@ -1,5 +1,6 @@
 export interface IntermittentLogEntity {
   id: number;
+  tenantId: number;
   visitId: number;
   checkOut: Date;
   reEntry: Date | null;
@@ -20,9 +21,9 @@ export interface CloseLogInput {
 }
 
 export interface IIntermittentLogRepository {
-  create(input: CreateIntermittentLogInput): Promise<IntermittentLogEntity>;
-  findByVisitId(visitId: number): Promise<IntermittentLogEntity[]>;
-  findOpenByVisitId(visitId: number): Promise<IntermittentLogEntity | null>;
-  closeLog(id: number, input: CloseLogInput): Promise<IntermittentLogEntity>;
-  findAll(): Promise<IntermittentLogEntity[]>;
+  create(tenantId: number, input: CreateIntermittentLogInput): Promise<IntermittentLogEntity>;
+  findByVisitId(tenantId: number, visitId: number): Promise<IntermittentLogEntity[]>;
+  findOpenByVisitId(tenantId: number, visitId: number): Promise<IntermittentLogEntity | null>;
+  closeLog(tenantId: number, id: number, input: CloseLogInput): Promise<IntermittentLogEntity>;
+  findAll(tenantId: number): Promise<IntermittentLogEntity[]>;
 }

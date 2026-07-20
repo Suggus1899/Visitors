@@ -1,0 +1,13 @@
+BEGIN;
+UPDATE "Users" SET "isSuperAdmin" = FALSE WHERE "role" = 'root';
+DELETE FROM "TenantUsers" WHERE "tenantId" = (SELECT id FROM "Tenants" WHERE slug = 'default');
+UPDATE "Departments" SET "tenantId" = NULL;
+UPDATE "VisitPurposes" SET "tenantId" = NULL;
+UPDATE "VisitorEditHistories" SET "tenantId" = NULL;
+UPDATE "ArcoRequests" SET "tenantId" = NULL;
+UPDATE "ActivityLogs" SET "tenantId" = NULL;
+UPDATE "IntermittentLogs" SET "tenantId" = NULL;
+UPDATE "Visits" SET "tenantId" = NULL;
+UPDATE "Visitors" SET "tenantId" = NULL;
+DELETE FROM "Tenants" WHERE slug = 'default';
+COMMIT;

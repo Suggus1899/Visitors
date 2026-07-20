@@ -62,6 +62,58 @@ export const verifySseToken = (req: Request, res: Response, next: NextFunction) 
     }
 };
 
+export const resolveTenant = async (req: Request, res: Response, next: NextFunction) => {
+    const slug = typeof req.params.tenantSlug === 'string' ? req.params.tenantSlug : req.user?.tslug;
+    const tenantId = req.user?.tid;
+    const tenant = slug
+        ? await container.tenantRepository.findBySlug(slug)
+        : tenantId ? await container.tenantRepository.findById(tenantId) : null;
+
+    if (!tenant || !tenant.id || tenant.status === 'suspended' || (tenant.isDemo && tenant.demoExpiresAt && tenant.demoExpiresAt < new Date())) {
+        return res.status(403).json(ResponseBuilder.error('TENANT_UNAVAILABLE', 'Tenant is unavailable'));
+    }
+    if (tenantId && tenantId !== tenant.id) {
+        return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Token tenant does not match requested tenant'));
+    }
+    req.user = { ...req.user!, tid: tenant.id, tslug: tenant.slug };
+    req.tenantId = tenant.id;
+    next();
+};
+
+/*
+ * Demo tenant isolation notes (security audit item):
+ * - Demo tenants are read/write-scoped to their own tenantId by the same
+ *   repository filters as production tenants (every repo query filters by
+ *   tenantId), so cross-tenant data access is already prevented.
+ * - Plan upgrades and tenant mutation endpoints live under /v1/superadmin/*
+ *   which is guarded by isSuperAdmin (root role only); demo tenants cannot
+ *   self-upgrade their plan or lift demo restrictions via the API.
+ * - Demo expiry is enforced above (demoExpiresAt < now => 403).
+ * - TODO(security): apply a stricter per-tenant rate limiter (demoLimiter)
+ *   to /v1/:tenantSlug/* when tenant.isDemo is true, to throttle demo abuse.
+ *   This requires resolving the tenant before the limiter runs (or a
+ *   limiter that reads tenant.isDemo from the repository), which is a
+ *   larger routing change deferred to avoid breaking the current middleware
+ *   ordering.
+ */
+
+export const verifyTenantMembership = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user?.tid) return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Tenant context is required'));
+    const membership = await container.tenantUserRepository.findMembership(req.user.id, req.user.tid);
+    if (!membership) return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Tenant membership is required'));
+    req.user.role = membership.role;
+    req.tenantRole = membership.role;
+    next();
+};
+
+export const requireTenantRole = (...roles: Array<'admin' | 'operador' | 'auditor' | 'demo'>) =>
+    (req: Request, res: Response, next: NextFunction) => {
+        if (!req.user?.role || !roles.includes(req.user.role as 'admin' | 'operador' | 'auditor' | 'demo')) {
+            return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Insufficient tenant role'));
+        }
+        next();
+    };
+
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
     if (req.user?.role !== 'admin') {
         return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Admin Role'));

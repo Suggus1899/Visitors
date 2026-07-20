@@ -13,6 +13,7 @@ export class SequelizeAuditLogRepository implements IAuditLogRepository {
   async log(entry: AuditLogEntry): Promise<void> {
     try {
       await ActivityLog.create({
+        tenantId: entry.tenantId,
         userId: entry.userId,
         username: entry.username,
         action: entry.action,
@@ -27,8 +28,8 @@ export class SequelizeAuditLogRepository implements IAuditLogRepository {
     }
   }
 
-  async findAll(filters?: AuditLogFilters): Promise<{ logs: AuditLogEntity[]; total: number }> {
-    const where = this.buildWhere(filters);
+  async findAll(tenantId: number, filters?: AuditLogFilters): Promise<{ logs: AuditLogEntity[]; total: number }> {
+    const where = this.buildWhere(tenantId, filters);
     const { count, rows } = await ActivityLog.findAndCountAll({
       where,
       order: [['createdAt', 'DESC']],
@@ -42,30 +43,35 @@ export class SequelizeAuditLogRepository implements IAuditLogRepository {
     };
   }
 
-  async count(filters?: AuditLogFilters): Promise<number> {
-    const where = this.buildWhere(filters);
+  async count(tenantId: number, filters?: AuditLogFilters): Promise<number> {
+    const where = this.buildWhere(tenantId, filters);
     return await ActivityLog.count({ where });
   }
 
-  async getDistinctActions(): Promise<string[]> {
+  async getDistinctActions(tenantId: number): Promise<string[]> {
+    const where = tenantId !== 0 ? { tenantId } : {};
     const actions = await ActivityLog.findAll({
       attributes: [[fn('DISTINCT', col('action')), 'action']],
+      where,
       raw: true
     });
 
     return actions.map((a: { action: string }) => a.action).filter(Boolean);
   }
 
-  async getDistinctUsers(): Promise<string[]> {
+  async getDistinctUsers(tenantId: number): Promise<string[]> {
+    const where = tenantId !== 0 ? { tenantId } : {};
     const users = await ActivityLog.findAll({
       attributes: [[fn('DISTINCT', col('username')), 'username']],
+      where,
       raw: true
     });
 
     return users.map((u: { username: string }) => u.username).filter(Boolean);
   }
 
-  async getStats(): Promise<AuditLogStats> {
+  async getStats(tenantId: number): Promise<AuditLogStats> {
+    const tenantWhere = tenantId !== 0 ? { tenantId } : {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -77,29 +83,30 @@ export class SequelizeAuditLogRepository implements IAuditLogRepository {
 
     const loginsToday = await ActivityLog.count({
       where: {
+        ...tenantWhere,
         action: 'LOGIN',
         createdAt: { [Op.gte]: today }
       }
     });
 
     const actionsToday = await ActivityLog.count({
-      where: { createdAt: { [Op.gte]: today } }
+      where: { ...tenantWhere, createdAt: { [Op.gte]: today } }
     });
 
     const uniqueUsersToday = await ActivityLog.count({
-      where: { createdAt: { [Op.gte]: today } },
+      where: { ...tenantWhere, createdAt: { [Op.gte]: today } },
       distinct: true,
       col: 'userId'
     });
 
     const uniqueIPs = await ActivityLog.count({
-      where: { createdAt: { [Op.gte]: yesterday } },
+      where: { ...tenantWhere, createdAt: { [Op.gte]: yesterday } },
       distinct: true,
       col: 'ipAddress'
     });
 
     const actionsByType = await ActivityLog.findAll({
-      where: { createdAt: { [Op.gte]: weekAgo } },
+      where: { ...tenantWhere, createdAt: { [Op.gte]: weekAgo } },
       attributes: [
         'action',
         [fn('COUNT', col('id')), 'count']
@@ -110,7 +117,7 @@ export class SequelizeAuditLogRepository implements IAuditLogRepository {
     });
 
     const topUsers = await ActivityLog.findAll({
-      where: { createdAt: { [Op.gte]: weekAgo } },
+      where: { ...tenantWhere, createdAt: { [Op.gte]: weekAgo } },
       attributes: [
         'username',
         [fn('COUNT', col('id')), 'count']
@@ -122,7 +129,7 @@ export class SequelizeAuditLogRepository implements IAuditLogRepository {
     });
 
     const dailyActivity = await ActivityLog.findAll({
-      where: { createdAt: { [Op.gte]: weekAgo } },
+      where: { ...tenantWhere, createdAt: { [Op.gte]: weekAgo } },
       attributes: [
         [fn('DATE', col('createdAt')), 'date'],
         [fn('COUNT', col('id')), 'count']
@@ -147,8 +154,12 @@ export class SequelizeAuditLogRepository implements IAuditLogRepository {
     };
   }
 
-  private buildWhere(filters?: AuditLogFilters): Record<string, unknown> {
+  private buildWhere(tenantId: number, filters?: AuditLogFilters): Record<string, unknown> {
     const where: Record<string, unknown> = {};
+    // tenantId=0 means global/cross-tenant query (superadmin); skip tenant filter
+    if (tenantId !== 0) {
+      where.tenantId = tenantId;
+    }
     if (!filters) return where;
 
     if (filters.action) {
@@ -196,6 +207,7 @@ export class SequelizeAuditLogRepository implements IAuditLogRepository {
   private toDomain(model: typeof ActivityLog.prototype): AuditLogEntity {
     return {
       id: model.id,
+      tenantId: model.tenantId,
       userId: model.userId,
       username: model.username,
       action: model.action,

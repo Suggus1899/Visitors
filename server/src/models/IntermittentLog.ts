@@ -24,6 +24,7 @@ class IntermittentLogModel extends Model<
     InferCreationAttributes<IntermittentLogModel>
 > {
     declare id: CreationOptional<number>;
+    declare tenantId: CreationOptional<number>;
     declare visit_id: ForeignKey<VisitModel['id']>;
     declare check_out: Date;
     declare re_entry: CreationOptional<Date | null>;
@@ -40,6 +41,11 @@ IntermittentLogModel.init(
             type: DataTypes.INTEGER,
             autoIncrement: true,
             primaryKey: true,
+        },
+        tenantId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: { model: 'Tenants', key: 'id' },
         },
         visit_id: {
             type: DataTypes.INTEGER,

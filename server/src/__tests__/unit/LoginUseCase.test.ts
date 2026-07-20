@@ -8,6 +8,7 @@ import { LoginUseCase } from '../../application/usecases/auth/Login.usecase';
 import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
 import { IUserRepository } from '../../domain/repositories/IUserRepository';
 import { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
+import { ITenantUserRepository } from '../../domain/repositories/ITenantUserRepository';
 import { User, UserRole } from '../../domain/entities/User.entity';
 import config from '../../config/AppConfig';
 
@@ -16,6 +17,7 @@ describe('LoginUseCase - Account Lockout', () => {
     let authService: JwtAuthService;
     let userRepository: IUserRepository;
     let auditLogRepository: IAuditLogRepository;
+    let tenantUserRepository: ITenantUserRepository;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -23,6 +25,7 @@ describe('LoginUseCase - Account Lockout', () => {
         userRepository = {
             findAll: vi.fn(),
             findByUsername: vi.fn(),
+            findByEmail: vi.fn(),
             findById: vi.fn(),
             findByResetToken: vi.fn(),
             save: vi.fn(),
@@ -40,7 +43,13 @@ describe('LoginUseCase - Account Lockout', () => {
             getDistinctUsers: vi.fn(),
             count: vi.fn()
         } as unknown as IAuditLogRepository;
-        loginUseCase = new LoginUseCase(userRepository, authService, auditLogRepository);
+        tenantUserRepository = {
+            findMembership: vi.fn(),
+            findMembershipBySlug: vi.fn(),
+            findByUserIdWithTenant: vi.fn().mockResolvedValue([]),
+            create: vi.fn()
+        } as unknown as ITenantUserRepository;
+        loginUseCase = new LoginUseCase(userRepository, authService, auditLogRepository, tenantUserRepository);
     });
 
     const buildUser = async (overrides: Partial<{

@@ -1,0 +1,15 @@
+BEGIN;
+DROP INDEX IF EXISTS "users_email_unique";
+ALTER TABLE "Users" DROP COLUMN IF EXISTS "isSuperAdmin";
+ALTER TABLE "Users" DROP COLUMN IF EXISTS "email";
+ALTER TABLE "Departments" DROP COLUMN IF EXISTS "tenantId";
+ALTER TABLE "VisitPurposes" DROP COLUMN IF EXISTS "tenantId";
+ALTER TABLE "VisitorEditHistories" DROP COLUMN IF EXISTS "tenantId";
+ALTER TABLE "ArcoRequests" DROP COLUMN IF EXISTS "tenantId";
+ALTER TABLE "ActivityLogs" DROP COLUMN IF EXISTS "tenantId";
+ALTER TABLE "IntermittentLogs" DROP COLUMN IF EXISTS "tenantId";
+ALTER TABLE "Visits" DROP COLUMN IF EXISTS "tenantId";
+ALTER TABLE "Visitors" DROP COLUMN IF EXISTS "tenantId";
+DROP TABLE IF EXISTS "TenantUsers";
+DROP TABLE IF EXISTS "Tenants";
+COMMIT;

@@ -14,13 +14,13 @@ export class GetIntermittentVisitsUseCase {
     private intermittentLogRepository: IIntermittentLogRepository
   ) {}
 
-  async execute(): Promise<IntermittentVisitResponseDto[]> {
-    const visits = await this.visitRepository.findIntermittent();
+  async execute(tenantId: number): Promise<IntermittentVisitResponseDto[]> {
+    const visits = await this.visitRepository.findIntermittent(tenantId);
 
     const enriched = await Promise.all(
       visits.map(async (visit) => {
-        const visitor = await this.visitorRepository.findByCedula(visit.visitorCedula);
-        const logs = await this.intermittentLogRepository.findByVisitId(visit.id!);
+        const visitor = await this.visitorRepository.findByCedula(tenantId, visit.visitorCedula);
+        const logs = await this.intermittentLogRepository.findByVisitId(tenantId, visit.id!);
         return VisitMapper.toIntermittentVisitDto(visit, visitor, logs);
       })
     );

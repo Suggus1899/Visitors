@@ -18,8 +18,10 @@ import authCleanRoutes from "./routes/auth-clean.routes";
 import auditCleanRoutes from "./routes/audit-clean.routes";
 import privacyCleanRoutes from "./routes/privacy-clean.routes";
 import superadminRoutes from "./routes/superadmin.routes";
+import platformRoutes from "./routes/platform.routes";
 import eventsRoutes from "./routes/events.routes";
 import healthRoutes from "./routes/health.routes";
+import tenantFeaturesRoutes from "./routes/tenant-features.routes";
 import { captureClientInfo } from "./middleware/ipCapture";
 import { firewall } from "./middleware/firewall";
 
@@ -179,6 +181,7 @@ if (config.nodeEnv !== "production") {
 
 // Routes
 // Clean Architecture API v1
+app.use("/api", tenantFeaturesRoutes);
 app.use("/api", visitCleanRoutes);
 app.use("/api", reportCleanRoutes);
 app.use("/api", visitorCleanRoutes);
@@ -188,6 +191,11 @@ app.use("/api", auditCleanRoutes);
 app.use("/api", privacyCleanRoutes);
 app.use("/api", superadminRoutes);
 app.use("/api", eventsRoutes);
+
+// Platform (superadmin) API — mounted at /platform so the full paths are
+// /platform/v1/*. The platform frontend (apps/platform) targets these paths
+// directly. Each route applies verifyToken + isSuperAdmin internally.
+app.use("/platform", platformRoutes);
 
 // Global error handler - must be last middleware
 app.use(errorHandler);

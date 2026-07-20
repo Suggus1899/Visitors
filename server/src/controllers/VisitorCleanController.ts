@@ -1,11 +1,18 @@
 import { Request, Response } from 'express';
+import { Readable } from 'stream';
 import bcrypt from 'bcryptjs';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import config from '../config/AppConfig';
 import logger from '../config/logger';
+import { detectImageType } from '../utils/detectImageType';
 
 const visitorRepo = container.visitorRepository;
+
+const tenantIdFor = (req: Request): number => {
+  if (!req.tenantId) throw new Error('Tenant context is required');
+  return req.tenantId;
+};
 
 /**
  * Clean Architecture Visitor Controller
@@ -16,7 +23,7 @@ export const getVisitor = async (req: Request, res: Response) => {
     const cedula = req.params.cedula as string;
     const includeHistory = req.query.history === 'true';
     const useCase = container.createGetVisitorByCedulaUseCase();
-    const visitor = await useCase.execute(cedula, includeHistory);
+    const visitor = await useCase.execute(tenantIdFor(req), cedula, includeHistory);
 
     if (!visitor) {
       return res.status(404).json(ResponseBuilder.error('VISITOR_NOT_FOUND', 'Visitor not found'));
@@ -48,7 +55,7 @@ export const getAllVisitors = async (req: Request, res: Response) => {
     const company = req.query.company as string | undefined;
 
     const useCase = container.getAllVisitorsUseCase;
-    const result = await useCase.execute({ page, limit, company });
+    const result = await useCase.execute(tenantIdFor(req), { page, limit, company });
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
@@ -90,7 +97,7 @@ export const updateVisitor = async (req: Request, res: Response) => {
       : undefined;
 
     const useCase = container.updateVisitorUseCase;
-    const updatedVisitor = await useCase.execute(cedula, visitorData, editContext);
+    const updatedVisitor = await useCase.execute(tenantIdFor(req), cedula, visitorData, editContext);
 
     res.json(ResponseBuilder.success(updatedVisitor));
   } catch (error: any) {
@@ -150,7 +157,7 @@ export const getEditHistory = async (req: Request, res: Response) => {
       return;
     }
 
-    const history = await container.visitorEditHistoryRepository.findByVisitId(visitId);
+    const history = await container.visitorEditHistoryRepository.findByVisitId(tenantIdFor(req), visitId);
     res.json(ResponseBuilder.success(history));
   } catch (error) {
     logger.error('Get edit history error:', error);
@@ -164,13 +171,14 @@ export const getEditHistory = async (req: Request, res: Response) => {
 export const getEditHistoryByCedula = async (req: Request, res: Response) => {
   try {
     const cedula = String(req.params.cedula);
-    const visitor = await visitorRepo.findByCedula(cedula);
+    const tenantId = tenantIdFor(req);
+    const visitor = await visitorRepo.findByCedula(tenantId, cedula);
     if (!visitor || !visitor.id) {
       res.json(ResponseBuilder.success([]));
       return;
     }
 
-    const history = await container.visitorEditHistoryRepository.findByVisitorId(visitor.id);
+    const history = await container.visitorEditHistoryRepository.findByVisitorId(tenantId, visitor.id);
     res.json(ResponseBuilder.success(history));
   } catch (error) {
     logger.error('Get edit history by cedula error:', error);
@@ -183,7 +191,7 @@ export const getCompanies = async (req: Request, res: Response) => {
     const { q } = req.query;
     const query = typeof q === 'string' ? q : '';
     const useCase = container.createGetCompaniesUseCase();
-    const companies = await useCase.execute(query);
+    const companies = await useCase.execute(tenantIdFor(req), query);
     res.json(ResponseBuilder.success(companies));
   } catch (error) {
     logger.error('Get companies error:', error);
@@ -194,15 +202,27 @@ export const getCompanies = async (req: Request, res: Response) => {
 export const getVisitorPhoto = async (req: Request, res: Response) => {
   try {
     const cedula = String(req.params.cedula);
-    const blob = await visitorRepo.getPhotoBlob(cedula);
+    const blob = await visitorRepo.getPhotoBlob(tenantIdFor(req), cedula);
 
     if (!blob) {
       return res.status(404).json(ResponseBuilder.error('PHOTO_NOT_FOUND', 'Photo not found'));
     }
 
-    res.set('Content-Type', 'image/jpeg');
+    const contentType = detectImageType(blob);
+    res.set('Content-Type', contentType);
+    res.set('Content-Length', String(blob.length));
     res.set('Cache-Control', 'private, max-age=3600');
-    res.send(blob);
+    // Stream the BLOB instead of buffering the whole image in memory.
+    const stream = Readable.from(blob);
+    stream.on('error', (err) => {
+      logger.error('Stream visitor photo error:', err);
+      if (!res.headersSent) {
+        res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error streaming photo'));
+      } else {
+        res.end();
+      }
+    });
+    stream.pipe(res);
   } catch (error) {
     logger.error('Get visitor photo error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error fetching photo'));
@@ -212,15 +232,27 @@ export const getVisitorPhoto = async (req: Request, res: Response) => {
 export const getVisitorIdPhoto = async (req: Request, res: Response) => {
   try {
     const cedula = String(req.params.cedula);
-    const blob = await visitorRepo.getIdPhotoBlob(cedula);
+    const blob = await visitorRepo.getIdPhotoBlob(tenantIdFor(req), cedula);
 
     if (!blob) {
       return res.status(404).json(ResponseBuilder.error('PHOTO_NOT_FOUND', 'ID photo not found'));
     }
 
-    res.set('Content-Type', 'image/jpeg');
+    const contentType = detectImageType(blob);
+    res.set('Content-Type', contentType);
+    res.set('Content-Length', String(blob.length));
     res.set('Cache-Control', 'private, max-age=3600');
-    res.send(blob);
+    // Stream the BLOB instead of buffering the whole image in memory.
+    const stream = Readable.from(blob);
+    stream.on('error', (err) => {
+      logger.error('Stream visitor ID photo error:', err);
+      if (!res.headersSent) {
+        res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error streaming ID photo'));
+      } else {
+        res.end();
+      }
+    });
+    stream.pipe(res);
   } catch (error) {
     logger.error('Get visitor ID photo error:', error);
     res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Error fetching ID photo'));

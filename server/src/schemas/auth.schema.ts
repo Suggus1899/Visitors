@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required').max(100, 'Username too long'),
+  // `username` accepts either a username or an email address.
+  username: z.string().min(1, 'Username or email is required').max(200, 'Identifier too long'),
   password: z.string().min(1, 'Password is required').max(200, 'Password too long'),
 });
 
@@ -16,6 +17,7 @@ export const resetPasswordSchema = z.object({
 
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
+  tenantSlug: z.string().max(100, 'Tenant slug too long').optional(),
 });
 
 export const changePasswordSchema = z.object({
@@ -27,8 +29,21 @@ export const changePasswordSchema = z.object({
   path: ['confirmPassword'],
 });
 
+export const selectTenantSchema = z.object({
+  tenantSlug: z.string().min(1, 'Tenant slug is required').max(100, 'Tenant slug too long'),
+});
+
+export const createDemoSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(200, 'Name too long'),
+  email: z.string().email('A valid email is required').max(200, 'Email too long'),
+  company: z.string().max(200, 'Company name too long').optional(),
+  phone: z.string().max(50, 'Phone too long').optional(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type SelectTenantInput = z.infer<typeof selectTenantSchema>;
+export type CreateDemoInput = z.infer<typeof createDemoSchema>;

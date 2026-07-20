@@ -9,9 +9,9 @@ import { VisitorMapper } from '../mappers/VisitorMapper';
 export class GetVisitorByCedulaUseCase {
   constructor(private visitorRepository: IVisitorRepository) {}
 
-  async execute(cedula: string, includeHistory: boolean = false): Promise<VisitorDto | VisitorWithHistoryDto | null> {
+  async execute(tenantId: number, cedula: string, includeHistory: boolean = false): Promise<VisitorDto | VisitorWithHistoryDto | null> {
     if (includeHistory) {
-      const { visitor, history } = await this.visitorRepository.findByCedulaWithHistory(cedula);
+      const { visitor, history } = await this.visitorRepository.findByCedulaWithHistory(tenantId, cedula);
 
       if (!visitor) {
         return null;
@@ -20,7 +20,7 @@ export class GetVisitorByCedulaUseCase {
       return VisitorMapper.toVisitorWithHistoryDto(visitor, history);
     }
 
-    const visitor = await this.visitorRepository.findByCedula(cedula);
+    const visitor = await this.visitorRepository.findByCedula(tenantId, cedula);
 
     if (!visitor) {
       return null;

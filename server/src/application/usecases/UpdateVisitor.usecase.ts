@@ -24,9 +24,9 @@ export class UpdateVisitorUseCase {
     private editHistoryRepository?: IVisitorEditHistoryRepository
   ) {}
 
-  async execute(cedula: string, data: VisitorInputDto, editContext?: EditContext): Promise<VisitorDto> {
+  async execute(tenantId: number, cedula: string, data: VisitorInputDto, editContext?: EditContext): Promise<VisitorDto> {
     // Check if visitor exists
-    const existingVisitor = await this.visitorRepository.findByCedula(cedula);
+    const existingVisitor = await this.visitorRepository.findByCedula(tenantId, cedula);
 
     if (!existingVisitor) {
       throw new Error('Visitor not found');
@@ -65,7 +65,7 @@ export class UpdateVisitorUseCase {
     }
 
     // Update visitor
-    const updatedVisitor = await this.visitorRepository.update(cedula, {
+    const updatedVisitor = await this.visitorRepository.update(tenantId, cedula, {
       firstName: data.firstName,
       lastName: data.lastName,
       company: data.company,
@@ -81,7 +81,7 @@ export class UpdateVisitorUseCase {
     // Log changes to edit history if context provided
     if (editContext && this.editHistoryRepository && changes.length > 0) {
       for (const change of changes) {
-        await this.editHistoryRepository.create({
+        await this.editHistoryRepository.create(tenantId, {
           visitId: editContext.visitId,
           visitorId: existingVisitor.id!,
           field: change.field,

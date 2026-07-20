@@ -3,8 +3,10 @@ import { IBackupService, BackupResult } from '../../domain/services/IBackupServi
 export class CreateBackupUseCase {
   constructor(private backupService: IBackupService) {}
 
-  async execute(): Promise<BackupResult> {
-    const result = await this.backupService.createBackup();
+  async execute(tenantId?: number): Promise<BackupResult> {
+    const result = tenantId !== undefined
+      ? await this.backupService.createBackup(tenantId)
+      : await this.backupService.createBackup();
     return result;
   }
 }

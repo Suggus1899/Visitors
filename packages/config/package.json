@@ -1,0 +1,21 @@
+{
+  "name": "@logmaster/config",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured\"",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "tailwindcss": "^3.4.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^5.1.4"
+  }
+}

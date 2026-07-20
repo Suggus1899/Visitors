@@ -1,0 +1,128 @@
+name: PR Checks
+
+# Pull-request quality gates for the LogMaster monorepo.
+# Runs on every pull request targeting main / develop.
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '11'
+
+jobs:
+  label-check:
+    name: Label Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure PR has at least one label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const allowed = ['bug', 'feature', 'enhancement', 'chore', 'refactor', 'docs', 'test', 'ci', 'security', 'breaking'];
+            const present = labels.filter(l => allowed.includes(l));
+            if (present.length === 0) {
+              core.setFailed(`PR must have at least one label from: ${allowed.join(', ')}. Found: ${labels.join(', ') || 'none'}`);
+            } else {
+              core.info(`PR labels OK: ${present.join(', ')}`);
+            }
+
+  size-check:
+    name: Size Check (warn > 500 lines)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute diff size
+        id: size
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          added=$(git diff --numstat "${base}" "${head}" | awk '{a+=$1} END {print a+0}')
+          deleted=$(git diff --numstat "${base}" "${head}" | awk '{d+=$2} END {print d+0}')
+          total=$((added + deleted))
+          echo "added=${added}" >> "$GITHUB_OUTPUT"
+          echo "deleted=${deleted}" >> "$GITHUB_OUTPUT"
+          echo "total=${total}" >> "$GITHUB_OUTPUT"
+          echo "PR diff: +${added} -${deleted} (total ${total} lines)"
+
+      - name: Warn if large PR
+        if: steps.size.outputs.total > 500
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { total, added, deleted } = ${{ toJSON(steps.size.outputs) }};
+            github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: `:warning: **Large PR detected:** +${added} -${deleted} (total ${total} lines).\nConsider splitting into smaller PRs for easier review.`
+            });
+            core.warning(`PR exceeds 500 lines (${total}). Warning only, not a failure.`);
+
+  conventional-commit:
+    name: Conventional Commit Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          subjectPattern: ^[A-Z].+$|^[a-z].+$
+          subjectPatternError: |
+            The subject "{subject}" must start with a letter.
+
+  affected-build:
+    name: Affected Build (turbo)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-affected-${{ github.event.pull_request.head.sha }}
+          restore-keys: |
+            turbo-affected-
+
+      - name: Build only affected packages
+        run: |
+          # turbo --filter detects packages changed since the base branch.
+          pnpm turbo run build --filter="...[origin/${{ github.event.pull_request.base.ref }}]"

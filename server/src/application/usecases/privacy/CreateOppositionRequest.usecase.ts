@@ -9,11 +9,11 @@ export class CreateOppositionRequestUseCase {
     private auditLogRepository: IAuditLogRepository
   ) { }
 
-  async execute(dto: CreateOppositionRequestDto, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<ArcoRequestResponseDto> {
+  async execute(tenantId: number, dto: CreateOppositionRequestDto, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<ArcoRequestResponseDto> {
     const normalizedCedula = dto.cedula.trim();
     const hash = Encryption.hash(normalizedCedula);
 
-    const record = await this.arcoRepository.create({
+    const record = await this.arcoRepository.create(tenantId, {
       requestType: 'opposition',
       subjectCedulaHash: hash,
       subjectCedulaEncrypted: Encryption.encrypt(normalizedCedula),
@@ -26,6 +26,7 @@ export class CreateOppositionRequestUseCase {
     });
 
     await this.auditLogRepository.log({
+      tenantId,
       userId: actorId,
       username: actorUsername,
       action: 'ARCO_OPPOSITION_REQUESTED',

@@ -65,7 +65,7 @@ describe('POST /api/v1/auth/login', () => {
   });
 
   it('returns 400 when username exceeds max length', async () => {
-    const res = await request(app).post('/api/v1/auth/login').send({ username: 'a'.repeat(101), password: 'pass' });
+    const res = await request(app).post('/api/v1/auth/login').send({ username: 'a'.repeat(201), password: 'pass' });
     expect(res.status).toBe(400);
   });
 });

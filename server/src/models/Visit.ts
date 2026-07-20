@@ -4,6 +4,7 @@ import VisitorModel from './Visitor';
 
 class VisitModel extends Model<InferAttributes<VisitModel>, InferCreationAttributes<VisitModel>> {
     declare id: CreationOptional<number>;
+    declare tenantId: CreationOptional<number>;
     declare visitor_id: ForeignKey<VisitorModel['id']>;
     declare visitor_cedula: string;
     declare purpose: string;
@@ -41,6 +42,11 @@ VisitModel.init({
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
+    },
+    tenantId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: { model: 'Tenants', key: 'id' }
     },
     visitor_cedula: {
         type: DataTypes.STRING,

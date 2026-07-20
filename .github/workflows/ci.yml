@@ -1,111 +1,217 @@
 name: CI
 
+# Continuous Integration for the LogMaster monorepo.
+# Runs on every pull request and on pushes to main / develop.
+#
+# Turbo Remote Cache (optional, recommended):
+#   To enable Vercel Remote Cache, set these repository secrets:
+#     TURBO_TOKEN  -> your Vercel access token
+#     TURBO_TEAM   -> your Vercel team slug
+#   Then uncomment the `env:` block in the setup job and every job that
+#   needs remote cache. See https://turbo.build/repo/docs/core/features/remote-caching
+
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '11'
+  # TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  # TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
 
 jobs:
-  server-tests:
+  setup:
+    name: Setup & Install
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: visitors_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+    outputs:
+      pkg-matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          version: 11
+          version: ${{ env.PNPM_VERSION }}
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - run: pnpm --dir server run test
-        env:
-          DB_HOST: localhost
-          DB_NAME: visitors_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_SSL: false
-          JWT_SECRET: test-jwt-secret-for-ci-min-32-chars-long!!
-          ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-
-  client-tests:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm --dir client run test
+      - name: Build package matrix
+        id: matrix
+        run: |
+          # Build a matrix of all workspace packages (apps + shared packages + server).
+          packages=$(find apps packages server -maxdepth 1 -name package.json -printf '%h\n' 2>/dev/null | sort -u)
+          matrix=$(jq -nc --args '$ARGS.positional' --args $packages)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   lint:
+    name: Lint (${{ matrix.package }})
+    needs: setup
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: true
+      matrix:
+        package: ${{ fromJson(needs.setup.outputs.pkg-matrix) }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 11
+          version: ${{ env.PNPM_VERSION }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm --dir client run lint
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-lint-${{ matrix.package }}-${{ github.sha }}
+          restore-keys: |
+            turbo-lint-${{ matrix.package }}-
+            turbo-lint-
+
+      - name: Lint (turbo filter)
+        run: pnpm turbo run lint --filter=${{ matrix.package }}
+
+  typecheck:
+    name: Typecheck (${{ matrix.package }})
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        package: ${{ fromJson(needs.setup.outputs.pkg-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-typecheck-${{ matrix.package }}-${{ github.sha }}
+          restore-keys: |
+            turbo-typecheck-${{ matrix.package }}-
+            turbo-typecheck-
+
+      - name: Typecheck
+        run: |
+          pkg="${{ matrix.package }}"
+          if jq -e '.scripts.typecheck' "${pkg}/package.json" >/dev/null 2>&1; then
+            pnpm --dir "${pkg}" run typecheck
+          else
+            pnpm --dir "${pkg}" exec tsc --noEmit
+          fi
 
   build:
+    name: Build (${{ matrix.package }})
+    needs: [setup, lint, typecheck]
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: true
+      matrix:
+        package: ${{ fromJson(needs.setup.outputs.pkg-matrix) }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 11
+          version: ${{ env.PNPM_VERSION }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Build server
-        run: pnpm --dir server exec tsc -p tsconfig.json --noEmit
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-${{ matrix.package }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-${{ matrix.package }}-
+            turbo-build-
 
-      - name: Build client
-        run: pnpm --dir client run build
+      - name: Build (turbo filter)
+        run: pnpm turbo run build --filter=${{ matrix.package }}
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.package }}-${{ github.sha }}
+          path: |
+            ${{ matrix.package }}/dist
+            ${{ matrix.package }}/build
+          if-no-files-found: ignore
+          retention-days: 7
+
+  test:
+    name: Test (${{ matrix.package }})
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.setup.outputs.pkg-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-test-${{ matrix.package }}-${{ github.sha }}
+          restore-keys: |
+            turbo-test-${{ matrix.package }}-
+            turbo-test-
+
+      - name: Run tests (only if test script exists)
+        run: |
+          pkg="${{ matrix.package }}"
+          if jq -e '.scripts.test' "${pkg}/package.json" >/dev/null 2>&1; then
+            pnpm turbo run test --filter="${pkg}"
+          else
+            echo "No test script in ${pkg}, skipping."
+          fi

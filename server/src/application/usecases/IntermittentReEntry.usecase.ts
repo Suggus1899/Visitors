@@ -11,13 +11,13 @@ export class IntermittentReEntryUseCase {
     private intermittentLogRepository: IIntermittentLogRepository
   ) {}
 
-  async execute(dto: {
+  async execute(tenantId: number, dto: {
     visitId: number;
     notes?: string;
     registeredBy?: string;
   }): Promise<{ visit: any; log: any; duration?: { minutes: number; seconds: number; formatted: string } }> {
     // 1. Find the visit
-    const visit = await this.visitRepository.findById(dto.visitId);
+    const visit = await this.visitRepository.findById(tenantId, dto.visitId);
     if (!visit) {
       throw new Error('Visita no encontrada');
     }
@@ -26,7 +26,7 @@ export class IntermittentReEntryUseCase {
     const activeVisit = visit.reEnter();
 
     // 3. Find the latest IntermittentLog without re_entry
-    const openLog = await this.intermittentLogRepository.findOpenByVisitId(visit.id!);
+    const openLog = await this.intermittentLogRepository.findOpenByVisitId(tenantId, visit.id!);
 
     if (!openLog) {
       throw new Error('No se encontró un registro de salida temporal abierto para esta visita.');
@@ -34,13 +34,13 @@ export class IntermittentReEntryUseCase {
 
     // 4. Update the log with re_entry time
     const now = new Date();
-    const closedLog = await this.intermittentLogRepository.closeLog(openLog.id, {
+    const closedLog = await this.intermittentLogRepository.closeLog(tenantId, openLog.id, {
       reEntry: now,
       registeredBy: dto.registeredBy || openLog.registeredBy,
     });
 
     // 5. Update visit status in repository
-    const updatedVisit = await this.visitRepository.update(visit.id!, {
+    const updatedVisit = await this.visitRepository.update(tenantId, visit.id!, {
       status: activeVisit.status,
     });
 

@@ -3,6 +3,11 @@ import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import logger from '../config/logger';
 
+const requireTenantId = (req: Request): number => {
+  if (!req.tenantId) throw new Error('Tenant context is required');
+  return req.tenantId;
+};
+
 /**
  * Clean Architecture Report Controller
  * Handles statistical data and reports
@@ -20,7 +25,7 @@ export const getStats = async (req: Request, res: Response) => {
     const end = endDate ? new Date(endDate as string) : undefined;
 
     const useCase = container.createGetVisitStatsUseCase();
-    const result = await useCase.execute(start, end);
+    const result = await useCase.execute(requireTenantId(req), start, end);
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
@@ -40,7 +45,7 @@ export const getMonthlyReport = async (req: Request, res: Response) => {
     const targetYear = year ? parseInt(year as string) : undefined;
 
     const useCase = container.createGetMonthlyReportUseCase();
-    const result = await useCase.execute(targetMonth, targetYear);
+    const result = await useCase.execute(requireTenantId(req), targetMonth, targetYear);
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
@@ -59,7 +64,7 @@ export const getMissedCheckouts = async (req: Request, res: Response) => {
     const hours = threshold ? parseInt(threshold as string) : 8;
 
     const useCase = container.createGetMissedCheckoutsUseCase();
-    const result = await useCase.execute(hours);
+    const result = await useCase.execute(requireTenantId(req), hours);
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
@@ -79,7 +84,7 @@ export const getComparisonStats = async (req: Request, res: Response) => {
     const targetYear = year ? parseInt(year as string) : undefined;
 
     const useCase = container.createGetComparisonStatsUseCase();
-    const result = await useCase.execute(targetMonth, targetYear);
+    const result = await useCase.execute(requireTenantId(req), targetMonth, targetYear);
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {

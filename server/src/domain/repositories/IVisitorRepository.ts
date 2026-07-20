@@ -9,70 +9,70 @@ export interface IVisitorRepository {
   /**
    * Find visitor by cedula
    */
-  findByCedula(cedula: string): Promise<Visitor | null>;
+  findByCedula(tenantId: number, cedula: string): Promise<Visitor | null>;
 
   /**
    * Find visitor by ID
    */
-  findById(id: number): Promise<Visitor | null>;
+  findById(tenantId: number, id: number): Promise<Visitor | null>;
 
   /**
    * Find visitor by cedula with visit history
    */
-  findByCedulaWithHistory(cedula: string, historyLimit?: number): Promise<{ visitor: Visitor | null; history: VisitEntity[] }>;
+  findByCedulaWithHistory(tenantId: number, cedula: string, historyLimit?: number): Promise<{ visitor: Visitor | null; history: VisitEntity[] }>;
 
   /**
    * Find all visitors with optional filters
    */
-  findAll(filters?: VisitorFilters): Promise<Visitor[]>;
+  findAll(tenantId: number, filters?: VisitorFilters): Promise<Visitor[]>;
 
   /**
    * Search visitors by name or company
    */
-  search(query: string): Promise<Visitor[]>;
+  search(tenantId: number, query: string): Promise<Visitor[]>;
 
   /**
    * Get distinct companies for autocomplete
    */
-  findDistinctCompanies(query?: string): Promise<string[]>;
+  findDistinctCompanies(tenantId: number, query?: string): Promise<string[]>;
 
   /**
    * Create new visitor
    */
-  create(visitor: Visitor, photoData?: Buffer, idPhotoData?: Buffer): Promise<Visitor>;
+  create(tenantId: number, visitor: Visitor, photoData?: Buffer, idPhotoData?: Buffer): Promise<Visitor>;
 
   /**
    * Update existing visitor by cedula
    */
-  update(cedula: string, visitor: Partial<VisitorEntity>): Promise<Visitor>;
+  update(tenantId: number, cedula: string, visitor: Partial<VisitorEntity>): Promise<Visitor>;
 
   /**
    * Update existing visitor by ID
    */
-  updateById(id: number, visitor: Partial<VisitorEntity>): Promise<Visitor>;
+  updateById(tenantId: number, id: number, visitor: Partial<VisitorEntity>): Promise<Visitor>;
 
   /**
    * Delete visitor by cedula
    */
-  delete(cedula: string): Promise<void>;
+  delete(tenantId: number, cedula: string): Promise<void>;
 
   /**
    * Delete visitor by ID
    */
-  deleteById(id: number): Promise<void>;
+  deleteById(tenantId: number, id: number): Promise<void>;
 
   /**
    * Check if visitor exists
    */
-  exists(cedula: string): Promise<boolean>;
+  exists(tenantId: number, cedula: string): Promise<boolean>;
 
   /**
    * Get total count of visitors
    */
-  count(filters?: VisitorFilters): Promise<number>;
+  count(tenantId: number, filters?: VisitorFilters): Promise<number>;
 
-  getPhotoBlob(cedula: string): Promise<Buffer | null>;
-  getIdPhotoBlob(cedula: string): Promise<Buffer | null>;
+  getPhotoBlob(tenantId: number, cedula: string): Promise<Buffer | null>;
+  getIdPhotoBlob(tenantId: number, cedula: string): Promise<Buffer | null>;
 }
 
 /**

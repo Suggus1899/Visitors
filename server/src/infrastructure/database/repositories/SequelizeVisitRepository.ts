@@ -11,15 +11,16 @@ import Encryption from '../../../utils/Encryption';
  * Adapts between domain entities and Sequelize models
  */
 export class SequelizeVisitRepository implements IVisitRepository {
-  async findById(id: number): Promise<Visit | null> {
-    const model = await VisitModel.findByPk(id, {
-        include: [{ model: VisitorModel }]
+  async findById(tenantId: number, id: number): Promise<Visit | null> {
+    const model = await VisitModel.findOne({
+        where: { id, tenantId },
+        include: [{ model: VisitorModel, where: { tenantId } }]
     });
     return model ? this.toDomain(model) : null;
   }
 
-  async findAll(filters?: VisitFilters): Promise<Visit[]> {
-    const where: WhereOptions = {};
+  async findAll(tenantId: number, filters?: VisitFilters): Promise<Visit[]> {
+    const where: WhereOptions = { tenantId };
 
     if (filters?.status) {
       where.status = filters.status;
@@ -29,7 +30,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
       // Buscar el visitante por cédula hasheada para obtener su ID
       const hashedCedula = Encryption.hash(filters.visitorCedula);
       const visitor = await VisitorModel.findOne({
-        where: { cedula: hashedCedula }
+        where: { tenantId, cedula: hashedCedula }
       });
       
       if (visitor) {
@@ -85,9 +86,9 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return models.map(m => this.toDomain(m));
   }
 
-  async findActive(): Promise<Visit[]> {
+  async findActive(tenantId: number): Promise<Visit[]> {
     const models = await VisitModel.findAll({
-      where: { status: VisitStatus.ACTIVE },
+      where: { tenantId, status: VisitStatus.ACTIVE },
       order: [['check_in_time', 'DESC']],
       include: [
         { model: VisitorModel },
@@ -98,9 +99,9 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return models.map(m => this.toDomain(m));
   }
 
-  async findIntermittent(): Promise<Visit[]> {
+  async findIntermittent(tenantId: number): Promise<Visit[]> {
     const models = await VisitModel.findAll({
-      where: { status: VisitStatus.INTERMITTENT },
+      where: { tenantId, status: VisitStatus.INTERMITTENT },
       order: [['check_in_time', 'DESC']],
       include: [
         { model: VisitorModel },
@@ -111,7 +112,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return models.map(m => this.toDomain(m));
   }
 
-  async findByVisitor(visitorCedula: string): Promise<Visit[]> {
+  async findByVisitor(tenantId: number, visitorCedula: string): Promise<Visit[]> {
     const hashedCedula = Encryption.hash(visitorCedula);
     
     // Find visitor to get id
@@ -124,7 +125,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
     }
     
     const models = await VisitModel.findAll({
-      where: { visitor_id: visitor.id },
+      where: { tenantId, visitor_id: visitor.id },
       order: [['check_in_time', 'DESC']],
       include: [{ model: VisitorModel }]
     });
@@ -132,9 +133,10 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return models.map(m => this.toDomain(m));
   }
 
-  async findByDateRange(startDate: Date, endDate: Date): Promise<Visit[]> {
+  async findByDateRange(tenantId: number, startDate: Date, endDate: Date): Promise<Visit[]> {
     const models = await VisitModel.findAll({
       where: {
+        tenantId,
         check_in_time: {
           [Op.between]: [startDate, endDate]
         }
@@ -146,7 +148,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return models.map(m => this.toDomain(m));
   }
 
-  async create(visit: Visit): Promise<Visit> {
+  async create(tenantId: number, visit: Visit): Promise<Visit> {
     const hashedCedula = Encryption.hash(visit.visitorCedula);
     
     // Find visitor by cedula to get the id (foreign key)
@@ -159,6 +161,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
     }
     
     const model = await VisitModel.create({
+      tenantId,
       visitor_id: visitor.id,  // Foreign key
       visitor_cedula: hashedCedula,  // Data field
       check_in_time: visit.checkInTime,
@@ -186,8 +189,8 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return this.toDomain(model);
   }
 
-  async update(id: number, data: Partial<VisitEntity>): Promise<Visit> {
-    const model = await VisitModel.findByPk(id);
+  async update(tenantId: number, id: number, data: Partial<VisitEntity>): Promise<Visit> {
+    const model = await VisitModel.findOne({ where: { id, tenantId } });
     
     if (!model) {
       throw new Error('Visit not found');
@@ -217,12 +220,12 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return this.toDomain(model);
   }
 
-  async delete(id: number): Promise<void> {
-    await VisitModel.destroy({ where: { id } });
+  async delete(tenantId: number, id: number): Promise<void> {
+    await VisitModel.destroy({ where: { tenantId, id } });
   }
 
-  async count(filters?: VisitFilters): Promise<number> {
-    const where: WhereOptions = {};
+  async count(tenantId: number, filters?: VisitFilters): Promise<number> {
+    const where: WhereOptions = { tenantId };
 
     if (filters?.status) {
       where.status = filters.status;
@@ -232,7 +235,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
       // Buscar el visitante por cédula hasheada para obtener su ID
       const hashedCedula = Encryption.hash(filters.visitorCedula);
       const visitor = await VisitorModel.findOne({
-        where: { cedula: hashedCedula }
+        where: { tenantId, cedula: hashedCedula }
       });
       
       if (visitor) {
@@ -277,9 +280,10 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return await VisitModel.count({ where });
   }
 
-  async deleteOlderThan(date: Date): Promise<number> {
+  async deleteOlderThan(tenantId: number, date: Date): Promise<number> {
     const result = await VisitModel.destroy({
       where: {
+        tenantId,
         check_out_time: {
           [Op.lt]: date
         },
@@ -290,15 +294,16 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return result;
   }
 
-  async countByStatus(status: VisitStatus): Promise<number> {
+  async countByStatus(tenantId: number, status: VisitStatus): Promise<number> {
     return await VisitModel.count({
-      where: { status }
+      where: { tenantId, status }
     });
   }
 
-  async countByDateRange(startDate: Date, endDate: Date): Promise<number> {
+  async countByDateRange(tenantId: number, startDate: Date, endDate: Date): Promise<number> {
     return await VisitModel.count({
       where: {
+        tenantId,
         check_in_time: {
           [Op.between]: [startDate, endDate]
         }
@@ -306,9 +311,10 @@ export class SequelizeVisitRepository implements IVisitRepository {
     });
   }
 
-  async findMissedCheckouts(thresholdDate: Date): Promise<Visit[]> {
+  async findMissedCheckouts(tenantId: number, thresholdDate: Date): Promise<Visit[]> {
     const models = await VisitModel.findAll({
       where: {
+        tenantId,
         status: VisitStatus.ACTIVE,
         check_in_time: {
           [Op.lt]: thresholdDate
@@ -322,9 +328,10 @@ export class SequelizeVisitRepository implements IVisitRepository {
     return models.map(m => this.toDomain(m));
   }
 
-  async findForReport(startDate: Date, endDate: Date): Promise<Visit[]> {
+  async findForReport(tenantId: number, startDate: Date, endDate: Date): Promise<Visit[]> {
     const models = await VisitModel.findAll({
       where: {
+        tenantId,
         check_in_time: {
           [Op.between]: [startDate, endDate]
         }

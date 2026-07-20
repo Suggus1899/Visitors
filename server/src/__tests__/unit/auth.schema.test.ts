@@ -27,8 +27,8 @@ describe('loginSchema', () => {
     expect(fields).toContain('password');
   });
 
-  it('rejects username longer than 100 chars', () => {
-    const result = loginSchema.safeParse({ username: 'a'.repeat(101), password: 'secret' });
+  it('rejects username longer than 200 chars', () => {
+    const result = loginSchema.safeParse({ username: 'a'.repeat(201), password: 'secret' });
     expect(result.success).toBe(false);
   });
 

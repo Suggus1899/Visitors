@@ -15,7 +15,7 @@ export interface ComparisonStatsDto {
 export class GetComparisonStatsUseCase {
   constructor(private visitRepository: IVisitRepository) {}
 
-  async execute(month?: number, year?: number): Promise<ComparisonStatsDto> {
+  async execute(tenantId: number, month?: number, year?: number): Promise<ComparisonStatsDto> {
     const today = new Date();
     const targetMonth = month !== undefined ? month : today.getMonth();
     const targetYear = year || today.getFullYear();
@@ -29,8 +29,8 @@ export class GetComparisonStatsUseCase {
     const lastMonthEnd = new Date(targetYear, targetMonth, 0, 23, 59, 59);
 
     // Fetch raw visits for both periods
-    const currentVisits = await this.visitRepository.findForReport(currentMonthStart, currentMonthEnd);
-    const lastVisits = await this.visitRepository.findForReport(lastMonthStart, lastMonthEnd);
+    const currentVisits = await this.visitRepository.findForReport(tenantId, currentMonthStart, currentMonthEnd);
+    const lastVisits = await this.visitRepository.findForReport(tenantId, lastMonthStart, lastMonthEnd);
 
     // Counts
     const currentMonthCount = currentVisits.length;

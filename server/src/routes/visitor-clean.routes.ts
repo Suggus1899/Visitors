@@ -1,9 +1,10 @@
 import express from 'express';
 import * as VisitorCleanController from '../controllers/VisitorCleanController';
-import { verifyToken } from '../middleware/auth';
+import { verifyToken, resolveTenant, verifyTenantMembership } from '../middleware/auth';
 import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
+const tenantContext = [verifyToken, asyncHandler(resolveTenant), asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger
@@ -24,7 +25,7 @@ const router = express.Router();
  *       200:
  *         description: List of companies
  */
-router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getCompanies);
+router.get('/v1/:tenantSlug/visitors/companies', ...tenantContext, VisitorCleanController.getCompanies);
 
 /**
  * @swagger
@@ -73,9 +74,9 @@ router.get('/v1/visitors/companies', verifyToken, VisitorCleanController.getComp
  *       200:
  *         description: List of visitors
  */
-router.get('/v1/visitors', verifyToken, asyncHandler(VisitorCleanController.getAllVisitors));
+router.get('/v1/:tenantSlug/visitors', ...tenantContext, asyncHandler(VisitorCleanController.getAllVisitors));
 
-router.get('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanController.getVisitor));
+router.get('/v1/:tenantSlug/visitors/:cedula', ...tenantContext, asyncHandler(VisitorCleanController.getVisitor));
 
 /**
  * @swagger
@@ -103,13 +104,13 @@ router.get('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanControl
  *       404:
  *         description: Visitor not found
  */
-router.patch('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanController.updateVisitor));
+router.patch('/v1/:tenantSlug/visitors/:cedula', ...tenantContext, asyncHandler(VisitorCleanController.updateVisitor));
 
-router.post('/v1/visitors/verify-edit-password', verifyToken, asyncHandler(VisitorCleanController.verifyEditPassword));
+router.post('/v1/:tenantSlug/visitors/verify-edit-password', ...tenantContext, asyncHandler(VisitorCleanController.verifyEditPassword));
 
-router.get('/v1/visits/:visitId/edit-history', verifyToken, asyncHandler(VisitorCleanController.getEditHistory));
+router.get('/v1/:tenantSlug/visits/:visitId/edit-history', ...tenantContext, asyncHandler(VisitorCleanController.getEditHistory));
 
-router.get('/v1/visitors/:cedula/edit-history', verifyToken, asyncHandler(VisitorCleanController.getEditHistoryByCedula));
+router.get('/v1/:tenantSlug/visitors/:cedula/edit-history', ...tenantContext, asyncHandler(VisitorCleanController.getEditHistoryByCedula));
 
 /**
  * @swagger
@@ -123,9 +124,9 @@ router.get('/v1/visitors/:cedula/edit-history', verifyToken, asyncHandler(Visito
  *       200:
  *         description: List of companies
  */
-router.get('/v1/visitors/:cedula/photo', asyncHandler(VisitorCleanController.getVisitorPhoto));
+router.get('/v1/:tenantSlug/visitors/:cedula/photo', ...tenantContext, asyncHandler(VisitorCleanController.getVisitorPhoto));
 
-router.get('/v1/visitors/:cedula/id-photo', asyncHandler(VisitorCleanController.getVisitorIdPhoto));
+router.get('/v1/:tenantSlug/visitors/:cedula/id-photo', ...tenantContext, asyncHandler(VisitorCleanController.getVisitorIdPhoto));
 
 
 export default router;

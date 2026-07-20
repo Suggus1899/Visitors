@@ -9,9 +9,9 @@ import { VisitMapper } from '../mappers/VisitMapper';
 export class CheckOutVisitorUseCase {
   constructor(private visitRepository: IVisitRepository) {}
 
-  async execute(dto: CheckOutDto): Promise<VisitResponseDto> {
+  async execute(tenantId: number, dto: CheckOutDto): Promise<VisitResponseDto> {
     // 1. Find the visit
-    const visit = await this.visitRepository.findById(dto.visitId);
+    const visit = await this.visitRepository.findById(tenantId, dto.visitId);
 
     if (!visit) {
       throw new Error('Visit not found');
@@ -21,7 +21,7 @@ export class CheckOutVisitorUseCase {
     const checkedOutVisit = visit.checkout(new Date(), dto.notes);
 
     // 3. Update in repository with the checked out visit data
-    const updatedVisit = await this.visitRepository.update(visit.id!, {
+    const updatedVisit = await this.visitRepository.update(tenantId, visit.id!, {
       checkOutTime: checkedOutVisit.checkOutTime,
       status: checkedOutVisit.status,
       notes: checkedOutVisit.notes

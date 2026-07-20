@@ -40,7 +40,8 @@ describe('JwtAuthService', () => {
             const decoded = jwt.verify(token, config.jwtRefreshSecret) as any;
             expect(decoded.id).toBe(mockUser.id);
             expect(decoded.username).toBe(mockUser.username);
-            expect(decoded.role).toBe(mockUser.role);
+            // Refresh tokens intentionally carry no role/tenant context
+            expect(decoded.role).toBeUndefined();
         });
 
         it('should generate token pair with both tokens', () => {

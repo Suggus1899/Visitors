@@ -1,0 +1,42 @@
+{
+  "name": "@logmaster/auditor",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "echo \"No tests configured\"",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.13.0",
+    "react-hot-toast": "^2.6.0",
+    "lucide-react": "^0.330.0",
+    "chart.js": "^4.5.1",
+    "react-chartjs-2": "^5.3.1",
+    "date-fns": "^4.1.0",
+    "axios": "^1.6.7",
+    "@tanstack/react-query": "^5.96.2",
+    "@logmaster/types": "workspace:*",
+    "@logmaster/api": "workspace:*",
+    "@logmaster/auth": "workspace:*",
+    "@logmaster/ui": "workspace:*",
+    "@logmaster/utils": "workspace:*",
+    "@logmaster/config": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.1.4"
+  }
+}

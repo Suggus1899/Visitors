@@ -2,11 +2,14 @@ import app from './app';
 import sequelize from './database';
 import { ensureBaseUsers } from './utils/seeder';
 import { initRetentionScheduler } from './utils/retention';
+import { initBackupScheduler } from './utils/backupScheduler';
 import logger from './config/logger';
 import path from 'path';
 import fs from 'fs';
 import './models/IntermittentLog';
 import './models/VisitorEditHistory';
+import './models/Tenant';
+import './models/TenantUser';
 
 import config from './config/AppConfig';
 
@@ -29,8 +32,9 @@ const startServer = async () => {
         // Ensure base users (root, admin, operador, auditor, demo) always exist
         await ensureBaseUsers();
 
-        // Start daily retention cleanup (logs + photos)
+        // Start retention cleanup and subscription-aware tenant backups.
         initRetentionScheduler();
+        initBackupScheduler();
 
         const server = app.listen(PORT, () => {
             logger.info(`Server running on http://localhost:${PORT}`);

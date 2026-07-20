@@ -8,7 +8,7 @@ import { VisitorDto } from '../dto/VisitorDto';
 export class GetCompaniesUseCase {
   constructor(private visitorRepository: IVisitorRepository) {}
 
-  async execute(query?: string): Promise<string[]> {
-    return await this.visitorRepository.findDistinctCompanies(query);
+  async execute(tenantId: number, query?: string): Promise<string[]> {
+    return await this.visitorRepository.findDistinctCompanies(tenantId, query);
   }
 }

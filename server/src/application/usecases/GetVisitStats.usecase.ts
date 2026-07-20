@@ -9,14 +9,14 @@ import { VisitStatsDto } from '../dto/VisitStatsDto';
 export class GetVisitStatsUseCase {
   constructor(private visitRepository: IVisitRepository) {}
 
-  async execute(startDate?: Date, endDate?: Date): Promise<VisitStatsDto> {
+  async execute(tenantId: number, startDate?: Date, endDate?: Date): Promise<VisitStatsDto> {
     // Default to last 30 days if request is not specific
     const end = endDate || new Date();
     const start = startDate || new Date(new Date().setDate(end.getDate() - 30));
 
     // Get raw data from repository
-    const visits = await this.visitRepository.findForReport(start, end);
-    const totalActive = await this.visitRepository.countByStatus(VisitStatus.ACTIVE);
+    const visits = await this.visitRepository.findForReport(tenantId, start, end);
+    const totalActive = await this.visitRepository.countByStatus(tenantId, VisitStatus.ACTIVE);
 
     // Calculate Summary
     const totalVisits = visits.length;
