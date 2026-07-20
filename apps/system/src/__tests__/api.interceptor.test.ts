@@ -139,7 +139,7 @@ describe('api.v1 interceptors', () => {
       await expect(responseRejected(error)).rejects.toThrow('refresh failed');
 
       expect(mockAuthService.logout).toHaveBeenCalled();
-      expect(window.location.href).toBe('#/login');
+      expect(window.location.href).toBe('/login');
     });
 
     it('should not attempt refresh twice for the same request (_retry guard)', async () => {

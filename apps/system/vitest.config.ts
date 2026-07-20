@@ -18,8 +18,7 @@ const lucideIconStubPlugin = {
 };
 
 export default defineConfig({
-  // @ts-expect-error — slight plugin-type mismatch between vitest's bundled vite and project vite
-  plugins: [react(), lucideIconStubPlugin],
+  plugins: [react(), lucideIconStubPlugin as unknown as never],
   resolve: {
     alias: {
       '@': path.resolve(root, 'src'),

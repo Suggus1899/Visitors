@@ -1,6 +1,8 @@
+'use client';
+
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import Mail from 'lucide-react/dist/esm/icons/mail';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
@@ -33,7 +35,7 @@ const ForgotPassword = () => {
             <div className="absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-[color:var(--accent-0)] opacity-15 blur-3xl" />
 
             <div className="panel-tech rounded-2xl p-8 w-full max-w-md relative z-10">
-                <Link to="/login" className="flex items-center text-[color:var(--text-3)] hover:text-[color:var(--text-1)] mb-4 text-sm">
+                <Link href="/login" className="flex items-center text-[color:var(--text-3)] hover:text-[color:var(--text-1)] mb-4 text-sm">
                     <ArrowLeft size={16} className="mr-1" /> Volver al Login
                 </Link>
                 <div className="text-center mb-6">
@@ -70,7 +72,7 @@ const ForgotPassword = () => {
                 </form>
 
                 <div className="mt-8 pt-6 border-t border-[color:var(--border-1)] text-center">
-                    <Link to="/reset-password" className="text-xs text-[color:var(--accent-0)] hover:underline">
+                    <Link href="/reset-password" className="text-xs text-[color:var(--accent-0)] hover:underline">
                         ¿Ya tienes un token? Ingresa aquí
                     </Link>
                 </div>

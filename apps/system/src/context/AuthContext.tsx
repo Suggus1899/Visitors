@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, ReactNode } from 'react';
 import { AuthContext } from './AuthContextInstance';
 import AuthService from '../services/AuthService';

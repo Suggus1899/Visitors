@@ -21,7 +21,7 @@ export const Header = ({
         <header className={`bg-[color:var(--surface-1)] text-[color:var(--text-1)] border-b border-[color:var(--border-1)] shadow-[0_12px_28px_-22px_rgba(0,0,0,0.9)] sticky top-0 z-20 transition-all ${className}`}>
             <div className="container mx-auto px-4 py-3 flex items-center justify-between relative z-10">
                 <div className="flex items-center space-x-3">
-                    <img src="./logo.png" alt="Logo" className="h-10 w-auto bg-[color:var(--surface-2)] rounded-md p-1.5 border border-[color:var(--border-1)]" />
+                    <img src="/logo.png" alt="Logo" className="h-10 w-auto bg-[color:var(--surface-2)] rounded-md p-1.5 border border-[color:var(--border-1)]" />
                     <h1 className="text-xl font-display tracking-[0.18em] uppercase hidden md:block">{title}</h1>
                 </div>
                 

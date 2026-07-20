@@ -122,7 +122,7 @@ api.interceptors.response.use(
 
                 // Redirect to login page
                 if (typeof window !== 'undefined') {
-                    window.location.href = '#/login';
+                    window.location.href = '/login';
                 }
 
                 return Promise.reject(refreshError);

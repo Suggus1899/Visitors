@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_URL } from '../config/env';
-import AuthService from '../services/AuthService';
 import { visitQueryKeys } from './useVisitQueries';
 
 interface VisitEvent {
@@ -34,15 +33,11 @@ export const useVisitEvents = (options?: UseVisitEventsOptions) => {
             return;
         }
 
-        const token = AuthService.getAccessToken();
-        if (!token) {
-            setIsConnected(false);
-            setIsUsingFallbackPolling(true);
-            return;
-        }
-
+        // SSE auth is handled by the httpOnly `lm_access_token` cookie, which the
+        // browser sends automatically on the same-origin relative URL via the
+        // Next.js rewrite. No token query param is needed.
         const connect = () => {
-            const url = `${API_URL}/events/visits?token=${encodeURIComponent(token)}`;
+            const url = `${API_URL}/events/visits`;
             const eventSource = new EventSource(url);
             eventSourceRef.current = eventSource;
 

@@ -1,13 +1,15 @@
+'use client';
+
 import React, { useState } from 'react';
 import { AxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import AuthService from '../services/AuthService';
 import type { User } from '../types';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import Eye from 'lucide-react/dist/esm/icons/eye';
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const Login = () => {
     const [username, setUsername] = useState('');
@@ -15,7 +17,7 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,11 +41,11 @@ const Login = () => {
             login({ username: user.username, role: user.role as User['role'], mustChangePassword: user.mustChangePassword });
 
             if (user.role === 'root') {
-                setTimeout(() => navigate('/root'), 500);
+                setTimeout(() => router.push('/'), 500);
             } else if (user.role === 'auditor') {
-                setTimeout(() => navigate('/audit'), 500);
+                setTimeout(() => router.push('/'), 500);
             } else {
-                setTimeout(() => navigate('/'), 500);
+                setTimeout(() => router.push('/'), 500);
             }
         } catch (err) {
             const error = err as AxiosError<{ error?: { message?: string } }>;
@@ -71,28 +73,13 @@ const Login = () => {
             <div className="absolute -top-28 -left-28 h-72 w-72 rounded-full bg-[color:var(--accent-2)] opacity-25 blur-3xl" />
             <div className="absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-[color:var(--accent-0)] opacity-20 blur-3xl" />
 
-            <Toaster
-                position="top-center"
-                toastOptions={{
-                    duration: 3000,
-                    style: {
-                        background: 'var(--surface-1)',
-                        color: 'var(--text-1)',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border-1)'
-                    },
-                    success: { iconTheme: { primary: '#4dd7ff', secondary: '#081116' } },
-                    error: { iconTheme: { primary: '#ff6b6b', secondary: '#0b0f12' } }
-                }}
-            />
-
             <div className="relative w-full max-w-md">
                 <div className="panel-tech rounded-2xl p-8 md:p-10 animate-slideUp relative z-10 overflow-hidden">
                     <div className="absolute inset-x-0 top-0 h-1 bg-[color:var(--accent-0)]" />
 
                     <div className="flex flex-col items-center mb-8 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
                         <div className="p-3 mb-4 rounded-xl border border-[color:var(--border-1)] bg-[color:var(--surface-2)]">
-                            <img src="./logo.png" alt="Industrias de Alimentos el Trébol" className="h-20 w-auto object-contain" />
+                            <img src="/logo.png" alt="Industrias de Alimentos el Trébol" className="h-20 w-auto object-contain" />
                         </div>
                         <h2 className="text-3xl font-display font-semibold text-[color:var(--text-1)]">Bienvenido</h2>
                         <p className="text-[color:var(--text-2)] text-xs uppercase tracking-[0.2em] mt-2">

@@ -1,15 +1,7 @@
+'use client';
+
 import { useState, useEffect, useRef } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
-import { useAuth } from './hooks/useAuth';
-import Login from './components/Login';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
-import VisitForm from './components/VisitForm';
-import ActiveVisits from './components/ActiveVisits';
-import WaitingVisits from './components/WaitingVisits';
-import IntermittentVisits from './components/IntermittentVisits';
+import { useRouter } from 'next/navigation';
 import HelpCircle from 'lucide-react/dist/esm/icons/help-circle';
 import Keyboard from 'lucide-react/dist/esm/icons/keyboard';
 import Clock from 'lucide-react/dist/esm/icons/clock';
@@ -19,18 +11,29 @@ import { startGuidedTour } from './utils/guidedTour';
 import { PasswordChangeModal } from './components/PasswordChangeModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
-import { Toaster } from 'react-hot-toast';
 import { Header } from './components/Header';
-import { useActiveVisitsQuery, useIntermittentVisitsQuery, useWaitingVisitsQuery, useInvalidateVisitQueries } from './hooks/useVisitQueries';
+import {
+    useActiveVisitsQuery,
+    useIntermittentVisitsQuery,
+    useWaitingVisitsQuery,
+    useInvalidateVisitQueries,
+} from './hooks/useVisitQueries';
 import { useVisitEvents } from './hooks/useVisitEvents';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import VisitForm from './components/VisitForm';
+import ActiveVisits from './components/ActiveVisits';
+import WaitingVisits from './components/WaitingVisits';
+import IntermittentVisits from './components/IntermittentVisits';
+import { useAuth } from './hooks/useAuth';
 
 // Main Operations View (Guard + Admin)
-const OperationsView = () => {
+export const OperationsView = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showShortcuts, setShowShortcuts] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'waiting' | 'intermittent'>('active');
-    const { logout, user } = useAuth();
+    const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
+    const { logout, user, loading } = useAuth();
+    const router = useRouter();
     const searchInputRef = useRef<HTMLInputElement>(null);
     const { isUsingFallbackPolling } = useVisitEvents();
     const invalidateVisitQueries = useInvalidateVisitQueries();
@@ -80,6 +83,28 @@ const OperationsView = () => {
         }
     }, [user]);
 
+    // Client-side auth guard: if auth restoration finishes and there is no user,
+    // redirect to login. (Middleware handles the cookie check; this handles the
+    // case where the cookie exists but the token refresh failed.)
+    useEffect(() => {
+        if (!loading && !user) {
+            router.replace('/login');
+        }
+    }, [loading, user, router]);
+
+    // Listen for password-change-required event globally
+    useEffect(() => {
+        const handlePasswordChangeRequired = () => {
+            setShowPasswordChangeModal(true);
+        };
+
+        window.addEventListener('password-change-required', handlePasswordChangeRequired);
+
+        return () => {
+            window.removeEventListener('password-change-required', handlePasswordChangeRequired);
+        };
+    }, []);
+
     const filteredVisits = visits.filter(visit => {
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
@@ -89,6 +114,12 @@ const OperationsView = () => {
         return name.includes(query) || cedula.includes(query) || company.includes(query);
     });
 
+    // Don't render the operations UI until auth is resolved; the redirect effect
+    // above sends unauthenticated users to /login.
+    if (loading || !user) {
+        return null;
+    }
+
     return (
         <div className="min-h-screen bg-[color:var(--bg-0)] text-[color:var(--text-1)] font-sans relative overflow-hidden transition-colors duration-300">
             <div className="absolute inset-0 bg-blueprint opacity-30 pointer-events-none" />
@@ -96,7 +127,6 @@ const OperationsView = () => {
             <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-[color:var(--accent-2)] opacity-15 blur-3xl pointer-events-none" />
             <div className="absolute -bottom-48 -right-40 h-[28rem] w-[28rem] rounded-full bg-[color:var(--accent-0)] opacity-12 blur-3xl pointer-events-none" />
 
-            <Toaster position="top-center" />
             <KeyboardShortcutsHelp show={showShortcuts} onClose={() => setShowShortcuts(false)} />
 
             <Header user={user} logout={logout}>
@@ -236,49 +266,6 @@ const OperationsView = () => {
                 </div>
             </main>
 
-        </div>
-    );
-};
-
-
-
-const OperationsRoute = ({ children }: { children: JSX.Element }) => {
-    const { user, loading } = useAuth();
-    if (loading) return <div>Loading...</div>;
-    if (!user) return <Navigate to="/login" />;
-
-    return children;
-};
-
-function AppRoutes() {
-    const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
-
-    useEffect(() => {
-        // Listen for password-change-required event globally
-        const handlePasswordChangeRequired = () => {
-            setShowPasswordChangeModal(true);
-        };
-
-        window.addEventListener('password-change-required', handlePasswordChangeRequired);
-
-        return () => {
-            window.removeEventListener('password-change-required', handlePasswordChangeRequired);
-        };
-    }, []);
-
-    return (
-        <>
-            <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/" element={
-                    <OperationsRoute>
-                        <OperationsView />
-                    </OperationsRoute>
-                } />
-            </Routes>
-
             {/* Global Password Change Modal */}
             <PasswordChangeModal
                 show={showPasswordChangeModal}
@@ -288,20 +275,9 @@ function AppRoutes() {
                     window.location.reload();
                 }}
             />
-        </>
-    );
-}
 
-function App() {
-    return (
-        <AuthProvider>
-            <ThemeProvider>
-                <HashRouter>
-                    <AppRoutes />
-                </HashRouter>
-            </ThemeProvider>
-        </AuthProvider>
+        </div>
     );
-}
+};
 
-export default App;
+export default OperationsView;

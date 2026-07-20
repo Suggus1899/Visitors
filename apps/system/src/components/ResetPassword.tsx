@@ -1,6 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Key from 'lucide-react/dist/esm/icons/key';
 import Lock from 'lucide-react/dist/esm/icons/lock';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
@@ -11,7 +14,7 @@ const ResetPassword = () => {
     const [newPassword, setNewPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -19,7 +22,7 @@ const ResetPassword = () => {
         try {
             await axios.post('/api/v1/auth/reset-password', { token, newPassword });
             setSuccess(true);
-            setTimeout(() => navigate('/login'), 3000);
+            setTimeout(() => router.push('/login'), 3000);
         } catch {
             alert('Error: El token es inválido o ha expirado.');
         } finally {
@@ -36,7 +39,7 @@ const ResetPassword = () => {
                     <CheckCircle className="mx-auto text-[color:var(--accent-0)] mb-4" size={64} />
                     <h2 className="text-2xl font-display text-[color:var(--text-1)] mb-2">¡Contraseña Actualizada!</h2>
                     <p className="text-[color:var(--text-3)] mb-6">Tu contraseña ha sido restablecida correctamente.</p>
-                    <Link to="/login" className="block w-full btn-tech">IR AL LOGIN</Link>
+                    <Link href="/login" className="block w-full btn-tech">IR AL LOGIN</Link>
                 </div>
             </div>
         )

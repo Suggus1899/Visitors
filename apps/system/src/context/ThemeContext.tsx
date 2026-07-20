@@ -1,3 +1,5 @@
+'use client';
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
 type Theme = 'light' | 'dark';
@@ -10,14 +12,22 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setTheme] = useState<Theme>(() => {
-        const savedTheme = localStorage.getItem('theme') as Theme;
-        // Check system preference if no saved theme
-        if (!savedTheme) {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    // Default to 'dark' on the server and first client render to avoid hydration
+    // mismatches. The real preference is read from localStorage / matchMedia in a
+    // useEffect below, which only runs in the browser.
+    const [theme, setTheme] = useState<Theme>('dark');
+
+    useEffect(() => {
+        // Hydrate the real theme from localStorage / system preference on mount.
+        const savedTheme = localStorage.getItem('theme') as Theme | null;
+        if (savedTheme) {
+            setTheme(savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            setTheme('dark');
+        } else {
+            setTheme('light');
         }
-        return savedTheme || 'dark';
-    });
+    }, []);
 
     useEffect(() => {
         const root = window.document.documentElement;
@@ -36,7 +46,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+// (react-refresh plugin no longer installed under Next.js)
 export function useTheme() {
     const context = useContext(ThemeContext);
     if (context === undefined) {
