@@ -30,8 +30,8 @@ TenantUser.init({
   indexes: [{ unique: true, fields: ['userId', 'tenantId'] }],
   hooks: {
     beforeCreate: async membership => {
-      const { usageCounterService } = await import('../services/UsageCounterService');
-      await usageCounterService.assertCanCreateUser(membership.tenantId, membership.role);
+      const { container } = await import('../shared/Container');
+      await container.usageCounterService.assertCanCreateUser(membership.tenantId, membership.role);
     }
   }
 });

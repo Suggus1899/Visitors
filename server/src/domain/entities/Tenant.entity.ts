@@ -1,6 +1,11 @@
 export type TenantStatus = 'active' | 'suspended' | 'trial';
 export type SubscriptionPlan = 'free' | 'starter' | 'professional' | 'enterprise';
 
+export interface TenantSettings {
+  customLimits?: boolean;
+  [key: string]: unknown;
+}
+
 export interface TenantEntity {
   id?: number;
   slug: string;
@@ -13,5 +18,5 @@ export interface TenantEntity {
   subscriptionExpiresAt?: Date | null;
   isDemo?: boolean;
   demoExpiresAt?: Date | null;
-  settings?: Record<string, unknown>;
+  settings?: TenantSettings;
 }

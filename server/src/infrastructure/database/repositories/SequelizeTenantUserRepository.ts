@@ -1,4 +1,5 @@
-import { TenantUserEntity } from '../../../domain/entities/TenantUser.entity';
+import { Op } from 'sequelize';
+import { TenantUserEntity, TenantRole } from '../../../domain/entities/TenantUser.entity';
 import { ITenantUserRepository, TenantMembershipWithTenant } from '../../../domain/repositories/ITenantUserRepository';
 import Tenant from '../../../models/Tenant';
 import TenantUser from '../../../models/TenantUser';
@@ -17,4 +18,21 @@ export class SequelizeTenantUserRepository implements ITenantUserRepository {
     return memberships.map(membership => membership.toJSON() as unknown as TenantMembershipWithTenant);
   }
   async create(membership: TenantUserEntity): Promise<TenantUserEntity> { return (await TenantUser.create(membership)).toJSON(); }
+
+  async countActive(tenantId: number): Promise<number> {
+    return TenantUser.count({ where: { tenantId, isActive: true } });
+  }
+
+  async countActiveByRole(tenantId: number, roles: TenantRole[]): Promise<Record<TenantRole, number>> {
+    const rows = await TenantUser.findAll({
+      attributes: ['role'],
+      where: { tenantId, isActive: true, role: { [Op.in]: roles } },
+      raw: true,
+    });
+    const result = { admin: 0, operador: 0, auditor: 0, demo: 0 } as Record<TenantRole, number>;
+    (rows as unknown as Array<{ role: TenantRole }>).forEach(r => {
+      if (r.role in result) result[r.role] += 1;
+    });
+    return result;
+  }
 }

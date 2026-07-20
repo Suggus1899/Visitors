@@ -2,8 +2,9 @@ import { NextFunction, Request, Response } from 'express';
 import { getSubscriptionLimits, normalizeSubscriptionPlan, SubscriptionFeature } from '../config/subscription';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { container } from '../shared/Container';
-import { usageCounterService } from '../services/UsageCounterService';
 import { TenantRole } from '../domain/entities/TenantUser.entity';
+
+const usageCounterService = () => container.usageCounterService;
 
 const tenantFromRequest = async (req: Request) => {
   if (req.user?.tid) return container.tenantRepository.findById(req.user.tid);
@@ -33,7 +34,7 @@ export const subscriptionGuard = (feature: SubscriptionFeature) =>
 export const enforceVisitLimit = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.tid) return res.status(403).json(ResponseBuilder.error('TENANT_CONTEXT_REQUIRED', 'Tenant context is required'));
-    await usageCounterService.assertCanCreateVisit(req.user.tid);
+    await usageCounterService().assertCanCreateVisit(req.user.tid);
     next();
   } catch (error: any) {
     if (error?.statusCode === 403) {
@@ -46,11 +47,11 @@ export const enforceVisitLimit = async (req: Request, res: Response, next: NextF
 export const enforceCheckInLimits = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.tid) return res.status(403).json(ResponseBuilder.error('TENANT_CONTEXT_REQUIRED', 'Tenant context is required'));
-    await usageCounterService.assertCanCreateVisit(req.user.tid);
+    await usageCounterService().assertCanCreateVisit(req.user.tid);
     const cedula = typeof req.body?.visitorCedula === 'string' ? req.body.visitorCedula : undefined;
     if (cedula) {
       const exists = await container.visitorRepository.exists(req.user.tid, cedula);
-      if (!exists) await usageCounterService.assertCanCreateVisitor(req.user.tid);
+      if (!exists) await usageCounterService().assertCanCreateVisitor(req.user.tid);
     }
     next();
   } catch (error: any) {
@@ -66,7 +67,7 @@ export const enforceUserLimit = async (req: Request, res: Response, next: NextFu
     if (!req.user?.tid) return res.status(403).json(ResponseBuilder.error('TENANT_CONTEXT_REQUIRED', 'Tenant context is required'));
     const role = req.body?.role as TenantRole | undefined;
     if (!role) return res.status(400).json(ResponseBuilder.error('ROLE_REQUIRED', 'Tenant role is required'));
-    await usageCounterService.assertCanCreateUser(req.user.tid, role);
+    await usageCounterService().assertCanCreateUser(req.user.tid, role);
     next();
   } catch (error: any) {
     if (error?.statusCode === 403) {
@@ -79,7 +80,7 @@ export const enforceUserLimit = async (req: Request, res: Response, next: NextFu
 export const enforceVisitorLimit = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.tid) return res.status(403).json(ResponseBuilder.error('TENANT_CONTEXT_REQUIRED', 'Tenant context is required'));
-    await usageCounterService.assertCanCreateVisitor(req.user.tid);
+    await usageCounterService().assertCanCreateVisitor(req.user.tid);
     next();
   } catch (error: any) {
     if (error?.statusCode === 403) {

@@ -1,10 +1,11 @@
-import { Op } from 'sequelize';
-import { getSubscriptionLimits, normalizeSubscriptionPlan, SubscriptionLimits } from '../config/subscription';
-import Tenant from '../models/Tenant';
-import TenantUser, { TenantRole } from '../models/TenantUser';
-import Visit from '../models/Visit';
-import Visitor from '../models/Visitor';
-import { AppError } from '../shared/errors';
+import { getSubscriptionLimits, normalizeSubscriptionPlan, SubscriptionLimits } from '../../config/subscription';
+import { AppError } from '../../shared/errors';
+import { TenantEntity, TenantSettings } from '../../domain/entities/Tenant.entity';
+import { TenantRole } from '../../domain/entities/TenantUser.entity';
+import { ITenantRepository } from '../../domain/repositories/ITenantRepository';
+import { ITenantUserRepository } from '../../domain/repositories/ITenantUserRepository';
+import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
+import { IVisitorRepository } from '../../domain/repositories/IVisitorRepository';
 
 export interface TenantUsage {
   visitsThisMonth: number;
@@ -20,38 +21,50 @@ const monthRange = (now = new Date()) => {
   return { start, end };
 };
 
+/**
+ * Application service that enforces subscription plan limits (visits per
+ * month, total visitors, total users, users per role) before a tenant can
+ * create new resources.
+ *
+ * Lives in the application layer and depends only on repository interfaces
+ * and domain entities — no Sequelize models.
+ */
 export class UsageCounterService {
-  async getTenant(tenantId: number): Promise<Tenant> {
-    const tenant = await Tenant.findByPk(tenantId);
+  constructor(
+    private readonly tenantRepo: ITenantRepository,
+    private readonly tenantUserRepo: ITenantUserRepository,
+    private readonly visitRepo: IVisitRepository,
+    private readonly visitorRepo: IVisitorRepository,
+  ) {}
+
+  async getTenant(tenantId: number): Promise<TenantEntity> {
+    const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant) throw new AppError('Tenant not found', 404, 'TENANT_NOT_FOUND');
     return tenant;
   }
 
   async getUsage(tenantId: number): Promise<TenantUsage> {
     const { start, end } = monthRange();
-    const [visitsThisMonth, visitors, users, roleRows] = await Promise.all([
-      Visit.count({ where: { tenantId, check_in_time: { [Op.gte]: start, [Op.lt]: end } } }),
-      Visitor.count({ where: { tenantId } }),
-      TenantUser.count({ where: { tenantId, isActive: true } }),
-      TenantUser.findAll({
-        attributes: ['role'],
-        where: { tenantId, isActive: true, role: { [Op.in]: ['admin', 'operador', 'auditor'] } },
-      }),
+    const [visitsThisMonth, visitors, users, roleCounts] = await Promise.all([
+      this.visitRepo.countByDateRange(tenantId, start, end),
+      this.visitorRepo.count(tenantId),
+      this.tenantUserRepo.countActive(tenantId),
+      this.tenantUserRepo.countActiveByRole(tenantId, ['admin', 'operador', 'auditor']),
     ]);
-    const usersByRole = { admin: 0, operador: 0, auditor: 0 };
-    roleRows.forEach(row => {
-      if (row.role in usersByRole) usersByRole[row.role as keyof typeof usersByRole] += 1;
-    });
     return {
       visitsThisMonth,
       visitors,
       users,
-      usersByRole,
+      usersByRole: {
+        admin: roleCounts.admin ?? 0,
+        operador: roleCounts.operador ?? 0,
+        auditor: roleCounts.auditor ?? 0,
+      },
       period: { start: start.toISOString(), end: end.toISOString() },
     };
   }
 
-  async getLimits(tenantId: number): Promise<{ tenant: Tenant; limits: SubscriptionLimits; usage: TenantUsage }> {
+  async getLimits(tenantId: number): Promise<{ tenant: TenantEntity; limits: SubscriptionLimits; usage: TenantUsage }> {
     const tenant = await this.getTenant(tenantId);
     const [limits, usage] = await Promise.all([
       Promise.resolve(getSubscriptionLimits(tenant.subscriptionPlan)),
@@ -74,9 +87,11 @@ export class UsageCounterService {
 
   async assertCanCreateVisitor(tenantId: number): Promise<void> {
     const { tenant, limits, usage } = await this.getLimits(tenantId);
-    const tenantLimit = tenant.maxVisitors > 0 ? tenant.maxVisitors : null;
+    const settings = (tenant.settings ?? {}) as TenantSettings;
+    const rawMaxVisitors = tenant.maxVisitors ?? 0;
+    const tenantLimit: number | null = rawMaxVisitors > 0 ? rawMaxVisitors : null;
     const maxVisitors = limits.maxVisitors === null
-      ? (tenant.settings?.customLimits === true ? tenantLimit : null)
+      ? (settings.customLimits === true ? tenantLimit : null)
       : (tenantLimit === null ? limits.maxVisitors : Math.min(limits.maxVisitors, tenantLimit));
     if (maxVisitors !== null && usage.visitors >= maxVisitors) {
       throw new AppError('Tenant visitor limit reached', 403, 'VISITOR_LIMIT_EXCEEDED', {
@@ -88,9 +103,11 @@ export class UsageCounterService {
 
   async assertCanCreateUser(tenantId: number, role: TenantRole): Promise<void> {
     const { tenant, limits, usage } = await this.getLimits(tenantId);
-    const tenantLimit = tenant.maxUsers > 0 ? tenant.maxUsers : null;
+    const settings = (tenant.settings ?? {}) as TenantSettings;
+    const rawMaxUsers = tenant.maxUsers ?? 0;
+    const tenantLimit: number | null = rawMaxUsers > 0 ? rawMaxUsers : null;
     const maxUsers = limits.maxUsers === null
-      ? (tenant.settings?.customLimits === true ? tenantLimit : null)
+      ? (settings.customLimits === true ? tenantLimit : null)
       : (tenantLimit === null ? limits.maxUsers : Math.min(limits.maxUsers, tenantLimit));
     if (maxUsers !== null && usage.users >= maxUsers) {
       throw new AppError('Tenant user limit reached', 403, 'USER_LIMIT_EXCEEDED', {
@@ -110,5 +127,3 @@ export class UsageCounterService {
     }
   }
 }
-
-export const usageCounterService = new UsageCounterService();

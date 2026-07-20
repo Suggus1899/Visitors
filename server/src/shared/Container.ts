@@ -67,6 +67,7 @@ import { AccessSubjectDataUseCase } from '../application/usecases/privacy/Access
 import { RectifySubjectDataUseCase } from '../application/usecases/privacy/RectifySubjectData.usecase';
 import { CancelSubjectDataUseCase } from '../application/usecases/privacy/CancelSubjectData.usecase';
 import { CreateOppositionRequestUseCase } from '../application/usecases/privacy/CreateOppositionRequest.usecase';
+import { UsageCounterService } from '../application/services/UsageCounterService';
 
 /**
  * Simple Dependency Injection Container
@@ -92,6 +93,7 @@ class Container {
   private _emailService?: IEmailService;
   private _tokenBlacklist?: ITokenBlacklist;
   private _eventEmitter?: IEventEmitter;
+  private _usageCounterService?: UsageCounterService;
 
   private constructor() { }
 
@@ -211,6 +213,18 @@ class Container {
       this._eventEmitter = eventEmitterService;
     }
     return this._eventEmitter;
+  }
+
+  get usageCounterService(): UsageCounterService {
+    if (!this._usageCounterService) {
+      this._usageCounterService = new UsageCounterService(
+        this.tenantRepository,
+        this.tenantUserRepository,
+        this.visitRepository,
+        this.visitorRepository,
+      );
+    }
+    return this._usageCounterService;
   }
 
   // Use case factories (new instance each time)

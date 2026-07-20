@@ -7,7 +7,6 @@ import Visitor from '../models/Visitor';
 import VisitorEditHistory, { PII_EDIT_FIELDS } from '../models/VisitorEditHistory';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { container } from '../shared/Container';
-import { usageCounterService } from '../services/UsageCounterService';
 import Encryption from '../utils/Encryption';
 
 const statusColor: Record<string, string> = {
@@ -44,7 +43,7 @@ export const getSubscription = async (req: Request, res: Response) => {
   const tenant = await container.tenantRepository.findById(tenantId);
   if (!tenant) return res.status(404).json(ResponseBuilder.error('TENANT_NOT_FOUND', 'Tenant not found'));
   const limits = getSubscriptionLimits(tenant.subscriptionPlan);
-  const usage = await usageCounterService.getUsage(tenantId);
+  const usage = await container.usageCounterService.getUsage(tenantId);
   res.json(ResponseBuilder.success({
     plan: normalizeSubscriptionPlan(tenant.subscriptionPlan),
     status: tenant.status,
