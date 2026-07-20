@@ -1,4 +1,7 @@
+'use client';
+
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { VisitService } from '@logmaster/api';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import Home from 'lucide-react/dist/esm/icons/home';
@@ -8,7 +11,6 @@ import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import CalendarIcon from 'lucide-react/dist/esm/icons/calendar';
 import FileSpreadsheet from 'lucide-react/dist/esm/icons/file-spreadsheet';
 import { useAuth } from '@logmaster/auth';
-import { useNavigate } from 'react-router-dom';
 import { Visit, CalendarEvent } from '@logmaster/types';
 import StatisticsPanel from './StatisticsPanel';
 import BackupPanel from './BackupPanel';
@@ -40,7 +42,7 @@ const AdminDashboard = () => {
     const [alertsSummary, setAlertsSummary] = useState<AlertSummary>({ total: 0, warnings: 0, critical: 0 });
 
     const { logout, user } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const fetchStats = useCallback(async () => {
         try {
@@ -126,7 +128,7 @@ const AdminDashboard = () => {
                         <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{alertsSummary.total}</span>
                     </div>
                 )}
-                <button onClick={() => navigate('/')} className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors">
+                <button onClick={() => router.push('/')} className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors">
                     <Home size={16} className="mr-1" /> Operaciones
                 </button>
             </Header>

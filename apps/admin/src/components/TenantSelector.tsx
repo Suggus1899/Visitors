@@ -1,6 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+'use client';
+
+import { useRouter } from 'next/navigation';
 import { useTenant } from '../context/TenantContext';
 import { useAuth } from '@logmaster/auth';
+import { api } from '@logmaster/api';
 import Building from 'lucide-react/dist/esm/icons/building';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
@@ -8,16 +11,21 @@ import LogOut from 'lucide-react/dist/esm/icons/log-out';
 const TenantSelector = () => {
     const { tenants, selectTenant, loadingTenants } = useTenant();
     const { logout } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const handleSelect = (slug: string) => {
         selectTenant(slug);
-        navigate('/');
+        router.push('/');
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await api.post('/auth/logout');
+        } catch {
+            // Ignore — proceed with local logout.
+        }
         logout();
-        navigate('/login');
+        router.push('/login');
     };
 
     if (loadingTenants) {

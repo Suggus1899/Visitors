@@ -11,6 +11,12 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<Theme>(() => {
+        // SSR guard: Next.js server render has no window/localStorage.
+        // Default to 'dark' on the server; the effect below syncs the real
+        // preference once mounted on the client.
+        if (typeof window === 'undefined') {
+            return 'dark';
+        }
         const savedTheme = localStorage.getItem('theme') as Theme;
         // Check system preference if no saved theme
         if (!savedTheme) {

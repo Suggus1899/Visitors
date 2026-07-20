@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect } from 'react';
 import X from 'lucide-react/dist/esm/icons/x';
 import Keyboard from 'lucide-react/dist/esm/icons/keyboard';

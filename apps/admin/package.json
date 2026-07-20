@@ -4,12 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev": "next dev -p 5175",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit",
-    "test": "echo \"No tests configured\"",
-    "preview": "vite preview"
+    "test": "echo \"No tests configured\""
   },
   "dependencies": {
     "@logmaster/api": "workspace:*",
@@ -26,21 +26,24 @@
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.330.0",
+    "next": "14.2.33",
     "react": "^18.2.0",
     "react-big-calendar": "^1.19.4",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.2.0",
-    "react-hot-toast": "^2.6.0",
-    "react-router-dom": "^7.13.0"
+    "react-hot-toast": "^2.6.0"
   },
   "devDependencies": {
+    "@types/node": "^20.11.0",
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
     "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.2.33",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.9.3",
-    "vite": "^5.1.4"
+    "typescript": "^5.9.3"
   }
 }

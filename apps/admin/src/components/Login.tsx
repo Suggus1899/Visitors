@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@logmaster/auth';
 import { AuthService } from '@logmaster/api';
 import toast from 'react-hot-toast';
@@ -16,7 +18,7 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,7 +52,7 @@ const Login = () => {
                 mustChangePassword: user.mustChangePassword,
             });
 
-            navigate('/');
+            router.push('/');
         } catch (err: unknown) {
             const error = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
             const status = error.response?.status;
@@ -83,7 +85,7 @@ const Login = () => {
 
                     <div className="flex flex-col items-center mb-8 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
                         <div className="p-3 mb-4 rounded-xl border border-[color:var(--border-1)] bg-[color:var(--surface-2)]">
-                            <img src="./logo.png" alt="LogMaster" className="h-16 w-auto object-contain" />
+                            <img src="/logo.png" alt="LogMaster" className="h-16 w-auto object-contain" />
                         </div>
                         <h2 className="text-2xl font-display font-semibold text-[color:var(--text-1)]">LogMaster Admin</h2>
                         <p className="text-[color:var(--text-2)] text-xs uppercase tracking-[0.2em] mt-2">

@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useCallback } from 'react';
 import { useBackupsQuery, useCreateBackupMutation, useRestoreBackupMutation, useDeleteBackupMutation, useAdminApi } from '../services/useAdminQueries';
 import { ConfirmDialog, Skeleton } from '@logmaster/ui';

@@ -193,7 +193,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
                                         <div className="mt-3">
                                             <span className="text-xs text-gray-500 block mb-1">Notas adicionales</span>
                                             <p className="text-sm text-gray-700 bg-yellow-50 p-3 rounded-md border border-yellow-100 italic">
-                                                "{visit.notes}"
+                                                &ldquo;{visit.notes}&rdquo;
                                             </p>
                                         </div>
                                     )}

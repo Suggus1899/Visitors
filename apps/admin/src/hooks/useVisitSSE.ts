@@ -1,20 +1,18 @@
+'use client';
+
 /**
  * SSE hook for real-time visit events.
  *
- * Connects to /v1/:tenantSlug/events for visit lifecycle events
- * (check-in, check-out, admit, intermittent). On each event, it:
- *  - Invalidates relevant React Query queries
- *  - Shows a toast notification
+ * Connects to the same-origin `/api/v1/events/stream` endpoint. With Next.js
+ * rewrites, EventSource sends the httpOnly `lm_access_token` cookie
+ * automatically — no `?token=` query param is needed (the backend
+ * `verifySseToken` reads the cookie first).
  *
- * Falls back to polling if SSE is unavailable.
- *
- * TODO: Update the SSE URL to the tenant-scoped endpoint once the
- * backend migration is complete.
+ * On each visit lifecycle event (check-in, check-out, admit, intermittent)
+ * it invalidates the relevant React Query queries and shows a toast.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { API_URL } from '@logmaster/config';
-import { AuthService } from '@logmaster/api';
 import toast from 'react-hot-toast';
 import { useInvalidateAllAdmin } from '../services/useAdminQueries';
 import { useTenant } from '../context/TenantContext';
@@ -49,12 +47,6 @@ export const useVisitSSE = (options?: UseVisitSSEOptions) => {
 
         if (!enabled || !selectedSlug) return;
 
-        const token = AuthService.getAccessToken();
-        if (!token) {
-            setIsConnected(false);
-            return;
-        }
-
         const handleEvent = (payload: VisitEvent) => {
             // Invalidate all admin queries to refresh data
             invalidateAll();
@@ -84,10 +76,9 @@ export const useVisitSSE = (options?: UseVisitSSEOptions) => {
         };
 
         const connect = () => {
-            // TODO: Update to tenant-scoped SSE endpoint:
-            //   /v1/${selectedSlug}/events/visits?token=...
-            // For now we use the legacy endpoint.
-            const url = `${API_URL}/events/visits?token=${encodeURIComponent(token)}`;
+            // Same-origin relative URL — Next rewrites proxy /api → backend,
+            // and the httpOnly lm_access_token cookie is sent automatically.
+            const url = '/api/v1/events/stream';
             const eventSource = new EventSource(url);
             eventSourceRef.current = eventSource;
 

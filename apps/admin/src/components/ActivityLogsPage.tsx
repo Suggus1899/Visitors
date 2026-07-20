@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useMemo, useCallback } from 'react';
 import { useActivityLogsQuery, useAuditStatsQuery } from '../services/useAdminQueries';
 import { SkeletonTable } from '@logmaster/ui';

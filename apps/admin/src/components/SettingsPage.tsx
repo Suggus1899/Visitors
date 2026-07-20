@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useCallback } from 'react';
 import { useAuth } from '@logmaster/auth';
 import { useTenant } from '../context/TenantContext';

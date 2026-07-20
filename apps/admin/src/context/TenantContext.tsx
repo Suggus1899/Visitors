@@ -1,3 +1,5 @@
+'use client';
+
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { Tenant, TenantMembership } from '../types/tenant';
 
@@ -118,7 +120,6 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useTenant = (): TenantContextValue => {
     const context = useContext(TenantContext);
     if (!context) {

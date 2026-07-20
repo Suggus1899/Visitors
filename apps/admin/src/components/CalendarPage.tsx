@@ -1,13 +1,13 @@
+'use client';
+
 import { useState, useMemo } from 'react';
-import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
+import dynamic from 'next/dynamic';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import { useVisitListQuery } from '../services/useAdminQueries';
 import { Skeleton } from '@logmaster/ui';
 import CalendarEventModal from './CalendarEventModal';
-import CustomCalendarToolbar from './CustomCalendarToolbar';
 import CalendarLegend from './CalendarLegend';
 import type { CalendarEvent, Visit } from '@logmaster/types';
 
@@ -15,13 +15,10 @@ import Download from 'lucide-react/dist/esm/icons/download';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const locales = { es: es };
-const localizer = dateFnsLocalizer({
-    format,
-    parse,
-    startOfWeek,
-    getDay,
-    locales,
+// react-big-calendar uses window/DOM APIs — load it client-side only.
+const BigCalendarClient = dynamic(() => import('./BigCalendarClient'), {
+    ssr: false,
+    loading: () => <div style={{ height: 650 }} />,
 });
 
 const CalendarPage = () => {
@@ -137,66 +134,12 @@ const CalendarPage = () => {
                     className="bg-[color:var(--surface-1)] rounded-xl border border-[color:var(--border-1)] p-2"
                     style={{ height: '650px' }}
                 >
-                    <Calendar
-                        localizer={localizer}
+                    <BigCalendarClient
                         events={filteredEvents}
-                        startAccessor="start"
-                        endAccessor="end"
-                        style={{ height: '100%' }}
-                        views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-                        defaultView={Views.MONTH}
-                        components={{ toolbar: CustomCalendarToolbar }}
                         onSelectEvent={(event) => {
                             setSelectedEvent(event.resource || null);
                             setShowEventModal(true);
                         }}
-                        messages={{
-                            today: 'Hoy',
-                            previous: 'Anterior',
-                            next: 'Siguiente',
-                            month: 'Mes',
-                            week: 'Semana',
-                            day: 'Día',
-                            agenda: 'Agenda',
-                            noEventsInRange: 'No visits in this range',
-                            date: 'Fecha',
-                            time: 'Hora',
-                            event: 'Visita',
-                        }}
-                        eventPropGetter={(event) => {
-                            const reason = event.resource?.reason?.toLowerCase() || '';
-                            const isActive = event.resource?.status === 'active';
-                            let bgColor = '#1b232a';
-                            let borderColor = '#4dd7ff';
-                            let textColor = '#e5edf5';
-                            if (!isActive) {
-                                bgColor = '#151b20';
-                                borderColor = '#2e3842';
-                                textColor = '#7c8a97';
-                            } else if (reason.includes('reunión') || reason.includes('meeting')) {
-                                borderColor = '#60a5fa';
-                            } else if (reason.includes('entrega') || reason.includes('delivery')) {
-                                borderColor = '#34d399';
-                            } else if (reason.includes('mantenimiento') || reason.includes('técnico')) {
-                                borderColor = '#fbbf24';
-                            } else if (reason.includes('emergencia') || reason.includes('urgente')) {
-                                borderColor = '#f87171';
-                            }
-                            return {
-                                style: {
-                                    backgroundColor: bgColor,
-                                    borderLeft: `3px solid ${borderColor}`,
-                                    color: textColor,
-                                    borderRadius: '4px',
-                                    fontSize: '11px',
-                                    fontWeight: '600',
-                                    padding: '2px 5px',
-                                },
-                            };
-                        }}
-                        tooltipAccessor={(event) =>
-                            `${event.title}\n${event.resource?.Visitor?.company || ''}\nCheck in: ${format(event.start, 'HH:mm', { locale: es })}`
-                        }
                     />
                 </div>
                 <div className="mt-6">

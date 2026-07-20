@@ -1,5 +1,7 @@
+'use client';
+
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 interface UseKeyboardShortcutsOptions {
     onShowShortcuts: () => void;
@@ -24,7 +26,7 @@ const ROUTE_MAP: Record<string, string> = {
  * and "?" to open the shortcuts help modal.
  */
 export const useKeyboardShortcuts = ({ onShowShortcuts }: UseKeyboardShortcutsOptions) => {
-    const navigate = useNavigate();
+    const router = useRouter();
 
     useEffect(() => {
         let waitingForG = false;
@@ -61,7 +63,7 @@ export const useKeyboardShortcuts = ({ onShowShortcuts }: UseKeyboardShortcutsOp
                 const route = ROUTE_MAP[e.key.toLowerCase()];
                 if (route) {
                     e.preventDefault();
-                    navigate(route);
+                    router.push(route);
                 }
             }
         };
@@ -71,5 +73,5 @@ export const useKeyboardShortcuts = ({ onShowShortcuts }: UseKeyboardShortcutsOp
             window.removeEventListener('keydown', handleKey);
             if (gTimeout) window.clearTimeout(gTimeout);
         };
-    }, [navigate, onShowShortcuts]);
+    }, [router, onShowShortcuts]);
 };

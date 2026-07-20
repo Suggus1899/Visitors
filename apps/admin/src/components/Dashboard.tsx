@@ -1,5 +1,7 @@
+'use client';
+
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useDashboardKPIsQuery, useRecentVisitsQuery, useActiveVisitsQuery } from '../services/useAdminQueries';
 import { Skeleton, SkeletonCard } from '@logmaster/ui';
 import { RecentVisits } from '@logmaster/ui';
@@ -56,7 +58,7 @@ const QUICK_ACTIONS = [
 ];
 
 const Dashboard = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { data: kpis, isLoading: kpisLoading } = useDashboardKPIsQuery(30000);
     const { data: recentVisits = [], isFetching: recentFetching } = useRecentVisitsQuery(10);
     const { data: activeVisits = [] } = useActiveVisitsQuery(30000);
@@ -69,10 +71,10 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-display uppercase tracking-[0.18em] text-[color:var(--text-1)]">Dashboard</h1>
-                    <p className="text-sm text-[color:var(--text-3)] mt-1">Overview of today's visitor activity</p>
+                    <p className="text-sm text-[color:var(--text-3)] mt-1">Overview of today&apos;s visitor activity</p>
                 </div>
                 <button
-                    onClick={() => navigate('/visits')}
+                    onClick={() => router.push('/visits')}
                     className="btn-ghost px-4 py-2 text-sm flex items-center gap-2"
                 >
                     <RefreshCw size={16} /> View All Visits
@@ -118,7 +120,7 @@ const Dashboard = () => {
                     {QUICK_ACTIONS.map((action) => (
                         <button
                             key={action.path}
-                            onClick={() => navigate(action.path)}
+                            onClick={() => router.push(action.path)}
                             className="flex flex-col items-center gap-2 p-4 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-xl hover:border-[color:var(--accent-0)] transition-colors group"
                         >
                             <action.icon size={24} className={action.color} />
@@ -140,7 +142,7 @@ const Dashboard = () => {
                             Active Visits
                         </h3>
                         <button
-                            onClick={() => navigate('/visits')}
+                            onClick={() => router.push('/visits')}
                             className="text-xs text-[color:var(--text-3)] hover:text-[color:var(--accent-0)] flex items-center gap-1 transition-colors"
                         >
                             View all <ArrowRight size={12} />
@@ -188,7 +190,7 @@ const Dashboard = () => {
                             Recent Activity
                         </h3>
                         <button
-                            onClick={() => navigate('/activity-logs')}
+                            onClick={() => router.push('/activity-logs')}
                             className="text-xs text-[color:var(--text-3)] hover:text-[color:var(--accent-0)] flex items-center gap-1 transition-colors"
                         >
                             View all <ArrowRight size={12} />

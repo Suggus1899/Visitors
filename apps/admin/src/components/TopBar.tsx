@@ -1,6 +1,9 @@
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@logmaster/auth';
+import { api } from '@logmaster/api';
 import { useTenant } from '../context/TenantContext';
 import { ThemeToggle } from '@logmaster/ui';
 import Building from 'lucide-react/dist/esm/icons/building';
@@ -20,7 +23,7 @@ interface TopBarProps {
 const TopBar = ({ onToggleSidebar, onShowShortcuts, onShowPasswordChange }: TopBarProps) => {
     const { user, logout } = useAuth();
     const { tenant } = useTenant();
-    const navigate = useNavigate();
+    const router = useRouter();
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -35,9 +38,16 @@ const TopBar = ({ onToggleSidebar, onShowShortcuts, onShowPasswordChange }: TopB
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        // Call the backend logout endpoint so the httpOnly access cookie is
+        // cleared (client-side JS cannot clear httpOnly cookies).
+        try {
+            await api.post('/auth/logout');
+        } catch {
+            // Ignore network errors — proceed with local logout below.
+        }
         logout();
-        navigate('/login');
+        router.push('/login');
     };
 
     return (

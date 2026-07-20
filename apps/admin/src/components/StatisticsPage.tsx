@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useMemo, useCallback } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, ChartData, ChartOptions } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
