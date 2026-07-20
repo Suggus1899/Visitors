@@ -68,6 +68,7 @@ import { RectifySubjectDataUseCase } from '../application/usecases/privacy/Recti
 import { CancelSubjectDataUseCase } from '../application/usecases/privacy/CancelSubjectData.usecase';
 import { CreateOppositionRequestUseCase } from '../application/usecases/privacy/CreateOppositionRequest.usecase';
 import { UsageCounterService } from '../application/services/UsageCounterService';
+import { diContainer } from './diRegistration';
 
 /**
  * Simple Dependency Injection Container
@@ -104,69 +105,83 @@ class Container {
     return Container.instance;
   }
 
-  // Repository instances
+  /**
+   * Resolve a dependency by tsyringe token. Falls back to the provided
+   * factory if the token is not registered (e.g. in tests that don't
+   * call registerDependencies).
+   */
+  private resolve<T>(token: string, fallback: () => T): T {
+    try {
+      if (diContainer.isRegistered(token)) return diContainer.resolve<T>(token);
+    } catch {
+      // tsyringe not yet registered — use fallback
+    }
+    return fallback();
+  }
+
+  // Repository instances — resolved via tsyringe with lazy fallback
   get visitorRepository(): IVisitorRepository {
     if (!this._visitorRepository) {
-      this._visitorRepository = new SequelizeVisitorRepository();
+      this._visitorRepository = this.resolve<IVisitorRepository>('IVisitorRepository', () => new SequelizeVisitorRepository());
     }
     return this._visitorRepository;
   }
 
   get visitRepository(): IVisitRepository {
     if (!this._visitRepository) {
-      this._visitRepository = new SequelizeVisitRepository();
+      this._visitRepository = this.resolve<IVisitRepository>('IVisitRepository', () => new SequelizeVisitRepository());
     }
     return this._visitRepository;
   }
 
   get intermittentLogRepository(): IIntermittentLogRepository {
     if (!this._intermittentLogRepository) {
-      this._intermittentLogRepository = new SequelizeIntermittentLogRepository();
+      this._intermittentLogRepository = this.resolve<IIntermittentLogRepository>('IIntermittentLogRepository', () => new SequelizeIntermittentLogRepository());
     }
     return this._intermittentLogRepository;
   }
 
   get userRepository(): IUserRepository {
     if (!this._userRepository) {
-      this._userRepository = new SequelizeUserRepository();
+      this._userRepository = this.resolve<IUserRepository>('IUserRepository', () => new SequelizeUserRepository());
     }
     return this._userRepository;
   }
 
   get auditLogRepository(): IAuditLogRepository {
     if (!this._auditLogRepository) {
-      this._auditLogRepository = new SequelizeAuditLogRepository();
+      this._auditLogRepository = this.resolve<IAuditLogRepository>('IAuditLogRepository', () => new SequelizeAuditLogRepository());
     }
     return this._auditLogRepository;
   }
 
   get arcoRequestRepository(): IArcoRequestRepository {
     if (!this._arcoRequestRepository) {
-      this._arcoRequestRepository = new SequelizeArcoRequestRepository();
+      this._arcoRequestRepository = this.resolve<IArcoRequestRepository>('IArcoRequestRepository', () => new SequelizeArcoRequestRepository());
     }
     return this._arcoRequestRepository;
   }
 
   get visitorEditHistoryRepository(): IVisitorEditHistoryRepository {
     if (!this._visitorEditHistoryRepository) {
-      this._visitorEditHistoryRepository = new SequelizeVisitorEditHistoryRepository();
+      this._visitorEditHistoryRepository = this.resolve<IVisitorEditHistoryRepository>('IVisitorEditHistoryRepository', () => new SequelizeVisitorEditHistoryRepository());
     }
     return this._visitorEditHistoryRepository;
   }
 
   get tenantRepository(): ITenantRepository {
-    if (!this._tenantRepository) this._tenantRepository = new SequelizeTenantRepository();
+    if (!this._tenantRepository) this._tenantRepository = this.resolve<ITenantRepository>('ITenantRepository', () => new SequelizeTenantRepository());
     return this._tenantRepository;
   }
 
   get tenantUserRepository(): ITenantUserRepository {
-    if (!this._tenantUserRepository) this._tenantUserRepository = new SequelizeTenantUserRepository();
+    if (!this._tenantUserRepository) this._tenantUserRepository = this.resolve<ITenantUserRepository>('ITenantUserRepository', () => new SequelizeTenantUserRepository());
     return this._tenantUserRepository;
   }
 
   get backupService(): IBackupService {
     if (!this._backupService) {
-      this._backupService = new PostgresBackupService();
+      this._backupService = this.resolve<IBackupService>('IBackupService', () => new PostgresBackupService());
     }
     return this._backupService;
   }
@@ -182,47 +197,47 @@ class Container {
 
   get authService(): IAuthService {
     if (!this._authService) {
-      this._authService = new JwtAuthService();
+      this._authService = this.resolve<IAuthService>('IAuthService', () => new JwtAuthService());
     }
     return this._authService;
   }
 
   get passwordPolicy(): PasswordPolicy {
     if (!this._passwordPolicy) {
-      this._passwordPolicy = new PasswordPolicy();
+      this._passwordPolicy = this.resolve<PasswordPolicy>('PasswordPolicy', () => new PasswordPolicy());
     }
     return this._passwordPolicy;
   }
 
   get emailService(): IEmailService {
     if (!this._emailService) {
-      this._emailService = new EmailService();
+      this._emailService = this.resolve<IEmailService>('IEmailService', () => new EmailService());
     }
     return this._emailService;
   }
 
   get tokenBlacklist(): ITokenBlacklist {
     if (!this._tokenBlacklist) {
-      this._tokenBlacklist = tokenBlacklist;
+      this._tokenBlacklist = this.resolve<ITokenBlacklist>('ITokenBlacklist', () => tokenBlacklist);
     }
     return this._tokenBlacklist;
   }
 
   get eventEmitter(): IEventEmitter {
     if (!this._eventEmitter) {
-      this._eventEmitter = eventEmitterService;
+      this._eventEmitter = this.resolve<IEventEmitter>('IEventEmitter', () => eventEmitterService);
     }
     return this._eventEmitter;
   }
 
   get usageCounterService(): UsageCounterService {
     if (!this._usageCounterService) {
-      this._usageCounterService = new UsageCounterService(
+      this._usageCounterService = this.resolve<UsageCounterService>('UsageCounterService', () => new UsageCounterService(
         this.tenantRepository,
         this.tenantUserRepository,
         this.visitRepository,
         this.visitorRepository,
-      );
+      ));
     }
     return this._usageCounterService;
   }
