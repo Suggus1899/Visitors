@@ -3,12 +3,6 @@
   "version": "1.0.0",
   "description": "LogMaster - Sistema de Control de Acceso de Visitantes",
   "private": true,
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "11.3.0"
-    }
-  },
   "scripts": {
     "dev": "concurrently -n server,apps -c blue,green \"pnpm --dir server run dev\" \"turbo run dev\"",
     "dev:server": "pnpm --dir server run dev",

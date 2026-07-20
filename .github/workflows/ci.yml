@@ -52,9 +52,15 @@ jobs:
           pnpm --version || echo "pnpm --version FAILED"
           node --version
           npm --version
+          echo "--- ls -la ---"
+          ls -la
+          echo "--- pnpm-workspace.yaml ---"
+          cat pnpm-workspace.yaml || echo "NO pnpm-workspace.yaml"
+          echo "--- .npmrc ---"
+          cat .npmrc || echo "NO .npmrc"
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install
 
       - name: Build package matrix
         id: matrix
