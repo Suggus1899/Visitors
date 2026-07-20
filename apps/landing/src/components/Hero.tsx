@@ -7,10 +7,6 @@ const trustBadges = [
 ];
 
 export function Hero() {
-  const scrollTo = (id: string) => {
-    document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <section
       id="hero"
@@ -40,20 +36,20 @@ export function Hero() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                onClick={() => scrollTo('#demo')}
+              <a
+                href="#demo"
                 className="btn-primary gap-2"
               >
                 Request Demo
                 <Play className="w-4 h-4 fill-current" />
-              </button>
-              <button
-                onClick={() => scrollTo('#pricing')}
+              </a>
+              <a
+                href="#pricing"
                 className="btn-secondary gap-2"
               >
                 View Plans
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </a>
             </div>
 
             <ul className="flex flex-col sm:flex-row sm:flex-wrap gap-3 text-text-3 text-sm">

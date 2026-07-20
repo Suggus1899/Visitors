@@ -85,13 +85,6 @@ function Cell({ value }: { value: boolean | string }) {
 }
 
 export function Pricing() {
-  const scrollToContact = () => {
-    document.querySelector('#contact')?.scrollIntoView({ behavior: 'smooth' });
-  };
-  const scrollToDemo = () => {
-    document.querySelector('#demo')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <section id="pricing" className="relative py-24 bg-bg-0 bg-grid" aria-labelledby="pricing-title">
       <div className="section-container">
@@ -163,12 +156,12 @@ export function Pricing() {
                   </div>
                 </div>
 
-                <button
-                  onClick={tier.name === 'Enterprise' ? scrollToContact : scrollToDemo}
+                <a
+                  href={tier.name === 'Enterprise' ? '#contact' : '#demo'}
                   className={tier.highlighted ? 'btn-primary w-full' : 'btn-secondary w-full'}
                 >
                   {tier.cta}
-                </button>
+                </a>
               </div>
             ))}
           </div>

@@ -22,6 +22,8 @@ Backups/
 dist/
 client/dist/
 server/dist/
+.next/
+*.tsbuildinfo
 
 # Playwright test output
 playwright-report/

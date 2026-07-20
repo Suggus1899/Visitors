@@ -10,7 +10,8 @@ import type { DemoRequest, DemoResponse } from '../types';
  * TODO(backend): Implement POST /v1/auth/demo on the server. Until then we
  * gracefully fall back to a mock response so the landing UX stays functional.
  */
-const DEMO_ENDPOINT = '/v1/auth/demo';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const DEMO_ENDPOINT = `${API_URL}/api/v1/auth/demo`;
 const STORAGE_KEY = 'logmaster_demo_session';
 const RATE_LIMIT_MS = 60_000;
 const RATE_LIMIT_KEY = 'logmaster_demo_last_attempt';
@@ -46,6 +47,7 @@ const buildMockResponse = (): DemoResponse => {
 };
 
 const getRemainingRateLimit = (): number => {
+  if (typeof window === 'undefined') return 0;
   const last = window.localStorage.getItem(RATE_LIMIT_KEY);
   if (!last) return 0;
   const elapsed = Date.now() - Number(last);

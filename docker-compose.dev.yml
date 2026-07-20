@@ -35,16 +35,20 @@ services:
       target: builder
     environment:
       NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://server:3001
     volumes:
       - ./apps/landing/src:/app/apps/landing/src
+      - ./apps/landing/app:/app/apps/landing/app
       - ./apps/landing/public:/app/apps/landing/public
-      - ./apps/landing/index.html:/app/apps/landing/index.html
-      - ./apps/landing/vite.config.ts:/app/apps/landing/vite.config.ts
+      - ./apps/landing/next.config.mjs:/app/apps/landing/next.config.mjs
+      - ./apps/landing/tailwind.config.js:/app/apps/landing/tailwind.config.js
+      - ./apps/landing/postcss.config.js:/app/apps/landing/postcss.config.js
+      - ./apps/landing/tsconfig.json:/app/apps/landing/tsconfig.json
       - ./apps/landing/package.json:/app/apps/landing/package.json
       - ./packages:/app/packages
     ports:
       - "5173:5173"
-    command: ["pnpm", "--dir", "apps/landing", "run", "dev", "--", "--host", "0.0.0.0"]
+    command: ["pnpm", "--dir", "apps/landing", "run", "dev", "--", "-H", "0.0.0.0"]
 
   platform:
     build:

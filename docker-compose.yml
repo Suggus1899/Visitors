@@ -63,8 +63,12 @@ services:
     restart: unless-stopped
     depends_on:
       - server
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://server:3001
     ports:
-      - "8080:80"
+      - "8080:3000"
     networks:
       - logmaster
 
