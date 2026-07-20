@@ -1,5 +1,5 @@
 import express from 'express';
-import * as AuditCleanController from '../controllers/AuditCleanController';
+import * as AuditController from '../controllers/AuditController';
 import { verifyToken, resolveTenant, verifyTenantMembership } from '../middleware/auth';
 import { demoTenantLimiter } from '../middleware/rateLimiter';
 import { verifyAuditor } from '../middleware/auditor';
@@ -53,7 +53,7 @@ const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimit
  *           type: string
  *           format: date
  */
-router.get('/v1/:tenantSlug/audit/logs', ...tenantContext, verifyAuditor, validateQuery(getAuditLogsSchema), asyncHandler(AuditCleanController.getLogs));
+router.get('/v1/:tenantSlug/audit/logs', ...tenantContext, verifyAuditor, validateQuery(getAuditLogsSchema), asyncHandler(AuditController.getLogs));
 
 /**
  * @swagger
@@ -62,7 +62,7 @@ router.get('/v1/:tenantSlug/audit/logs', ...tenantContext, verifyAuditor, valida
  *     summary: Obtener estadísticas de auditoría
  *     tags: [Audit]
  */
-router.get('/v1/:tenantSlug/audit/stats', ...tenantContext, verifyAuditor, asyncHandler(AuditCleanController.getStats));
+router.get('/v1/:tenantSlug/audit/stats', ...tenantContext, verifyAuditor, asyncHandler(AuditController.getStats));
 
 /**
  * @swagger
@@ -71,7 +71,7 @@ router.get('/v1/:tenantSlug/audit/stats', ...tenantContext, verifyAuditor, async
  *     summary: Exportar logs a CSV
  *     tags: [Audit]
  */
-router.get('/v1/:tenantSlug/audit/export', ...tenantContext, verifyAuditor, validateQuery(getAuditLogsSchema), asyncHandler(AuditCleanController.exportLogs));
+router.get('/v1/:tenantSlug/audit/export', ...tenantContext, verifyAuditor, validateQuery(getAuditLogsSchema), asyncHandler(AuditController.exportLogs));
 
 /**
  * @swagger
@@ -80,7 +80,7 @@ router.get('/v1/:tenantSlug/audit/export', ...tenantContext, verifyAuditor, vali
  *     summary: Obtener lista de acciones para filtros
  *     tags: [Audit]
  */
-router.get('/v1/:tenantSlug/audit/actions', ...tenantContext, verifyAuditor, asyncHandler(AuditCleanController.getActions));
+router.get('/v1/:tenantSlug/audit/actions', ...tenantContext, verifyAuditor, asyncHandler(AuditController.getActions));
 
 /**
  * @swagger
@@ -89,7 +89,7 @@ router.get('/v1/:tenantSlug/audit/actions', ...tenantContext, verifyAuditor, asy
  *     summary: Obtener lista de usuarios para filtros
  *     tags: [Audit]
  */
-router.get('/v1/:tenantSlug/audit/users', ...tenantContext, verifyAuditor, asyncHandler(AuditCleanController.getUsers));
+router.get('/v1/:tenantSlug/audit/users', ...tenantContext, verifyAuditor, asyncHandler(AuditController.getUsers));
 
 /**
  * @swagger
@@ -98,6 +98,6 @@ router.get('/v1/:tenantSlug/audit/users', ...tenantContext, verifyAuditor, async
  *     summary: Obtener configuración de retención
  *     tags: [Audit]
  */
-router.get('/v1/:tenantSlug/audit/config', ...tenantContext, verifyAuditor, asyncHandler(AuditCleanController.getRetentionPolicy));
+router.get('/v1/:tenantSlug/audit/config', ...tenantContext, verifyAuditor, asyncHandler(AuditController.getRetentionPolicy));
 
 export default router;

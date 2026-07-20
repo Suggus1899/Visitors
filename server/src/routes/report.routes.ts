@@ -1,5 +1,5 @@
 import express from 'express';
-import * as ReportCleanController from '../controllers/ReportCleanController';
+import * as ReportController from '../controllers/ReportController';
 import { verifyToken, resolveTenant, verifyTenantMembership } from '../middleware/auth';
 import { demoTenantLimiter } from '../middleware/rateLimiter';
 import { validateQuery } from '../middleware/validate';
@@ -39,7 +39,7 @@ const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimit
  *       200:
  *         description: Statistics object
  */
-router.get('/v1/:tenantSlug/reports/stats', ...tenantContext, validateQuery(getStatsSchema), asyncHandler(ReportCleanController.getStats));
+router.get('/v1/:tenantSlug/reports/stats', ...tenantContext, validateQuery(getStatsSchema), asyncHandler(ReportController.getStats));
 
 /**
  * @swagger
@@ -62,7 +62,7 @@ router.get('/v1/:tenantSlug/reports/stats', ...tenantContext, validateQuery(getS
  *       200:
  *         description: Monthly statistics
  */
-router.get('/v1/:tenantSlug/reports/stats/monthly', ...tenantContext, validateQuery(getMonthlyReportSchema), asyncHandler(ReportCleanController.getMonthlyReport));
+router.get('/v1/:tenantSlug/reports/stats/monthly', ...tenantContext, validateQuery(getMonthlyReportSchema), asyncHandler(ReportController.getMonthlyReport));
 
 /**
  * @swagger
@@ -76,7 +76,7 @@ router.get('/v1/:tenantSlug/reports/stats/monthly', ...tenantContext, validateQu
  *       200:
  *         description: List of visits with missed checkout
  */
-router.get('/v1/:tenantSlug/reports/alerts', ...tenantContext, asyncHandler(ReportCleanController.getMissedCheckouts));
+router.get('/v1/:tenantSlug/reports/alerts', ...tenantContext, asyncHandler(ReportController.getMissedCheckouts));
 
 /**
  * @swagger
@@ -90,6 +90,6 @@ router.get('/v1/:tenantSlug/reports/alerts', ...tenantContext, asyncHandler(Repo
  *       200:
  *         description: Comparison data
  */
-router.get('/v1/:tenantSlug/reports/comparison', ...tenantContext, validateQuery(getComparisonStatsSchema), asyncHandler(ReportCleanController.getComparisonStats));
+router.get('/v1/:tenantSlug/reports/comparison', ...tenantContext, validateQuery(getComparisonStatsSchema), asyncHandler(ReportController.getComparisonStats));
 
 export default router;

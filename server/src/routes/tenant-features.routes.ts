@@ -1,7 +1,7 @@
 import express from 'express';
-import * as BackupController from '../controllers/BackupCleanController';
+import * as BackupController from '../controllers/BackupController';
 import * as TenantFeaturesController from '../controllers/TenantFeaturesController';
-import * as VisitController from '../controllers/VisitCleanController';
+import * as VisitController from '../controllers/VisitController';
 import { verifyAuditor, denyAuditorOnly } from '../middleware/auditor';
 import { isAdmin, resolveTenant, verifyTenantMembership, verifyToken } from '../middleware/auth';
 import { demoTenantLimiter } from '../middleware/rateLimiter';

@@ -123,11 +123,11 @@ vi.mock('../../shared/Container', () => ({
 }));
 
 // Import controllers after mock is set up
-import * as VisitorCleanController from '../../controllers/VisitorCleanController';
-import * as VisitCleanController from '../../controllers/VisitCleanController';
-import * as AuditCleanController from '../../controllers/AuditCleanController';
-import * as PrivacyCleanController from '../../controllers/PrivacyCleanController';
-import * as BackupCleanController from '../../controllers/BackupCleanController';
+import * as VisitorController from '../../controllers/VisitorController';
+import * as VisitController from '../../controllers/VisitController';
+import * as AuditController from '../../controllers/AuditController';
+import * as PrivacyController from '../../controllers/PrivacyController';
+import * as BackupController from '../../controllers/BackupController';
 import * as TenantFeaturesController from '../../controllers/TenantFeaturesController';
 
 const tenantAUser = { id: 1, username: 'admin-a', tid: TENANT_A.id, tslug: TENANT_A.slug, role: 'admin' };
@@ -187,13 +187,13 @@ beforeEach(() => {
 });
 
 describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
-  describe('VisitorCleanController', () => {
+  describe('VisitorController', () => {
     it('getAllVisitors passes tenantId from req.tenantId', async () => {
       const req = mockRequest({ tenantId: TENANT_A.id, user: tenantAUser, query: { page: '1', limit: '50' } });
       const res = mockResponse();
       spies.useCaseSpies.getAllVisitors.execute.mockResolvedValue({ visitors: [], total: 0 });
 
-      await VisitorCleanController.getAllVisitors(req, res);
+      await VisitorController.getAllVisitors(req, res);
 
       expect(spies.useCaseSpies.getAllVisitors.execute).toHaveBeenCalledWith(TENANT_A.id, expect.anything());
       const callArg = spies.useCaseSpies.getAllVisitors.execute.mock.calls[0][0];
@@ -210,7 +210,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       const res = mockResponse();
       spies.useCaseSpies.getVisitorByCedula.execute.mockResolvedValue(null);
 
-      await VisitorCleanController.getVisitor(req, res);
+      await VisitorController.getVisitor(req, res);
 
       expect(spies.useCaseSpies.getVisitorByCedula.execute).toHaveBeenCalledWith(TENANT_A.id, 'V-12345678', false);
     });
@@ -219,7 +219,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       const req = mockRequest({ tenantId: TENANT_A.id, user: tenantAUser });
       const res = mockResponse();
 
-      await VisitorCleanController.getCompanies(req, res);
+      await VisitorController.getCompanies(req, res);
 
       expect(spies.useCaseSpies.getCompanies.execute).toHaveBeenCalledWith(TENANT_A.id, expect.anything());
       const callArg = spies.useCaseSpies.getCompanies.execute.mock.calls[0][0];
@@ -236,7 +236,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       const res = mockResponse();
       spies.useCaseSpies.updateVisitor.execute.mockResolvedValue({});
 
-      await VisitorCleanController.updateVisitor(req, res);
+      await VisitorController.updateVisitor(req, res);
 
       const callArgs = spies.useCaseSpies.updateVisitor.execute.mock.calls[0];
       expect(callArgs[0]).toBe(TENANT_A.id);
@@ -244,7 +244,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
     });
   });
 
-  describe('VisitCleanController', () => {
+  describe('VisitController', () => {
     it('checkIn passes tenantId from req.tenantId, not from body', async () => {
       const req = mockRequest({
         tenantId: TENANT_A.id,
@@ -253,7 +253,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       });
       const res = mockResponse();
 
-      await VisitCleanController.checkIn(req, res);
+      await VisitController.checkIn(req, res);
 
       expect(spies.useCaseSpies.checkInVisitor.execute).toHaveBeenCalledWith(TENANT_A.id, expect.anything());
       const callArg = spies.useCaseSpies.checkInVisitor.execute.mock.calls[0][0];
@@ -268,7 +268,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       });
       const res = mockResponse();
 
-      await VisitCleanController.checkOut(req, res);
+      await VisitController.checkOut(req, res);
 
       const callArgs = spies.useCaseSpies.checkOutVisitor.execute.mock.calls[0];
       expect(callArgs[0]).toBe(TENANT_A.id);
@@ -276,7 +276,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
     });
   });
 
-  describe('AuditCleanController', () => {
+  describe('AuditController', () => {
     it('getLogs passes tenantId from req.tenantId to auditLogRepository.findAll', async () => {
       const req = mockRequest({
         tenantId: TENANT_A.id,
@@ -285,7 +285,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       });
       const res = mockResponse();
 
-      await AuditCleanController.getLogs(req, res);
+      await AuditController.getLogs(req, res);
 
       expect(spies.auditLogRepo.findAll).toHaveBeenCalledWith(TENANT_A.id, expect.anything());
       const callArg = spies.auditLogRepo.findAll.mock.calls[0][0];
@@ -296,7 +296,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       const req = mockRequest({ tenantId: TENANT_A.id, user: tenantAUser });
       const res = mockResponse();
 
-      await AuditCleanController.getStats(req, res);
+      await AuditController.getStats(req, res);
 
       expect(spies.auditLogRepo.getStats).toHaveBeenCalledWith(TENANT_A.id);
     });
@@ -305,7 +305,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       const req = mockRequest({ tenantId: TENANT_A.id, user: tenantAUser });
       const res = mockResponse();
 
-      await AuditCleanController.getActions(req, res);
+      await AuditController.getActions(req, res);
 
       expect(spies.auditLogRepo.getDistinctActions).toHaveBeenCalledWith(TENANT_A.id);
     });
@@ -314,13 +314,13 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       const req = mockRequest({ tenantId: TENANT_A.id, user: tenantAUser });
       const res = mockResponse();
 
-      await AuditCleanController.getUsers(req, res);
+      await AuditController.getUsers(req, res);
 
       expect(spies.auditLogRepo.getDistinctUsers).toHaveBeenCalledWith(TENANT_A.id);
     });
   });
 
-  describe('PrivacyCleanController', () => {
+  describe('PrivacyController', () => {
     it('createArcoRequest passes tenantId from req.tenantId, not from body', async () => {
       const req = mockRequest({
         tenantId: TENANT_A.id,
@@ -329,7 +329,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       });
       const res = mockResponse();
 
-      await PrivacyCleanController.createArcoRequest(req, res);
+      await PrivacyController.createArcoRequest(req, res);
 
       expect(spies.useCaseSpies.createArcoRequest.execute).toHaveBeenCalledWith(TENANT_A.id, expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.anything());
       const callArg = spies.useCaseSpies.createArcoRequest.execute.mock.calls[0][0];
@@ -337,7 +337,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
     });
   });
 
-  describe('BackupCleanController', () => {
+  describe('BackupController', () => {
     it('createTenantBackup passes tenantId from req.tenantId, not from body', async () => {
       const req = mockRequest({
         tenantId: TENANT_A.id,
@@ -346,7 +346,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       });
       const res = mockResponse();
 
-      await BackupCleanController.createTenantBackup(req, res);
+      await BackupController.createTenantBackup(req, res);
 
       expect(spies.tenantRepo.findById).toHaveBeenCalledWith(TENANT_A.id);
       expect(spies.backupService.createBackup).toHaveBeenCalledWith(TENANT_A.id);
@@ -357,7 +357,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       const req = mockRequest({ tenantId: TENANT_A.id, user: tenantAUser });
       const res = mockResponse();
 
-      await BackupCleanController.listTenantBackups(req, res);
+      await BackupController.listTenantBackups(req, res);
 
       expect(spies.backupService.listBackups).toHaveBeenCalledWith(TENANT_A.id);
     });
@@ -387,7 +387,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       });
       const res = mockResponse();
 
-      await VisitorCleanController.getAllVisitors(req, res);
+      await VisitorController.getAllVisitors(req, res);
 
       const callArg = spies.useCaseSpies.getAllVisitors.execute.mock.calls[0][0];
       expect(callArg).toBe(TENANT_A.id);
@@ -402,7 +402,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       });
       const res = mockResponse();
 
-      await VisitCleanController.checkIn(req, res);
+      await VisitController.checkIn(req, res);
 
       const callArg = spies.useCaseSpies.checkInVisitor.execute.mock.calls[0][0];
       expect(callArg).toBe(TENANT_A.id);
@@ -417,7 +417,7 @@ describe('Cross-tenant isolation: controllers always use req.tenantId', () => {
       });
       const res = mockResponse();
 
-      await AuditCleanController.getLogs(req, res);
+      await AuditController.getLogs(req, res);
 
       const callArg = spies.auditLogRepo.findAll.mock.calls[0][0];
       expect(callArg).toBe(TENANT_A.id);

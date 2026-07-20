@@ -1,5 +1,5 @@
 import express from 'express';
-import * as BackupCleanController from '../controllers/BackupCleanController';
+import * as BackupController from '../controllers/BackupController';
 import { verifyToken, isAdmin } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { restoreBackupSchema } from '../schemas/backup.schema';
@@ -28,7 +28,7 @@ const router = express.Router();
  *       500:
  *         description: Backup failed
  */
-router.post('/v1/backups', verifyToken, isAdmin, asyncHandler(BackupCleanController.createBackup));
+router.post('/v1/backups', verifyToken, isAdmin, asyncHandler(BackupController.createBackup));
 
 /**
  * @swagger
@@ -42,7 +42,7 @@ router.post('/v1/backups', verifyToken, isAdmin, asyncHandler(BackupCleanControl
  *       200:
  *         description: List of backup files
  */
-router.get('/v1/backups', verifyToken, isAdmin, asyncHandler(BackupCleanController.listBackups));
+router.get('/v1/backups', verifyToken, isAdmin, asyncHandler(BackupController.listBackups));
 
 /**
  * @swagger
@@ -78,6 +78,6 @@ router.get('/v1/backups', verifyToken, isAdmin, asyncHandler(BackupCleanControll
  *       404:
  *         description: Backup file not found
  */
-router.post('/v1/backups/:filename/restore', verifyToken, isAdmin, validate(restoreBackupSchema), asyncHandler(BackupCleanController.restoreBackup));
+router.post('/v1/backups/:filename/restore', verifyToken, isAdmin, validate(restoreBackupSchema), asyncHandler(BackupController.restoreBackup));
 
 export default router;

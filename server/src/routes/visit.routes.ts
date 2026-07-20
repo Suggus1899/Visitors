@@ -1,5 +1,5 @@
 import express from 'express';
-import * as VisitCleanController from '../controllers/VisitCleanController';
+import * as VisitController from '../controllers/VisitController';
 import { verifyToken, resolveTenant, verifyTenantMembership } from '../middleware/auth';
 import { demoTenantLimiter } from '../middleware/rateLimiter';
 import { denyAuditorOnly } from '../middleware/auditor';
@@ -60,7 +60,7 @@ const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimit
  *       400:
  *         description: Visitor already checked in or invalid data
  */
-router.post('/v1/:tenantSlug/visits/checkin', ...tenantContext, denyAuditorOnly, asyncHandler(enforceCheckInLimits), validate(checkInSchema), asyncHandler(VisitCleanController.checkIn));
+router.post('/v1/:tenantSlug/visits/checkin', ...tenantContext, denyAuditorOnly, asyncHandler(enforceCheckInLimits), validate(checkInSchema), asyncHandler(VisitController.checkIn));
 
 /**
  * @swagger
@@ -82,7 +82,7 @@ router.post('/v1/:tenantSlug/visits/checkin', ...tenantContext, denyAuditorOnly,
  *       404:
  *         description: Visit not found or already completed
  */
-router.post('/v1/:tenantSlug/visits/:id/checkout', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.checkOut));
+router.post('/v1/:tenantSlug/visits/:id/checkout', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.checkOut));
 
 /**
  * @swagger
@@ -106,7 +106,7 @@ router.post('/v1/:tenantSlug/visits/:id/checkout', ...tenantContext, denyAuditor
  *       400:
  *         description: Bad request
  */
-router.post('/v1/:tenantSlug/visits/:id/admit', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.admitVisitor));
+router.post('/v1/:tenantSlug/visits/:id/admit', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.admitVisitor));
 
 /**
  * @swagger
@@ -120,7 +120,7 @@ router.post('/v1/:tenantSlug/visits/:id/admit', ...tenantContext, denyAuditorOnl
  *       200:
  *         description: List of waiting visits
  */
-router.get('/v1/:tenantSlug/visits/waiting', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.getWaitingVisits));
+router.get('/v1/:tenantSlug/visits/waiting', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.getWaitingVisits));
 
 /**
  * @swagger
@@ -134,11 +134,11 @@ router.get('/v1/:tenantSlug/visits/waiting', ...tenantContext, denyAuditorOnly, 
  *       200:
  *         description: List of active visits
  */
-router.get('/v1/:tenantSlug/visits/active', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.getActiveVisits));
+router.get('/v1/:tenantSlug/visits/active', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.getActiveVisits));
 
-router.post('/v1/:tenantSlug/visits/:id/intermittent', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.goIntermittent));
+router.post('/v1/:tenantSlug/visits/:id/intermittent', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.goIntermittent));
 
-router.post('/v1/:tenantSlug/visits/:id/reactivate', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.reactivateVisit));
+router.post('/v1/:tenantSlug/visits/:id/reactivate', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.reactivateVisit));
 
 /**
  * @swagger
@@ -152,7 +152,7 @@ router.post('/v1/:tenantSlug/visits/:id/reactivate', ...tenantContext, denyAudit
  *       200:
  *         description: List of intermittent visits
  */
-router.get('/v1/:tenantSlug/visits/intermittent', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.getIntermittentVisits));
+router.get('/v1/:tenantSlug/visits/intermittent', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.getIntermittentVisits));
 
 /**
  * @swagger
@@ -180,7 +180,7 @@ router.get('/v1/:tenantSlug/visits/intermittent', ...tenantContext, denyAuditorO
  *       200:
  *         description: Temporary exit registered
  */
-router.post('/v1/:tenantSlug/visits/:id/intermittent-exit', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.intermittentExit));
+router.post('/v1/:tenantSlug/visits/:id/intermittent-exit', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.intermittentExit));
 
 /**
  * @swagger
@@ -208,7 +208,7 @@ router.post('/v1/:tenantSlug/visits/:id/intermittent-exit', ...tenantContext, de
  *       200:
  *         description: Re-entry registered
  */
-router.post('/v1/:tenantSlug/visits/:id/intermittent-reentry', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.intermittentReEntry));
+router.post('/v1/:tenantSlug/visits/:id/intermittent-reentry', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.intermittentReEntry));
 
 /**
  * @swagger
@@ -236,6 +236,6 @@ router.post('/v1/:tenantSlug/visits/:id/intermittent-reentry', ...tenantContext,
  *       200:
  *         description: Paginated list of visits
  */
-router.get('/v1/:tenantSlug/visits', ...tenantContext, denyAuditorOnly, asyncHandler(VisitCleanController.getVisits));
+router.get('/v1/:tenantSlug/visits', ...tenantContext, denyAuditorOnly, asyncHandler(VisitController.getVisits));
 
 export default router;

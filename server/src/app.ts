@@ -10,14 +10,14 @@ import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { apiLimiter } from "./middleware/rateLimiter";
 import { mustChangePassword } from "./middleware/mustChangePassword";
-// Clean Architecture routes
-import visitCleanRoutes from "./routes/visit-clean.routes";
-import reportCleanRoutes from "./routes/report-clean.routes";
-import visitorCleanRoutes from "./routes/visitor-clean.routes";
-import backupCleanRoutes from "./routes/backup-clean.routes";
-import authCleanRoutes from "./routes/auth-clean.routes";
-import auditCleanRoutes from "./routes/audit-clean.routes";
-import privacyCleanRoutes from "./routes/privacy-clean.routes";
+// Routes
+import visitRoutes from "./routes/visit.routes";
+import reportRoutes from "./routes/report.routes";
+import visitorRoutes from "./routes/visitor.routes";
+import backupRoutes from "./routes/backup.routes";
+import authRoutes from "./routes/auth.routes";
+import auditRoutes from "./routes/audit.routes";
+import privacyRoutes from "./routes/privacy.routes";
 import superadminRoutes from "./routes/superadmin.routes";
 import platformRoutes from "./routes/platform.routes";
 import eventsRoutes from "./routes/events.routes";
@@ -195,15 +195,15 @@ if (swaggerEnabled) {
 }
 
 // Routes
-// Clean Architecture API v1
+// API v1
 app.use("/api", tenantFeaturesRoutes);
-app.use("/api", visitCleanRoutes);
-app.use("/api", reportCleanRoutes);
-app.use("/api", visitorCleanRoutes);
-app.use("/api", backupCleanRoutes);
-app.use("/api", authCleanRoutes);
-app.use("/api", auditCleanRoutes);
-app.use("/api", privacyCleanRoutes);
+app.use("/api", visitRoutes);
+app.use("/api", reportRoutes);
+app.use("/api", visitorRoutes);
+app.use("/api", backupRoutes);
+app.use("/api", authRoutes);
+app.use("/api", auditRoutes);
+app.use("/api", privacyRoutes);
 app.use("/api", superadminRoutes);
 app.use("/api", eventsRoutes);
 

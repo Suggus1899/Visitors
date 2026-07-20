@@ -1,5 +1,5 @@
 import express from 'express';
-import * as AuthCleanController from '../controllers/AuthCleanController';
+import * as AuthController from '../controllers/AuthController';
 import { authLimiter, refreshLimiter, demoLimiter } from '../middleware/rateLimiter';
 import { validate } from '../middleware/validate';
 import { loginSchema, forgotPasswordSchema, resetPasswordSchema, refreshTokenSchema, changePasswordSchema, selectTenantSchema, createDemoSchema } from '../schemas/auth.schema';
@@ -64,7 +64,7 @@ const router = express.Router();
  *       401:
  *         description: Invalid credentials
  */
-router.post('/v1/auth/login', authLimiter, validate(loginSchema), asyncHandler(AuthCleanController.login));
+router.post('/v1/auth/login', authLimiter, validate(loginSchema), asyncHandler(AuthController.login));
 
 /**
  * @swagger
@@ -78,7 +78,7 @@ router.post('/v1/auth/login', authLimiter, validate(loginSchema), asyncHandler(A
  *       200:
  *         description: Logged out successfully
  */
-router.post('/v1/auth/logout', verifyToken, asyncHandler(AuthCleanController.logout));
+router.post('/v1/auth/logout', verifyToken, asyncHandler(AuthController.logout));
 
 /**
  * @swagger
@@ -103,7 +103,7 @@ router.post('/v1/auth/logout', verifyToken, asyncHandler(AuthCleanController.log
  *       404:
  *         description: User not found
  */
-router.post('/v1/auth/forgot-password', authLimiter, validate(forgotPasswordSchema), asyncHandler(AuthCleanController.forgotPassword));
+router.post('/v1/auth/forgot-password', authLimiter, validate(forgotPasswordSchema), asyncHandler(AuthController.forgotPassword));
 
 /**
  * @swagger
@@ -131,7 +131,7 @@ router.post('/v1/auth/forgot-password', authLimiter, validate(forgotPasswordSche
  *       400:
  *         description: Invalid or expired token
  */
-router.post('/v1/auth/reset-password', authLimiter, validate(resetPasswordSchema), asyncHandler(AuthCleanController.resetPassword));
+router.post('/v1/auth/reset-password', authLimiter, validate(resetPasswordSchema), asyncHandler(AuthController.resetPassword));
 
 /**
  * @swagger
@@ -168,7 +168,7 @@ router.post('/v1/auth/reset-password', authLimiter, validate(resetPasswordSchema
  *       401:
  *         description: Invalid or expired refresh token
  */
-router.post('/v1/auth/refresh', refreshLimiter, validate(refreshTokenSchema), asyncHandler(AuthCleanController.refreshToken));
+router.post('/v1/auth/refresh', refreshLimiter, validate(refreshTokenSchema), asyncHandler(AuthController.refreshToken));
 
 /**
  * @swagger
@@ -202,7 +202,7 @@ router.post('/v1/auth/refresh', refreshLimiter, validate(refreshTokenSchema), as
  *       401:
  *         description: Invalid current password
  */
-router.post('/v1/auth/change-password', verifyToken, validate(changePasswordSchema), asyncHandler(AuthCleanController.changePassword));
+router.post('/v1/auth/change-password', verifyToken, validate(changePasswordSchema), asyncHandler(AuthController.changePassword));
 
 /**
  * @swagger
@@ -218,7 +218,7 @@ router.post('/v1/auth/change-password', verifyToken, validate(changePasswordSche
  *       401:
  *         description: Unauthorized
  */
-router.get('/v1/auth/tenants', verifyToken, asyncHandler(AuthCleanController.listTenants));
+router.get('/v1/auth/tenants', verifyToken, asyncHandler(AuthController.listTenants));
 
 /**
  * @swagger
@@ -245,7 +245,7 @@ router.get('/v1/auth/tenants', verifyToken, asyncHandler(AuthCleanController.lis
  *       403:
  *         description: Forbidden or tenant unavailable
  */
-router.post('/v1/auth/select-tenant', verifyToken, validate(selectTenantSchema), asyncHandler(AuthCleanController.selectTenant));
+router.post('/v1/auth/select-tenant', verifyToken, validate(selectTenantSchema), asyncHandler(AuthController.selectTenant));
 
 /**
  * @swagger
@@ -277,6 +277,6 @@ router.post('/v1/auth/select-tenant', verifyToken, validate(selectTenantSchema),
  *       429:
  *         description: Rate limit exceeded
  */
-router.post('/v1/auth/demo', demoLimiter, validate(createDemoSchema), asyncHandler(AuthCleanController.createDemo));
+router.post('/v1/auth/demo', demoLimiter, validate(createDemoSchema), asyncHandler(AuthController.createDemo));
 
 export default router;
