@@ -6,4 +6,5 @@ allowBuilds:
   '@scarf/scarf': false
   core-js: true
   esbuild: true
+  sharp: true
   unrs-resolver: true

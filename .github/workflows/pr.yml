@@ -15,7 +15,7 @@ permissions:
 
 env:
   NODE_VERSION: '22'
-  PNPM_VERSION: '11.3.0'
+  PNPM_VERSION: '11.15.0'
 
 jobs:
   label-check:
