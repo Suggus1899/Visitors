@@ -60,7 +60,26 @@ jobs:
           cat .npmrc || echo "NO .npmrc"
 
       - name: Install dependencies
-        run: pnpm install
+        id: install
+        continue-on-error: true
+        run: pnpm install 2>&1 | tee install.log
+
+      - name: Show install result
+        run: |
+          echo "Install outcome: ${{ steps.install.outcome }}"
+          echo "--- install.log ---"
+          cat install.log || echo "No install.log"
+
+      - name: Upload install log
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-log
+          path: install.log
+          if-no-files-found: ignore
+
+      - name: Fail if install failed
+        if: steps.install.outcome == 'failure'
+        run: exit 1
 
       - name: Build package matrix
         id: matrix
