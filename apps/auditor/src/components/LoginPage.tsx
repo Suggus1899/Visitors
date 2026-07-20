@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@logmaster/auth';
 import { AuthService } from '@logmaster/api';
 import type { User } from '@logmaster/types';
@@ -19,7 +21,7 @@ export const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -51,7 +53,7 @@ export const LoginPage = () => {
                 mustChangePassword: user.mustChangePassword,
             });
             toast.success(`Welcome, ${user.username}`);
-            navigate('/select-tenant');
+            router.push('/select-tenant');
         } catch (err) {
             const error = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
             const status = error.response?.status;

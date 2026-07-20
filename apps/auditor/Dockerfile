@@ -1,10 +1,34 @@
 # syntax=docker/dockerfile:1
 
 # ============================================================
-# LogMaster Auditor — Multi-stage production Dockerfile
+# LogMaster Auditor — Next.js 14 standalone production Dockerfile
 # ============================================================
 
-# ---------- Stage 1: builder ----------
+# ---------- Stage 1: deps ----------
+FROM node:20-alpine AS deps
+
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    CI=1
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy workspace root files for monorepo install
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc turbo.json ./
+COPY apps/auditor/package.json ./apps/auditor/
+# Copy shared packages package.json files
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/api/package.json ./packages/api/
+COPY packages/types/package.json ./packages/types/
+COPY packages/utils/package.json ./packages/utils/
+COPY packages/config/package.json ./packages/config/
+
+RUN pnpm install --frozen-lockfile
+
+# ---------- Stage 2: builder ----------
 FROM node:20-alpine AS builder
 
 ENV PNPM_HOME=/pnpm \
@@ -15,25 +39,24 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc turbo.json ./
-COPY apps/auditor/package.json ./apps/auditor/
-COPY packages ./packages
-
-RUN pnpm install --frozen-lockfile
-
-COPY apps/auditor ./apps/auditor
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 
 RUN pnpm --dir apps/auditor run build
 
+# ---------- Stage 3: runner ----------
+FROM node:20-alpine AS runner
 
-# ---------- Stage 2: runner ----------
-FROM nginx:alpine AS runner
+WORKDIR /app
 
-RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
+ENV NODE_ENV=production \
+    PORT=3000
 
-COPY --from=builder /app/apps/auditor/dist /usr/share/nginx/html
-COPY apps/auditor/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy the standalone server output
+COPY --from=builder /app/apps/auditor/.next/standalone ./
+COPY --from=builder /app/apps/auditor/.next/static ./apps/auditor/.next/static
+COPY --from=builder /app/apps/auditor/public ./apps/auditor/public
 
-EXPOSE 80
+EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "apps/auditor/server.js"]

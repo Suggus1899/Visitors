@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { API_URL } from '@logmaster/config';
-import { AuthService } from '@logmaster/api';
 import { auditQueryKeys } from './useAuditQueries';
 
 interface AuditEvent {
@@ -19,11 +17,14 @@ interface UseAuditEventsOptions {
 /**
  * SSE subscription for real-time audit log events.
  *
- * TODO(backend): Wire to the real SSE endpoint once available:
- *   GET /events/audit?token=<accessToken>
+ * The EventSource connects to the same-origin `/api/v1/events/stream` path,
+ * which is proxied to the backend by the Next.js rewrite. The httpOnly
+ * `lm_access_token` cookie is sent automatically by the browser (same-origin),
+ * so no `?token=` query parameter is required. The backend `verifySseToken`
+ * reads the cookie first.
  *
- * On each event, audit-related React Query caches are invalidated so
- * new logs appear live in the dashboard and logs table.
+ * On each event, audit-related React Query caches are invalidated so new logs
+ * appear live in the dashboard and logs table.
  */
 export const useAuditEvents = (options?: UseAuditEventsOptions) => {
     const queryClient = useQueryClient();
@@ -40,16 +41,9 @@ export const useAuditEvents = (options?: UseAuditEventsOptions) => {
 
         if (!enabled) return;
 
-        const token = AuthService.getAccessToken();
-        if (!token) {
-            setIsConnected(false);
-            return;
-        }
-
         const connect = () => {
-            // TODO(backend): replace with real audit SSE endpoint path.
-            const url = `${API_URL}/events/audit?token=${encodeURIComponent(token)}`;
-            const eventSource = new EventSource(url);
+            // Same-origin via Next rewrite; cookie sent automatically.
+            const eventSource = new EventSource('/api/v1/events/stream');
             eventSourceRef.current = eventSource;
 
             eventSource.onopen = () => {

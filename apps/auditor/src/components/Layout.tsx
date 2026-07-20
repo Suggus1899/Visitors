@@ -1,5 +1,8 @@
+'use client';
+
 import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@logmaster/auth';
 import { useTenant } from '../contexts/TenantContext';
 import { ThemeToggle, PasswordChangeModal } from '@logmaster/ui';
@@ -41,7 +44,8 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
     const { user, logout } = useAuth();
     const { currentTenant, tenants, selectTenant } = useTenant();
-    const navigate = useNavigate();
+    const router = useRouter();
+    const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [tenantMenuOpen, setTenantMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -55,7 +59,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
     const handleLogout = () => {
         logout();
-        navigate('/login', { replace: true });
+        router.replace('/login');
     };
 
     const closeMenus = () => {
@@ -98,24 +102,27 @@ export const Layout = ({ children }: LayoutProps) => {
 
                 {/* Navigation */}
                 <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-                    {NAV_ITEMS.map((item) => (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
-                            end={item.path === '/'}
-                            onClick={() => setSidebarOpen(false)}
-                            className={({ isActive }) =>
-                                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    {NAV_ITEMS.map((item) => {
+                        const isActive =
+                            item.path === '/'
+                                ? pathname === '/'
+                                : pathname === item.path || pathname.startsWith(`${item.path}/`);
+                        return (
+                            <Link
+                                key={item.path}
+                                href={item.path}
+                                onClick={() => setSidebarOpen(false)}
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                                     isActive
                                         ? 'bg-[color:var(--accent-0)]/10 text-[color:var(--accent-0)] border border-[color:var(--accent-0)]/30'
                                         : 'text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-1)] border border-transparent'
-                                }`
-                            }
-                        >
-                            <item.icon size={18} />
-                            {item.label}
-                        </NavLink>
-                    ))}
+                                }`}
+                            >
+                                <item.icon size={18} />
+                                {item.label}
+                            </Link>
+                        );
+                    })}
                 </nav>
 
                 {/* Read-only badge */}

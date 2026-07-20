@@ -88,7 +88,6 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useTenant = (): TenantContextValue => {
     const ctx = useContext(TenantContext);
     if (!ctx) {

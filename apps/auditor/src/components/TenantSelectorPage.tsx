@@ -1,5 +1,7 @@
+'use client';
+
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useTenant } from '../contexts/TenantContext';
 import { Building2, Loader2, ChevronRight } from 'lucide-react';
 
@@ -12,13 +14,13 @@ import { Building2, Loader2, ChevronRight } from 'lucide-react';
  */
 export const TenantSelectorPage = () => {
     const { tenants, currentTenant, loading, selectTenant } = useTenant();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     useEffect(() => {
         if (!loading && currentTenant) {
-            navigate('/', { replace: true });
+            router.replace('/');
         }
-    }, [loading, currentTenant, navigate]);
+    }, [loading, currentTenant, router]);
 
     if (loading) {
         return (
@@ -69,7 +71,7 @@ export const TenantSelectorPage = () => {
                                 key={tenant.slug}
                                 onClick={() => {
                                     selectTenant(tenant.slug);
-                                    navigate('/', { replace: true });
+                                    router.replace('/');
                                 }}
                                 className="w-full flex items-center justify-between p-4 rounded-xl border border-[color:var(--border-1)] bg-[color:var(--surface-2)] hover:border-[color:var(--accent-0)] hover:bg-[color:var(--surface-3)] transition-colors group"
                             >

@@ -1,5 +1,7 @@
+'use client';
+
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
     LayoutDashboard,
@@ -172,7 +174,7 @@ export const DashboardPage = () => {
             {/* Pending ARCO alert */}
             {pendingArcoCount > 0 && (
                 <Link
-                    to="/arco"
+                    href="/arco"
                     className="block panel-tech rounded-xl p-4 border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
                 >
                     <div className="flex items-center gap-3">
@@ -265,7 +267,7 @@ export const DashboardPage = () => {
                             Recent Audit Logs
                         </h3>
                         <Link
-                            to="/logs"
+                            href="/logs"
                             className="text-xs text-[color:var(--accent-0)] hover:underline"
                         >
                             View all →
