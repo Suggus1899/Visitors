@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { PasswordPolicy } from '../../domain/services/PasswordPolicy';
+import { PasswordPolicy } from '../../identity/domain/services/PasswordPolicy';
 
 describe('PasswordPolicy', () => {
     const policy = new PasswordPolicy();

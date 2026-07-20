@@ -4,10 +4,10 @@
  * tenantId isolation.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { UpdateVisitorUseCase, EditContext } from '../../application/usecases/UpdateVisitor.usecase';
-import { Visitor } from '../../domain/entities/Visitor.entity';
-import type { IVisitorRepository } from '../../domain/repositories/IVisitorRepository';
-import type { IVisitorEditHistoryRepository } from '../../domain/repositories/IVisitorEditHistoryRepository';
+import { UpdateVisitorUseCase, EditContext } from '../../visits/application/usecases/UpdateVisitor.usecase';
+import { Visitor } from '../../visits/domain/entities/Visitor.entity';
+import type { IVisitorRepository } from '../../visits/domain/repositories/IVisitorRepository';
+import type { IVisitorEditHistoryRepository } from '../../visits/domain/repositories/IVisitorEditHistoryRepository';
 
 describe('UpdateVisitorUseCase', () => {
   let useCase: UpdateVisitorUseCase;

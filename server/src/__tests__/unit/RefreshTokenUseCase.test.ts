@@ -4,11 +4,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { RefreshTokenUseCase } from '../../application/usecases/auth/RefreshToken.usecase';
-import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
-import { IUserRepository } from '../../domain/repositories/IUserRepository';
-import { ITenantUserRepository } from '../../domain/repositories/ITenantUserRepository';
-import { User, UserRole } from '../../domain/entities/User.entity';
+import { RefreshTokenUseCase } from '../../identity/application/usecases/auth/RefreshToken.usecase';
+import { JwtAuthService } from '../../identity/infrastructure/services/JwtAuthService';
+import { IUserRepository } from '../../identity/domain/repositories/IUserRepository';
+import { ITenantUserRepository } from '../../identity/domain/repositories/ITenantUserRepository';
+import { User, UserRole } from '../../identity/domain/entities/User.entity';
 
 describe('RefreshTokenUseCase', () => {
     let refreshTokenUseCase: RefreshTokenUseCase;

@@ -4,7 +4,7 @@
  * tenantId in the where clause — the core multi-tenant isolation guarantee.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Visitor } from '../../domain/entities/Visitor.entity';
+import { Visitor } from '../../visits/domain/entities/Visitor.entity';
 
 // Capture calls before importing the repository so vi.mock is hoisted correctly
 const calls: any[] = [];
@@ -48,7 +48,7 @@ vi.mock('../../utils/Encryption', () => ({
   },
 }));
 
-import { SequelizeVisitorRepository } from '../../infrastructure/database/repositories/SequelizeVisitorRepository';
+import { SequelizeVisitorRepository } from '../../visits/infrastructure/database/repositories/SequelizeVisitorRepository';
 import { whereHasTenantId, getTenantIdFromWhere } from '../helpers/mockModels';
 
 describe('SequelizeVisitorRepository — tenantId isolation', () => {

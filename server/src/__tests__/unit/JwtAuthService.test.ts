@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
+import { JwtAuthService } from '../../identity/infrastructure/services/JwtAuthService';
 import jwt from 'jsonwebtoken';
 import config from '../../config/AppConfig';
 

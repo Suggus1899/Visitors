@@ -21,7 +21,7 @@ vi.mock('../../config/logger', () => ({
   default: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-import { SequelizeAuditLogRepository } from '../../infrastructure/database/repositories/SequelizeAuditLogRepository';
+import { SequelizeAuditLogRepository } from '../../audit/infrastructure/database/repositories/SequelizeAuditLogRepository';
 import { whereHasTenantId, getTenantIdFromWhere } from '../helpers/mockModels';
 
 describe('SequelizeAuditLogRepository — tenantId isolation', () => {

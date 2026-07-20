@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { getSubscriptionLimits, normalizeSubscriptionPlan, SubscriptionFeature } from '../config/subscription';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { container } from '../shared/Container';
-import { TenantRole } from '../domain/entities/TenantUser.entity';
+import { TenantRole } from '../identity/domain/entities/TenantUser.entity';
 
 const usageCounterService = () => container.usageCounterService;
 

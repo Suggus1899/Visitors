@@ -4,12 +4,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ChangePasswordUseCase } from '../../application/usecases/auth/ChangePassword.usecase';
-import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
-import { PasswordPolicy } from '../../domain/services/PasswordPolicy';
-import { EmailService } from '../../infrastructure/services/EmailService';
-import { IUserRepository } from '../../domain/repositories/IUserRepository';
-import { User } from '../../domain/entities/User.entity';
+import { ChangePasswordUseCase } from '../../identity/application/usecases/auth/ChangePassword.usecase';
+import { JwtAuthService } from '../../identity/infrastructure/services/JwtAuthService';
+import { PasswordPolicy } from '../../identity/domain/services/PasswordPolicy';
+import { EmailService } from '../../identity/infrastructure/services/EmailService';
+import { IUserRepository } from '../../identity/domain/repositories/IUserRepository';
+import { User } from '../../identity/domain/entities/User.entity';
 
 describe('ChangePasswordUseCase', () => {
     let changePasswordUseCase: ChangePasswordUseCase;

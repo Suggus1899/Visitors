@@ -52,9 +52,9 @@ vi.mock('../../utils/Encryption', () => ({
   },
 }));
 
-import { SequelizeVisitRepository } from '../../infrastructure/database/repositories/SequelizeVisitRepository';
+import { SequelizeVisitRepository } from '../../visits/infrastructure/database/repositories/SequelizeVisitRepository';
 import { whereHasTenantId, getTenantIdFromWhere } from '../helpers/mockModels';
-import { Visit, VisitStatus } from '../../domain/entities/Visit.entity';
+import { Visit, VisitStatus } from '../../visits/domain/entities/Visit.entity';
 
 describe('SequelizeVisitRepository — tenantId isolation', () => {
   let repo: SequelizeVisitRepository;

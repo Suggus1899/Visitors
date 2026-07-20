@@ -22,7 +22,7 @@ vi.mock('../../models/ArcoRequest', () => ({
   },
 }));
 
-import { SequelizeArcoRequestRepository } from '../../infrastructure/database/repositories/SequelizeArcoRequestRepository';
+import { SequelizeArcoRequestRepository } from '../../audit/infrastructure/database/repositories/SequelizeArcoRequestRepository';
 import { whereHasTenantId, getTenantIdFromWhere } from '../helpers/mockModels';
 
 describe('SequelizeArcoRequestRepository — tenantId isolation', () => {

@@ -3,9 +3,9 @@
  * Verifies that tenantId is forwarded to the repository for filtering.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { GetAllVisitorsUseCase } from '../../application/usecases/GetAllVisitors.usecase';
-import { Visitor } from '../../domain/entities/Visitor.entity';
-import type { IVisitorRepository, VisitorFilters } from '../../domain/repositories/IVisitorRepository';
+import { GetAllVisitorsUseCase } from '../../visits/application/usecases/GetAllVisitors.usecase';
+import { Visitor } from '../../visits/domain/entities/Visitor.entity';
+import type { IVisitorRepository, VisitorFilters } from '../../visits/domain/repositories/IVisitorRepository';
 
 describe('GetAllVisitorsUseCase', () => {
   let useCase: GetAllVisitorsUseCase;

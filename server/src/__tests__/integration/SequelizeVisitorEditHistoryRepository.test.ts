@@ -48,7 +48,7 @@ vi.mock('../../utils/Encryption', () => ({
   },
 }));
 
-import { SequelizeVisitorEditHistoryRepository } from '../../infrastructure/database/repositories/SequelizeVisitorEditHistoryRepository';
+import { SequelizeVisitorEditHistoryRepository } from '../../visits/infrastructure/database/repositories/SequelizeVisitorEditHistoryRepository';
 import { whereHasTenantId, getTenantIdFromWhere } from '../helpers/mockModels';
 import VisitorEditHistoryModel from '../../models/VisitorEditHistory';
 import Encryption from '../../utils/Encryption';

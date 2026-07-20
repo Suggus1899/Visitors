@@ -30,7 +30,7 @@ vi.mock('../../shared/Container', () => ({
 }));
 
 import { TENANT_A, TENANT_B, tenantAdminToken } from '../helpers/mockToken';
-import type { VisitRealtimeEvent } from '../../domain/services/IEventEmitter';
+import type { VisitRealtimeEvent } from '../../shared/domain/services/IEventEmitter';
 
 const buildTestApp = () => {
   const app = express();

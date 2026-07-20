@@ -123,12 +123,12 @@ vi.mock('../../shared/Container', () => ({
 }));
 
 // Import controllers after mock is set up
-import * as VisitorController from '../../controllers/VisitorController';
-import * as VisitController from '../../controllers/VisitController';
-import * as AuditController from '../../controllers/AuditController';
-import * as PrivacyController from '../../controllers/PrivacyController';
-import * as BackupController from '../../controllers/BackupController';
-import * as TenantFeaturesController from '../../controllers/TenantFeaturesController';
+import * as VisitorController from '../../visits/controllers/VisitorController';
+import * as VisitController from '../../visits/controllers/VisitController';
+import * as AuditController from '../../audit/controllers/AuditController';
+import * as PrivacyController from '../../audit/controllers/PrivacyController';
+import * as BackupController from '../../billing/controllers/BackupController';
+import * as TenantFeaturesController from '../../visits/controllers/TenantFeaturesController';
 
 const tenantAUser = { id: 1, username: 'admin-a', tid: TENANT_A.id, tslug: TENANT_A.slug, role: 'admin' };
 

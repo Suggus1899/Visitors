@@ -4,12 +4,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { LoginUseCase } from '../../application/usecases/auth/Login.usecase';
-import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
-import { IUserRepository } from '../../domain/repositories/IUserRepository';
-import { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
-import { ITenantUserRepository } from '../../domain/repositories/ITenantUserRepository';
-import { User, UserRole } from '../../domain/entities/User.entity';
+import { LoginUseCase } from '../../identity/application/usecases/auth/Login.usecase';
+import { JwtAuthService } from '../../identity/infrastructure/services/JwtAuthService';
+import { IUserRepository } from '../../identity/domain/repositories/IUserRepository';
+import { IAuditLogRepository } from '../../audit/domain/repositories/IAuditLogRepository';
+import { ITenantUserRepository } from '../../identity/domain/repositories/ITenantUserRepository';
+import { User, UserRole } from '../../identity/domain/entities/User.entity';
 import config from '../../config/AppConfig';
 
 describe('LoginUseCase - Account Lockout', () => {

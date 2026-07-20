@@ -4,15 +4,15 @@
  * that an admin access token is returned.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CreateDemoTenantUseCase } from '../../application/usecases/auth/CreateDemoTenant.usecase';
-import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
-import { Visitor } from '../../domain/entities/Visitor.entity';
-import { Visit } from '../../domain/entities/Visit.entity';
-import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
-import type { ITenantUserRepository } from '../../domain/repositories/ITenantUserRepository';
-import type { IUserRepository } from '../../domain/repositories/IUserRepository';
-import type { IVisitorRepository } from '../../domain/repositories/IVisitorRepository';
-import type { IVisitRepository } from '../../domain/repositories/IVisitRepository';
+import { CreateDemoTenantUseCase } from '../../identity/application/usecases/auth/CreateDemoTenant.usecase';
+import { JwtAuthService } from '../../identity/infrastructure/services/JwtAuthService';
+import { Visitor } from '../../visits/domain/entities/Visitor.entity';
+import { Visit } from '../../visits/domain/entities/Visit.entity';
+import type { ITenantRepository } from '../../identity/domain/repositories/ITenantRepository';
+import type { ITenantUserRepository } from '../../identity/domain/repositories/ITenantUserRepository';
+import type { IUserRepository } from '../../identity/domain/repositories/IUserRepository';
+import type { IVisitorRepository } from '../../visits/domain/repositories/IVisitorRepository';
+import type { IVisitRepository } from '../../visits/domain/repositories/IVisitRepository';
 
 describe('CreateDemoTenantUseCase', () => {
   let useCase: CreateDemoTenantUseCase;

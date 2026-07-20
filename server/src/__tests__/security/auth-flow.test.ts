@@ -6,17 +6,17 @@
  * Uses mocked repositories — no DB required.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { LoginUseCase } from '../../application/usecases/auth/Login.usecase';
-import { RefreshTokenUseCase } from '../../application/usecases/auth/RefreshToken.usecase';
-import { CreateDemoTenantUseCase } from '../../application/usecases/auth/CreateDemoTenant.usecase';
-import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
-import { User } from '../../domain/entities/User.entity';
-import type { IUserRepository } from '../../domain/repositories/IUserRepository';
-import type { ITenantUserRepository, TenantMembershipWithTenant } from '../../domain/repositories/ITenantUserRepository';
-import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
-import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
-import type { IVisitorRepository } from '../../domain/repositories/IVisitorRepository';
-import type { IVisitRepository } from '../../domain/repositories/IVisitRepository';
+import { LoginUseCase } from '../../identity/application/usecases/auth/Login.usecase';
+import { RefreshTokenUseCase } from '../../identity/application/usecases/auth/RefreshToken.usecase';
+import { CreateDemoTenantUseCase } from '../../identity/application/usecases/auth/CreateDemoTenant.usecase';
+import { JwtAuthService } from '../../identity/infrastructure/services/JwtAuthService';
+import { User } from '../../identity/domain/entities/User.entity';
+import type { IUserRepository } from '../../identity/domain/repositories/IUserRepository';
+import type { ITenantUserRepository, TenantMembershipWithTenant } from '../../identity/domain/repositories/ITenantUserRepository';
+import type { IAuditLogRepository } from '../../audit/domain/repositories/IAuditLogRepository';
+import type { ITenantRepository } from '../../identity/domain/repositories/ITenantRepository';
+import type { IVisitorRepository } from '../../visits/domain/repositories/IVisitorRepository';
+import type { IVisitRepository } from '../../visits/domain/repositories/IVisitRepository';
 
 describe('Auth flow — multi-tenant', () => {
   let authService: JwtAuthService;

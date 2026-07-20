@@ -4,11 +4,11 @@
  * blocked visitor rejection.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CheckInVisitorUseCase } from '../../application/usecases/CheckInVisitor.usecase';
-import { Visitor } from '../../domain/entities/Visitor.entity';
-import { Visit, VisitStatus } from '../../domain/entities/Visit.entity';
-import type { IVisitorRepository } from '../../domain/repositories/IVisitorRepository';
-import type { IVisitRepository } from '../../domain/repositories/IVisitRepository';
+import { CheckInVisitorUseCase } from '../../visits/application/usecases/CheckInVisitor.usecase';
+import { Visitor } from '../../visits/domain/entities/Visitor.entity';
+import { Visit, VisitStatus } from '../../visits/domain/entities/Visit.entity';
+import type { IVisitorRepository } from '../../visits/domain/repositories/IVisitorRepository';
+import type { IVisitRepository } from '../../visits/domain/repositories/IVisitRepository';
 
 describe('CheckInVisitorUseCase', () => {
   let useCase: CheckInVisitorUseCase;
