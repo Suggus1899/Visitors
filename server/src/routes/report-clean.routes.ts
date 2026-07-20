@@ -1,12 +1,13 @@
 import express from 'express';
 import * as ReportCleanController from '../controllers/ReportCleanController';
 import { verifyToken, resolveTenant, verifyTenantMembership } from '../middleware/auth';
+import { demoTenantLimiter } from '../middleware/rateLimiter';
 import { validateQuery } from '../middleware/validate';
 import { getStatsSchema, getMonthlyReportSchema, getComparisonStatsSchema } from '../schemas/report.schema';
 import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger

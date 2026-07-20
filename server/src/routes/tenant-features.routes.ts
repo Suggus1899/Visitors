@@ -4,6 +4,7 @@ import * as TenantFeaturesController from '../controllers/TenantFeaturesControll
 import * as VisitController from '../controllers/VisitCleanController';
 import { verifyAuditor, denyAuditorOnly } from '../middleware/auditor';
 import { isAdmin, resolveTenant, verifyTenantMembership, verifyToken } from '../middleware/auth';
+import { demoTenantLimiter } from '../middleware/rateLimiter';
 import { enforceCheckInLimits, subscriptionGuard } from '../middleware/subscriptionGuard';
 import { validate } from '../middleware/validate';
 import { restoreBackupSchema } from '../schemas/backup.schema';
@@ -11,7 +12,7 @@ import { checkInSchema } from '../schemas/visit.schema';
 import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 router.get('/v1/:tenantSlug/subscription', ...tenantContext, asyncHandler(TenantFeaturesController.getSubscription));
 

@@ -47,18 +47,24 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
 };
 
 export const verifySseToken = (req: Request, res: Response, next: NextFunction) => {
+    // SSE auth: prefer httpOnly cookie (set by hybrid auth flow), fall back
+    // to query param for backward compat with existing clients. The query
+    // param path is deprecated — new clients should rely on the cookie.
+    // Cookies are not logged by proxies/nginx, unlike query strings.
+    const cookieToken = req.cookies?.[ACCESS_COOKIE];
     const queryToken = typeof req.query.token === 'string' ? req.query.token : undefined;
+    const token = cookieToken || queryToken;
 
-    if (!queryToken) {
+    if (!token) {
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'No token provided'));
     }
 
-    if (container.tokenBlacklist.isBlacklisted(queryToken)) {
+    if (container.tokenBlacklist.isBlacklisted(token)) {
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been revoked'));
     }
 
     try {
-        const decoded = jwt.verify(queryToken, config.jwtSecret, { algorithms: ['HS256'] }) as AuthPayload;
+        const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as AuthPayload;
 
         if (!decoded) {
             return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
@@ -90,6 +96,7 @@ export const resolveTenant = async (req: Request, res: Response, next: NextFunct
     }
     req.user = { ...req.user!, tid: tenant.id, tslug: tenant.slug };
     req.tenantId = tenant.id;
+    req.tenantIsDemo = !!tenant.isDemo;
     next();
 };
 
@@ -102,12 +109,9 @@ export const resolveTenant = async (req: Request, res: Response, next: NextFunct
  *   which is guarded by isSuperAdmin (root role only); demo tenants cannot
  *   self-upgrade their plan or lift demo restrictions via the API.
  * - Demo expiry is enforced above (demoExpiresAt < now => 403).
- * - TODO(security): apply a stricter per-tenant rate limiter (demoLimiter)
- *   to /v1/:tenantSlug/* when tenant.isDemo is true, to throttle demo abuse.
- *   This requires resolving the tenant before the limiter runs (or a
- *   limiter that reads tenant.isDemo from the repository), which is a
- *   larger routing change deferred to avoid breaking the current middleware
- *   ordering.
+ * - Demo tenants are additionally throttled by demoTenantLimiter (see
+ *   rateLimiter.ts), applied after resolveTenant so req.tenantIsDemo is
+ *   available. This closes the TODO that was previously deferred.
  */
 
 export const verifyTenantMembership = async (req: Request, res: Response, next: NextFunction) => {

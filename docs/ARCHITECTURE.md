@@ -443,6 +443,7 @@ All limiters are defined in `server/src/middleware/rateLimiter.ts` using `expres
 | `reportLimiter` | 1 hour | 20 | `IP:report` | Report generation |
 | `adminLimiter` | 5 min | 30 | `user:<id>` or IP | Platform + superadmin routes |
 | `demoLimiter` | 1 hour | 3 | `IP:demo` | `/auth/demo` |
+| `demoTenantLimiter` | 1 min | 30 | `demo-tenant:<tenantId>` | All `/v1/:tenantSlug/*` routes — **skips non-demo tenants**. Throttles demo tenant traffic per-tenant (not per-user) to prevent abuse. |
 
 > In development, limits are relaxed (e.g. auth 20, refresh 120, demo 15) to avoid friction.
 
@@ -492,7 +493,9 @@ Photo endpoints (`GET /visitors/:cedula/photo`, `GET /visitors/:cedula/id-photo`
 
 #### Authentication
 
-`verifySseToken` (`server/src/middleware/auth.ts`) reads the token from the `?token=` query parameter (because `EventSource` cannot set HTTP headers). The token is validated the same way as Bearer tokens (JWT verify + blacklist check).
+`verifySseToken` (`server/src/middleware/auth.ts`) reads the token from the `lm_access_token` httpOnly cookie (preferred — cookies are not logged by proxies/nginx), falling back to the `?token=` query parameter for backward compatibility with existing clients. The token is validated the same way as Bearer tokens (JWT verify + blacklist check).
+
+> **Note**: The query-parameter path is deprecated. New clients should rely on the cookie set by the hybrid auth flow (login/refresh/selectTenant).
 
 #### Tenant filtering
 
@@ -528,9 +531,10 @@ Demo creation is rate-limited by `demoLimiter` (3 / hour per IP) to prevent abus
 
 | Item | Status | Details |
 | ---- | ------ | ------- |
-| Demo-specific tenant rate limiter | Deferred | A stricter per-tenant rate limiter for demo tenants is documented as a TODO in `server/src/middleware/auth.ts`. Cross-tenant data access is already prevented by `tenantId` scoping. |
 | Token blacklist store | In-memory | The `TokenBlacklist` is in-memory. For multi-instance deployments, replace with Redis. |
-| Rate limiter store | In-memory | `express-rate-limit` uses an in-memory store. For multi-instance, configure a Redis store. |
+| Rate limiter store | In-memory | `express-rate-limit` uses an in-memory store. For multi-instance, configure a Redis store (`rate-limit-redis` + `connect-redis`). Required when scaling beyond a single server instance — without it, an attacker can rotate between nodes to bypass limits. |
+| Firewall state | In-memory | `BLOCKED_IPS` and `securityEvents[]` in `firewall.ts` are per-process. Restarting the server loses all blocks. For multi-instance or persistent blocking, move to a shared store (Redis or a dedicated WAF). |
+| CSP nonces | Deferred | `helmet` CSP uses `scriptSrc: 'unsafe-inline'` for Vite SPA dev compatibility. Once all apps migrate to Next.js with SSR, switch to per-request nonces via `helmet.contentSecurityPolicy.generateNonce()` for strict CSP. |
 | Key rotation | Manual | No automated PII key rotation. The `isEncrypted()` helper supports future rotation but a migration script is needed. |
 | Payment integration | None | `PLAN_PRICES` are static for MRR estimation; no real billing provider is integrated. |
 
@@ -542,16 +546,17 @@ Demo creation is rate-limited by `demoLimiter` (3 / hour per IP) to prevent abus
    node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"  # JWT
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"  # Encryption
    ```
-3. **Set `NODE_ENV=production`** — relaxes rate limits appropriately and disables Swagger UI.
+3. **Set `NODE_ENV=production`** — relaxes rate limits appropriately and disables Swagger UI by default. To explicitly enable Swagger in a non-production-like prod env, set `ALLOW_SWAGGER=true`.
 4. **Enable SSL/TLS** — terminate TLS at a reverse proxy (Nginx/Caddy) in front of the Express server. Set `DB_SSL=true` for remote Postgres.
-5. **Restrict CORS** — set `ALLOWED_ORIGINS` and/or `PRODUCTION_DOMAIN` to your exact frontend origins. Never use wildcard CORS.
+5. **Restrict CORS** — set `ALLOWED_ORIGINS` and/or `PRODUCTION_DOMAIN` to your exact frontend origins. Never use wildcard CORS. Null/empty origins are rejected (defence against sandboxed iframes and `file://`/`data:` URLs).
 6. **Firewall the database** — Postgres should only be reachable from the server container/host, not the public internet.
 7. **Use secrets management** — in production, inject env vars from a secrets manager (AWS Secrets Manager, Vault, etc.), not a committed `.env` file.
 8. **Regular backups** — verify the backup scheduler is running and test restores periodically. Store backup restore passwords securely (they are one-time).
 9. **Log monitoring** — ship Winston logs to a log aggregator; alert on `severity: critical` audit events and firewall blocks.
 10. **Keep dependencies updated** — run `pnpm audit --audit-level=high` regularly; the `security.yml` CI workflow runs this on PRs.
-11. **Disable Swagger in production** — the `api-docs` route is automatically disabled when `NODE_ENV=production`.
+11. **Disable Swagger in production** — the `api-docs` route is automatically disabled when `NODE_ENV=production`. `ALLOW_SWAGGER=true` overrides this for staging/debugging only.
 12. **Change seed passwords** — the `SEED_*_PASSWORD` values in `.env.example` are for development only. Set unique passwords in production before seeding.
+13. **Configure Redis for multi-instance** — if running more than one server instance, set up a Redis store for rate limiters and the token blacklist to prevent bypass via node rotation.
 
 ---
 

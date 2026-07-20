@@ -1,13 +1,14 @@
 import express from 'express';
 import * as PrivacyCleanController from '../controllers/PrivacyCleanController';
 import { verifyToken, isAdmin, resolveTenant, verifyTenantMembership } from '../middleware/auth';
+import { demoTenantLimiter } from '../middleware/rateLimiter';
 import { verifyAuditor, denyAuditorOnly } from '../middleware/auditor';
 import { validate } from '../middleware/validate';
 import { createArcoRequestSchema, updateArcoStatusSchema, rectifyDataSchema, oppositionSchema } from '../schemas/privacy.schema';
 import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger

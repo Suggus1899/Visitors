@@ -19,6 +19,7 @@ const createRateLimiter = (options: {
   max: number;
   message: string;
   keyGenerator?: (req: Request) => string;
+  skip?: (req: Request, res: Response) => boolean;
   skipSuccessfulRequests?: boolean;
   skipFailedRequests?: boolean;
 }) => {
@@ -29,6 +30,7 @@ const createRateLimiter = (options: {
     legacyHeaders: false,
     validate: false,
     keyGenerator: options.keyGenerator || getClientIp,
+    skip: options.skip,
     skipSuccessfulRequests: options.skipSuccessfulRequests || false,
     skipFailedRequests: options.skipFailedRequests || false,
     message: {
@@ -138,5 +140,22 @@ export const demoLimiter = createRateLimiter({
   max: config.nodeEnv === 'production' ? 3 : 15,
   message: 'Too many demo tenant requests from this IP, please try again later.',
   keyGenerator: (req: Request) => `${req.ip}:demo`,
+});
+
+/**
+ * Per-tenant rate limiter applied to demo tenants only.
+ * Must run AFTER resolveTenant so req.tenantIsDemo and req.tenantId are set.
+ * - Skips entirely for non-demo tenants (no overhead on production traffic).
+ * - Keys on tenantId so all users on a demo tenant share the same bucket,
+ *   preventing a single demo tenant from being abused as a free compute
+ *   farm by rotating user accounts.
+ */
+export const demoTenantLimiter = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  max: config.nodeEnv === 'production' ? 30 : 120,
+  message: 'Demo tenant rate limit exceeded. Please upgrade to a paid plan for higher limits.',
+  keyGenerator: (req: Request) => `demo-tenant:${req.tenantId}`,
+  // Skip non-demo tenants — only throttle demo traffic.
+  skip: (req: Request) => !req.tenantIsDemo,
 });
 

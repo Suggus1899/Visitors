@@ -17,6 +17,8 @@ declare global {
       user?: AuthPayload;
       tenantId?: number;
       tenantRole?: 'admin' | 'operador' | 'auditor' | 'demo';
+      /** Set by resolveTenant — used by demoRateLimiter to throttle demo tenants. */
+      tenantIsDemo?: boolean;
     }
   }
 }

@@ -1,13 +1,14 @@
 import express from 'express';
 import * as AuditCleanController from '../controllers/AuditCleanController';
 import { verifyToken, resolveTenant, verifyTenantMembership } from '../middleware/auth';
+import { demoTenantLimiter } from '../middleware/rateLimiter';
 import { verifyAuditor } from '../middleware/auditor';
 import { validateQuery } from '../middleware/validate';
 import { getAuditLogsSchema } from '../schemas/audit.schema';
 import { asyncHandler } from '../utils/asyncHandler';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger

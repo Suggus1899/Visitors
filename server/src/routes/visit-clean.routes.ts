@@ -1,6 +1,7 @@
 import express from 'express';
 import * as VisitCleanController from '../controllers/VisitCleanController';
 import { verifyToken, resolveTenant, verifyTenantMembership } from '../middleware/auth';
+import { demoTenantLimiter } from '../middleware/rateLimiter';
 import { denyAuditorOnly } from '../middleware/auditor';
 import { validate } from '../middleware/validate';
 import { checkInSchema } from '../schemas/visit.schema';
@@ -8,7 +9,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { enforceCheckInLimits } from '../middleware/subscriptionGuard';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger

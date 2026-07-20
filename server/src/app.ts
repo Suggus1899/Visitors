@@ -25,6 +25,7 @@ import healthRoutes from "./routes/health.routes";
 import tenantFeaturesRoutes from "./routes/tenant-features.routes";
 import { captureClientInfo } from "./middleware/ipCapture";
 import { firewall } from "./middleware/firewall";
+import { sanitizeRequest } from "./middleware/sanitize";
 
 const app = express();
 
@@ -101,9 +102,15 @@ const allowedOrigins = getAllowedOrigins();
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (curl, mobile apps, server-to-server)
-      if (!origin) {
-        return callback(null, true);
+      // Security: do NOT allow null/empty origins. Previously this returned
+      // success for missing Origin, which opened the door to sandboxed
+      // iframes (sandbox attribute), `file://` and `data:` URLs that emit
+      // a null Origin header. With `credentials: true` that is a real
+      // cross-origin read risk. Server-to-server and curl clients should
+      // send an explicit Origin or use the Authorization header without
+      // relying on CORS at all (CORS is a browser-only mechanism).
+      if (!origin || origin === 'null') {
+        return callback(null, false);
       }
 
       // Check if origin is in allowed list
@@ -144,6 +151,9 @@ app.use(
 // T-09: Set body size limit to prevent DoS via large payloads
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser()); // Hybrid cookie+header auth (Next.js SSR + API clients)
+// XSS sanitiser for body/query/params — defence-in-depth against stored XSS.
+// Runs after body parsing so JSON is already an object, before routes.
+app.use(sanitizeRequest);
 app.use(captureClientInfo); // Captura IP y userAgent para auditoría
 
 // Static photos directory routing removed - photos are served from DB BLOB via API endpoints
@@ -176,8 +186,11 @@ app.use("/api", apiLimiter);
 // Must Change Password Middleware (applies to all protected routes)
 app.use("/api", mustChangePassword);
 
-// T-06: Swagger Documentation — disabled in production, protected in development
-if (config.nodeEnv !== "production") {
+// T-06: Swagger Documentation — disabled in production by default.
+// In production: requires ALLOW_SWAGGER=true to be explicitly set.
+// In non-production: always enabled (dev/staging convenience).
+const swaggerEnabled = config.nodeEnv !== "production" || process.env.ALLOW_SWAGGER === "true";
+if (swaggerEnabled) {
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
 
