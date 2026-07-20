@@ -1,3 +1,5 @@
+'use client';
+
 import {
   createContext,
   ReactNode,
@@ -7,14 +9,14 @@ import {
   useState,
 } from 'react';
 import { platformApi } from '../api/platformApi';
-import { tokenStore } from '../api/tokenStore';
+import { getClientUser } from '@lib/auth-client';
 import type { LoginCredentials, PlatformSession } from '../types';
 
 interface AuthContextValue {
   session: PlatformSession | null;
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -27,33 +29,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Restore session from token store on mount. The access token lives in
-    // sessionStorage (cleared on tab close); the refresh token in localStorage
-    // lets us rehydrate the user object.
-    const accessToken = tokenStore.getAccessToken();
-    const refreshToken = tokenStore.getRefreshToken();
-    const user = tokenStore.getUser<PlatformSession['user']>();
-    if (accessToken && refreshToken && user) {
-      setSession({ accessToken, refreshToken, user });
+    // Restore the user from the client-side mirror cookie. The access token
+    // itself lives in an httpOnly cookie we cannot read from JS — its presence
+    // is enforced by middleware.ts on the server side.
+    const user = getClientUser();
+    if (user) {
+      setSession({
+        accessToken: '',
+        refreshToken: '',
+        user,
+      });
     }
     setIsLoading(false);
   }, []);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     const result = await platformApi.login(credentials);
-    // Enforce the superadmin guard client-side as a first line of defense.
-    // The backend MUST also enforce this on every /platform/v1/* request.
-    if (!result.user.isSuperAdmin) {
-      throw new Error('Access denied. Superadmin privileges required.');
-    }
-    tokenStore.setAccessToken(result.accessToken);
-    tokenStore.setRefreshToken(result.refreshToken);
-    tokenStore.setUser(result.user);
+    // The backend sets httpOnly cookies on success. We only keep the user
+    // object in React state for UI rendering.
     setSession(result);
   }, []);
 
-  const logout = useCallback(() => {
-    tokenStore.clear();
+  const logout = useCallback(async () => {
+    try {
+      await platformApi.logout();
+    } catch {
+      // Best-effort — cookie may already be gone.
+    }
     setSession(null);
   }, []);
 

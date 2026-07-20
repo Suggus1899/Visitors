@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Save, Loader2, Settings as SettingsIcon, ToggleLeft, ToggleRight } from 'lucide-react';

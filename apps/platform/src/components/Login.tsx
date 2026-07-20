@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Shield, Loader2, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/useAuth';
@@ -12,7 +14,7 @@ export function Login() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -21,7 +23,7 @@ export function Login() {
     try {
       await login({ email, password });
       toast.success('Welcome back, superadmin.');
-      navigate('/dashboard');
+      router.push('/dashboard');
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Login failed.';

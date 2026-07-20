@@ -1,5 +1,8 @@
+'use client';
+
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
   Building2,
@@ -43,6 +46,7 @@ function ThemeToggle() {
 }
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
   return (
     <aside className="hidden w-64 flex-col border-r border-[var(--border-1)] bg-[var(--surface-0)] md:flex">
       <div className="flex items-center gap-3 px-6 py-5">
@@ -60,17 +64,20 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex flex-1 flex-col gap-1 px-4 py-4" aria-label="Primary">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const isActive =
+            item.to === '/dashboard'
+              ? pathname === item.to
+              : pathname.startsWith(item.to);
           return (
-            <NavLink
+            <Link
               key={item.to}
-              to={item.to}
-              className="nav-link"
-              end={item.to === '/dashboard'}
+              href={item.to}
+              className={`nav-link ${isActive ? 'active' : ''}`}
               onClick={onNavigate}
             >
               <Icon size={18} />
               {item.label}
-            </NavLink>
+            </Link>
           );
         })}
       </nav>
@@ -82,14 +89,15 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function Layout() {
+export function Layout({ children }: { children: React.ReactNode }) {
   const { session, logout } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
   };
 
   return (
@@ -122,17 +130,20 @@ export function Layout() {
             <nav className="flex flex-1 flex-col gap-1 px-4 py-4">
               {navItems.map((item) => {
                 const Icon = item.icon;
+                const isActive =
+                  item.to === '/dashboard'
+                    ? pathname === item.to
+                    : pathname.startsWith(item.to);
                 return (
-                  <NavLink
+                  <Link
                     key={item.to}
-                    to={item.to}
-                    className="nav-link"
-                    end={item.to === '/dashboard'}
+                    href={item.to}
+                    className={`nav-link ${isActive ? 'active' : ''}`}
                     onClick={() => setMobileNavOpen(false)}
                   >
                     <Icon size={18} />
                     {item.label}
-                  </NavLink>
+                  </Link>
                 );
               })}
             </nav>
@@ -178,9 +189,7 @@ export function Layout() {
         </header>
 
         <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
-          <div className="mx-auto max-w-7xl">
-            <Outlet />
-          </div>
+          <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>
     </div>

@@ -40,7 +40,7 @@ const isBackendNotReady = (error: unknown): boolean => {
   if (err.code === 'ERR_NETWORK' || err.code === 'ERR_CANCELED') return true;
   if (!err.response) return true;
   const status = err.response.status;
-  return status === 404 || status === 405;
+  return status === 404 || status === 405 || status === 502 || status === 504;
 };
 
 const withFallback = async <T>(real: () => Promise<T>, fallback: () => Promise<T>): Promise<T> => {
@@ -93,6 +93,15 @@ export const platformApi = {
       },
       () => mock.login(credentials)
     );
+  },
+
+  /** POST /api/v1/auth/logout — backend clears httpOnly cookies. */
+  async logout(): Promise<void> {
+    try {
+      await apiClient.post(API_PATHS.logout);
+    } catch {
+      // Best-effort — the cookie may already be expired.
+    }
   },
 
   async getStats(): Promise<PlatformStats> {

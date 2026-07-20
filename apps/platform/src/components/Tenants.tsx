@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { Plus, Search, Pencil, Trash2, Eye, Loader2 } from 'lucide-react';
@@ -29,7 +31,7 @@ export function Tenants() {
   const [editing, setEditing] = useState<Tenant | null>(null);
   const [form, setForm] = useState<TenantInput>(emptyForm);
   const [confirmDelete, setConfirmDelete] = useState<Tenant | null>(null);
-  const navigate = useNavigate();
+  const navigate = useRouter();
   const queryClient = useQueryClient();
 
   const { data: tenants = [], isLoading, isError, refetch } = useQuery<Tenant[]>({
@@ -209,7 +211,7 @@ export function Tenants() {
                     <td>
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => navigate(`/tenants/${tenant.id}`)}
+                          onClick={() => navigate.push(`/tenants/${tenant.id}`)}
                           className="rounded p-1.5 text-[var(--text-3)] hover:text-[var(--accent-0)] hover:bg-[var(--surface-2)]"
                           aria-label={`View ${tenant.name}`}
                           title="View"

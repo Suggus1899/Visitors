@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
 # ============================================================
-# LogMaster Platform — Multi-stage production Dockerfile
+# LogMaster Platform — Next.js 14 standalone production Dockerfile
 # ============================================================
 
-# ---------- Stage 1: builder ----------
-FROM node:20-alpine AS builder
+# ---------- Stage 1: deps ----------
+FROM node:20-alpine AS deps
 
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH \
@@ -18,26 +18,45 @@ WORKDIR /app
 # Copy workspace root files for monorepo install
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc turbo.json ./
 COPY apps/platform/package.json ./apps/platform/
-COPY packages ./packages
+# Copy shared packages package.json files
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/api/package.json ./packages/api/
+COPY packages/types/package.json ./packages/types/
+COPY packages/utils/package.json ./packages/utils/
+COPY packages/config/package.json ./packages/config/
 
-# Install dependencies for the workspace (platform + shared packages)
 RUN pnpm install --frozen-lockfile
 
-# Copy platform source
-COPY apps/platform ./apps/platform
+# ---------- Stage 2: builder ----------
+FROM node:20-alpine AS builder
 
-# Build with Vite (tsc --noEmit && vite build)
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    CI=1
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
 RUN pnpm --dir apps/platform run build
 
+# ---------- Stage 3: runner ----------
+FROM node:20-alpine AS runner
 
-# ---------- Stage 2: runner ----------
-FROM nginx:alpine AS runner
+WORKDIR /app
 
-RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
+ENV NODE_ENV=production \
+    PORT=3000
 
-COPY --from=builder /app/apps/platform/dist /usr/share/nginx/html
-COPY apps/platform/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy the standalone server output
+COPY --from=builder /app/apps/platform/.next/standalone ./
+COPY --from=builder /app/apps/platform/.next/static ./apps/platform/.next/static
+COPY --from=builder /app/apps/platform/public ./apps/platform/public
 
-EXPOSE 80
+EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "apps/platform/server.js"]

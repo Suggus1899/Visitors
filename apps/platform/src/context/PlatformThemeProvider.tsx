@@ -1,3 +1,5 @@
+'use client';
+
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { PlatformThemeContext } from './theme-context';
 import type { PlatformThemeContextValue, Theme } from './theme-context';

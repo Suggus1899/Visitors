@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import {
@@ -32,8 +34,9 @@ type Tab = 'users' | 'usage' | 'backups' | 'audit';
 const roleOptions = () => getRoles().map((role) => ({ value: role, label: role }));
 
 export function TenantDetail() {
-  const { id = '' } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const params = useParams<{ id: string }>();
+  const id = params.id ?? '';
+  const navigate = useRouter();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('users');
   const [showUserModal, setShowUserModal] = useState(false);
@@ -168,7 +171,7 @@ export function TenantDetail() {
   if (tenantError || !tenant) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => navigate('/tenants')}>
+        <Button variant="ghost" onClick={() => navigate.push('/tenants')}>
           <ArrowLeft size={16} /> Back to tenants
         </Button>
         <ErrorState message="Failed to load tenant." onRetry={() => refetchTenant()} />
@@ -186,7 +189,7 @@ export function TenantDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={() => navigate('/tenants')}>
+        <Button variant="ghost" onClick={() => navigate.push('/tenants')}>
           <ArrowLeft size={16} /> Back
         </Button>
       </div>
