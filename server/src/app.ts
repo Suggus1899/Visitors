@@ -79,6 +79,10 @@ app.use(
 const getAllowedOrigins = (): string[] => {
   const origins = [
     "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:5176",
+    "http://localhost:5177",
     "http://localhost:3000",
     "http://localhost:80",
     "https://localhost:443",
@@ -163,23 +167,8 @@ app.use(captureClientInfo); // Captura IP y userAgent para auditoría
 
 // Static photos directory routing removed - photos are served from DB BLOB via API endpoints
 
-// Root Landing Page
-app.get("/", (req, res) => {
-  res.send(`
-    <style>
-      body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; }
-      .container { text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-      h1 { color: #1a1a1a; margin-bottom: 1rem; }
-      p { color: #4a5568; margin-bottom: 1.5rem; }
-      .btn { display: inline-block; background-color: #3182ce; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 4px; font-weight: 500; transition: background-color 0.2s; }
-      .btn:hover { background-color: #2c5282; }
-    </style>
-    <div class="container">
-      <h1>Visitor Management System API</h1>
-      <p>Backend Service is Running 🟢</p>
-      <a href="/api-docs" class="btn">Explore API Documentation (Swagger)</a>
-    </div>
-  `);
+app.get("/", (_req, res) => {
+  res.type("html").send('<h1>LogMaster API</h1><p>Backend running. <a href="/api-docs">API docs</a></p>');
 });
 
 // Healthcheck endpoint (exempt from rate limiting)
