@@ -46,7 +46,7 @@ export class PasswordPolicy {
         }
 
         // Check for special character (Requirement: 4.5)
-        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+        if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
             errors.push('Password must contain at least one special character');
         }
 

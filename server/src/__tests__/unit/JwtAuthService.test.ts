@@ -130,6 +130,7 @@ describe('JwtAuthService', () => {
             const password = 'MySecureP@ssw0rd123';
             const hash = await authService.hashPassword(password);
 
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const bcrypt = require('bcryptjs');
             const rounds = bcrypt.getRounds(hash);
             expect(rounds).toBe(config.bcryptRounds);

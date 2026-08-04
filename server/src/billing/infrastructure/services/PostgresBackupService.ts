@@ -204,7 +204,7 @@ export class PostgresBackupService implements IBackupService {
     try {
       await this.restoreDump(tmpPath);
     } finally {
-      fs.existsSync(tmpPath) && fs.unlinkSync(tmpPath);
+      if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
     }
   }
 
