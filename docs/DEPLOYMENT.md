@@ -180,7 +180,7 @@ docker compose logs -f server
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
-This mounts source code as volumes and runs Vite/nodemon with hot reload. Frontend apps are served on their native ports (5173–5177); Postgres is exposed on 5433 to avoid conflicts with a local Postgres.
+This mounts source code as volumes and runs the Next.js dev servers / nodemon with hot reload. Frontend apps are served on their native ports (5173–5177); Postgres is exposed on 5433 to avoid conflicts with a local Postgres.
 
 ### Stopping
 
@@ -214,9 +214,12 @@ pnpm db:setup
 pnpm start    # runs node dist/server.js
 
 # 6. Serve frontend apps
-# Each app builds to dist/ — serve with nginx, Caddy, or a static host
-pnpm build:admin     # builds apps/admin/dist
-pnpm build:system    # builds apps/system/dist
+# Each app builds with output: 'standalone' (next.config.js) — the
+# standalone server + .next/static + public/ need to be assembled and run
+# with `node server.js`, or served behind nginx/Caddy as a reverse proxy in
+# front of that Node process. See each app's Dockerfile for the exact layout.
+pnpm build:admin     # builds apps/admin/.next
+pnpm build:system    # builds apps/system/.next
 # etc.
 ```
 
@@ -432,7 +435,7 @@ pm2 restart logmaster-server
 
 - **Build fails** — Ensure Docker has enough memory (4GB+). Try `docker compose build --no-cache`.
 - **`logmaster-postgres` unhealthy** — Check Postgres logs: `docker compose logs postgres`. Ensure `DB_PASSWORD` matches `POSTGRES_PASSWORD`.
-- **Frontend apps can't reach API** — In Docker, apps are served by nginx on ports 8080–8084. Ensure your reverse proxy routes to the correct ports. In dev mode, Vite proxies `/api` to `:3001`.
+- **Frontend apps can't reach API** — In Docker, apps are served by nginx on ports 8080–8084. Ensure your reverse proxy routes to the correct ports. In dev mode, each app's Next.js `rewrites()` proxies `/api` to `:3001` (`BACKEND_URL`).
 
 ### SSE not working
 

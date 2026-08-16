@@ -1,7 +1,7 @@
 # LogMaster — Local Development Guide (Without Docker)
 
 This guide covers running the entire LogMaster monorepo locally on your machine
-without Docker. You will run the Express/Sequelize backend and all Vite/React
+without Docker. You will run the Express/Sequelize backend and all Next.js/React
 frontends directly with hot reload.
 
 ---
@@ -107,7 +107,9 @@ reload. Open the app you need in your browser (see ports table below).
 | **System**        | 5177  | http://localhost:5177      |
 
 All frontend apps proxy `/api` requests to `http://localhost:3001` automatically
-via Vite's dev-server proxy. No CORS configuration needed during development.
+via a Next.js `rewrites()` rule in each app's `next.config.js` (destination
+overridable with the `BACKEND_URL` env var). No CORS configuration needed
+during development.
 
 ---
 
@@ -134,11 +136,11 @@ pnpm dev:system      # System (check-in kiosk) only
 | ------------------- | ------------------------------------------------ |
 | `pnpm dev`          | Start server + all apps in parallel              |
 | `pnpm dev:server`   | Start backend with hot reload (nodemon)          |
-| `pnpm dev:landing`  | Start landing page (Vite)                        |
-| `pnpm dev:platform` | Start platform app (Vite)                        |
-| `pnpm dev:admin`    | Start admin app (Vite)                           |
-| `pnpm dev:auditor`  | Start auditor app (Vite)                         |
-| `pnpm dev:system`   | Start system app (Vite)                          |
+| `pnpm dev:landing`  | Start landing page (Next.js)                     |
+| `pnpm dev:platform` | Start platform app (Next.js)                     |
+| `pnpm dev:admin`    | Start admin app (Next.js)                        |
+| `pnpm dev:auditor`  | Start auditor app (Next.js)                      |
+| `pnpm dev:system`   | Start system app (Next.js)                       |
 
 ### Build
 
@@ -190,7 +192,7 @@ pnpm dev:system      # System (check-in kiosk) only
 
 ```
 Visitors/
-├── apps/                    # Frontend applications (Vite + React + TS)
+├── apps/                    # Frontend applications (Next.js 15 + React + TS)
 │   ├── landing/             #   Landing page        (port 5173)
 │   ├── platform/            #   Platform app        (port 5174)
 │   ├── admin/               #   Admin dashboard     (port 5175)
@@ -203,16 +205,18 @@ Visitors/
 │   ├── types/               #   Shared TypeScript types
 │   ├── utils/               #   Shared utilities
 │   └── config/              #   Shared config (Tailwind, etc.)
-├── server/                  # Backend (Node.js + Express + Sequelize + TS)
+├── server/                  # Backend (Node.js + Express + Sequelize + TS,
+│                             #   hexagonal architecture per bounded context)
 │   ├── src/
 │   │   ├── config/          #   App config, database, logger
-│   │   ├── controllers/     #   HTTP controllers
-│   │   ├── domain/          #   Domain entities
-│   │   ├── application/     #   Use cases
-│   │   ├── infrastructure/  #   Implementations
+│   │   ├── identity/        #   Users, tenants, auth, platform console
+│   │   ├── visits/          #   Visitors, visits, check-in/out, SSE
+│   │   ├── audit/           #   Activity log, ARCO requests, reports
+│   │   ├── billing/         #   Backups, subscription/usage enforcement
+│   │   ├── shared/          #   Cross-context primitives, DI registration
 │   │   ├── middleware/      #   Express middleware
-│   │   ├── models/          #   Sequelize models
-│   │   ├── routes/          #   Route definitions
+│   │   ├── models/          #   Sequelize models (flat, shared)
+│   │   ├── routes/          #   Health check only — other routers live per context
 │   │   ├── scripts/         #   DB scripts (migrate, seed, reset)
 │   │   └── server.ts        #   Entry point
 │   ├── nodemon.json         #   Nodemon config (hot reload)
@@ -288,7 +292,7 @@ pnpm --dir server run typecheck       # Type-check server
 
 ### Port already in use
 
-**Symptom:** `EADDRINUSE: address already in use` or Vite shows a port conflict.
+**Symptom:** `EADDRINUSE: address already in use` or the Next.js dev server reports a port conflict.
 
 **Fix:**
 ```bash
@@ -299,9 +303,10 @@ netstat -ano | findstr :3001
 taskkill /PID <PID> /F
 ```
 
-If Vite automatically increments the port (e.g., 5174 → 5175), it means another
-app is already on that port. Make sure you're not running two apps on the same
-port. Check the [ports table](#default-ports) for the correct assignment.
+If Next.js automatically increments the port (e.g., 5174 → 5175), it means
+another app is already on that port. Make sure you're not running two apps on
+the same port. Check the [ports table](#default-ports) for the correct
+assignment.
 
 ### Database connection refused
 
@@ -434,9 +439,9 @@ pnpm build
 
 ## Notes
 
-- The `server/` directory is **not** part of the pnpm workspace
-  (`pnpm-workspace.yaml` only includes `apps/*` and `packages/*`). Root scripts
-  use `pnpm --dir server` to run server commands.
+- The `server/` directory **is** a pnpm workspace member (`pnpm-workspace.yaml`
+  includes `apps/*`, `packages/*`, and `server`). Root scripts use
+  `pnpm --dir server` to run server commands.
 - `pnpm dev` uses `concurrently` to start the server (via nodemon) and all
   workspace apps (via `turbo run dev`) in parallel.
 - The server uses `nodemon` + `ts-node` for hot reload during development

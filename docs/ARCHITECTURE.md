@@ -57,18 +57,36 @@ flowchart TB
 
 ## Hexagonal Architecture
 
-The backend (`server/src`) follows a hexagonal (ports & adapters) layout. Dependencies always point inward: the domain has no knowledge of frameworks or databases.
+The backend (`server/src`) follows a hexagonal (ports & adapters) layout, applied **per bounded context** rather than as one flat stack. Dependencies always point inward: the domain has no knowledge of frameworks or databases.
 
-| Layer            | Location                              | Responsibility                                                              |
-| ---------------- | ------------------------------------- | --------------------------------------------------------------------------- |
-| **Domain**       | `server/src/domain/`                  | Pure entities (`User`, `Tenant`, `TenantUser`, `Visitor`, `Visit`), repository interfaces (`IVisitorRepository`, `IVisitRepository`, `ITenantRepository`, ...), and domain services (`IAuthService`, `IBackupService`, `IEventEmitter`, `ITokenBlacklist`, `PasswordPolicy`). No imports from infrastructure or Express. |
-| **Application**  | `server/src/application/`             | Use cases (`CheckInVisitorUseCase`, `LoginUseCase`, `CreateDemoTenantUseCase`, ...), DTOs (`application/dto/`), and mappers (`application/mappers/`). Each use case orchestrates domain entities and repository interfaces. |
-| **Infrastructure**| `server/src/infrastructure/`        | Adapters that implement domain interfaces: Sequelize repositories (`SequelizeVisitorRepository`, `SequelizeTenantRepository`, ...), `JwtAuthService`, `EmailService`, `PostgresBackupService`, `EventEmitterService`, `TokenBlacklist`. Also Sequelize models live in `server/src/models/`. |
-| **Interface**    | `server/src/controllers/`, `server/src/routes/` | HTTP controllers translate Express requests into use-case calls and build responses via `shared/ApiResponse`. Routes wire middleware chains. |
+### Bounded contexts
+
+`server/src` is split into four contexts, each owning its own `domain/`, `application/`, `infrastructure/`, `controllers/`, and `routes/`:
+
+| Context     | Location                | Owns                                                                                                |
+| ----------- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `identity`  | `server/src/identity/`  | Users, tenants, tenant membership, auth (login/refresh/select-tenant), platform/superadmin console  |
+| `visits`    | `server/src/visits/`    | Visitors, visits, check-in/check-out, intermittent logs, SSE events, tenant-feature flags           |
+| `audit`     | `server/src/audit/`     | Activity log, ARCO privacy requests, reports                                                        |
+| `billing`   | `server/src/billing/`   | Backups, subscription/usage enforcement                                                             |
+| `shared`    | `server/src/shared/`    | Cross-context primitives only: event emitter interface/implementation, DI registration              |
+
+Sequelize **models** (`server/src/models/`), **migrations** (`server/src/migrations/`), and **middleware** (`server/src/middleware/`) stay flat/global — they are not split per context. The top-level `server/src/routes/` holds only `health.routes.ts`; every other router is wired into `app.ts` from its owning context (e.g. `visits/routes/visit.routes.ts`, `identity/routes/auth.routes.ts`).
+
+### Layers within a context
+
+| Layer            | Location (within a context, e.g. `visits/`)                          | Responsibility                                                              |
+| ---------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Domain**       | `domain/entities/`, `domain/repositories/`, `domain/services/`        | Pure entities (`User`, `Tenant`, `TenantUser`, `Visitor`, `Visit`), repository interfaces (`IVisitorRepository`, `IVisitRepository`, `ITenantRepository`, ...), and domain services (`IAuthService`, `IBackupService`, `IEventEmitter`, `ITokenBlacklist`, `PasswordPolicy`). No imports from infrastructure or Express. |
+| **Application**  | `application/usecases/`, `application/dto/`, `application/mappers/`   | Use cases (`CheckInVisitorUseCase`, `LoginUseCase`, `CreateDemoTenantUseCase`, ...), DTOs, and mappers. Each use case orchestrates domain entities and repository interfaces. |
+| **Infrastructure**| `infrastructure/database/repositories/`, `infrastructure/services/`  | Adapters that implement domain interfaces: Sequelize repositories (`SequelizeVisitorRepository`, `SequelizeTenantRepository`, ...), `JwtAuthService`, `EmailService`, `PostgresBackupService`, `EventEmitterService`, `TokenBlacklist`. Sequelize models themselves live in the shared `server/src/models/`. |
+| **Interface**    | `controllers/`, `routes/`                                              | HTTP controllers translate Express requests into use-case calls and build responses via `shared/ApiResponse`. Routes wire middleware chains. |
+
+Cross-context calls should go through a repository/service interface (resolved via DI), not a direct import of another context's internals.
 
 ### Dependency Injection
 
-A singleton `Container` (`server/src/shared/Container.ts`) wires interfaces to concrete implementations and constructs use cases with their dependencies. Controllers access the container via `container.visitorRepository`, `container.createCheckInVisitorUseCase()`, etc. Repositories and services are lazy singletons; use cases are created fresh per request.
+DI runs on **tsyringe**. `server/src/shared/diRegistration.ts` registers every repository interface and service against its concrete implementation via `registerDependencies()`, called once at startup (`server.ts`) before anything is resolved. Repositories and stateless services are singletons; use cases are resolved transiently (fresh per request). `server/src/shared/Container.ts` is a legacy facade some older call sites still use (`container.visitorRepository`, `container.createCheckInVisitorUseCase()`, ...) — it delegates to the tsyringe registration rather than duplicating the wiring. New code should resolve from the tsyringe container directly rather than extending the `Container` facade.
 
 ---
 
@@ -88,7 +106,7 @@ Every tenant-scoped model (`Visitor`, `Visit`, `ActivityLog`, `ArcoRequest`, `Vi
 
 ### JWT tenant context
 
-Access tokens carry tenant context in the payload (`server/src/infrastructure/services/JwtAuthService.ts`):
+Access tokens carry tenant context in the payload (`server/src/identity/infrastructure/services/JwtAuthService.ts`):
 
 ```json
 {
@@ -260,7 +278,7 @@ Plans are defined in `server/src/config/subscription.ts` as a frozen `SUBSCRIPTI
 
 ## Backup System
 
-The backup system is implemented in `server/src/infrastructure/services/PostgresBackupService.ts` (implements `IBackupService`).
+The backup system is implemented in `server/src/billing/infrastructure/services/PostgresBackupService.ts` (implements `IBackupService`).
 
 - **Mechanism**: shells out to `pg_dump --format=custom`, then encrypts the dump with AES-256-GCM using a key derived via `scryptSync(BACKUP_PASSWORD || ENCRYPTION_KEY, salt, 32)`.
 - **Restore password**: each backup generates a one-time password in the format `trebol-XXXXXXXX-NNNN` (8 random chars + 4-digit PIN). The SHA-256 hash is stored in a `.meta` sidecar file; the plaintext is returned once to the caller.
@@ -358,9 +376,9 @@ The `ENC:` prefix and the `isEncrypted()` helper allow the system to handle lega
 
 #### Password policy
 
-`server/src/domain/services/PasswordPolicy.ts` enforces:
+`server/src/identity/domain/services/PasswordPolicy.ts` enforces:
 - Minimum 12 characters (for reset/change).
-- Common-password rejection (`server/src/domain/services/common-passwords.ts`).
+- Common-password rejection (`server/src/identity/domain/services/common-passwords.ts`).
 - Confirm-password match (change-password endpoint).
 
 #### Account lockout
@@ -370,7 +388,7 @@ The `ENC:` prefix and the `isEncrypted()` helper allow the system to handle lega
 
 #### Token blacklist
 
-`server/src/infrastructure/services/TokenBlacklist.ts` (implements `ITokenBlacklist`):
+`server/src/identity/infrastructure/services/TokenBlacklist.ts` (implements `ITokenBlacklist`):
 - `isBlacklisted(token)` — checks if a specific token string is revoked.
 - `isTokenInvalidatedForUser(userId, iat)` — checks if all tokens issued before a timestamp are invalidated (used for password changes and role revocation).
 - In-memory store (sufficient for single-server deployment; for multi-instance, use Redis).
@@ -534,7 +552,7 @@ Demo creation is rate-limited by `demoLimiter` (3 / hour per IP) to prevent abus
 | Token blacklist store | In-memory | The `TokenBlacklist` is in-memory. For multi-instance deployments, replace with Redis. |
 | Rate limiter store | In-memory | `express-rate-limit` uses an in-memory store. For multi-instance, configure a Redis store (`rate-limit-redis` + `connect-redis`). Required when scaling beyond a single server instance — without it, an attacker can rotate between nodes to bypass limits. |
 | Firewall state | In-memory | `BLOCKED_IPS` and `securityEvents[]` in `firewall.ts` are per-process. Restarting the server loses all blocks. For multi-instance or persistent blocking, move to a shared store (Redis or a dedicated WAF). |
-| CSP nonces | Deferred | `helmet` CSP uses `scriptSrc: 'unsafe-inline'` for Vite SPA dev compatibility. Once all apps migrate to Next.js with SSR, switch to per-request nonces via `helmet.contentSecurityPolicy.generateNonce()` for strict CSP. |
+| CSP nonces | Deferred | `helmet` CSP still uses `scriptSrc: 'unsafe-inline'`. All apps have since migrated to Next.js with SSR, so per-request nonces via `helmet.contentSecurityPolicy.generateNonce()` are now viable for strict CSP — not yet implemented. |
 | Key rotation | Manual | No automated PII key rotation. The `isEncrypted()` helper supports future rotation but a migration script is needed. |
 | Payment integration | None | `PLAN_PRICES` are static for MRR estimation; no real billing provider is integrated. |
 
@@ -594,4 +612,4 @@ flowchart BT
 | `@logmaster/api`   | API client (axios instance + react-query hooks)        | admin, auditor, system, platform         |
 | `@logmaster/auth`  | Auth context, useAuth hook, token storage              | admin, auditor, system                   |
 
-> `apps/landing` and `apps/platform` do not depend on `@logmaster/ui` / `@logmaster/auth` (they have their own minimal UI and auth). `server/` is **not** part of the pnpm workspace — it is invoked via `pnpm --dir server`.
+> `apps/landing` and `apps/platform` do not depend on `@logmaster/ui` / `@logmaster/auth` (they have their own minimal UI and auth). `server/` **is** a pnpm workspace member (see `pnpm-workspace.yaml`); root scripts invoke it via `pnpm --dir server` or `pnpm --filter @logmaster/server`.

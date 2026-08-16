@@ -33,12 +33,12 @@ Plataforma **multi-tenant** para gestión de visitantes en organizaciones de cua
 <tr>
 <td align="center" width="120">
 <a href="https://nextjs.org/" target="_blank"><img src="https://cdn.simpleicons.org/nextdotjs/000000" width="48" height="48" alt="Next.js" /></a>
-<br><sub><b><a href="https://nextjs.org/" target="_blank">Next.js 14</a></b></sub>
+<br><sub><b><a href="https://nextjs.org/" target="_blank">Next.js 15</a></b></sub>
 <br><sub>App Router · SSR</sub>
 </td>
 <td align="center" width="120">
 <a href="https://react.dev/" target="_blank"><img src="https://cdn.simpleicons.org/react/61DAFB" width="48" height="48" alt="React" /></a>
-<br><sub><b><a href="https://react.dev/" target="_blank">React 18</a></b></sub>
+<br><sub><b><a href="https://react.dev/" target="_blank">React 19</a></b></sub>
 <br><sub>Server Components</sub>
 </td>
 <td align="center" width="120">
@@ -165,14 +165,14 @@ flowchart LR
 
   subgraph Apps["Frontend Apps"]
     direction TB
-    appsLanding["apps/landing :5173<br/>Next.js 14 · SSR"]
-    appsPlatform["apps/platform :5174<br/>Vite → Next (pending)"]
-    appsAdmin["apps/admin :5175<br/>Vite → Next (pending)"]
-    appsAuditor["apps/auditor :5176<br/>Vite → Next (pending)"]
-    appsSystem["apps/system :5177<br/>Vite → Next (pending)"]
+    appsLanding["apps/landing :5173<br/>Next.js 15 · SSR"]
+    appsPlatform["apps/platform :5174<br/>Next.js 15"]
+    appsAdmin["apps/admin :5175<br/>Next.js 15"]
+    appsAuditor["apps/auditor :5176<br/>Next.js 15"]
+    appsSystem["apps/system :5177<br/>Next.js 15"]
   end
 
-  subgraph Backend["Backend (Node + Express — Hexagonal)"]
+  subgraph Backend["Backend (Node + Express — Hexagonal, per bounded context)"]
     direction TB
     Routes["Routes / Controllers<br/>(interface layer)"]
     UC["Use Cases<br/>(application layer)"]
@@ -193,24 +193,24 @@ flowchart LR
 
 ## 📱 Aplicaciones
 
-| App | Descripción | Puerto | Rol | Estado migración Next |
-|-----|-------------|--------|-----|----------------------|
-| **landing** | Landing page pública — marketing, features, pricing, demo self-service | 5173 | PUBLIC | ✅ Next.js 14 |
-| **platform** | Consola superadmin — tenant CRUD, user management, MRR, global stats | 5174 | ROOT | ⏳ Vite (pending) |
-| **admin** | Backoffice del tenant — visitas, visitantes, calendario, reportes, backups | 5175 | ADMIN | ⏳ Vite (pending) |
-| **auditor** | Vista del auditor — logs, ARCO, compliance, exportación | 5176 | AUDITOR | ⏳ Vite (pending) |
-| **system** | Recepción / guardia — check-in, webcam, SSE en vivo | 5177 | OPERADOR | ⏳ Vite (pending) |
+| App | Descripción | Puerto | Rol | Framework |
+|-----|-------------|--------|-----|-----------|
+| **landing** | Landing page pública — marketing, features, pricing, demo self-service | 5173 | PUBLIC | Next.js 15 |
+| **platform** | Consola superadmin — tenant CRUD, user management, MRR, global stats | 5174 | ROOT | Next.js 15 |
+| **admin** | Backoffice del tenant — visitas, visitantes, calendario, reportes, backups | 5175 | ADMIN | Next.js 15 |
+| **auditor** | Vista del auditor — logs, ARCO, compliance, exportación | 5176 | AUDITOR | Next.js 15 |
+| **system** | Recepción / guardia — check-in, webcam, SSE en vivo | 5177 | OPERADOR | Next.js 15 |
 
 ## 📦 Estructura del Monorepo
 
 ```
 logmaster/
 ├── apps/
-│   ├── landing/           ← Next.js 14 App Router (SSR)
-│   ├── platform/          ← Vite SPA → Next (pending)
-│   ├── admin/             ← Vite SPA → Next (pending)
-│   ├── auditor/           ← Vite SPA → Next (pending)
-│   └── system/            ← Vite SPA → Next (pending)
+│   ├── landing/           ← Next.js 15 App Router (SSR)
+│   ├── platform/          ← Next.js 15 App Router (SSR)
+│   ├── admin/             ← Next.js 15 App Router (SSR)
+│   ├── auditor/           ← Next.js 15 App Router (SSR)
+│   └── system/            ← Next.js 15 App Router (SSR)
 │
 ├── packages/
 │   ├── ui/                ← @logmaster/ui shared components
@@ -220,23 +220,23 @@ logmaster/
 │   ├── utils/             ← @logmaster/utils shared utilities
 │   └── config/            ← @logmaster/config shared config
 │
-├── server/                ← Express backend (hexagonal)
+├── server/                ← Express backend (hexagonal, per bounded context)
 │   ├── src/
-│   │   ├── application/   ← Use cases + DTOs
-│   │   ├── domain/        ← Entities + repository interfaces
-│   │   ├── infrastructure/← Sequelize repos + services
-│   │   ├── controllers/   ← Interface layer
-│   │   ├── routes/        ← Express routes
+│   │   ├── identity/      ← Users, tenants, membership, auth, platform console
+│   │   ├── visits/        ← Visitors, visits, check-in/out, SSE events
+│   │   ├── audit/         ← Activity log, ARCO privacy requests, reports
+│   │   ├── billing/       ← Backups, subscription/usage enforcement
+│   │   ├── shared/        ← Cross-context primitives, DI registration
 │   │   ├── middleware/    ← auth, firewall, rate-limit, sanitize
 │   │   ├── schemas/       ← Zod validation
-│   │   ├── models/        ← Sequelize models
-│   │   └── migrations/    ← SQL migrations (001-012)
+│   │   ├── models/        ← Sequelize models (flat, shared across contexts)
+│   │   └── migrations/    ← SQL migrations
 │   └── package.json
 │
 ├── e2e/                   ← Playwright E2E tests (39 tests)
 ├── .github/workflows/     ← CI (ci, deploy, security, pr)
 ├── docker-compose.yml     ← 7 services (postgres, server, 5 apps)
-├── pnpm-workspace.yaml    ← Workspace definition
+├── pnpm-workspace.yaml    ← Workspace definition (apps/*, packages/*, server)
 └── turbo.json             ← Turborepo pipeline
 ```
 
