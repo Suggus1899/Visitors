@@ -17,7 +17,7 @@ export interface ServerSession {
 }
 
 export async function getServerSession(): Promise<ServerSession> {
-    const store = cookies();
+    const store = await cookies();
     const token = store.get('lm_access_token')?.value;
     const username = store.get('lm_username')?.value;
     const role = store.get('lm_role')?.value;
@@ -37,6 +37,6 @@ export async function getServerSession(): Promise<ServerSession> {
 }
 
 export async function isAuthenticated(): Promise<boolean> {
-    const store = cookies();
+    const store = await cookies();
     return Boolean(store.get('lm_access_token')?.value);
 }

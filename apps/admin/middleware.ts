@@ -14,14 +14,13 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('lm_access_token')?.value;
 
-  // Allow public routes
+  // Allow public routes. Do NOT redirect /login away just because the
+  // lm_access_token cookie is present: that cookie is shared across every
+  // app on localhost (cookies aren't port-scoped), while this app's actual
+  // session lives in its own client-side state (set only by @logmaster/auth's
+  // login()). A cookie left over from a different app/role would otherwise
+  // strand the user on a redirect loop with no way to reach the login form.
   if (pathname === '/login' || pathname === '/select-tenant') {
-    // If already authenticated and visiting /login, send to dashboard
-    if (token && pathname === '/login') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/';
-      return NextResponse.redirect(url);
-    }
     return NextResponse.next();
   }
 

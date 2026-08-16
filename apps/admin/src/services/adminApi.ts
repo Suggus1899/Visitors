@@ -28,16 +28,16 @@ import type { Tenant, TenantUser } from '../types/tenant';
 // ---------------------------------------------------------------------------
 
 /**
- * Build a tenant-scoped path. When useTenantScope is true, the path becomes
- * /v1/:slug/... Otherwise it uses the legacy flat path.
- *
- * TODO: Set USE_TENANT_SCOPE to true once the backend supports scoped routes.
+ * Build a tenant-scoped path: /:slug/...
+ * The `api` client's baseURL already includes /api/v1, so this must not
+ * repeat the /v1 segment (see @logmaster/api's API_URL).
+ * The backend now requires tenant-scoped routes.
  */
-const USE_TENANT_SCOPE = false;
+const USE_TENANT_SCOPE = true;
 
 const buildPath = (slug: string | null, resource: string): string => {
     if (USE_TENANT_SCOPE && slug) {
-        return `/v1/${slug}/${resource}`;
+        return `/${slug}/${resource}`;
     }
     return `/${resource}`;
 };

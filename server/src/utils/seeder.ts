@@ -266,7 +266,7 @@ export const seedDatabase = async () => {
 
             // Create visitors
             for (const v of visitors) {
-                const exists = await VisitorModel.findByPk(Encryption.hash(v.cedula));
+                const exists = await VisitorModel.findOne({ where: { cedula: Encryption.hash(v.cedula), tenantId: v.tenantId } });
                 if (!exists) {
                     await VisitorModel.create(v);
                 }
@@ -445,7 +445,7 @@ export const seedLoad = async (options: SeedLoadOptions) => {
         }
 
         for (const v of visitors) {
-            const exists = await VisitorModel.findByPk(Encryption.hash(v.cedula));
+            const exists = await VisitorModel.findOne({ where: { cedula: Encryption.hash(v.cedula), tenantId: v.tenantId } });
             if (!exists) {
                 await VisitorModel.create(v);
             }
@@ -533,7 +533,7 @@ export const seedComprehensive = async () => {
             };
             visitors.push(visitorData);
             
-            const exists = await VisitorModel.findByPk(Encryption.hash(visitorData.cedula));
+            const exists = await VisitorModel.findOne({ where: { cedula: Encryption.hash(visitorData.cedula), tenantId } });
             if (!exists) {
                 await VisitorModel.create(visitorData);
             }

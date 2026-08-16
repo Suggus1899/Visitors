@@ -3,7 +3,7 @@
 /**
  * SSE hook for real-time visit events.
  *
- * Connects to the same-origin `/api/v1/events/stream` endpoint. With Next.js
+ * Connects to the same-origin `/api/v1/events/visits` endpoint. With Next.js
  * rewrites, EventSource sends the httpOnly `lm_access_token` cookie
  * automatically — no `?token=` query param is needed (the backend
  * `verifySseToken` reads the cookie first).
@@ -78,7 +78,7 @@ export const useVisitSSE = (options?: UseVisitSSEOptions) => {
         const connect = () => {
             // Same-origin relative URL — Next rewrites proxy /api → backend,
             // and the httpOnly lm_access_token cookie is sent automatically.
-            const url = '/api/v1/events/stream';
+            const url = '/api/v1/events/visits';
             const eventSource = new EventSource(url);
             eventSourceRef.current = eventSource;
 

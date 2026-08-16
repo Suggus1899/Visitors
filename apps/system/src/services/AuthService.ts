@@ -74,6 +74,10 @@ class AuthService {
             // Store Refresh Token in localStorage (Requirement 3.3)
             localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
 
+            // Persist tenant slug so tenant-scoped paths work immediately
+            const slug = this.getTenantSlug();
+            if (slug) localStorage.setItem('tenantSlug', slug);
+
             return user;
         } catch (error: unknown) {
             // Clear any existing tokens on login failure
@@ -95,6 +99,20 @@ class AuthService {
      */
     public getAccessToken(): string | null {
         return this.accessToken;
+    }
+
+    /**
+     * Get tenant slug from the JWT payload (tslug claim).
+     * Returns null when no token is loaded or the claim is absent.
+     */
+    public getTenantSlug(): string | null {
+        if (!this.accessToken) return null;
+        try {
+            const payload = JSON.parse(atob(this.accessToken.split('.')[1]));
+            return payload?.tslug ?? null;
+        } catch {
+            return null;
+        }
     }
 
     /**
@@ -144,6 +162,7 @@ class AuthService {
     private clearTokens(): void {
         this.accessToken = null;
         localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+        localStorage.removeItem('tenantSlug');
     }
 }
 

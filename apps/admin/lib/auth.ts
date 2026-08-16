@@ -21,7 +21,7 @@ export interface ServerSession {
  * only to decide whether to redirect unauthenticated users to /login.
  */
 export async function getServerSession(): Promise<ServerSession | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const accessCookie = cookieStore.get('lm_access_token');
 
   if (!accessCookie?.value) {

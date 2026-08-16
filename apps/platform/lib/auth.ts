@@ -25,7 +25,7 @@ const USER_COOKIE = 'lm_user';
  * can render the UI without an extra round-trip.
  */
 export async function getServerSession(): Promise<{ user: PlatformUser } | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
   const userRaw = cookieStore.get(USER_COOKIE)?.value;
 

@@ -14,6 +14,7 @@ const api = axios.create({
 // Note: We use dynamic import to avoid circular dependencies
 type AuthServiceType = {
     getAccessToken: () => string | null;
+    getTenantSlug: () => string | null;
     refreshAccessToken: () => Promise<string>;
     logout: () => void;
 };
@@ -26,6 +27,20 @@ const getAuthService = async (): Promise<AuthServiceType> => {
 };
 
 /**
+ * Build a tenant-scoped path: /:tenantSlug/:resource
+ * `api`'s baseURL already includes /api/v1 (see API_URL in ../config/env),
+ * so this must not repeat the /v1 segment.
+ * Falls back to /:resource when no tenant slug is available (e.g. pre-login).
+ */
+const tenantPath = (resource: string): string => {
+    // Prefer the interceptor-cached slug; fall back to localStorage (set at login)
+    const slug = currentTenantSlug ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('tenantSlug') : null);
+    return slug ? `/${slug}/${resource}` : `/${resource}`;
+};
+
+let currentTenantSlug: string | null = null;
+
+/**
  * Request interceptor to inject Access Token
  */
 api.interceptors.request.use(
@@ -36,6 +51,9 @@ api.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // Cache tenant slug for tenant-scoped path building
+        currentTenantSlug = authService.getTenantSlug();
 
         return config;
     },
@@ -224,8 +242,8 @@ const adaptVisit = (v: VisitDTO): Visit => {
             last_name: v.lastName || '',
             company: v.visitorCompany || v.company || 'Sin empresa',
             job_title: v.jobTitle,
-            photo_url: v.visitorCedula ? `${API_URL}/visitors/${encodeURIComponent(v.visitorCedula)}/photo?t=${new Date().getTime()}` : undefined,
-            id_photo_url: v.visitorCedula ? `${API_URL}/visitors/${encodeURIComponent(v.visitorCedula)}/id-photo?t=${new Date().getTime()}` : undefined
+            photo_url: v.visitorCedula ? `${API_URL}${tenantPath(`visitors/${encodeURIComponent(v.visitorCedula)}/photo`)}?t=${new Date().getTime()}` : undefined,
+            id_photo_url: v.visitorCedula ? `${API_URL}${tenantPath(`visitors/${encodeURIComponent(v.visitorCedula)}/id-photo`)}?t=${new Date().getTime()}` : undefined
         }
     };
 };
@@ -233,7 +251,7 @@ const adaptVisit = (v: VisitDTO): Visit => {
 export const VisitService = {
     // Visits
     getActiveVisits: async () => {
-        const response = await api.get('/visits/active');
+        const response = await api.get(tenantPath('visits/active'));
         const data = unwrapResponse<VisitDTO[]>(response.data);
         return Array.isArray(data) ? data.map(adaptVisit) : [];
     },
@@ -246,7 +264,7 @@ export const VisitService = {
         });
 
         const params = new URLSearchParams(cleanFilters).toString();
-        const response = await api.get(`/visits?${params}`);
+        const response = await api.get(`${tenantPath('visits')}?${params}`);
         const result = unwrapResponse<{ visits: VisitDTO[]; total: number }>(response.data);
         const metaTotal = response.data?.meta?.total;
 
@@ -257,13 +275,13 @@ export const VisitService = {
     },
 
     getRecentVisits: async (limit = 20) => {
-        const response = await api.get(`/visits?status=completed&limit=${limit}&page=1`);
+        const response = await api.get(`${tenantPath('visits')}?status=completed&limit=${limit}&page=1`);
         const result = unwrapResponse<{ visits: VisitDTO[]; total: number }>(response.data);
         return Array.isArray(result.visits) ? result.visits.map(adaptVisit) : [];
     },
 
     getWaitingVisits: async () => {
-        const response = await api.get('/visits/waiting');
+        const response = await api.get(tenantPath('visits/waiting'));
         const data = unwrapResponse<VisitDTO[]>(response.data);
         return Array.isArray(data) ? data.map(adaptVisit) : [];
     },
@@ -298,79 +316,79 @@ export const VisitService = {
             jobTitle?: string;
         };
     }) => {
-        const response = await api.post('/visits/checkin', data);
+        const response = await api.post(tenantPath('visits/checkin'), data);
         return unwrapResponse(response.data);
     },
 
     checkOut: async (id: number, notes?: string) => {
-        const response = await api.post(`/visits/${id}/checkout`, { notes });
+        const response = await api.post(tenantPath(`visits/${id}/checkout`), { notes });
         return unwrapResponse(response.data);
     },
 
     admitVisitor: async (id: number) => {
-        const response = await api.post(`/visits/${id}/admit`);
+        const response = await api.post(tenantPath(`visits/${id}/admit`));
         return unwrapResponse(response.data);
     },
 
     getIntermittentVisits: async (): Promise<IntermittentVisit[]> => {
-        const response = await api.get('/visits/intermittent');
+        const response = await api.get(tenantPath('visits/intermittent'));
         return unwrapResponse<IntermittentVisit[]>(response.data);
     },
 
     goIntermittent: async (id: number, notes?: string) => {
-        const response = await api.post(`/visits/${id}/intermittent-exit`, { notes });
+        const response = await api.post(tenantPath(`visits/${id}/intermittent-exit`), { notes });
         return unwrapResponse(response.data);
     },
 
     reactivateVisit: async (id: number) => {
-        const response = await api.post(`/visits/${id}/intermittent-reentry`);
+        const response = await api.post(tenantPath(`visits/${id}/intermittent-reentry`));
         return unwrapResponse(response.data);
     },
 
     getVisitorPhotoUrl: (cedula: string) => {
-        return `${API_URL}/visitors/${encodeURIComponent(cedula)}/photo`;
+        return `${API_URL}${tenantPath(`visitors/${encodeURIComponent(cedula)}/photo`)}`;
     },
 
     getVisitorIdPhotoUrl: (cedula: string) => {
-        return `${API_URL}/visitors/${encodeURIComponent(cedula)}/id-photo`;
+        return `${API_URL}${tenantPath(`visitors/${encodeURIComponent(cedula)}/id-photo`)}`;
     },
 
     // Visitors
     getVisitorByCedula: async (cedula: string, includeHistory: boolean = false): Promise<Visitor | VisitorWithHistory> => {
-        const response = await api.get(`/visitors/${cedula}?history=${includeHistory}`);
+        const response = await api.get(`${tenantPath(`visitors/${cedula}`)}?history=${includeHistory}`);
         return unwrapResponse<Visitor | VisitorWithHistory>(response.data);
     },
 
     getAllVisitors: async (page: number = 1, limit: number = 50, company?: string): Promise<{ visitors: Visitor[]; total: number }> => {
-        let url = `/visitors?page=${page}&limit=${limit}`;
+        let url = `${tenantPath('visitors')}?page=${page}&limit=${limit}`;
         if (company) url += `&company=${encodeURIComponent(company)}`;
         const response = await api.get(url);
         return unwrapResponse(response.data);
     },
 
     updateVisitor: async (cedula: string, data: Partial<Visitor> & { photoBase64?: string; idPhotoBase64?: string; firstName?: string; lastName?: string; jobTitle?: string; photoUrl?: string; idPhotoUrl?: string; visitId?: number }): Promise<Visitor> => {
-        const response = await api.patch(`/visitors/${cedula}`, data);
+        const response = await api.patch(tenantPath(`visitors/${cedula}`), data);
         return unwrapResponse<Visitor>(response.data);
     },
 
     verifyEditPassword: async (password: string): Promise<boolean> => {
-        const response = await api.post('/visitors/verify-edit-password', { password });
+        const response = await api.post(tenantPath('visitors/verify-edit-password'), { password });
         const data = unwrapResponse<{ valid: boolean }>(response.data);
         return data.valid;
     },
 
     getEditHistory: async (visitId: number): Promise<EditHistoryEntry[]> => {
-        const response = await api.get(`/visits/${visitId}/edit-history`);
+        const response = await api.get(tenantPath(`visits/${visitId}/edit-history`));
         return unwrapResponse<EditHistoryEntry[]>(response.data);
     },
 
     getEditHistoryByCedula: async (cedula: string): Promise<EditHistoryEntry[]> => {
-        const response = await api.get(`/visitors/${encodeURIComponent(cedula)}/edit-history`);
+        const response = await api.get(tenantPath(`visitors/${encodeURIComponent(cedula)}/edit-history`));
         return unwrapResponse<EditHistoryEntry[]>(response.data);
     },
 
     getCompanies: async (): Promise<string[]> => {
-        const response = await api.get('/visitors/companies');
+        const response = await api.get(tenantPath('visitors/companies'));
         return unwrapResponse<string[]>(response.data);
     },
 
@@ -378,25 +396,25 @@ export const VisitService = {
     getStats: async (start?: string, end?: string): Promise<StatsData> => {
         let query = '';
         if (start && end) query = `?startDate=${start}&endDate=${end}`;
-        const response = await api.get(`/reports/stats${query}`);
+        const response = await api.get(`${tenantPath('reports/stats')}${query}`);
         return unwrapResponse<StatsData>(response.data);
     },
 
     getMonthlyReport: async (month: number, year: number) => {
-        const response = await api.get(`/reports/stats/monthly?month=${month}&year=${year}`);
+        const response = await api.get(`${tenantPath('reports/stats/monthly')}?month=${month}&year=${year}`);
         return unwrapResponse(response.data);
     },
 
     getComparisonStats: async (month?: number, year?: number): Promise<ComparisonStats> => {
         let query = '';
         if (month !== undefined && year) query = `?month=${month}&year=${year}`;
-        const response = await api.get(`/reports/comparison${query}`);
+        const response = await api.get(`${tenantPath('reports/comparison')}${query}`);
         return unwrapResponse<ComparisonStats>(response.data);
     },
 
     getAlerts: async (threshold?: number) => {
         const query = threshold ? `?threshold=${threshold}` : '';
-        const response = await api.get(`/reports/alerts${query}`);
+        const response = await api.get(`${tenantPath('reports/alerts')}${query}`);
         return unwrapResponse(response.data);
     }
 };

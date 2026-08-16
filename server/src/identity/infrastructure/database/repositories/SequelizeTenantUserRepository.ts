@@ -15,7 +15,16 @@ export class SequelizeTenantUserRepository implements ITenantUserRepository {
       where: { userId, isActive: true },
       include: [{ model: Tenant, required: true }]
     });
-    return memberships.map(membership => membership.toJSON() as unknown as TenantMembershipWithTenant);
+    return memberships.map(membership => {
+      const json = membership.toJSON() as Record<string, unknown>;
+      // Sequelize includes the associated Tenant under the key 'Tenant' (capitalized
+      // model name) because the belongsTo association has no explicit `as`.
+      // Map it to the lowercase 'tenant' expected by TenantMembershipWithTenant.
+      const tenant = json.Tenant as TenantMembershipWithTenant['tenant'] | undefined;
+      if (!tenant) throw new Error(`Tenant not loaded for membership userId=${userId}`);
+      const { Tenant, ...rest } = json;
+      return { ...rest, tenant } as unknown as TenantMembershipWithTenant;
+    });
   }
   async create(membership: TenantUserEntity): Promise<TenantUserEntity> { return (await TenantUser.create(membership)).toJSON(); }
 

@@ -1,3 +1,14 @@
+// Initialize DI and metadata BEFORE importing anything that uses them
+import 'reflect-metadata';
+import { registerDependencies } from './shared/diRegistration';
+import './models/IntermittentLog';
+import './models/VisitorEditHistory';
+import './models/Tenant';
+import './models/TenantUser';
+
+// Register dependencies NOW, before app.ts imports controllers
+registerDependencies();
+
 import app from './app';
 import sequelize from './database';
 import { ensureBaseUsers } from './utils/seeder';
@@ -6,22 +17,12 @@ import { initBackupScheduler } from './utils/backupScheduler';
 import logger from './config/logger';
 import path from 'path';
 import fs from 'fs';
-import 'reflect-metadata';
-import { registerDependencies } from './shared/diRegistration';
-import './models/IntermittentLog';
-import './models/VisitorEditHistory';
-import './models/Tenant';
-import './models/TenantUser';
-
 import config from './config/AppConfig';
 
 const PORT = config.port;
 
 const startServer = async () => {
     try {
-        // Register all dependencies in the tsyringe DI container
-        registerDependencies();
-
         const useAlter = process.env.DB_SYNC_ALTER === '1';
         if (useAlter && process.env.NODE_ENV === 'production') {
             logger.warn('DB_SYNC_ALTER=1 is dangerous in production — forcing safe sync');

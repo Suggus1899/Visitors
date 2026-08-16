@@ -17,7 +17,7 @@ interface UseAuditEventsOptions {
 /**
  * SSE subscription for real-time audit log events.
  *
- * The EventSource connects to the same-origin `/api/v1/events/stream` path,
+ * The EventSource connects to the same-origin `/api/v1/events/visits` path,
  * which is proxied to the backend by the Next.js rewrite. The httpOnly
  * `lm_access_token` cookie is sent automatically by the browser (same-origin),
  * so no `?token=` query parameter is required. The backend `verifySseToken`
@@ -43,7 +43,7 @@ export const useAuditEvents = (options?: UseAuditEventsOptions) => {
 
         const connect = () => {
             // Same-origin via Next rewrite; cookie sent automatically.
-            const eventSource = new EventSource('/api/v1/events/stream');
+            const eventSource = new EventSource('/api/v1/events/visits');
             eventSourceRef.current = eventSource;
 
             eventSource.onopen = () => {

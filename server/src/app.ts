@@ -190,6 +190,11 @@ if (swaggerEnabled) {
 
 // Routes
 // API v1
+// eventsRoutes must be registered before visitRoutes: GET /v1/events/visits
+// would otherwise be shadowed by visitRoutes' GET /v1/:tenantSlug/visits
+// (Express matches in registration order, and "events" is a valid — if
+// nonexistent — tenant slug value for that pattern).
+app.use("/api", eventsRoutes);
 app.use("/api", tenantFeaturesRoutes);
 app.use("/api", visitRoutes);
 app.use("/api", reportRoutes);
@@ -199,7 +204,6 @@ app.use("/api", authRoutes);
 app.use("/api", auditRoutes);
 app.use("/api", privacyRoutes);
 app.use("/api", superadminRoutes);
-app.use("/api", eventsRoutes);
 
 // Platform (superadmin) API — mounted at /platform so the full paths are
 // /platform/v1/*. The platform frontend (apps/platform) targets these paths

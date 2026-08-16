@@ -12,7 +12,7 @@ import type { User } from '../src/types';
  * localStorage, which mirrors what the backend returned at login time.
  */
 export async function getServerSession(): Promise<{ authenticated: boolean }> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const accessToken = cookieStore.get('lm_access_token');
   return { authenticated: !!accessToken };
 }

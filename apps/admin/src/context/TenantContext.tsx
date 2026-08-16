@@ -30,16 +30,20 @@ const STORAGE_KEY = 'logmaster.selectedTenantSlug';
 export const TenantProvider = ({ children }: { children: ReactNode }) => {
     const [tenants, setTenants] = useState<TenantMembership[]>([]);
     const [tenant, setTenant] = useState<Tenant | null>(null);
-    const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+    // Lazy-init from localStorage so the slug is available on the very first
+    // render — reading it inside a useEffect runs after mount, which left
+    // tenant-scoped queries firing once with a null slug (and getting cached
+    // as 404s, since React Query doesn't retry a cached error on its own).
+    // When localStorage has nothing (first-ever visit, or cleared), fall back
+    // to the mock's single 'default' tenant below instead of null — the mock
+    // fetch effect resolves this same value a tick later regardless, but by
+    // then any query fired on first render has already been fired (and
+    // cached as an error) with the un-scoped path. Update this fallback if
+    // the mock is ever replaced with a real multi-tenant membership fetch.
+    const [selectedSlug, setSelectedSlug] = useState<string | null>(() =>
+        typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) ?? 'default' : null
+    );
     const [loadingTenants, setLoadingTenants] = useState(true);
-
-    // Restore selected tenant from localStorage on mount
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            setSelectedSlug(stored);
-        }
-    }, []);
 
     // Fetch tenant memberships for the current user.
     // TODO: Replace with real API: GET /v1/auth/me/memberships
