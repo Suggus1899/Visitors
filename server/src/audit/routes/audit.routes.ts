@@ -6,9 +6,10 @@ import { verifyAuditor } from '../../middleware/auditor';
 import { validateQuery } from '../../middleware/validate';
 import { getAuditLogsSchema } from '../../schemas/audit.schema';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { mustChangePassword } from '../../middleware/mustChangePassword';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, mustChangePassword, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger

@@ -9,7 +9,6 @@ import { errorHandler } from "./middleware/error";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { apiLimiter } from "./middleware/rateLimiter";
-import { mustChangePassword } from "./middleware/mustChangePassword";
 import { correlationId } from "./middleware/correlationId";
 // Routes
 import visitRoutes from "./visits/routes/visit.routes";
@@ -177,8 +176,11 @@ app.use("/api/v1/health", healthRoutes);
 // Global Rate Limiting
 app.use("/api", apiLimiter);
 
-// Must Change Password Middleware (applies to all protected routes)
-app.use("/api", mustChangePassword);
+// Note: mustChangePassword now runs per-router, immediately after verifyToken
+// (inside each tenantContext array), instead of here — mounting it globally
+// at this point ran before any router had set req.user, making it a
+// permanent no-op. See visit/visitor/report/audit/privacy/tenant-features
+// routes.
 
 // T-06: Swagger Documentation — disabled in production by default.
 // In production: requires ALLOW_SWAGGER=true to be explicitly set.

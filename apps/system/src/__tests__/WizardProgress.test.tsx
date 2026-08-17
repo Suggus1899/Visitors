@@ -40,9 +40,12 @@ describe('WizardProgress', () => {
   it('progress bar style changes according to currentStep', () => {
     const { container: c1 } = render(<WizardProgress currentStep={1} />);
     const { container: c3 } = render(<WizardProgress currentStep={3} />);
+    const { container: c4 } = render(<WizardProgress currentStep={4} />);
     const bar1 = c1.querySelector('.wizard-progress-bar') as HTMLElement;
     const bar3 = c3.querySelector('.wizard-progress-bar') as HTMLElement;
+    const bar4 = c4.querySelector('.wizard-progress-bar') as HTMLElement;
     expect(bar1.style.width).toBe('0%');
-    expect(bar3.style.width).toBe('100%');
+    expect(bar3.style.width).toBe('66.66666666666666%');
+    expect(bar4.style.width).toBe('100%');
   });
 });

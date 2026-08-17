@@ -42,6 +42,7 @@ export const OperationsView = () => {
         isFetching: isVisitsLoading,
     } = useActiveVisitsQuery({
         refetchInterval: isUsingFallbackPolling ? 15_000 : false,
+        enabled: !!user,
     });
 
     const {
@@ -49,12 +50,14 @@ export const OperationsView = () => {
         isFetching: isIntermittentLoading,
     } = useIntermittentVisitsQuery({
         refetchInterval: isUsingFallbackPolling ? 15_000 : false,
+        enabled: !!user,
     });
 
     const {
         data: waitingVisits = [],
     } = useWaitingVisitsQuery({
         refetchInterval: isUsingFallbackPolling ? 15_000 : false,
+        enabled: !!user,
     });
 
     useKeyboardShortcuts({

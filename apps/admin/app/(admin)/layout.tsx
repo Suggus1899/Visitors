@@ -24,6 +24,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
     const [showShortcuts, setShowShortcuts] = useState(false);
 
+    // AuthProvider only renders children once its own loading resolves, so by
+    // the time this mounts `user` is either a validated session or null (no
+    // session, or one AuthContext just rejected — e.g. a disallowed role
+    // restored from a stale/foreign localStorage state). Bounce out rather
+    // than rendering the admin shell with no user.
+    useEffect(() => {
+        if (!user) {
+            // Hard navigation, not router.replace(): this fires whenever the
+            // client has no session (including one AuthContext just rejected
+            // for a disallowed role). A soft client-side transition here can
+            // race with Next's router cache for this segment; a full reload
+            // forces middleware to re-evaluate the actual cookie state from
+            // scratch and guarantees we actually leave this layout.
+            window.location.href = '/login';
+        }
+    }, [user]);
+
     // Real-time SSE for visit events
     useVisitSSE({ enabled: !!user });
 

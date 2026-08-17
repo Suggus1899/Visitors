@@ -3,9 +3,10 @@ import * as VisitorController from '../controllers/VisitorController';
 import { verifyToken, resolveTenant, verifyTenantMembership } from '../../middleware/auth';
 import { demoTenantLimiter } from '../../middleware/rateLimiter';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { mustChangePassword } from '../../middleware/mustChangePassword';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, mustChangePassword, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger

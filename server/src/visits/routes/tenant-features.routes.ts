@@ -10,9 +10,10 @@ import { validate } from '../../middleware/validate';
 import { restoreBackupSchema } from '../../schemas/backup.schema';
 import { checkInSchema } from '../../schemas/visit.schema';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { mustChangePassword } from '../../middleware/mustChangePassword';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, mustChangePassword, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 router.get('/v1/:tenantSlug/subscription', ...tenantContext, asyncHandler(TenantFeaturesController.getSubscription));
 
@@ -70,6 +71,18 @@ router.post(
   subscriptionGuard('backupOnDemand'),
   validate(restoreBackupSchema),
   asyncHandler(BackupController.restoreTenantBackup),
+);
+router.delete(
+  '/v1/:tenantSlug/backups/:filename',
+  ...tenantContext,
+  isAdmin,
+  asyncHandler(BackupController.deleteTenantBackup),
+);
+router.get(
+  '/v1/:tenantSlug/backups/:filename/download',
+  ...tenantContext,
+  isAdmin,
+  asyncHandler(BackupController.downloadTenantBackup),
 );
 
 export default router;

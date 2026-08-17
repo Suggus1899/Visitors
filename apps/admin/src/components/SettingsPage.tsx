@@ -191,12 +191,16 @@ const SettingsPage = () => {
                         </div>
                         <button
                             onClick={handleSaveProfile}
-                            disabled={savingProfile}
+                            disabled
+                            title="Not yet available: backend endpoint PATCH /v1/:tenantSlug is not implemented"
                             className="btn-tech px-6 py-2 text-sm flex items-center gap-2 mt-4 disabled:opacity-50"
                         >
                             {savingProfile ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
                             Save Changes
                         </button>
+                        <p className="text-xs text-[color:var(--text-3)] mt-2">
+                            TODO: Saving tenant profile requires backend endpoint PATCH /v1/:tenantSlug
+                        </p>
                     </div>
 
                     <div className="border-t border-[color:var(--border-1)] pt-6">
@@ -246,7 +250,8 @@ const SettingsPage = () => {
                             </div>
                             <button
                                 onClick={handleInvite}
-                                disabled={inviting}
+                                disabled
+                                title="Not yet available: backend endpoint POST /v1/:tenantSlug/users/invite is not implemented"
                                 className="btn-tech px-4 py-2 text-sm flex items-center gap-2 disabled:opacity-50"
                             >
                                 {inviting ? <RefreshCw size={16} className="animate-spin" /> : <UserPlus size={16} />}

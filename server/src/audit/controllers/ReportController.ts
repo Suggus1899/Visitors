@@ -19,10 +19,10 @@ const requireTenantId = (req: Request): number => {
  */
 export const getStats = async (req: Request, res: Response) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { start: startParam, end: endParam } = req.query;
 
-    const start = startDate ? new Date(startDate as string) : undefined;
-    const end = endDate ? new Date(endDate as string) : undefined;
+    const start = startParam ? new Date(startParam as string) : undefined;
+    const end = endParam ? new Date(endParam as string) : undefined;
 
     const useCase = container.createGetVisitStatsUseCase();
     const result = await useCase.execute(requireTenantId(req), start, end);

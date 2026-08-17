@@ -7,9 +7,10 @@ import { validate } from '../../middleware/validate';
 import { checkInSchema } from '../../schemas/visit.schema';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { enforceCheckInLimits } from '../../middleware/subscriptionGuard';
+import { mustChangePassword } from '../../middleware/mustChangePassword';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, mustChangePassword, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger

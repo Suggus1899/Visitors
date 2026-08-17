@@ -19,7 +19,7 @@ export default function Providers({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary>
       <QueryProvider>
-        <AuthProvider>
+        <AuthProvider allowedRoles={['admin', 'root']}>
           <ThemeProvider>
             <TenantProvider>{children}</TenantProvider>
           </ThemeProvider>

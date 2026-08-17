@@ -244,19 +244,18 @@ export const createAdminApi = (tenantSlug: string | null) => {
     };
 
     const getVisitorPhotoUrl = (cedula: string): string => {
-        // TODO: Update to tenant-scoped photo endpoint once backend supports it.
-        return VisitService.getVisitorPhotoUrl(cedula);
+        return `${api.defaults.baseURL}${path(`visitors/${encodeURIComponent(cedula)}/photo`)}`;
     };
 
     const getVisitorIdPhotoUrl = (cedula: string): string => {
-        return VisitService.getVisitorIdPhotoUrl(cedula);
+        return `${api.defaults.baseURL}${path(`visitors/${encodeURIComponent(cedula)}/id-photo`)}`;
     };
 
     // --- Reports / Stats ---------------------------------------------------
 
     const getStats = async (start?: string, end?: string): Promise<StatsData> => {
         let query = '';
-        if (start && end) query = `?startDate=${start}&endDate=${end}`;
+        if (start && end) query = `?start=${start}&end=${end}`;
         const response = await api.get(`${path('reports/stats')}${query}`);
         return response.data?.data ?? response.data;
     };
@@ -435,8 +434,5 @@ export const createAdminApi = (tenantSlug: string | null) => {
         getDashboardKPIs,
     };
 };
-
-// Re-export VisitService for photo URL helpers (used in getVisitorPhotoUrl above)
-import { VisitService } from '@logmaster/api';
 
 export type AdminApi = ReturnType<typeof createAdminApi>;

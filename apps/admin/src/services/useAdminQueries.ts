@@ -56,44 +56,54 @@ export const useAdminApi = () => {
 
 export const useActiveVisitsQuery = (refetchInterval?: number) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.activeVisits(),
         queryFn: () => api.getActiveVisits(),
         refetchInterval,
+        enabled: !!selectedSlug,
     });
 };
 
 export const useWaitingVisitsQuery = (refetchInterval?: number) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.waitingVisits(),
         queryFn: () => api.getWaitingVisits(),
         refetchInterval,
+        enabled: !!selectedSlug,
     });
 };
 
 export const useIntermittentVisitsQuery = (refetchInterval?: number) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.intermittentVisits(),
         queryFn: () => api.getIntermittentVisits(),
         refetchInterval,
+        enabled: !!selectedSlug,
     });
 };
 
 export const useVisitListQuery = (filters: VisitFilters) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.visitList(filters),
         queryFn: () => api.getVisits(filters),
+        enabled: !!selectedSlug,
     });
 };
 
 export const useRecentVisitsQuery = (limit = 20) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.recentVisits(),
         queryFn: () => api.getRecentVisits(limit),
+        enabled: !!selectedSlug,
     });
 };
 
@@ -151,17 +161,21 @@ export const useGoIntermittentMutation = () => {
 
 export const useVisitorListQuery = (filters: VisitorFilters) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.visitorList(filters),
         queryFn: () => api.getAllVisitors(filters),
+        enabled: !!selectedSlug,
     });
 };
 
 export const useCompaniesQuery = () => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.companies(),
         queryFn: () => api.getCompanies(),
+        enabled: !!selectedSlug,
     });
 };
 
@@ -194,33 +208,41 @@ export const useDeleteVisitorMutation = () => {
 
 export const useStatsQuery = (start?: string, end?: string) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.stats(start, end),
         queryFn: () => api.getStats(start, end),
+        enabled: !!selectedSlug,
     });
 };
 
 export const useMonthlyReportQuery = (month: number, year: number) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.monthlyReport(month, year),
         queryFn: () => api.getMonthlyReport(month, year),
+        enabled: !!selectedSlug,
     });
 };
 
 export const useComparisonStatsQuery = (month?: number, year?: number) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.comparison(month, year),
         queryFn: () => api.getComparisonStats(month, year),
+        enabled: !!selectedSlug,
     });
 };
 
 export const useAlertsQuery = () => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.alerts(),
         queryFn: () => api.getAlerts(),
+        enabled: !!selectedSlug,
     });
 };
 
@@ -230,9 +252,11 @@ export const useAlertsQuery = () => {
 
 export const useBackupsQuery = () => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.backups(),
         queryFn: () => api.getBackups(),
+        enabled: !!selectedSlug,
     });
 };
 
@@ -276,17 +300,21 @@ export const useDeleteBackupMutation = () => {
 
 export const useActivityLogsQuery = (filters: ActivityLogFilters) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.auditLogs(filters),
         queryFn: () => api.getActivityLogs(filters),
+        enabled: !!selectedSlug,
     });
 };
 
 export const useAuditStatsQuery = () => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.auditStats(),
         queryFn: () => api.getAuditStats(),
+        enabled: !!selectedSlug,
     });
 };
 
@@ -296,10 +324,12 @@ export const useAuditStatsQuery = () => {
 
 export const useDashboardKPIsQuery = (refetchInterval?: number) => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.dashboardKPIs(),
         queryFn: () => api.getDashboardKPIs(),
         refetchInterval,
+        enabled: !!selectedSlug,
     });
 };
 
@@ -309,9 +339,11 @@ export const useDashboardKPIsQuery = (refetchInterval?: number) => {
 
 export const useTenantUsersQuery = () => {
     const api = useAdminApi();
+    const { selectedSlug } = useTenant();
     return useQuery({
         queryKey: adminQueryKeys.tenantUsers(),
         queryFn: () => api.getTenantUsers(),
+        enabled: !!selectedSlug,
     });
 };
 

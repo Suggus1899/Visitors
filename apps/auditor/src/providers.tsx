@@ -31,7 +31,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
     return (
         <QueryProvider>
-            <AuthProvider>
+            <AuthProvider allowedRoles={['auditor']}>
                 <ThemeProvider>
                     <TenantProvider>
                         {children}

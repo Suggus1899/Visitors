@@ -1,3 +1,4 @@
+import path from 'path';
 import { Request, Response } from 'express';
 import { container } from '../../shared/Container';
 import { ResponseBuilder } from '../../shared/ApiResponse';
@@ -83,6 +84,48 @@ export const restoreTenantBackup = async (req: Request, res: Response) => {
     if (error.message === 'Backup does not belong to tenant') return res.status(403).json(ResponseBuilder.error('BACKUP_TENANT_MISMATCH', error.message));
     throw error;
   }
+};
+
+/**
+ * Delete a tenant backup
+ * DELETE /api/v1/:tenantSlug/backups/:filename
+ */
+export const deleteTenantBackup = async (req: Request, res: Response) => {
+  const { filename } = req.params;
+  const tenantId = requireTenantId(req);
+  const safeFilename = path.basename(filename as string);
+  if (safeFilename !== filename) {
+    return res.status(400).json(ResponseBuilder.error('INVALID_FILENAME', 'Invalid backup filename'));
+  }
+  // Confirm this backup actually belongs to the requesting tenant before deleting —
+  // listBackups(tenantId) already filters to this tenant's own backups.
+  const ownBackups = await container.backupService.listBackups(tenantId);
+  if (!ownBackups.some(b => b.name === safeFilename)) {
+    return res.status(404).json(ResponseBuilder.error('NOT_FOUND', 'Backup not found'));
+  }
+  await container.backupService.deleteBackup(safeFilename);
+  res.json(ResponseBuilder.success({ message: 'Backup deleted successfully', filename: safeFilename }));
+};
+
+/**
+ * Download a tenant backup file
+ * GET /api/v1/:tenantSlug/backups/:filename/download
+ */
+export const downloadTenantBackup = async (req: Request, res: Response) => {
+  const { filename } = req.params;
+  const tenantId = requireTenantId(req);
+  const safeFilename = path.basename(filename as string);
+  if (safeFilename !== filename) {
+    return res.status(400).json(ResponseBuilder.error('INVALID_FILENAME', 'Invalid backup filename'));
+  }
+  const ownBackups = await container.backupService.listBackups(tenantId);
+  const backup = ownBackups.find(b => b.name === safeFilename);
+  if (!backup) {
+    return res.status(404).json(ResponseBuilder.error('NOT_FOUND', 'Backup not found'));
+  }
+  res.download(backup.path, safeFilename, (error) => {
+    if (error) logger.error('Download backup error:', error);
+  });
 };
 
 export const getTenantBackupSchedule = async (req: Request, res: Response) => {

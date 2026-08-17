@@ -5,9 +5,10 @@ import { demoTenantLimiter } from '../../middleware/rateLimiter';
 import { validateQuery } from '../../middleware/validate';
 import { getStatsSchema, getMonthlyReportSchema, getComparisonStatsSchema } from '../../schemas/report.schema';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { mustChangePassword } from '../../middleware/mustChangePassword';
 
 const router = express.Router();
-const tenantContext = [verifyToken, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
+const tenantContext = [verifyToken, mustChangePassword, asyncHandler(resolveTenant), demoTenantLimiter, asyncHandler(verifyTenantMembership)];
 
 /**
  * @swagger
