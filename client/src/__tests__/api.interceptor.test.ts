@@ -48,6 +48,45 @@ const responseRejected: (error: unknown) => Promise<unknown> =
   mockInstance.interceptors.response.use.mock.calls[0][1];
 
 describe('api.v1 interceptors', () => {
+  const pageResponse = (ids: number[], total: number) => ({ data: { success: true,
+    data: { visits: ids.map(id => ({ id, visitorCedula: 'V-00123456', purpose: 'Prueba', checkInTime: '2026-10-08T12:00:00Z',
+      status: 'completed', visitorCompany: id % 2 ? 'EMPRESA PRUEBA' : 'Otra empresa' })) }, meta: { total } } });
+
+  it('loads every API page before applying the company filter', async () => {
+    mockInstance.get.mockResolvedValueOnce(pageResponse(Array.from({ length: 100 }, (_, i) => i + 1), 103))
+      .mockResolvedValueOnce(pageResponse([101, 102, 103], 103));
+    const visits = await VisitService.getAllVisits({ company: 'empresa prueba', status: 'completed', page: 7 });
+    expect(visits).toHaveLength(52);
+    expect(visits[visits.length - 1]?.id).toBe(103);
+    expect(mockInstance.get.mock.calls.map(([url]) => new URLSearchParams(url.split('?')[1]).get('page'))).toEqual(['1', '2']);
+    expect(mockInstance.get.mock.calls.every(([url]) => url.includes('limit=100') && url.includes('status=completed'))).toBe(true);
+  });
+
+  it.each([
+    { ids: [101], total: 104 }, { ids: [], total: 103 }, { ids: [100, 101, 102], total: 103 }, { ids: [101, 101, 102], total: 103 },
+  ])('rejects changed or incomplete export pages: %j', async ({ ids, total }) => {
+    mockInstance.get.mockResolvedValueOnce(pageResponse(Array.from({ length: 100 }, (_, i) => i + 1), 103))
+      .mockResolvedValueOnce(pageResponse(ids, total));
+    await expect(VisitService.getAllVisits()).rejects.toThrow('Los registros cambiaron');
+  });
+
+  it('expands date filters to include the entire Venezuelan day', async () => {
+    mockInstance.get.mockResolvedValueOnce(pageResponse([], 0));
+    await VisitService.getVisits({ startDate: '2026-10-08', endDate: '2026-10-08', status: '' });
+    const params = new URLSearchParams(mockInstance.get.mock.calls[0][0].split('?')[1]);
+    expect(params.get('startDate')).toBe('2026-10-08T00:00:00.000-04:00');
+    expect(params.get('endDate')).toBe('2026-10-08T23:59:59.999-04:00');
+    expect(params.has('status')).toBe(false);
+  });
+
+  it('maps daily statistics and preserves the full last day in chart reports', async () => {
+    mockInstance.get.mockResolvedValueOnce({ data: { success: true, data: { recentActivity: [{ date: '2026-10-31', count: 3 }] } } });
+    const stats = await VisitService.getStats('2026-10-01', '2026-10-31');
+    expect(stats.visitsPerDay).toEqual([{ date: '2026-10-31', count: 3 }]);
+    const params = new URLSearchParams(mockInstance.get.mock.calls[0][0].split('?')[1]);
+    expect(params.get('endDate')).toBe('2026-10-31T23:59:59.999-04:00');
+  });
+
   it('maps the monthly API summary and purpose into the report card contract', async () => {
     mockInstance.get.mockResolvedValueOnce({ data: { success: true, data: {
       summary: { totalVisits: 3, uniqueVisitors: 2, averageDuration: 45, completionRate: 67 },

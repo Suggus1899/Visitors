@@ -1,12 +1,13 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, ChartData, ChartOptions } from 'chart.js';
 import type { Chart } from 'chart.js';
 import ComparisonCard from './statistics/ComparisonCard';
 import ChartsRow from './statistics/ChartsRow';
 import MonthlyReportCard from './statistics/MonthlyReportCard';
 
-import { StatsData, ComparisonStats, ReasonData } from '../types';
+import { ComparisonStats, ReasonData } from '../types';
 import { VisitService } from '../services/api.v1';
+import toast from 'react-hot-toast';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
@@ -37,80 +38,34 @@ const StatisticsPanel = () => {
     const dayOfWeekChartRef = useRef<Chart<'bar'> | null>(null);
     const pieChartRef = useRef<Chart<'pie'> | null>(null);
 
-    const fetchMonthlyReport = useCallback(async () => {
-        try {
-            const report = await VisitService.getMonthlyReport(selectedMonth, selectedYear);
-            setMonthlyReport(report as MonthlyReport);
-        } catch { /* errors handled via loading state */ }
-    }, [selectedMonth, selectedYear]);
-
-    const fetchAllStats = useCallback(async () => {
+    useEffect(() => {
+        let current = true;
         setLoading(true);
-        try {
-            // Calculate start and end of selected month
-            // Backend expects 0-based month for getMonthlyReport, but standard Date for getStats
-            const start = new Date(selectedYear, selectedMonth, 1);
-            const end = new Date(selectedYear, selectedMonth + 1, 0); // Last day of month
-            
-            // Format as YYYY-MM-DD for API
-            // Adjust for timezone to avoid off-by-one errors when converting to string
-            const startStr = start.toLocaleDateString('en-CA'); // YYYY-MM-DD
-            const endStr = end.toLocaleDateString('en-CA');
-
-            // Fetch main stats and comparison
-            const [stats, compData] = await Promise.all([
-                VisitService.getStats(startStr, endStr),
-                VisitService.getComparisonStats(selectedMonth, selectedYear)
-            ]) as [StatsData, ComparisonStats];
-
-            // Map Backend DTO to Frontend State
-            if (stats) {
-                // By Week
-                const weekData = (stats.byWeek || []).map(w => {
-                    // Parse "2026-02-01T04:00:00.000Z" directly as string to avoid timezone shifts
-                    // Extract YYYY-MM-DD
-                    const datePart = (typeof w.weekStart === 'string') 
-                        ? w.weekStart.split('T')[0] 
-                        : new Date(w.weekStart).toISOString().split('T')[0];
-                        
-                    const [, month, day] = datePart.split('-');
-                    return {
-                        label: `${parseInt(day)}/${parseInt(month)}`,
-                        count: w.count
-                    };
-                });
-                setVisitsByWeek(weekData);
-                setVisitsByDayOfWeek(stats.byDayOfWeek || []);
-
-                // Recent Activity (Per Day)
-                setVisitsPerDay(stats.visitsPerDay || []);
-                setTopReasons(stats.topReasons || []);
-
-                // Global Top Reasons (from byReason summary)
-                if (stats.byReason) {
-                    const reasons: ReasonData[] = stats.byReason.map(r => ({
-                        reason: r.purpose,
-                        count: r.count
-                    }));
-                    setTopReasons(reasons);
-                }
-            }
-
-            if (compData) {
-                setComparison(compData);
-            }
-
-        } catch {
-            // errors handled via loading state
-        } finally {
-            setLoading(false);
-        }
+        setMonthlyReport(null);
+        const start = new Date(selectedYear, selectedMonth, 1).toLocaleDateString('en-CA');
+        const end = new Date(selectedYear, selectedMonth + 1, 0).toLocaleDateString('en-CA');
+        Promise.all([
+            VisitService.getStats(start, end),
+            VisitService.getComparisonStats(selectedMonth, selectedYear),
+            VisitService.getMonthlyReport(selectedMonth, selectedYear),
+        ]).then(([stats, compData, report]) => {
+            if (!current) return;
+            setVisitsByWeek((stats.byWeek || []).map(w => {
+                const [, month, day] = w.weekStart.split('T')[0].split('-');
+                return { label: parseInt(day) + '/' + parseInt(month), count: w.count };
+            }));
+            setVisitsByDayOfWeek(stats.byDayOfWeek || []);
+            setVisitsPerDay(stats.visitsPerDay || []);
+            setTopReasons(stats.byReason ? stats.byReason.map(r => ({ reason: r.purpose, count: r.count })) : stats.topReasons || []);
+            setComparison(compData);
+            setMonthlyReport(report);
+        }).catch(() => {
+            if (!current) return;
+            setVisitsByWeek([]); setVisitsByDayOfWeek([]); setVisitsPerDay([]); setTopReasons([]); setComparison(null);
+            toast.error('No se pudieron cargar las estadísticas del período seleccionado.');
+        }).finally(() => { if (current) setLoading(false); });
+        return () => { current = false; };
     }, [selectedMonth, selectedYear]);
-
-    useEffect(() => { 
-        fetchAllStats(); 
-        fetchMonthlyReport();
-    }, [fetchAllStats, fetchMonthlyReport]);
 
     if (loading) return <div className="text-center py-8 text-[color:var(--text-3)]">Cargando estadísticas...</div>;
 
@@ -156,7 +111,7 @@ const StatisticsPanel = () => {
     };
 
     const perDayChartData: ChartData<'bar'> = {
-        labels: visitsPerDay.map(d => { const date = new Date(d.date); return `${date.getDate()}/${date.getMonth() + 1}`; }),
+        labels: visitsPerDay.map(d => { const date = new Date(d.date.slice(0, 10) + 'T12:00:00'); return `${date.getDate()}/${date.getMonth() + 1}`; }),
         datasets: [{ label: 'Visitantes', data: visitsPerDay.map(d => d.count), backgroundColor: tealColor, hoverBackgroundColor: tealColorHover, borderColor: '#1c9bc0', borderWidth: 1, borderRadius: 4 }]
     };
 
@@ -166,7 +121,8 @@ const StatisticsPanel = () => {
         <div className="space-y-6 mb-8">
             <ComparisonCard comparison={comparison} />
 
-            <ChartsRow 
+            <ChartsRow
+                period={`${months[selectedMonth]} ${selectedYear}`}
                 weekChartRef={weekChartRef}
                 dayChartRef={dayChartRef}
                 dayOfWeekChartRef={dayOfWeekChartRef}

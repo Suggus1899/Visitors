@@ -10,7 +10,7 @@ import CalendarIcon from 'lucide-react/dist/esm/icons/calendar';
 import FileSpreadsheet from 'lucide-react/dist/esm/icons/file-spreadsheet';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Visit, CalendarEvent } from '../types';
+import { Visit } from '../types';
 import StatisticsPanel from './StatisticsPanel';
 import BackupPanel from './BackupPanel';
 import ActivityLogPanel from './ActivityLogPanel';
@@ -21,6 +21,7 @@ import CalendarView from './admin/CalendarView';
 import AdminStatsCards from './admin/AdminStatsCards';
 import VisitsTable, { ITEMS_PER_PAGE } from './admin/VisitsTable';
 import type { SortField, SortDirection, Filters } from './admin/VisitsTable';
+import { sortReportVisits } from '../utils/visitExport';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -65,7 +66,10 @@ const AdminDashboard = () => {
             if (filters.search) params.search = filters.search;
             if (filters.startDate) params.startDate = filters.startDate;
             if (filters.endDate) params.endDate = filters.endDate;
-            const data = await VisitService.getVisits(params);
+            const data = filters.company ? await (async () => {
+                const all = await VisitService.getAllVisits({ ...params, company: filters.company });
+                return { visits: all.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE), total: all.length };
+            })() : await VisitService.getVisits(params);
             setVisits(data.visits);
             setTotalVisitsCount(data.total);
         } catch { /* visits default to empty */ }
@@ -82,29 +86,8 @@ const AdminDashboard = () => {
         else { setSortField(field); setSortDirection('asc'); }
     };
 
-    const sortedVisits = useMemo(() => {
-        return [...visits].sort((a, b) => {
-            let comparison = 0;
-            switch (sortField) {
-                case 'visitor': comparison = `${a.Visitor?.first_name || ''} ${a.Visitor?.last_name || ''}`.toLowerCase().localeCompare(`${b.Visitor?.first_name || ''} ${b.Visitor?.last_name || ''}`.toLowerCase()); break;
-                case 'check_in': comparison = new Date(a.check_in || a.check_in_time || '').getTime() - new Date(b.check_in || b.check_in_time || '').getTime(); break;
-                case 'check_out': comparison = (a.check_out ? new Date(a.check_out).getTime() : 0) - (b.check_out ? new Date(b.check_out).getTime() : 0); break;
-                case 'reason': comparison = (a.reason || '').localeCompare(b.reason || ''); break;
-                case 'status': comparison = a.status.localeCompare(b.status); break;
-            }
-            return sortDirection === 'asc' ? comparison : -comparison;
-        });
-    }, [visits, sortField, sortDirection]);
-
+    const sortedVisits = useMemo(() => sortReportVisits(visits, sortField, sortDirection), [visits, sortField, sortDirection]);
     const totalPages = Math.ceil(totalVisitsCount / ITEMS_PER_PAGE);
-
-    const calendarEvents: CalendarEvent[] = useMemo(() => visits.map(visit => ({
-        id: visit.id,
-        title: `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''} - ${visit.reason || 'Visita'}`,
-        start: new Date(visit.check_in || visit.check_in_time || ''),
-        end: (visit.check_out || visit.check_out_time) ? new Date(visit.check_out || visit.check_out_time!) : new Date(visit.check_in || visit.check_in_time || ''),
-        resource: visit
-    })), [visits]);
 
     const tabs = [
         { id: 'reports', label: 'Reportes', icon: FileSpreadsheet },
@@ -168,7 +151,7 @@ const AdminDashboard = () => {
 
                 {/* Calendar tab */}
                 {activeTab === 'calendar' && (
-                    <CalendarView calendarEvents={calendarEvents} fetchVisits={fetchVisits} />
+                    <CalendarView fetchVisits={fetchVisits} />
                 )}
 
                 {activeTab === 'backups' && <BackupPanel />}

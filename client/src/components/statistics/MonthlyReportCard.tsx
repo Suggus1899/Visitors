@@ -7,6 +7,7 @@ import FileText from 'lucide-react/dist/esm/icons/file-text';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
 import { downloadMonthlyPDF } from './pdfExport';
+import toast from 'react-hot-toast';
 
 interface MonthlyReportData {
     totalVisits: number;
@@ -75,13 +76,14 @@ const MonthlyReportCard = ({
         
         setIsDownloading(true);
         try {
-            await downloadMonthlyPDF(monthlyReport, pieChartRef);
+            await downloadMonthlyPDF(monthlyReport, pieChartRef, selectedMonth, selectedYear);
         } catch (error) {
             console.error('Error downloading PDF:', error);
+            toast.error('No se pudo exportar el reporte mensual. Inténtalo nuevamente.');
         } finally {
             setIsDownloading(false);
         }
-    }, [monthlyReport, pieChartRef, isDownloading, isLoading]);
+    }, [monthlyReport, pieChartRef, selectedMonth, selectedYear, isDownloading, isLoading]);
 
     // Optimized month/year handlers
     const handleMonthChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {

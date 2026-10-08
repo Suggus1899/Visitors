@@ -95,7 +95,7 @@ describe('MonthlyReportCard', () => {
         fireEvent.click(downloadButton);
         
         await waitFor(() => {
-            expect(downloadMonthlyPDF).toHaveBeenCalledWith(mockMonthlyReport, defaultProps.pieChartRef);
+            expect(downloadMonthlyPDF).toHaveBeenCalledWith(mockMonthlyReport, defaultProps.pieChartRef, defaultProps.selectedMonth, defaultProps.selectedYear);
         });
     });
 

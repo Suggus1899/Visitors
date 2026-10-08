@@ -5,10 +5,12 @@ import Download from 'lucide-react/dist/esm/icons/download';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 import { Chart, ChartOptions, ChartData } from 'chart.js';
 import { downloadChartPDF } from './pdfExport';
+import toast from 'react-hot-toast';
 
 interface ReasonData { reason: string; count: number; }
 
 interface ChartsRowProps {
+    period: string;
     weekChartRef: React.RefObject<Chart<'bar'> | null>;
     dayChartRef: React.RefObject<Chart<'bar'> | null>;
     dayOfWeekChartRef: React.RefObject<Chart<'bar'> | null>;
@@ -23,6 +25,7 @@ interface ChartsRowProps {
 }
 
 const ChartsRow = ({
+    period,
     weekChartRef,
     dayChartRef,
     dayOfWeekChartRef,
@@ -35,12 +38,19 @@ const ChartsRow = ({
     visitsPerDay,
     visitsByDayOfWeek
 }: ChartsRowProps) => {
+    const exportChart = (ref: React.RefObject<Chart<'bar'> | null>, filename: string, title: string, data: { labels: string[]; values: number[] }) => {
+        try {
+            downloadChartPDF(ref, filename, title, data, topReasons, period);
+        } catch {
+            toast.error('No se pudo exportar el gráfico. Inténtalo nuevamente.');
+        }
+    };
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="panel-tech rounded-lg p-5">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="font-semibold text-[color:var(--text-1)]">Visitantes por semana</h3>
-                    <Button onClick={() => downloadChartPDF(weekChartRef, 'visitantes_semana', 'Visitantes por Semana', { labels: visitsByWeek.map(d => d.label), values: visitsByWeek.map(d => d.count) }, topReasons)} className="btn-ghost px-2 py-2" title="Descargar PDF">
+                    <Button onClick={() => exportChart(weekChartRef, 'visitantes_semana', 'Visitantes por Semana', { labels: visitsByWeek.map(d => d.label), values: visitsByWeek.map(d => d.count) })} className="btn-ghost px-2 py-2" title="Descargar PDF">
                         <Download size={18} />
                     </Button>
                 </div>
@@ -53,7 +63,7 @@ const ChartsRow = ({
             <div className="panel-tech rounded-lg p-5">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="font-semibold text-[color:var(--text-1)]">Visitantes por día</h3>
-                    <Button onClick={() => downloadChartPDF(dayChartRef, 'visitantes_dia', 'Visitantes por Día', { labels: visitsPerDay.map(d => new Date(d.date).toLocaleDateString('es-ES')), values: visitsPerDay.map(d => d.count) }, topReasons)} className="btn-ghost px-2 py-2" title="Descargar PDF">
+                    <Button onClick={() => exportChart(dayChartRef, 'visitantes_dia', 'Visitantes por Día', { labels: visitsPerDay.map(d => new Date(d.date.slice(0, 10) + 'T12:00:00').toLocaleDateString('es-VE')), values: visitsPerDay.map(d => d.count) })} className="btn-ghost px-2 py-2" title="Descargar PDF">
                         <Download size={18} />
                     </Button>
                 </div>
@@ -63,7 +73,7 @@ const ChartsRow = ({
             <div className="panel-tech rounded-lg p-5">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="font-semibold text-[color:var(--text-1)]">Por día de semana</h3>
-                    <Button onClick={() => downloadChartPDF(dayOfWeekChartRef, 'visitantes_dia_semana', 'Por Día de la Semana', { labels: visitsByDayOfWeek.map(d => d.dayName), values: visitsByDayOfWeek.map(d => d.count) }, topReasons)} className="btn-ghost px-2 py-2" title="Descargar PDF">
+                    <Button onClick={() => exportChart(dayOfWeekChartRef, 'visitantes_dia_semana', 'Por Día de la Semana', { labels: visitsByDayOfWeek.map(d => d.dayName), values: visitsByDayOfWeek.map(d => d.count) })} className="btn-ghost px-2 py-2" title="Descargar PDF">
                         <Download size={18} />
                     </Button>
                 </div>

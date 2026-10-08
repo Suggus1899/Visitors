@@ -124,7 +124,7 @@ export interface StatsData {
     byDayOfWeek: { day: number; dayName: string; count: number }[];
     topReasons: { reason: string; count: number }[];
     visitsPerDay: { date: string; count: number }[];
-    recentActivity?: Visit[];
+    recentActivity?: { date: string; count: number }[];
     byReason?: { purpose: string; count: number }[];
 }
 

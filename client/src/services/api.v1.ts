@@ -247,6 +247,9 @@ const adaptVisitor = (visitor: Visitor & { firstName?: string; lastName?: string
     id_photo_url: visitor.id_photo_url ?? visitor.idPhotoUrl,
 });
 
+const reportDateBoundary = (value: string, end: boolean) => /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? value + (end ? 'T23:59:59.999-04:00' : 'T00:00:00.000-04:00') : value;
+
 export const VisitService = {
     // Visits
     getActiveVisits: async () => {
@@ -259,7 +262,10 @@ export const VisitService = {
         // Filter out undefined values
         const cleanFilters: Record<string, string> = {};
         Object.entries(filters).forEach(([key, val]) => {
-            if (val !== undefined) cleanFilters[key] = String(val);
+            if (val !== undefined && val !== '') {
+                // Date inputs describe the whole selected day in Venezuela.
+                cleanFilters[key] = key === 'startDate' || key === 'endDate' ? reportDateBoundary(String(val), key === 'endDate') : String(val);
+            }
         });
 
         const params = new URLSearchParams(cleanFilters).toString();
@@ -271,6 +277,23 @@ export const VisitService = {
             visits: Array.isArray(result.visits) ? result.visits.map(adaptVisit) : [],
             total: (metaTotal ?? result.total ?? 0)
         };
+    },
+
+    getAllVisits: async (filters: Record<string, string | number | boolean | undefined> = {}): Promise<Visit[]> => {
+        const first = await VisitService.getVisits({ ...filters, page: 1, limit: 100 });
+        const visits = [...first.visits];
+        const ids = new Set(visits.map(visit => visit.id));
+        const changed = 'Los registros cambiaron durante la exportación. Vuelve a intentarlo.';
+        if (!Number.isInteger(first.total) || first.total < 0 || ids.size !== visits.length) throw new Error(changed);
+        for (let page = 2; visits.length < first.total; page++) {
+            const next = await VisitService.getVisits({ ...filters, page, limit: 100 });
+            if (next.total !== first.total || !next.visits.length || new Set(next.visits.map(visit => visit.id)).size !== next.visits.length || next.visits.some(visit => ids.has(visit.id))) throw new Error(changed);
+            next.visits.forEach(visit => ids.add(visit.id));
+            visits.push(...next.visits);
+        }
+        if (visits.length !== first.total) throw new Error(changed);
+        const company = String(filters.company || '').trim().toLocaleLowerCase('es');
+        return company ? visits.filter(visit => (visit.Visitor?.company || '').toLocaleLowerCase('es').includes(company)) : visits;
     },
 
     getRecentVisits: async (limit = 20) => {
@@ -395,9 +418,10 @@ export const VisitService = {
     // Reports
     getStats: async (start?: string, end?: string): Promise<StatsData> => {
         let query = '';
-        if (start && end) query = `?startDate=${start}&endDate=${end}`;
+        if (start && end) query = '?' + new URLSearchParams({ startDate: reportDateBoundary(start, false), endDate: reportDateBoundary(end, true) });
         const response = await api.get(`/reports/stats${query}`);
-        return unwrapResponse<StatsData>(response.data);
+        const stats = unwrapResponse<StatsData>(response.data);
+        return { ...stats, visitsPerDay: stats.visitsPerDay || stats.recentActivity || [] };
     },
 
     getMonthlyReport: async (month: number, year: number) => {

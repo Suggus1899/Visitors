@@ -1,6 +1,6 @@
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Visit } from '../../types';
 import { 
     Download, 
@@ -13,16 +13,19 @@ import {
     ArrowUp, 
     ArrowDown
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import ExcelJS from 'exceljs';
+import { VisitService } from '../../services/api.v1';
+import toast from 'react-hot-toast';
+import { buildVisitsPDF, buildVisitsWorkbook, sortReportVisits, visitReportRow, VISIT_STATUS_LABELS } from '../../utils/visitExport';
+import { reportFileDate, formatReportDate } from '../../utils/reportExport';
+
+
 import { VisitorDetailsModal } from '../visit/VisitorDetailsModal';
 
 type SortField = 'visitor' | 'check_in' | 'check_out' | 'arrival_time' | 'entry_time' | 'exit_time' | 'reason' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 interface Filters {
-    status: '' | 'active' | 'completed';
+    status: '' | Visit['status'];
     startDate: string;
     endDate: string;
     search: string;
@@ -44,12 +47,6 @@ interface VisitsTableProps {
     onPageChange: (page: number) => void;
 }
 
-declare module 'jspdf' {
-    interface jsPDF {
-        autoTable: (columns: string[], data: unknown[], options?: unknown) => jsPDF;
-    }
-}
-
 const ITEMS_PER_PAGE = 10;
 
 const SortIcon: React.FC<{ field: SortField; sortField: SortField; sortDirection: SortDirection }> = ({ field, sortField, sortDirection }) => {
@@ -60,358 +57,37 @@ const SortIcon: React.FC<{ field: SortField; sortField: SortField; sortDirection
 SortIcon.displayName = 'SortIcon';
 
 const VisitsTable: React.FC<VisitsTableProps> = ({
-    visits, sortedVisits, totalVisitsCount, currentPage, totalPages,
+    sortedVisits, totalVisitsCount, currentPage, totalPages,
     filters, sortField, sortDirection, username,
     onFilterChange, onSort, onPageChange
 }) => {
     const [isExporting, setIsExporting] = useState(false);
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
 
-    const formatDateTime = useCallback((dateTime?: string | null): string => {
-        if (!dateTime) return '-';
-        try {
-            return new Date(dateTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
-        } catch {
-            return '-';
-        }
-    }, []);
-
-    // Memoized filtered and sorted data
-    const tableData = useMemo(() => {
-        return sortedVisits.map(visit => ({
-            ...visit,
-            visitorName: `${visit.Visitor?.first_name || ''} ${visit.Visitor?.last_name || ''}`.trim(),
-            company: visit.Visitor?.company || '',
-            reason: visit.reason || visit.purpose || '',
-            arrivalTime: formatDateTime(visit.arrival_time),
-            entryTime: formatDateTime(visit.entry_time || visit.check_in || visit.check_in_time),
-            exitTime: formatDateTime(visit.exit_time || visit.check_out || visit.check_out_time),
-            statusText: visit.status === 'active' ? 'Activo' : 'Completado',
-            statusColor: visit.status === 'active' ? 'text-green-400' : 'text-blue-400'
-        }));
-    }, [sortedVisits, formatDateTime]);
-
-    // Professional PDF export with logo and improved styling
-    const exportPDF = useCallback(async () => {
+    const exportReport = useCallback(async (kind: 'pdf' | 'excel') => {
         if (isExporting) return;
-        
         setIsExporting(true);
         try {
-            const doc = new jsPDF();
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const brandColor: [number, number, number] = [45, 212, 191]; // #2DD4BF
-            const darkText: [number, number, number] = [31, 41, 55]; // #1F2937
-            
-            // Header background
-            doc.setFillColor(...brandColor);
-            doc.rect(0, 0, pageWidth, 35, 'F');
-            
-            // Logo placeholder circle
-            doc.setFillColor(255, 255, 255);
-            doc.circle(20, 17.5, 8, 'F');
-            doc.setTextColor(...brandColor);
-            doc.setFontSize(10).setFont('helvetica', 'bold');
-            doc.text('T', 18.5, 20);
-            
-            // Company title
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(16).setFont('helvetica', 'bold');
-            doc.text('Industrias de Alimentos el Trébol', 35, 16);
-            
-            // Subtitle
-            doc.setFontSize(11).setFont('helvetica', 'normal');
-            doc.text('Reporte de Control de Visitas', 35, 25);
-            
-            // Generation info box
-            doc.setFillColor(248, 250, 252); // Light background
-            doc.roundedRect(14, 42, pageWidth - 28, 22, 2, 2, 'F');
-            
-            doc.setTextColor(...darkText);
-            doc.setFontSize(9).setFont('helvetica', 'normal');
-            const dateStr = new Date().toLocaleString('es-ES', { 
-                dateStyle: 'long', 
-                timeStyle: 'short' 
-            });
-            doc.text(`Generado por: ${username || 'Sistema'}`, 18, 50);
-            doc.text(`Fecha: ${dateStr}`, 18, 58);
-            doc.text(`Total de registros: ${visits.length}`, pageWidth - 18, 50, { align: 'right' });
-            
-            // Filters info if applied
-            let startY = 72;
-            const filterTexts: string[] = [];
-            if (filters.status) filterTexts.push(`Estado: ${filters.status === 'active' ? 'Activos' : 'Completados'}`);
-            if (filters.startDate) filterTexts.push(`Desde: ${filters.startDate}`);
-            if (filters.endDate) filterTexts.push(`Hasta: ${filters.endDate}`);
-            if (filters.search) filterTexts.push(`Búsqueda: "${filters.search}"`);
-            if (filters.company) filterTexts.push(`Empresa: "${filters.company}"`);
-            
-            if (filterTexts.length > 0) {
-                doc.setFontSize(8).setFont('helvetica', 'italic');
-                doc.setTextColor(107, 114, 128);
-                doc.text(`Filtros aplicados: ${filterTexts.join(' | ')}`, 14, 70);
-                startY = 78;
+            const records = sortReportVisits(await VisitService.getAllVisits({ ...filters }), sortField, sortDirection);
+            if (!records.length) { toast.error('No hay visitas que coincidan con los filtros.'); return; }
+            const generatedAt = new Date();
+            if (kind === 'pdf') {
+                buildVisitsPDF(records, filters, username, generatedAt).save('reporte-visitas-' + reportFileDate(generatedAt) + '.pdf');
+            } else {
+                const buffer = await buildVisitsWorkbook(records, filters, username, generatedAt).xlsx.writeBuffer();
+                const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+                const link = document.createElement('a');
+                link.href = url; link.download = 'reporte-visitas-' + reportFileDate(generatedAt) + '.xlsx';
+                document.body.appendChild(link); link.click(); link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
             }
-            
-            // Table data
-            const pdfTableData = tableData.map(visit => [
-                visit.visitorName,
-                visit.company,
-                visit.reason,
-                visit.arrivalTime,
-                visit.entryTime,
-                visit.exitTime,
-                visit.statusText
-            ]);
-            
-            // Table headers
-            const headers = [
-                'Visitante', 'Empresa', 'Motivo', 'Llegada', 'Entrada', 'Salida', 'Estado'
-            ];
-            
-            // Generate table with professional styling
-            autoTable(doc, {
-                head: [headers],
-                body: pdfTableData,
-                startY: startY,
-                styles: { 
-                    font: 'helvetica', 
-                    fontSize: 8,
-                    cellPadding: 3,
-                    overflow: 'linebreak'
-                },
-                headStyles: { 
-                    fillColor: brandColor, 
-                    textColor: 255,
-                    fontStyle: 'bold',
-                    halign: 'center'
-                },
-                alternateRowStyles: { 
-                    fillColor: [248, 250, 252] // Light gray
-                },
-                columnStyles: {
-                    0: { cellWidth: 35 }, // Visitante
-                    1: { cellWidth: 30 }, // Empresa
-                    2: { cellWidth: 30 }, // Motivo
-                    3: { cellWidth: 25, halign: 'center' }, // Llegada
-                    4: { cellWidth: 25, halign: 'center' }, // Entrada
-                    5: { cellWidth: 25, halign: 'center' }, // Salida
-                    6: { cellWidth: 20, halign: 'center' }  // Estado
-                },
-                didDrawPage: (data) => {
-                    // Footer on each page
-                    const pageCount = doc.getNumberOfPages();
-                    const currentPage = data.pageNumber || 1;
-                    
-                    // Footer line
-                    doc.setDrawColor(229, 231, 235);
-                    doc.line(14, pageHeight - 20, pageWidth - 14, pageHeight - 20);
-                    
-                    // Footer text
-                    doc.setFontSize(8);
-                    doc.setTextColor(156, 163, 175);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(
-                        `Página ${currentPage} de ${pageCount} | Documento generado el ${dateStr}`,
-                        pageWidth / 2,
-                        pageHeight - 12,
-                        { align: 'center' }
-                    );
-                }
-            });
-            
-            // Save PDF
-            doc.save(`reporte-visitas-${new Date().toISOString().split('T')[0]}.pdf`);
+            toast.success('Reporte exportado: ' + records.length + ' visitas.');
         } catch (error) {
-            console.error('Error exporting PDF:', error);
+            toast.error(error instanceof Error ? error.message : 'No se pudo exportar el reporte. Inténtalo nuevamente.');
         } finally {
             setIsExporting(false);
         }
-    }, [isExporting, username, visits, tableData, filters]);
-
-    // Professional Excel export with title, filters, and summary
-    const exportExcel = useCallback(async () => {
-        if (isExporting) return;
-        
-        setIsExporting(true);
-        try {
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Reporte de Visitas');
-            
-            // Brand colors
-            const brandColor = 'FF2DD4BF'; // #2DD4BF
-            const darkText = 'FF1F2937'; // #1F2937
-            const lightGray = 'FFF3F4F6'; // #F3F4F6
-            
-            // Title rows
-            worksheet.mergeCells('A1:G1');
-            const titleCell = worksheet.getCell('A1');
-            titleCell.value = 'Industrias de Alimentos el Trébol';
-            titleCell.font = { bold: true, size: 16, color: { argb: brandColor } };
-            titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-            
-            worksheet.mergeCells('A2:G2');
-            const subtitleCell = worksheet.getCell('A2');
-            subtitleCell.value = 'Reporte de Control de Visitas';
-            subtitleCell.font = { size: 12, color: { argb: 'FF6B7280' } };
-            subtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-            
-            // Info row
-            const dateStr = new Date().toLocaleString('es-ES', { 
-                dateStyle: 'long', 
-                timeStyle: 'short' 
-            });
-            worksheet.mergeCells('A3:G3');
-            const infoCell = worksheet.getCell('A3');
-            infoCell.value = `Generado por: ${username || 'Sistema'} | Fecha: ${dateStr} | Total: ${visits.length} registros`;
-            infoCell.font = { size: 9, italic: true, color: { argb: 'FF9CA3AF' } };
-            infoCell.alignment = { horizontal: 'center', vertical: 'middle' };
-            
-            // Filters row (if any)
-            let dataStartRow = 5;
-            const filterTexts: string[] = [];
-            if (filters.status) filterTexts.push(`Estado: ${filters.status === 'active' ? 'Activos' : 'Completados'}`);
-            if (filters.startDate) filterTexts.push(`Desde: ${filters.startDate}`);
-            if (filters.endDate) filterTexts.push(`Hasta: ${filters.endDate}`);
-            if (filters.search) filterTexts.push(`Búsqueda: "${filters.search}"`);
-            if (filters.company) filterTexts.push(`Empresa: "${filters.company}"`);
-            
-            if (filterTexts.length > 0) {
-                worksheet.mergeCells('A4:G4');
-                const filterCell = worksheet.getCell('A4');
-                filterCell.value = `Filtros: ${filterTexts.join(' | ')}`;
-                filterCell.font = { size: 9, italic: true, color: { argb: 'FF6B7280' } };
-                filterCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                dataStartRow = 6;
-            }
-            
-            // Set column headers row
-            const headerRowNumber = dataStartRow;
-            worksheet.getRow(headerRowNumber).values = [
-                'Visitante', 'Empresa', 'Motivo', 'Llegada', 'Entrada', 'Salida', 'Estado'
-            ];
-            
-            // Set column widths
-            worksheet.columns = [
-                { key: 'visitorName', width: 28 },
-                { key: 'company', width: 22 },
-                { key: 'reason', width: 22 },
-                { key: 'arrivalTime', width: 18 },
-                { key: 'entryTime', width: 18 },
-                { key: 'exitTime', width: 18 },
-                { key: 'statusText', width: 14 }
-            ];
-            
-            // Style header row
-            const headerRow = worksheet.getRow(headerRowNumber);
-            headerRow.font = { bold: true, color: { argb: 'FFFFFF' }, size: 10 };
-            headerRow.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: brandColor }
-            };
-            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-            headerRow.height = 25;
-            
-            // Add borders to header
-            headerRow.eachCell((cell) => {
-                cell.border = {
-                    top: { style: 'thin', color: { argb: brandColor } },
-                    left: { style: 'thin', color: { argb: 'FFFFFFFF' } },
-                    bottom: { style: 'thin', color: { argb: brandColor } },
-                    right: { style: 'thin', color: { argb: 'FFFFFFFF' } }
-                };
-            });
-            
-            // Add data rows
-            tableData.forEach((visit, index) => {
-                const rowNumber = headerRowNumber + 1 + index;
-                const row = worksheet.getRow(rowNumber);
-                row.values = [visit.visitorName, visit.company, visit.reason, visit.arrivalTime, visit.entryTime, visit.exitTime, visit.statusText];
-                row.alignment = { vertical: 'middle', wrapText: true };
-                row.height = 22;
-                
-                // Alternate row colors
-                if (index % 2 === 1) {
-                    row.fill = {
-                        type: 'pattern',
-                        pattern: 'solid',
-                        fgColor: { argb: lightGray }
-                    };
-                }
-                
-                // Add borders to each cell
-                row.eachCell((cell, colNumber) => {
-                    cell.border = {
-                        top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-                        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-                        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-                        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
-                    };
-                    
-                    // Status conditional formatting
-                    if (colNumber === 7) { // Estado column
-                        const status = cell.value as string;
-                        if (status === 'Activo') {
-                            cell.font = { bold: true, color: { argb: 'FF10B981' } }; // Green
-                            cell.fill = {
-                                type: 'pattern',
-                                pattern: 'solid',
-                                fgColor: { argb: 'FFD1FAE5' } // Light green
-                            };
-                        } else if (status === 'Completado') {
-                            cell.font = { bold: true, color: { argb: 'FF3B82F6' } }; // Blue
-                            cell.fill = {
-                                type: 'pattern',
-                                pattern: 'solid',
-                                fgColor: { argb: 'FFDBEAFE' } // Light blue
-                            };
-                        }
-                    }
-                });
-            });
-            
-            // Add auto-filters to header row
-            worksheet.autoFilter = {
-                from: { row: headerRowNumber, column: 1 },
-                to: { row: headerRowNumber, column: 7 }
-            };
-            
-            // Freeze panes (freeze title and header)
-            worksheet.views = [
-                { state: 'frozen', ySplit: headerRowNumber }
-            ];
-            
-            // Summary row at the bottom
-            const summaryRowNumber = headerRowNumber + tableData.length + 2;
-            const activeCount = tableData.filter(v => v.statusText === 'Activo').length;
-            const completedCount = tableData.filter(v => v.statusText === 'Completado').length;
-            
-            worksheet.mergeCells(`A${summaryRowNumber}:D${summaryRowNumber}`);
-            const summaryCell = worksheet.getCell(`A${summaryRowNumber}`);
-            summaryCell.value = `Resumen: ${visits.length} total | ${activeCount} activas | ${completedCount} completadas`;
-            summaryCell.font = { bold: true, size: 10, color: { argb: darkText } };
-            summaryCell.alignment = { horizontal: 'left', vertical: 'middle' };
-            
-            // Generate buffer
-            const buffer = await workbook.xlsx.writeBuffer();
-            
-            // Download file
-            const blob = new Blob([buffer], { 
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-            });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `reporte-visitas-${new Date().toISOString().split('T')[0]}.xlsx`;
-            link.click();
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Error exporting Excel:', error);
-        } finally {
-            setIsExporting(false);
-        }
-    }, [isExporting, tableData, visits, filters, username]);
+    }, [isExporting, filters, sortField, sortDirection, username]);
 
     return (
         <div className="panel-tech rounded-lg overflow-hidden">
@@ -425,7 +101,9 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                     <Input type="text" placeholder="Empresa" className="input-tech text-sm" value={filters.company} onChange={e => onFilterChange('company', e.target.value)} />
                     <select className="input-tech text-sm" value={filters.status} onChange={e => onFilterChange('status', e.target.value)}>
                         <option value="">Todos los estados</option>
+                        <option value="waiting">En espera</option>
                         <option value="active">Activos</option>
+                        <option value="intermittent">Salida temporal</option>
                         <option value="completed">Completados</option>
                     </select>
                     <Input type="date" className="input-tech text-sm" value={filters.startDate} onChange={e => onFilterChange('startDate', e.target.value)} />
@@ -435,13 +113,13 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
 
             {/* Export bar */}
             <div className="bg-[color:var(--surface-2)] p-4 border-b border-[color:var(--border-1)] flex justify-between items-center">
-                <span className="text-sm text-[color:var(--text-3)]">Mostrando {sortedVisits.length} de {totalVisitsCount} visitas</span>
+                <span className="text-sm text-[color:var(--text-3)]">Mostrando {sortedVisits.length} de {totalVisitsCount} visitas · Se exportan todos los resultados</span>
                 <div className="flex gap-2">
-                    <Button onClick={exportPDF} className="border border-red-400 text-red-300 hover:text-red-200 hover:border-red-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">
-                        <Download className="mr-2" size={16} /> Exportar PDF
+                    <Button onClick={() => exportReport('pdf')} disabled={isExporting || totalVisitsCount === 0} className="border border-red-400 text-red-300 hover:text-red-200 hover:border-red-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">
+                        <Download className="mr-2" size={16} /> {isExporting ? 'Preparando…' : 'Exportar PDF'}
                     </Button>
-                    <Button onClick={exportExcel} className="border border-emerald-400 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">
-                        <FileSpreadsheet className="mr-2" size={16} /> Exportar Excel
+                    <Button onClick={() => exportReport('excel')} disabled={isExporting || totalVisitsCount === 0} className="border border-emerald-400 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">
+                        <FileSpreadsheet className="mr-2" size={16} /> {isExporting ? 'Preparando…' : 'Exportar Excel'}
                     </Button>
                 </div>
             </div>
@@ -470,20 +148,21 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                     </thead>
                     <tbody className="text-sm">
                         {sortedVisits.length > 0 ? sortedVisits.map((vis) => {
-                            const ts = (dt?: string | null) => dt ? new Date(dt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+                            const ts = formatReportDate;
+                            const row = visitReportRow(vis);
                             return (
                             <tr key={vis.id} onClick={() => setSelectedVisit(vis)} className="hover:bg-[color:var(--surface-2)] border-b border-[color:var(--border-1)] last:border-0 transition-colors cursor-pointer">
                                 <td className="p-4">
-                                    <div className="font-semibold text-[color:var(--text-1)]">{`${vis.Visitor?.first_name || ''} ${vis.Visitor?.last_name || ''}`.trim()}</div>
-                                    <div className="text-xs text-[color:var(--text-3)]">{vis.Visitor?.company || ''} · {vis.Visitor?.cedula || ''}</div>
+                                    <div className="font-semibold text-[color:var(--text-1)]">{row.name}</div>
+                                    <div className="text-xs text-[color:var(--text-3)]">{row.company} · {row.cedula}</div>
                                 </td>
-                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(vis.arrival_time)}</td>
-                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(vis.entry_time || vis.check_in || vis.check_in_time)}</td>
-                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(vis.exit_time || vis.check_out || vis.check_out_time)}</td>
-                                <td className="p-4 text-[color:var(--text-2)] text-sm max-w-[12rem] truncate">{vis.reason || vis.purpose}</td>
+                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(row.arrival)}</td>
+                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(row.entry)}</td>
+                                <td className="p-4 text-[color:var(--text-2)] font-mono text-xs">{ts(row.exit)}</td>
+                                <td className="p-4 text-[color:var(--text-2)] text-sm max-w-[12rem] truncate">{row.reason}</td>
                                 <td className="p-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${vis.status === 'active' ? 'border-[color:var(--accent-0)] text-[color:var(--accent-0)]' : 'border-[color:var(--border-1)] text-[color:var(--text-3)]'}`}>
-                                        {vis.status === 'active' ? 'ACTIVO' : 'COMPLETADO'}
+                                        {VISIT_STATUS_LABELS[vis.status]}
                                     </span>
                                 </td>
                             </tr>

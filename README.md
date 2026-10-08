@@ -8,6 +8,7 @@ LogMaster es una aplicación web moderna y segura para la gestión de visitantes
 - **Seguridad Robusta**: Base de datos PostgreSQL con cifrado de campos sensibles con AES-256-GCM
 - **Gestión de Usuarios**: Sistema de roles (Root, Admin, Operador, Auditor, Demo) con autenticación JWT
 - **Reportes Avanzados**: Exportación a PDF y Excel con filtros personalizables
+  Los PDF y Excel del historial incluyen todos los resultados filtrados, independientemente de la página visible. Los PDF de calendario incluyen todo el período visible; los de estadísticas y reporte mensual identifican el período seleccionado y conservan las tablas completas. Los PDF repiten encabezados y numeran las páginas. Excel incluye hojas Resumen y Visitas, filtros, encabezados congelados y fechas editables expresadas en hora de Venezuela.
 - **Auditoría Completa**: Registro detallado de todas las operaciones del sistema
 - **Respaldos Automáticos**: Copias de seguridad cifradas programables
 - **Interfaz Moderna**: UI responsive con React y Tailwind CSS

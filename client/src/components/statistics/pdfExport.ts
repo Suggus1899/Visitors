@@ -1,8 +1,10 @@
-import { jsPDF } from 'jspdf';
-import { Chart } from 'chart.js';
-import { ReasonData } from '../../types';
+import type { Chart } from 'chart.js';
+import autoTable from 'jspdf-autotable';
+import type { jsPDF } from 'jspdf';
+import type { ReasonData } from '../../types';
+import { createReportPDF, finishReportPDF, reportFileDate, REPORT_COLOR, REPORT_MARGINS } from '../../utils/reportExport';
 
-interface MonthlyReportData {
+export interface MonthlyReportData {
   totalVisits: number;
   uniqueVisitors: number;
   averageDuration: number;
@@ -10,128 +12,77 @@ interface MonthlyReportData {
   byReason: Array<{ reason: string; count: number; percentage: number }>;
 }
 
-export const downloadChartPDF = (chartRef: React.RefObject<Chart | null>, filename: string, title: string, data: { labels: string[], values: number[] }, reasons?: ReasonData[]) => {
-    if (!chartRef.current) return;
-    const chart = chartRef.current;
-    const chartImage = chart.canvas.toDataURL('image/png', 1.0);
+function addChart(doc: jsPDF, chart: Chart | null, y: number) {
+  if (!chart || !chart.canvas.width || !chart.canvas.height) return y;
+  const canvas = chart.canvas;
+  const previous = chart.config.options;
+  let image: string;
+  try {
+    chart.options = { ...previous, plugins: { ...previous?.plugins,
+      legend: { ...previous?.plugins?.legend, labels: { ...previous?.plugins?.legend?.labels, color: '#283441' } } },
+      scales: Object.fromEntries(Object.entries(previous?.scales || {}).map(([key, scale]) => [key, { ...scale,
+        ticks: { ...scale?.ticks, color: '#283441' }, grid: { ...scale?.grid, color: '#D2DCE1' } }])),
+    };
+    chart.update('none');
+    image = canvas.toDataURL('image/png');
+  } finally {
+    chart.options = previous || {};
+    chart.update('none');
+  }
+  const maxHeight = doc.internal.pageSize.getWidth() > doc.internal.pageSize.getHeight() ? 55 : 65;
+  const scale = Math.min(150 / canvas.width, maxHeight / canvas.height);
+  const width = canvas.width * scale;
+  const height = canvas.height * scale;
+  doc.addImage(image, 'PNG', (doc.internal.pageSize.getWidth() - width) / 2, y, width, height);
+  return y + height + 8;
+}
 
-    const pdf = new jsPDF('landscape', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-
-    // Header
-    pdf.setFillColor(45, 212, 191);
-    pdf.rect(0, 0, pageWidth, 25, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(title, 15, 17);
-
-    const dateStr = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Generado: ${dateStr}`, pageWidth - 15, 17, { align: 'right' });
-
-    // Chart
-    pdf.addImage(chartImage, 'PNG', 15, 35, 150, 85);
-
-    // Stats
-    const tableX = 175;
-    pdf.setTextColor(31, 41, 55);
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Resumen', tableX, 40);
-
-    const total = data.values.reduce((a, b) => a + b, 0);
-    const max = Math.max(...data.values);
-    const maxLabel = data.labels[data.values.indexOf(max)] || '-';
-
-    pdf.setFontSize(10);
-    let y = 50;
-    pdf.setFont('helvetica', 'bold'); pdf.text('Total:', tableX, y);
-    pdf.setFont('helvetica', 'normal'); pdf.text(total.toString(), tableX + 40, y);
-    y += 7;
-    pdf.setFont('helvetica', 'bold'); pdf.text('Máximo:', tableX, y);
-    pdf.setFont('helvetica', 'normal'); pdf.text(`${max} (${maxLabel})`, tableX + 40, y);
-
-    // Reasons section
-    if (reasons && reasons.length > 0) {
-        y += 15;
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Motivos de Visita:', tableX, y);
-        y += 7;
-        pdf.setFontSize(9);
-        reasons.slice(0, 8).forEach(r => {
-            pdf.setFont('helvetica', 'normal');
-            const text = `${r.reason}: ${r.count}`;
-            pdf.text(text.substring(0, 35), tableX, y);
-            y += 5;
-        });
-    }
-
-    pdf.setTextColor(107, 114, 128);
-    pdf.setFontSize(8);
-    pdf.text('Sistema de Control de Visitantes', pageWidth - 15, pageHeight - 10, { align: 'right' });
-
-    pdf.save(`${filename}_${new Date().toISOString().split('T')[0]}.pdf`);
+const tableStyles = {
+  margin: REPORT_MARGINS,
+  styles: { fontSize: 9, overflow: 'linebreak' as const, cellPadding: 3 },
+  headStyles: { fillColor: REPORT_COLOR },
+  alternateRowStyles: { fillColor: [245, 248, 250] as [number, number, number] },
+  rowPageBreak: 'avoid' as const,
 };
 
-export const downloadMonthlyPDF = (monthlyReport: MonthlyReportData, pieChartRef: React.RefObject<Chart | null>) => {
-    if (!monthlyReport) return;
-    const pdf = new jsPDF('portrait', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
+export function downloadChartPDF(chartRef: React.RefObject<Chart | null>, filename: string, title: string, data: { labels: string[]; values: number[] }, reasons?: ReasonData[], period = 'Período seleccionado') {
+  const generatedAt = new Date();
+  const total = data.values.reduce((a, b) => a + b, 0);
+  const max = data.values.length ? Math.max(...data.values) : 0;
+  const maxLabel = data.labels[data.values.indexOf(max)] || 'Sin registros';
+  const doc = createReportPDF(title, [['Período', period], ['Total de visitas', String(total)], ['Máximo', `${max} · ${maxLabel}`]]);
+  const startY = addChart(doc, chartRef.current, (doc.lastAutoTable?.finalY || 40) + 8);
+  autoTable(doc, { ...tableStyles, head: [['Período / categoría', 'Visitas']], body: data.labels.map((label, i) => [label, data.values[i] || 0]), startY });
+  if (reasons?.length) {
+    autoTable(doc, { ...tableStyles, head: [['Motivo de visita', 'Visitas']], body: reasons.map(r => [r.reason, r.count]), startY: (doc.lastAutoTable?.finalY || startY) + 8 });
+  }
+  finishReportPDF(doc, title, generatedAt);
+  doc.save(`${filename}-${reportFileDate(generatedAt)}.pdf`);
+}
 
-    // Header
-    pdf.setFillColor(45, 212, 191);
-    pdf.rect(0, 0, pageWidth, 30, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(22);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Reporte Mensual', 15, 20);
-
-    pdf.setTextColor(31, 41, 55);
-    let y = 45;
-
-    // Summary
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Resumen General', 15, y);
-    y += 10;
-
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Total de visitas: ${monthlyReport.totalVisits}`, 15, y); y += 6;
-    pdf.text(`Visitantes unicos: ${monthlyReport.uniqueVisitors}`, 15, y); y += 6;
-    pdf.text(`Duracion promedio: ${monthlyReport.averageDuration} min`, 15, y); y += 6;
-    pdf.text(`Tasa de finalizacion: ${monthlyReport.completionRate}%`, 15, y);
-    y += 15;
-
-    // By Reason
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Motivos de Visita', 15, y);
-    y += 8;
-
-    pdf.setFontSize(10);
-    monthlyReport.byReason.forEach((r) => {
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(`• ${r.reason}: ${r.count} (${r.percentage}%)`, 20, y);
-        y += 5;
-    });
-
-    // Pie Chart Image
-    if (pieChartRef.current) {
-        const pieCanvas = pieChartRef.current.canvas;
-        const pieImage = pieCanvas.toDataURL('image/png', 1.0);
-        pdf.addImage(pieImage, 'PNG', 120, 70, 75, 55);
-    }
-    y += 10;
-
-    // Footer
-    pdf.setFontSize(8);
-    pdf.setTextColor(107, 114, 128);
-    const dateStr = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
-    pdf.text(`Generado: ${dateStr} | Sistema de Control de Visitantes`, pageWidth / 2, 285, { align: 'center' });
-
-    pdf.save(`reporte_mensual_${new Date().toISOString().split('T')[0]}.pdf`);
-};
+export function downloadMonthlyPDF(report: MonthlyReportData, pieChartRef: React.RefObject<Chart | null>, month: number, year: number) {
+  const generatedAt = new Date();
+  const title = 'Reporte mensual de visitas';
+  const period = new Date(year, month, 15).toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+  const doc = createReportPDF(title, [['Período', period]], 'portrait');
+  autoTable(doc, {
+    ...tableStyles,
+    head: [['Indicador', 'Resultado']],
+    body: [
+      ['Total de visitas', report.totalVisits],
+      ['Visitantes únicos', report.uniqueVisitors],
+      ['Duración promedio', `${report.averageDuration.toLocaleString('es-VE', { maximumFractionDigits: 1 })} min`],
+      ['Tasa de finalización', `${report.completionRate.toLocaleString('es-VE', { maximumFractionDigits: 1 })}%`],
+    ],
+    startY: (doc.lastAutoTable?.finalY || 40) + 8,
+  });
+  const startY = addChart(doc, pieChartRef.current, (doc.lastAutoTable?.finalY || 40) + 8);
+  autoTable(doc, {
+    ...tableStyles,
+    head: [['Motivo de visita', 'Visitas', 'Porcentaje']],
+    body: report.byReason.map(r => [r.reason, r.count, `${r.percentage.toLocaleString('es-VE', { maximumFractionDigits: 1 })}%`]),
+    startY,
+  });
+  finishReportPDF(doc, title, generatedAt);
+  doc.save(`reporte-mensual-${year}-${String(month + 1).padStart(2, '0')}.pdf`);
+}

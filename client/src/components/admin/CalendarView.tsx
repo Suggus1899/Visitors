@@ -1,10 +1,12 @@
 import { Button } from '../ui/button';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { format, parse, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import toast from 'react-hot-toast';
+import { createReportPDF, finishReportPDF, formatReportDate, reportFileDate, REPORT_MARGINS, REPORT_COLOR } from '../../utils/reportExport';
+import { visitReportRow } from '../../utils/visitExport';
 import Download from 'lucide-react/dist/esm/icons/download';
 
 import CalendarEventModal from '../CalendarEventModal';
@@ -23,28 +25,48 @@ const localizer = dateFnsLocalizer({
 });
 
 interface CalendarViewProps {
-    calendarEvents: CalendarEvent[];
     fetchVisits: () => void;
 }
 
-const CalendarView = ({ calendarEvents, fetchVisits }: CalendarViewProps) => {
+const CalendarView = ({ fetchVisits }: CalendarViewProps) => {
     const [calendarFilter, setCalendarFilter] = useState<'all' | 'active' | 'completed'>('all');
     const [selectedEvent, setSelectedEvent] = useState<Visit | null>(null);
     const [showEventModal, setShowEventModal] = useState(false);
+    const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [reload, setReload] = useState(0);
+    const [range, setRange] = useState(() => ({ start: startOfWeek(startOfMonth(new Date()), { locale: es }), end: endOfWeek(endOfMonth(new Date()), { locale: es }) }));
+
+    useEffect(() => {
+        let current = true;
+        setLoading(true); setCalendarEvents([]);
+        VisitService.getAllVisits({ startDate: format(range.start, 'yyyy-MM-dd'), endDate: format(range.end, 'yyyy-MM-dd'),
+            status: calendarFilter === 'all' ? undefined : calendarFilter }).then(visits => {
+            if (current) setCalendarEvents(visits.map(visit => ({ id: visit.id, title: `${visitReportRow(visit).name} - ${visitReportRow(visit).reason}`,
+                start: new Date(visit.arrival_time || visit.check_in || visit.check_in_time || ''),
+                end: new Date(visit.exit_time || visit.check_out || visit.check_out_time || visit.arrival_time || visit.check_in || visit.check_in_time || ''), resource: visit })));
+        }).catch(() => { if (current) toast.error('No se pudo cargar el calendario. Inténtalo nuevamente.'); })
+            .finally(() => { if (current) setLoading(false); });
+        return () => { current = false; };
+    }, [calendarFilter, range, reload]);
 
     const handleExport = () => {
-        const doc = new jsPDF();
-        doc.setFontSize(16); doc.text('Calendario de Visitas', 14, 20);
-        doc.setFontSize(10); doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`, 14, 28);
-        const filteredEvents = calendarEvents.filter(e => calendarFilter === 'all' || e.resource?.status === calendarFilter);
-        const tableData = filteredEvents.slice(0, 50).map(e => [
-            e.title, 
-            format(e.start, 'dd/MM/yyyy HH:mm', { locale: es }), 
-            e.end ? format(e.end, 'dd/MM/yyyy HH:mm', { locale: es }) : '-', 
-            e.resource?.status === 'active' ? 'Activa' : 'Finalizada'
-        ]);
-        autoTable(doc, { head: [['Visitante', 'Entrada', 'Salida', 'Estado']], body: tableData, startY: 35, styles: { fontSize: 8 } });
-        doc.save(`calendario_visitas_${format(new Date(), 'yyyyMMdd')}.pdf`);
+        if (loading || !calendarEvents.length) return;
+        try {
+            const title = 'Calendario de visitas';
+            const generatedAt = new Date();
+            const doc = createReportPDF(title, [['Período', `${format(range.start, 'dd/MM/yyyy')} al ${format(range.end, 'dd/MM/yyyy')}`],
+                ['Estado', calendarFilter === 'all' ? 'Todos' : calendarFilter === 'active' ? 'Activas' : 'Completadas'], ['Registros', String(calendarEvents.length)]]);
+            const rows = [...calendarEvents].sort((a, b) => a.start.getTime() - b.start.getTime()).map(event => {
+                const row = visitReportRow(event.resource!);
+                return [row.name, row.cedula || '—', row.reason, formatReportDate(row.arrival), formatReportDate(row.entry), formatReportDate(row.exit), row.status];
+            });
+            autoTable(doc, { head: [['Visitante', 'Cédula', 'Motivo', 'Llegada', 'Entrada', 'Salida', 'Estado']], body: rows,
+                startY: (doc.lastAutoTable?.finalY || 40) + 8, margin: REPORT_MARGINS, styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 3 },
+                headStyles: { fillColor: REPORT_COLOR }, alternateRowStyles: { fillColor: [243, 247, 249] }, rowPageBreak: 'avoid' });
+            finishReportPDF(doc, title, generatedAt);
+            doc.save(`calendario-visitas-${reportFileDate(generatedAt)}.pdf`);
+        } catch { toast.error('No se pudo exportar el calendario. Inténtalo nuevamente.'); }
     };
 
     return (
@@ -57,7 +79,8 @@ const CalendarView = ({ calendarEvents, fetchVisits }: CalendarViewProps) => {
                     try { 
                         await VisitService.checkOut(id); 
                         fetchVisits(); 
-                    } catch { /* ignored */ } 
+                        setReload(value => value + 1);
+                    } catch { toast.error('No se pudo cerrar la visita.'); }
                 }}
             />
 
@@ -75,18 +98,20 @@ const CalendarView = ({ calendarEvents, fetchVisits }: CalendarViewProps) => {
                 </div>
                 <Button
                     onClick={handleExport} 
+                    disabled={loading || !calendarEvents.length}
                     className="btn-tech px-4 py-2 text-sm w-auto flex items-center justify-center gap-2"
                 >
-                    <Download size={16} /> Exportar Calendario
+                    <Download size={16} /> {loading ? 'Cargando…' : 'Exportar Calendario'}
                 </Button>
             </div>
 
             <div className="bg-[color:var(--surface-1)] rounded-xl border border-[color:var(--border-1)] p-2" style={{ height: '650px' }}>
                 <Calendar 
-                    localizer={localizer}
+                    localizer={localizer} culture="es"
                     events={calendarEvents.filter(e => calendarFilter === 'all' || e.resource?.status === calendarFilter)}
                     startAccessor="start" endAccessor="end" style={{ height: '100%' }}
                     views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]} defaultView={Views.MONTH}
+                    onRangeChange={next => setRange(Array.isArray(next) ? { start: next[0], end: next[next.length - 1] } : next)}
                     components={{ toolbar: CustomCalendarToolbar }}
                     onSelectEvent={(event) => { setSelectedEvent(event.resource || null); setShowEventModal(true); }}
                     messages={{ today: 'Hoy', previous: 'Anterior', next: 'Siguiente', month: 'Mes', week: 'Semana', day: 'Día', agenda: 'Agenda', noEventsInRange: 'No hay visitas en este rango', date: 'Fecha', time: 'Hora', event: 'Visita' }}
