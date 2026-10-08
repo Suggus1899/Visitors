@@ -5,9 +5,6 @@ export const getAuditLogsSchema = z.object({
   limit: z.coerce.number().min(1).max(100).optional().default(20),
   action: z.string().optional(),
   username: z.string().optional(),
-  entity: z.string().optional(),
-  ip: z.string().optional(),
-  search: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 });

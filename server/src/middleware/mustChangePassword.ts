@@ -6,7 +6,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { container } from '../shared/Container';
+import User from '../models/User';
 
 // Simple in-memory cache to avoid hitting DB on every request
 const mustChangeCache = new Map<number, { value: boolean; expiresAt: number }>();
@@ -29,8 +29,8 @@ export const mustChangePassword = async (req: Request, res: Response, next: Next
         mustChange = cached.value;
     } else {
         try {
-            const flag = await container.userRepository.getMustChangePassword(user.id);
-            mustChange = flag === true;
+            const dbUser = await User.findByPk(user.id, { attributes: ['mustChangePassword'] });
+            mustChange = dbUser?.mustChangePassword === true;
             mustChangeCache.set(user.id, { value: mustChange, expiresAt: Date.now() + CACHE_TTL_MS });
         } catch {
             mustChange = user.mustChangePassword === true;

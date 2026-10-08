@@ -4,7 +4,6 @@ import Encryption from '../utils/Encryption';
 
 class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAttributes<VisitorModel>> {
     declare id: CreationOptional<number>;
-    declare tenantId: CreationOptional<number>;
     declare cedula: string; // Stored as hash
     declare encrypted_cedula: CreationOptional<string | null>;
     declare first_name: string; // Encrypted
@@ -55,14 +54,10 @@ VisitorModel.init({
         autoIncrement: true,
         primaryKey: true
     },
-    tenantId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: { model: 'Tenants', key: 'id' }
-    },
     cedula: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
+        unique: true
     },
     encrypted_cedula: {
         type: DataTypes.STRING,
@@ -128,7 +123,6 @@ VisitorModel.init({
     sequelize,
     tableName: 'Visitors',
     modelName: 'Visitor',
-    indexes: [{ unique: true, fields: ['tenantId', 'cedula'] }],
     hooks: {
         beforeSave: (instance) => {
             if (instance.changed('cedula')) {

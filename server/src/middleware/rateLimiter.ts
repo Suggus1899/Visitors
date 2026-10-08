@@ -1,5 +1,4 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
-import jwt from 'jsonwebtoken';
 import config from '../config/AppConfig';
 import { Request, Response } from 'express';
 import logger from '../config/logger';
@@ -19,7 +18,6 @@ const createRateLimiter = (options: {
   max: number;
   message: string;
   keyGenerator?: (req: Request) => string;
-  skip?: (req: Request, res: Response) => boolean;
   skipSuccessfulRequests?: boolean;
   skipFailedRequests?: boolean;
 }) => {
@@ -30,7 +28,6 @@ const createRateLimiter = (options: {
     legacyHeaders: false,
     validate: false,
     keyGenerator: options.keyGenerator || getClientIp,
-    skip: options.skip,
     skipSuccessfulRequests: options.skipSuccessfulRequests || false,
     skipFailedRequests: options.skipFailedRequests || false,
     message: {
@@ -77,29 +74,6 @@ export const authLimiter = createRateLimiter({
   skipSuccessfulRequests: true, // Don't count successful requests
 });
 
-// Refresh token rate limiter — keys on the user id encoded in the refresh
-// token when present, falling back to IP. Limits token-refresh abuse per
-// user (30 refreshes / hour) regardless of how many IPs they rotate through.
-export const refreshLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: config.nodeEnv === 'production' ? 30 : 120,
-  message: 'Too many token refresh attempts, please try again later.',
-  keyGenerator: (req: Request): string => {
-    const token = typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : '';
-    if (token) {
-      try {
-        const decoded = jwt.decode(token) as { id?: number } | null | string;
-        if (decoded && typeof decoded === 'object' && decoded.id) {
-          return `user:${decoded.id}:refresh`;
-        }
-      } catch {
-        // Fall through to IP-based keying for malformed tokens.
-      }
-    }
-    return `${getClientIp(req)}:refresh`;
-  },
-});
-
 // Password reset rate limiter
 export const passwordResetLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -132,30 +106,5 @@ export const adminLimiter = createRateLimiter({
   keyGenerator: (req: Request) => {
     return req.user ? `user:${req.user.id}` : `${req.ip}:admin`;
   },
-});
-
-// Demo tenant creation rate limiter (very strict: 3 per hour per IP)
-export const demoLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: config.nodeEnv === 'production' ? 3 : 15,
-  message: 'Too many demo tenant requests from this IP, please try again later.',
-  keyGenerator: (req: Request) => `${req.ip}:demo`,
-});
-
-/**
- * Per-tenant rate limiter applied to demo tenants only.
- * Must run AFTER resolveTenant so req.tenantIsDemo and req.tenantId are set.
- * - Skips entirely for non-demo tenants (no overhead on production traffic).
- * - Keys on tenantId so all users on a demo tenant share the same bucket,
- *   preventing a single demo tenant from being abused as a free compute
- *   farm by rotating user accounts.
- */
-export const demoTenantLimiter = createRateLimiter({
-  windowMs: 60 * 1000, // 1 minute
-  max: config.nodeEnv === 'production' ? 30 : 120,
-  message: 'Demo tenant rate limit exceeded. Please upgrade to a paid plan for higher limits.',
-  keyGenerator: (req: Request) => `demo-tenant:${req.tenantId}`,
-  // Skip non-demo tenants — only throttle demo traffic.
-  skip: (req: Request) => !req.tenantIsDemo,
 });
 

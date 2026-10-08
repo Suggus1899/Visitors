@@ -1,8 +1,6 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import User from '../models/User';
-import Tenant from '../models/Tenant';
-import TenantUser from '../models/TenantUser';
 import VisitorModel from '../models/Visitor';
 import VisitModel from '../models/Visit';
 import IntermittentLogModel from '../models/IntermittentLog';
@@ -214,27 +212,11 @@ export const ensureBaseUsers = async () => {
         await rootUser.save();
         logger.info('[Seed] Root user role updated: trebolmaster');
     }
-
-    // The default tenant preserves compatibility for existing single-tenant deployments.
-    const [defaultTenant] = await Tenant.findOrCreate({
-        where: { slug: 'default' },
-        defaults: { slug: 'default', name: 'Default Tenant', subscriptionPlan: 'enterprise', maxUsers: 1000, maxVisitors: 1000000 }
-    });
-    const users = await User.findAll();
-    for (const user of users) {
-        const role = user.role === 'root' ? 'admin' : (user.role || 'operador') as 'admin' | 'operador' | 'auditor' | 'demo';
-        await TenantUser.findOrCreate({ where: { userId: user.id, tenantId: defaultTenant.id }, defaults: { userId: user.id, tenantId: defaultTenant.id, role } });
-        if (user.role === 'root' && !user.isSuperAdmin) await user.update({ isSuperAdmin: true });
-    }
 };
 
 export const seedDatabase = async () => {
     try {
         await ensureBaseUsers();
-
-        // Get default tenant for tenant-scoped records
-        const defaultTenant = await Tenant.findOne({ where: { slug: 'default' } });
-        const tenantId = defaultTenant?.id ?? 1;
 
         // Check if extended seed already exists
         const visitCount = await VisitModel.count();
@@ -259,14 +241,13 @@ export const seedDatabase = async () => {
                     company: companies[Math.floor(Math.random() * companies.length)],
                     job_title: jobTitles[Math.floor(Math.random() * jobTitles.length)],
                     email: `visitor${i}@example.com`,
-                    phone: `+5841${Math.floor(1000000 + Math.random() * 9000000)}`,
-                    tenantId
+                    phone: `+5841${Math.floor(1000000 + Math.random() * 9000000)}`
                 });
             }
 
             // Create visitors
             for (const v of visitors) {
-                const exists = await VisitorModel.findOne({ where: { cedula: Encryption.hash(v.cedula), tenantId: v.tenantId } });
+                const exists = await VisitorModel.findByPk(Encryption.hash(v.cedula));
                 if (!exists) {
                     await VisitorModel.create(v);
                 }
@@ -298,8 +279,7 @@ export const seedDatabase = async () => {
                     vehicle_plate: hasVehicle ? `ABC${Math.floor(100 + Math.random() * 900)}` : null,
                     area: areas[Math.floor(Math.random() * areas.length)],
                     action: actions[Math.floor(Math.random() * actions.length)],
-                    department: departments[Math.floor(Math.random() * departments.length)],
-                    tenantId
+                    department: departments[Math.floor(Math.random() * departments.length)]
                 });
             }
 
@@ -329,8 +309,7 @@ export const seedDatabase = async () => {
                     vehicle_plate: hasVehicle ? `WTG${Math.floor(100 + Math.random() * 900)}` : null,
                     area: areas[Math.floor(Math.random() * areas.length)],
                     action: actions[Math.floor(Math.random() * actions.length)],
-                    department: departments[Math.floor(Math.random() * departments.length)],
-                    tenantId
+                    department: departments[Math.floor(Math.random() * departments.length)]
                 });
             }
 
@@ -358,8 +337,7 @@ export const seedDatabase = async () => {
                     vehicle_plate: hasVehicle ? `ACT${Math.floor(100 + Math.random() * 900)}` : null,
                     area: areas[Math.floor(Math.random() * areas.length)],
                     action: actions[Math.floor(Math.random() * actions.length)],
-                    department: departments[Math.floor(Math.random() * departments.length)],
-                    tenantId
+                    department: departments[Math.floor(Math.random() * departments.length)]
                 });
             }
 
@@ -389,8 +367,7 @@ export const seedDatabase = async () => {
                     vehicle_plate: hasVehicle ? `CMP${Math.floor(100 + Math.random() * 900)}` : null,
                     area: areas[Math.floor(Math.random() * areas.length)],
                     action: actions[Math.floor(Math.random() * actions.length)],
-                    department: departments[Math.floor(Math.random() * departments.length)],
-                    tenantId
+                    department: departments[Math.floor(Math.random() * departments.length)]
                 });
             }
 
@@ -422,15 +399,11 @@ export const seedLoad = async (options: SeedLoadOptions) => {
     try {
         await ensureBaseUsers();
 
-        // Get default tenant for tenant-scoped records
-        const defaultTenant = await Tenant.findOne({ where: { slug: 'default' } });
-        const tenantId = defaultTenant?.id ?? 1;
-
         logger.info(
             `Seeding load data: ${visitorCount} visitors between ${startDate.toISOString()} and ${endDate.toISOString()}`
         );
 
-        const visitors: Array<{ cedula: string; first_name: string; last_name: string; company: string; email: string; phone: string; tenantId: number }> = [];
+        const visitors: Array<{ cedula: string; first_name: string; last_name: string; company: string; email: string; phone: string }> = [];
         for (let i = 1; i <= visitorCount; i++) {
             const cedula = (10000000 + i).toString().padStart(8, '0');
             visitors.push({
@@ -439,13 +412,12 @@ export const seedLoad = async (options: SeedLoadOptions) => {
                 last_name: lastNames[Math.floor(Math.random() * lastNames.length)],
                 company: companies[Math.floor(Math.random() * companies.length)],
                 email: `visitor${i}@example.com`,
-                phone: `+5841${Math.floor(1000000 + Math.random() * 9000000)}`,
-                tenantId
+                phone: `+5841${Math.floor(1000000 + Math.random() * 9000000)}`
             });
         }
 
         for (const v of visitors) {
-            const exists = await VisitorModel.findOne({ where: { cedula: Encryption.hash(v.cedula), tenantId: v.tenantId } });
+            const exists = await VisitorModel.findByPk(Encryption.hash(v.cedula));
             if (!exists) {
                 await VisitorModel.create(v);
             }
@@ -459,7 +431,6 @@ export const seedLoad = async (options: SeedLoadOptions) => {
             check_in_time: Date;
             check_out_time: Date | null;
             status: 'active' | 'completed';
-            tenantId: number;
         }>;
 
         const activeWindowStart = new Date(Math.max(startDate.getTime(), endDate.getTime() - 24 * 3600000));
@@ -481,8 +452,7 @@ export const seedLoad = async (options: SeedLoadOptions) => {
                 person_to_visit: 'Admin User',
                 check_in_time: checkIn,
                 check_out_time: isActive ? null : checkOut,
-                status: isActive ? 'active' : 'completed',
-                tenantId
+                status: isActive ? 'active' : 'completed'
             });
         }
 
@@ -502,10 +472,6 @@ const DEFAULT_AVATAR_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lE
 export const seedComprehensive = async () => {
     try {
         await ensureBaseUsers();
-
-        // Get default tenant for tenant-scoped records
-        const defaultTenant = await Tenant.findOne({ where: { slug: 'default' } });
-        const tenantId = defaultTenant?.id ?? 1;
 
         // 1. Generate 150 visitors with photo
         logger.info('Creating 150 visitors with photos...');
@@ -528,12 +494,11 @@ export const seedComprehensive = async () => {
                 job_title: jobTitles[Math.floor(Math.random() * jobTitles.length)],
                 email: `visitor${i}@example.com`,
                 phone: `+5841${Math.floor(1000000 + Math.random() * 9000000)}`,
-                photo_data: photoBuffer,
-                tenantId
+                photo_data: photoBuffer
             };
             visitors.push(visitorData);
             
-            const exists = await VisitorModel.findOne({ where: { cedula: Encryption.hash(visitorData.cedula), tenantId } });
+            const exists = await VisitorModel.findByPk(Encryption.hash(visitorData.cedula));
             if (!exists) {
                 await VisitorModel.create(visitorData);
             }
@@ -559,8 +524,7 @@ export const seedComprehensive = async () => {
                 notes: 'Visita finalizada (Seed)',
                 area: areas[Math.floor(Math.random() * areas.length)],
                 action: actions[Math.floor(Math.random() * actions.length)],
-                department: departments[Math.floor(Math.random() * departments.length)],
-                tenantId
+                department: departments[Math.floor(Math.random() * departments.length)]
             });
         }
 
@@ -579,8 +543,7 @@ export const seedComprehensive = async () => {
                 notes: 'Visita activa adentro (Seed)',
                 area: areas[Math.floor(Math.random() * areas.length)],
                 action: actions[Math.floor(Math.random() * actions.length)],
-                department: departments[Math.floor(Math.random() * departments.length)],
-                tenantId
+                department: departments[Math.floor(Math.random() * departments.length)]
             });
         }
 
@@ -599,8 +562,7 @@ export const seedComprehensive = async () => {
                 notes: 'Salida temporal registrada (Seed)',
                 area: areas[Math.floor(Math.random() * areas.length)],
                 action: actions[Math.floor(Math.random() * actions.length)],
-                department: departments[Math.floor(Math.random() * departments.length)],
-                tenantId
+                department: departments[Math.floor(Math.random() * departments.length)]
             };
 
             const createdVisit = await VisitModel.create(visitData);
@@ -611,8 +573,7 @@ export const seedComprehensive = async () => {
                 check_out: new Date(now.getTime() - (Math.floor(Math.random() * 60) + 10) * 60000), // exited 10-70 mins ago
                 re_entry: null,
                 notes: 'Salió a comprar comida',
-                registered_by: 'operador',
-                tenantId
+                registered_by: 'operador'
             } as any);
         }
 
@@ -631,8 +592,7 @@ export const seedComprehensive = async () => {
                 notes: 'Esperando pase (Seed)',
                 area: areas[Math.floor(Math.random() * areas.length)],
                 action: actions[Math.floor(Math.random() * actions.length)],
-                department: departments[Math.floor(Math.random() * departments.length)],
-                tenantId
+                department: departments[Math.floor(Math.random() * departments.length)]
             });
         }
 

@@ -1,10 +1,11 @@
 packages:
-  - 'apps/*'
-  - 'packages/*'
+  - 'client'
   - 'server'
+
 allowBuilds:
-  '@scarf/scarf': false
-  core-js: true
-  esbuild: true
-  sharp: true
-  unrs-resolver: true
+  '@scarf/scarf': set this to true or false
+
+onlyBuiltDependencies:
+  - esbuild
+  - core-js
+  - '@scarf/scarf'

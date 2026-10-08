@@ -1,131 +1,418 @@
-import { IVisitorRepository } from '../visits/domain/repositories/IVisitorRepository';
-import { IVisitRepository } from '../visits/domain/repositories/IVisitRepository';
-import { IBackupService } from '../billing/domain/services/IBackupService';
-import { IUserRepository } from '../identity/domain/repositories/IUserRepository';
-import { IAuthService } from '../identity/domain/services/IAuthService';
-import { IEmailService } from '../identity/domain/services/IEmailService';
-import { PasswordPolicy } from '../identity/domain/services/PasswordPolicy';
-import { IIntermittentLogRepository } from '../visits/domain/repositories/IIntermittentLogRepository';
-import { IAuditLogRepository } from '../audit/domain/repositories/IAuditLogRepository';
-import { ITokenBlacklist } from '../identity/domain/services/ITokenBlacklist';
-import { IEventEmitter } from './domain/services/IEventEmitter';
-import { IArcoRequestRepository } from '../audit/domain/repositories/IArcoRequestRepository';
-import { IVisitorEditHistoryRepository } from '../visits/domain/repositories/IVisitorEditHistoryRepository';
-import { ITenantRepository } from '../identity/domain/repositories/ITenantRepository';
-import { ITenantUserRepository } from '../identity/domain/repositories/ITenantUserRepository';
-import { CheckInVisitorUseCase } from '../visits/application/usecases/CheckInVisitor.usecase';
-import { GoIntermittentUseCase } from '../visits/application/usecases/GoIntermittent.usecase';
-import { ReactivateVisitUseCase } from '../visits/application/usecases/ReactivateVisit.usecase';
-import { GetIntermittentVisitsUseCase } from '../visits/application/usecases/GetIntermittentVisits.usecase';
-import { UpdateVisitorUseCase } from '../visits/application/usecases/UpdateVisitor.usecase';
-import { GetAllVisitorsUseCase } from '../visits/application/usecases/GetAllVisitors.usecase';
-import { CheckOutVisitorUseCase } from '../visits/application/usecases/CheckOutVisitor.usecase';
-import { AdmitVisitorUseCase } from '../visits/application/usecases/AdmitVisitor.usecase';
-import { GetActiveVisitsUseCase } from '../visits/application/usecases/GetActiveVisits.usecase';
-import { GetWaitingVisitsUseCase } from '../visits/application/usecases/GetWaitingVisits.usecase';
-import { GetVisitStatsUseCase } from '../visits/application/usecases/GetVisitStats.usecase';
-import { GetVisitorByCedulaUseCase } from '../visits/application/usecases/GetVisitorByCedula.usecase';
-import { GetCompaniesUseCase } from '../visits/application/usecases/GetCompanies.usecase';
-import { GetVisitsUseCase } from '../visits/application/usecases/GetVisits.usecase';
-import { GetMonthlyReportUseCase } from '../visits/application/usecases/GetMonthlyReport.usecase';
-import { GetMissedCheckoutsUseCase } from '../visits/application/usecases/GetMissedCheckouts.usecase';
-import { GetComparisonStatsUseCase } from '../visits/application/usecases/GetComparisonStats.usecase';
-import { CreateBackupUseCase } from '../billing/application/usecases/CreateBackup.usecase';
-import { ListBackupsUseCase } from '../billing/application/usecases/ListBackups.usecase';
-import { LoginUseCase } from '../identity/application/usecases/auth/Login.usecase';
-import { ForgotPasswordUseCase } from '../identity/application/usecases/auth/ForgotPassword.usecase';
-import { ResetPasswordUseCase } from '../identity/application/usecases/auth/ResetPassword.usecase';
-import { RefreshTokenUseCase } from '../identity/application/usecases/auth/RefreshToken.usecase';
-import { ChangePasswordUseCase } from '../identity/application/usecases/auth/ChangePassword.usecase';
-import { CreateDemoTenantUseCase } from '../identity/application/usecases/auth/CreateDemoTenant.usecase';
-import { IntermittentExitUseCase } from '../visits/application/usecases/IntermittentExit.usecase';
-import { IntermittentReEntryUseCase } from '../visits/application/usecases/IntermittentReEntry.usecase';
-import { GetAuditLogsUseCase } from '../identity/application/usecases/superadmin/GetAuditLogs.usecase';
-import { CreateUserUseCase } from '../identity/application/usecases/superadmin/CreateUser.usecase';
-import { UpdateUserUseCase } from '../identity/application/usecases/superadmin/UpdateUser.usecase';
-import { DeleteUserUseCase } from '../identity/application/usecases/superadmin/DeleteUser.usecase';
-import { ListUsersUseCase } from '../identity/application/usecases/superadmin/ListUsers.usecase';
-import { ResetUserPasswordUseCase } from '../identity/application/usecases/superadmin/ResetUserPassword.usecase';
-import { CreateArcoRequestUseCase } from '../audit/application/usecases/privacy/CreateArcoRequest.usecase';
-import { ListArcoRequestsUseCase } from '../audit/application/usecases/privacy/ListArcoRequests.usecase';
-import { UpdateArcoRequestStatusUseCase } from '../audit/application/usecases/privacy/UpdateArcoRequestStatus.usecase';
-import { AccessSubjectDataUseCase } from '../audit/application/usecases/privacy/AccessSubjectData.usecase';
-import { RectifySubjectDataUseCase } from '../audit/application/usecases/privacy/RectifySubjectData.usecase';
-import { CancelSubjectDataUseCase } from '../audit/application/usecases/privacy/CancelSubjectData.usecase';
-import { CreateOppositionRequestUseCase } from '../audit/application/usecases/privacy/CreateOppositionRequest.usecase';
-import { UsageCounterService } from '../identity/application/services/UsageCounterService';
-import { diContainer } from './diRegistration';
+import { IVisitorRepository } from '../domain/repositories/IVisitorRepository';
+import { IVisitRepository } from '../domain/repositories/IVisitRepository';
+import { SequelizeVisitorRepository } from '../infrastructure/database/repositories/SequelizeVisitorRepository';
+import { SequelizeVisitRepository } from '../infrastructure/database/repositories/SequelizeVisitRepository';
+import { PostgresBackupService } from '../infrastructure/services/PostgresBackupService';
+import { IBackupService } from '../domain/services/IBackupService';
+import { IUserRepository } from '../domain/repositories/IUserRepository';
+import { IAuthService } from '../domain/services/IAuthService';
+import { IEmailService } from '../domain/services/IEmailService';
+import { SequelizeUserRepository } from '../infrastructure/database/repositories/SequelizeUserRepository';
+import { JwtAuthService } from '../infrastructure/services/JwtAuthService';
+import { PasswordPolicy } from '../domain/services/PasswordPolicy';
+import { EmailService } from '../infrastructure/services/EmailService';
+import { IIntermittentLogRepository } from '../domain/repositories/IIntermittentLogRepository';
+import { SequelizeIntermittentLogRepository } from '../infrastructure/database/repositories/SequelizeIntermittentLogRepository';
+import { IAuditLogRepository } from '../domain/repositories/IAuditLogRepository';
+import { SequelizeAuditLogRepository } from '../infrastructure/database/repositories/SequelizeAuditLogRepository';
+import { ITokenBlacklist } from '../domain/services/ITokenBlacklist';
+import { tokenBlacklist } from '../infrastructure/services/TokenBlacklist';
+import { IEventEmitter } from '../domain/services/IEventEmitter';
+import { eventEmitterService } from '../infrastructure/services/EventEmitterService';
+import { IArcoRequestRepository } from '../domain/repositories/IArcoRequestRepository';
+import { SequelizeArcoRequestRepository } from '../infrastructure/database/repositories/SequelizeArcoRequestRepository';
+import { IVisitorEditHistoryRepository } from '../domain/repositories/IVisitorEditHistoryRepository';
+import { SequelizeVisitorEditHistoryRepository } from '../infrastructure/database/repositories/SequelizeVisitorEditHistoryRepository';
+import { CheckInVisitorUseCase } from '../application/usecases/CheckInVisitor.usecase';
+import { GoIntermittentUseCase } from '../application/usecases/GoIntermittent.usecase';
+import { ReactivateVisitUseCase } from '../application/usecases/ReactivateVisit.usecase';
+import { GetIntermittentVisitsUseCase } from '../application/usecases/GetIntermittentVisits.usecase';
+import { UpdateVisitorUseCase } from '../application/usecases/UpdateVisitor.usecase';
+import { GetAllVisitorsUseCase } from '../application/usecases/GetAllVisitors.usecase';
+import { CheckOutVisitorUseCase } from '../application/usecases/CheckOutVisitor.usecase';
+import { AdmitVisitorUseCase } from '../application/usecases/AdmitVisitor.usecase';
+import { GetActiveVisitsUseCase } from '../application/usecases/GetActiveVisits.usecase';
+import { GetWaitingVisitsUseCase } from '../application/usecases/GetWaitingVisits.usecase';
+import { GetVisitStatsUseCase } from '../application/usecases/GetVisitStats.usecase';
+import { GetVisitorByCedulaUseCase } from '../application/usecases/GetVisitorByCedula.usecase';
+import { GetCompaniesUseCase } from '../application/usecases/GetCompanies.usecase';
+import { GetVisitsUseCase } from '../application/usecases/GetVisits.usecase';
+import { GetMonthlyReportUseCase } from '../application/usecases/GetMonthlyReport.usecase';
+import { GetMissedCheckoutsUseCase } from '../application/usecases/GetMissedCheckouts.usecase';
+import { GetComparisonStatsUseCase } from '../application/usecases/GetComparisonStats.usecase';
+import { CreateBackupUseCase } from '../application/usecases/CreateBackup.usecase';
+import { ListBackupsUseCase } from '../application/usecases/ListBackups.usecase';
+import { LoginUseCase } from '../application/usecases/auth/Login.usecase';
+import { ForgotPasswordUseCase } from '../application/usecases/auth/ForgotPassword.usecase';
+import { ResetPasswordUseCase } from '../application/usecases/auth/ResetPassword.usecase';
+import { RefreshTokenUseCase } from '../application/usecases/auth/RefreshToken.usecase';
+import { ChangePasswordUseCase } from '../application/usecases/auth/ChangePassword.usecase';
+import { IntermittentExitUseCase } from '../application/usecases/IntermittentExit.usecase';
+import { IntermittentReEntryUseCase } from '../application/usecases/IntermittentReEntry.usecase';
+import { GetAuditLogsUseCase } from '../application/usecases/superadmin/GetAuditLogs.usecase';
+import { CreateUserUseCase } from '../application/usecases/superadmin/CreateUser.usecase';
+import { UpdateUserUseCase } from '../application/usecases/superadmin/UpdateUser.usecase';
+import { DeleteUserUseCase } from '../application/usecases/superadmin/DeleteUser.usecase';
+import { ListUsersUseCase } from '../application/usecases/superadmin/ListUsers.usecase';
+import { ResetUserPasswordUseCase } from '../application/usecases/superadmin/ResetUserPassword.usecase';
+import { CreateArcoRequestUseCase } from '../application/usecases/privacy/CreateArcoRequest.usecase';
+import { ListArcoRequestsUseCase } from '../application/usecases/privacy/ListArcoRequests.usecase';
+import { UpdateArcoRequestStatusUseCase } from '../application/usecases/privacy/UpdateArcoRequestStatus.usecase';
+import { AccessSubjectDataUseCase } from '../application/usecases/privacy/AccessSubjectData.usecase';
+import { RectifySubjectDataUseCase } from '../application/usecases/privacy/RectifySubjectData.usecase';
+import { CancelSubjectDataUseCase } from '../application/usecases/privacy/CancelSubjectData.usecase';
+import { CreateOppositionRequestUseCase } from '../application/usecases/privacy/CreateOppositionRequest.usecase';
 
 /**
- * Thin facade over tsyringe.
- *
- * Getters resolve singletons from tsyringe (already cached by tsyringe's
- * `registerSingleton` — no local caching needed). `create*UseCase` factories
- * build transient instances with explicit dep wiring.
- *
- * Callers can also use `diContainer.resolve<T>('Token')` directly.
+ * Simple Dependency Injection Container
+ * Manages creation and lifecycle of dependencies
  */
-export const container = {
-  // Repositories (tsyringe singletons)
-  get visitorRepository() { return diContainer.resolve<IVisitorRepository>('IVisitorRepository'); },
-  get visitRepository() { return diContainer.resolve<IVisitRepository>('IVisitRepository'); },
-  get intermittentLogRepository() { return diContainer.resolve<IIntermittentLogRepository>('IIntermittentLogRepository'); },
-  get userRepository() { return diContainer.resolve<IUserRepository>('IUserRepository'); },
-  get auditLogRepository() { return diContainer.resolve<IAuditLogRepository>('IAuditLogRepository'); },
-  get arcoRequestRepository() { return diContainer.resolve<IArcoRequestRepository>('IArcoRequestRepository'); },
-  get visitorEditHistoryRepository() { return diContainer.resolve<IVisitorEditHistoryRepository>('IVisitorEditHistoryRepository'); },
-  get tenantRepository() { return diContainer.resolve<ITenantRepository>('ITenantRepository'); },
-  get tenantUserRepository() { return diContainer.resolve<ITenantUserRepository>('ITenantUserRepository'); },
+class Container {
+  private static instance: Container;
 
-  // Services (tsyringe singletons)
-  get backupService() { return diContainer.resolve<IBackupService>('IBackupService'); },
-  get authService() { return diContainer.resolve<IAuthService>('IAuthService'); },
-  get passwordPolicy() { return diContainer.resolve<PasswordPolicy>('PasswordPolicy'); },
-  get emailService() { return diContainer.resolve<IEmailService>('IEmailService'); },
-  get tokenBlacklist() { return diContainer.resolve<ITokenBlacklist>('ITokenBlacklist'); },
-  get eventEmitter() { return diContainer.resolve<IEventEmitter>('IEventEmitter'); },
-  get usageCounterService() { return diContainer.resolve<UsageCounterService>('UsageCounterService'); },
+  // Repositories (singletons)
+  private _visitorRepository?: IVisitorRepository;
+  private _visitRepository?: IVisitRepository;
+  private _intermittentLogRepository?: IIntermittentLogRepository;
+  private _userRepository?: IUserRepository;
+  private _auditLogRepository?: IAuditLogRepository;
+  private _arcoRequestRepository?: IArcoRequestRepository;
+  private _visitorEditHistoryRepository?: IVisitorEditHistoryRepository;
+  // Services
+  private _backupService?: IBackupService;
+  private _authService?: IAuthService;
+  private _passwordPolicy?: PasswordPolicy;
+  private _emailService?: IEmailService;
+  private _tokenBlacklist?: ITokenBlacklist;
+  private _eventEmitter?: IEventEmitter;
 
-  // Use-case factories (transient — one instance per call)
-  get updateVisitorUseCase() { return new UpdateVisitorUseCase(this.visitorRepository, this.visitorEditHistoryRepository); },
-  get getAllVisitorsUseCase() { return new GetAllVisitorsUseCase(this.visitorRepository); },
+  private constructor() { }
 
-  createCheckInVisitorUseCase() { return new CheckInVisitorUseCase(this.visitorRepository, this.visitRepository); },
-  createCheckOutVisitorUseCase() { return new CheckOutVisitorUseCase(this.visitRepository); },
-  createAdmitVisitorUseCase() { return new AdmitVisitorUseCase(this.visitRepository); },
-  createGetActiveVisitsUseCase() { return new GetActiveVisitsUseCase(this.visitRepository, this.visitorRepository); },
-  createGetWaitingVisitsUseCase() { return new GetWaitingVisitsUseCase(this.visitRepository); },
-  createGetVisitStatsUseCase() { return new GetVisitStatsUseCase(this.visitRepository); },
-  createGetVisitorByCedulaUseCase() { return new GetVisitorByCedulaUseCase(this.visitorRepository); },
-  createGetCompaniesUseCase() { return new GetCompaniesUseCase(this.visitorRepository); },
-  createGetVisitsUseCase() { return new GetVisitsUseCase(this.visitRepository); },
-  createGetMonthlyReportUseCase() { return new GetMonthlyReportUseCase(this.visitRepository); },
-  createGetMissedCheckoutsUseCase() { return new GetMissedCheckoutsUseCase(this.visitRepository); },
-  createGetComparisonStatsUseCase() { return new GetComparisonStatsUseCase(this.visitRepository); },
-  createCreateBackupUseCase() { return new CreateBackupUseCase(this.backupService); },
-  createGoIntermittentUseCase() { return new GoIntermittentUseCase(this.visitRepository, this.intermittentLogRepository); },
-  createReactivateVisitUseCase() { return new ReactivateVisitUseCase(this.visitRepository, this.intermittentLogRepository); },
-  createListBackupsUseCase() { return new ListBackupsUseCase(this.backupService); },
-  createLoginUseCase() { return new LoginUseCase(this.userRepository, this.authService, this.auditLogRepository, this.tenantUserRepository); },
-  createForgotPasswordUseCase() { return new ForgotPasswordUseCase(this.userRepository, this.authService, this.emailService); },
-  createResetPasswordUseCase() { return new ResetPasswordUseCase(this.userRepository, this.authService, this.passwordPolicy, this.emailService); },
-  createRefreshTokenUseCase() { return new RefreshTokenUseCase(this.authService, this.userRepository, this.tenantUserRepository); },
-  createChangePasswordUseCase() { return new ChangePasswordUseCase(this.userRepository, this.authService, this.passwordPolicy, this.emailService); },
-  createCreateDemoTenantUseCase() { return new CreateDemoTenantUseCase(this.tenantRepository, this.tenantUserRepository, this.userRepository, this.visitorRepository, this.visitRepository, this.authService); },
-  createIntermittentExitUseCase() { return new IntermittentExitUseCase(this.visitRepository, this.intermittentLogRepository); },
-  createIntermittentReEntryUseCase() { return new IntermittentReEntryUseCase(this.visitRepository, this.intermittentLogRepository); },
-  createGetIntermittentVisitsUseCase() { return new GetIntermittentVisitsUseCase(this.visitRepository, this.visitorRepository, this.intermittentLogRepository); },
-  createGetAuditLogsUseCase() { return new GetAuditLogsUseCase(this.auditLogRepository); },
-  createCreateUserUseCase() { return new CreateUserUseCase(this.userRepository, this.authService); },
-  createUpdateUserUseCase() { return new UpdateUserUseCase(this.userRepository); },
-  createDeleteUserUseCase() { return new DeleteUserUseCase(this.userRepository); },
-  createListUsersUseCase() { return new ListUsersUseCase(this.userRepository); },
-  createResetUserPasswordUseCase() { return new ResetUserPasswordUseCase(this.userRepository, this.authService); },
-  createCreateArcoRequestUseCase() { return new CreateArcoRequestUseCase(this.arcoRequestRepository, this.auditLogRepository); },
-  createListArcoRequestsUseCase() { return new ListArcoRequestsUseCase(this.arcoRequestRepository); },
-  createUpdateArcoRequestStatusUseCase() { return new UpdateArcoRequestStatusUseCase(this.arcoRequestRepository, this.auditLogRepository); },
-  createAccessSubjectDataUseCase() { return new AccessSubjectDataUseCase(this.visitorRepository, this.visitRepository, this.auditLogRepository); },
-  createRectifySubjectDataUseCase() { return new RectifySubjectDataUseCase(this.visitorRepository, this.auditLogRepository); },
-  createCancelSubjectDataUseCase() { return new CancelSubjectDataUseCase(this.visitorRepository, this.arcoRequestRepository, this.auditLogRepository); },
-  createCreateOppositionRequestUseCase() { return new CreateOppositionRequestUseCase(this.arcoRequestRepository, this.auditLogRepository); },
-};
+  static getInstance(): Container {
+    if (!Container.instance) {
+      Container.instance = new Container();
+    }
+    return Container.instance;
+  }
+
+  // Repository instances
+  get visitorRepository(): IVisitorRepository {
+    if (!this._visitorRepository) {
+      this._visitorRepository = new SequelizeVisitorRepository();
+    }
+    return this._visitorRepository;
+  }
+
+  get visitRepository(): IVisitRepository {
+    if (!this._visitRepository) {
+      this._visitRepository = new SequelizeVisitRepository();
+    }
+    return this._visitRepository;
+  }
+
+  get intermittentLogRepository(): IIntermittentLogRepository {
+    if (!this._intermittentLogRepository) {
+      this._intermittentLogRepository = new SequelizeIntermittentLogRepository();
+    }
+    return this._intermittentLogRepository;
+  }
+
+  get userRepository(): IUserRepository {
+    if (!this._userRepository) {
+      this._userRepository = new SequelizeUserRepository();
+    }
+    return this._userRepository;
+  }
+
+  get auditLogRepository(): IAuditLogRepository {
+    if (!this._auditLogRepository) {
+      this._auditLogRepository = new SequelizeAuditLogRepository();
+    }
+    return this._auditLogRepository;
+  }
+
+  get arcoRequestRepository(): IArcoRequestRepository {
+    if (!this._arcoRequestRepository) {
+      this._arcoRequestRepository = new SequelizeArcoRequestRepository();
+    }
+    return this._arcoRequestRepository;
+  }
+
+  get visitorEditHistoryRepository(): IVisitorEditHistoryRepository {
+    if (!this._visitorEditHistoryRepository) {
+      this._visitorEditHistoryRepository = new SequelizeVisitorEditHistoryRepository();
+    }
+    return this._visitorEditHistoryRepository;
+  }
+
+  get backupService(): IBackupService {
+    if (!this._backupService) {
+      this._backupService = new PostgresBackupService();
+    }
+    return this._backupService;
+  }
+
+  // New use cases
+  get updateVisitorUseCase(): UpdateVisitorUseCase {
+    return new UpdateVisitorUseCase(this.visitorRepository, this.visitorEditHistoryRepository);
+  }
+
+  get getAllVisitorsUseCase(): GetAllVisitorsUseCase {
+    return new GetAllVisitorsUseCase(this.visitorRepository);
+  }
+
+  get authService(): IAuthService {
+    if (!this._authService) {
+      this._authService = new JwtAuthService();
+    }
+    return this._authService;
+  }
+
+  get passwordPolicy(): PasswordPolicy {
+    if (!this._passwordPolicy) {
+      this._passwordPolicy = new PasswordPolicy();
+    }
+    return this._passwordPolicy;
+  }
+
+  get emailService(): IEmailService {
+    if (!this._emailService) {
+      this._emailService = new EmailService();
+    }
+    return this._emailService;
+  }
+
+  get tokenBlacklist(): ITokenBlacklist {
+    if (!this._tokenBlacklist) {
+      this._tokenBlacklist = tokenBlacklist;
+    }
+    return this._tokenBlacklist;
+  }
+
+  get eventEmitter(): IEventEmitter {
+    if (!this._eventEmitter) {
+      this._eventEmitter = eventEmitterService;
+    }
+    return this._eventEmitter;
+  }
+
+  // Use case factories (new instance each time)
+  createCheckInVisitorUseCase(): CheckInVisitorUseCase {
+    return new CheckInVisitorUseCase(
+      this.visitorRepository,
+      this.visitRepository
+    );
+  }
+
+  createCheckOutVisitorUseCase(): CheckOutVisitorUseCase {
+    return new CheckOutVisitorUseCase(
+      this.visitRepository
+    );
+  }
+
+  createAdmitVisitorUseCase(): AdmitVisitorUseCase {
+    return new AdmitVisitorUseCase(
+      this.visitRepository
+    );
+  }
+
+  createGetActiveVisitsUseCase(): GetActiveVisitsUseCase {
+    return new GetActiveVisitsUseCase(
+      this.visitRepository,
+      this.visitorRepository
+    );
+  }
+
+  createGetWaitingVisitsUseCase(): GetWaitingVisitsUseCase {
+    return new GetWaitingVisitsUseCase(
+      this.visitRepository
+    );
+  }
+
+  createGetVisitStatsUseCase(): GetVisitStatsUseCase {
+    return new GetVisitStatsUseCase(
+      this.visitRepository
+    );
+  }
+
+  createGetVisitorByCedulaUseCase(): GetVisitorByCedulaUseCase {
+    return new GetVisitorByCedulaUseCase(
+      this.visitorRepository
+    );
+  }
+
+  createGetCompaniesUseCase(): GetCompaniesUseCase {
+    return new GetCompaniesUseCase(
+      this.visitorRepository
+    );
+  }
+
+  createGetVisitsUseCase(): GetVisitsUseCase {
+    return new GetVisitsUseCase(
+      this.visitRepository
+    );
+  }
+
+  createGetMonthlyReportUseCase(): GetMonthlyReportUseCase {
+    return new GetMonthlyReportUseCase(
+      this.visitRepository
+    );
+  }
+
+  createGetMissedCheckoutsUseCase(): GetMissedCheckoutsUseCase {
+    return new GetMissedCheckoutsUseCase(
+      this.visitRepository
+    );
+  }
+
+  createGetComparisonStatsUseCase(): GetComparisonStatsUseCase {
+    return new GetComparisonStatsUseCase(
+      this.visitRepository
+    );
+  }
+
+  createCreateBackupUseCase(): CreateBackupUseCase {
+    return new CreateBackupUseCase(
+      this.backupService
+    );
+  }
+
+  createGoIntermittentUseCase(): GoIntermittentUseCase {
+    return new GoIntermittentUseCase(
+      this.visitRepository,
+      this.intermittentLogRepository
+    );
+  }
+
+  createReactivateVisitUseCase(): ReactivateVisitUseCase {
+    return new ReactivateVisitUseCase(
+      this.visitRepository,
+      this.intermittentLogRepository
+    );
+  }
+
+  createListBackupsUseCase(): ListBackupsUseCase {
+    return new ListBackupsUseCase(
+      this.backupService
+    );
+  }
+
+  createLoginUseCase(): LoginUseCase {
+    return new LoginUseCase(
+      this.userRepository,
+      this.authService,
+      this.auditLogRepository
+    );
+  }
+
+  createForgotPasswordUseCase(): ForgotPasswordUseCase {
+    return new ForgotPasswordUseCase(
+      this.userRepository,
+      this.authService,
+      this.emailService
+    );
+  }
+
+  createResetPasswordUseCase(): ResetPasswordUseCase {
+    return new ResetPasswordUseCase(
+      this.userRepository,
+      this.authService,
+      this.passwordPolicy,
+      this.emailService
+    );
+  }
+
+  createRefreshTokenUseCase(): RefreshTokenUseCase {
+    return new RefreshTokenUseCase(
+      this.authService,
+      this.userRepository
+    );
+  }
+
+  createChangePasswordUseCase(): ChangePasswordUseCase {
+    return new ChangePasswordUseCase(
+      this.userRepository,
+      this.authService,
+      this.passwordPolicy,
+      this.emailService
+    );
+  }
+
+  createIntermittentExitUseCase(): IntermittentExitUseCase {
+    return new IntermittentExitUseCase(
+      this.visitRepository,
+      this.intermittentLogRepository
+    );
+  }
+
+  createIntermittentReEntryUseCase(): IntermittentReEntryUseCase {
+    return new IntermittentReEntryUseCase(
+      this.visitRepository,
+      this.intermittentLogRepository
+    );
+  }
+
+  createGetIntermittentVisitsUseCase(): GetIntermittentVisitsUseCase {
+    return new GetIntermittentVisitsUseCase(
+      this.visitRepository,
+      this.visitorRepository,
+      this.intermittentLogRepository
+    );
+  }
+
+  createGetAuditLogsUseCase(): GetAuditLogsUseCase {
+    return new GetAuditLogsUseCase(this.auditLogRepository);
+  }
+
+  // SuperAdmin use cases
+  createCreateUserUseCase(): CreateUserUseCase {
+    return new CreateUserUseCase(this.userRepository, this.authService);
+  }
+
+  createUpdateUserUseCase(): UpdateUserUseCase {
+    return new UpdateUserUseCase(this.userRepository);
+  }
+
+  createDeleteUserUseCase(): DeleteUserUseCase {
+    return new DeleteUserUseCase(this.userRepository);
+  }
+
+  createListUsersUseCase(): ListUsersUseCase {
+    return new ListUsersUseCase(this.userRepository);
+  }
+
+  createResetUserPasswordUseCase(): ResetUserPasswordUseCase {
+    return new ResetUserPasswordUseCase(this.userRepository, this.authService);
+  }
+
+  // Privacy use cases
+  createCreateArcoRequestUseCase(): CreateArcoRequestUseCase {
+    return new CreateArcoRequestUseCase(this.arcoRequestRepository, this.auditLogRepository);
+  }
+
+  createListArcoRequestsUseCase(): ListArcoRequestsUseCase {
+    return new ListArcoRequestsUseCase(this.arcoRequestRepository);
+  }
+
+  createUpdateArcoRequestStatusUseCase(): UpdateArcoRequestStatusUseCase {
+    return new UpdateArcoRequestStatusUseCase(this.arcoRequestRepository, this.auditLogRepository);
+  }
+
+  createAccessSubjectDataUseCase(): AccessSubjectDataUseCase {
+    return new AccessSubjectDataUseCase(this.visitorRepository, this.visitRepository, this.auditLogRepository);
+  }
+
+  createRectifySubjectDataUseCase(): RectifySubjectDataUseCase {
+    return new RectifySubjectDataUseCase(this.visitorRepository, this.auditLogRepository);
+  }
+
+  createCancelSubjectDataUseCase(): CancelSubjectDataUseCase {
+    return new CancelSubjectDataUseCase(this.visitorRepository, this.arcoRequestRepository, this.auditLogRepository);
+  }
+
+  createCreateOppositionRequestUseCase(): CreateOppositionRequestUseCase {
+    return new CreateOppositionRequestUseCase(this.arcoRequestRepository, this.auditLogRepository);
+  }
+}
+
+export const container = Container.getInstance();

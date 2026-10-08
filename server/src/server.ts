@@ -1,22 +1,13 @@
-// Initialize DI and metadata BEFORE importing anything that uses them
-import 'reflect-metadata';
-import { registerDependencies } from './shared/diRegistration';
-import './models/IntermittentLog';
-import './models/VisitorEditHistory';
-import './models/Tenant';
-import './models/TenantUser';
-
-// Register dependencies NOW, before app.ts imports controllers
-registerDependencies();
-
 import app from './app';
 import sequelize from './database';
 import { ensureBaseUsers } from './utils/seeder';
 import { initRetentionScheduler } from './utils/retention';
-import { initBackupScheduler } from './utils/backupScheduler';
 import logger from './config/logger';
 import path from 'path';
 import fs from 'fs';
+import './models/IntermittentLog';
+import './models/VisitorEditHistory';
+
 import config from './config/AppConfig';
 
 const PORT = config.port;
@@ -38,9 +29,8 @@ const startServer = async () => {
         // Ensure base users (root, admin, operador, auditor, demo) always exist
         await ensureBaseUsers();
 
-        // Start retention cleanup and subscription-aware tenant backups.
+        // Start daily retention cleanup (logs + photos)
         initRetentionScheduler();
-        initBackupScheduler();
 
         const server = app.listen(PORT, () => {
             logger.info(`Server running on http://localhost:${PORT}`);

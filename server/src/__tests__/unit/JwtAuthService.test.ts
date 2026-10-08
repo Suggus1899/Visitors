@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { JwtAuthService } from '../../identity/infrastructure/services/JwtAuthService';
+import { JwtAuthService } from '../../infrastructure/services/JwtAuthService';
 import jwt from 'jsonwebtoken';
 import config from '../../config/AppConfig';
 
@@ -40,8 +40,7 @@ describe('JwtAuthService', () => {
             const decoded = jwt.verify(token, config.jwtRefreshSecret) as any;
             expect(decoded.id).toBe(mockUser.id);
             expect(decoded.username).toBe(mockUser.username);
-            // Refresh tokens intentionally carry no role/tenant context
-            expect(decoded.role).toBeUndefined();
+            expect(decoded.role).toBe(mockUser.role);
         });
 
         it('should generate token pair with both tokens', () => {
@@ -130,7 +129,6 @@ describe('JwtAuthService', () => {
             const password = 'MySecureP@ssw0rd123';
             const hash = await authService.hashPassword(password);
 
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const bcrypt = require('bcryptjs');
             const rounds = bcrypt.getRounds(hash);
             expect(rounds).toBe(config.bcryptRounds);

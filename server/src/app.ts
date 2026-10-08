@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import cookieParser from "cookie-parser";
 import path from "path";
 import config from "./config/AppConfig";
 import logger from "./config/logger";
@@ -9,32 +8,25 @@ import { errorHandler } from "./middleware/error";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { apiLimiter } from "./middleware/rateLimiter";
-import { correlationId } from "./middleware/correlationId";
-// Routes
-import visitRoutes from "./visits/routes/visit.routes";
-import reportRoutes from "./audit/routes/report.routes";
-import visitorRoutes from "./visits/routes/visitor.routes";
-import backupRoutes from "./billing/routes/backup.routes";
-import authRoutes from "./identity/routes/auth.routes";
-import auditRoutes from "./audit/routes/audit.routes";
-import privacyRoutes from "./audit/routes/privacy.routes";
-import superadminRoutes from "./identity/routes/superadmin.routes";
-import platformRoutes from "./identity/routes/platform.routes";
-import eventsRoutes from "./visits/routes/events.routes";
+import { mustChangePassword } from "./middleware/mustChangePassword";
+// Clean Architecture routes
+import visitCleanRoutes from "./routes/visit-clean.routes";
+import reportCleanRoutes from "./routes/report-clean.routes";
+import visitorCleanRoutes from "./routes/visitor-clean.routes";
+import backupCleanRoutes from "./routes/backup-clean.routes";
+import authCleanRoutes from "./routes/auth-clean.routes";
+import auditCleanRoutes from "./routes/audit-clean.routes";
+import privacyCleanRoutes from "./routes/privacy-clean.routes";
+import superadminRoutes from "./routes/superadmin.routes";
+import eventsRoutes from "./routes/events.routes";
 import healthRoutes from "./routes/health.routes";
-import tenantFeaturesRoutes from "./visits/routes/tenant-features.routes";
 import { captureClientInfo } from "./middleware/ipCapture";
 import { firewall } from "./middleware/firewall";
-import { sanitizeRequest } from "./middleware/sanitize";
 
 const app = express();
 
 // Application-level firewall (IP blocking, attack pattern detection)
 app.use(firewall);
-
-// Correlation ID — must run before any handler that can log, so every
-// log line within a request carries the same x-request-id.
-app.use(correlationId);
 
 // Enhanced security headers via helmet
 app.use(
@@ -78,10 +70,6 @@ app.use(
 const getAllowedOrigins = (): string[] => {
   const origins = [
     "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://localhost:5176",
-    "http://localhost:5177",
     "http://localhost:3000",
     "http://localhost:80",
     "https://localhost:443",
@@ -110,15 +98,9 @@ const allowedOrigins = getAllowedOrigins();
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Security: do NOT allow null/empty origins. Previously this returned
-      // success for missing Origin, which opened the door to sandboxed
-      // iframes (sandbox attribute), `file://` and `data:` URLs that emit
-      // a null Origin header. With `credentials: true` that is a real
-      // cross-origin read risk. Server-to-server and curl clients should
-      // send an explicit Origin or use the Authorization header without
-      // relying on CORS at all (CORS is a browser-only mechanism).
-      if (!origin || origin === 'null') {
-        return callback(null, false);
+      // Allow requests with no origin (curl, mobile apps, server-to-server)
+      if (!origin) {
+        return callback(null, true);
       }
 
       // Check if origin is in allowed list
@@ -158,16 +140,27 @@ app.use(
 
 // T-09: Set body size limit to prevent DoS via large payloads
 app.use(express.json({ limit: "5mb" }));
-app.use(cookieParser()); // Hybrid cookie+header auth (Next.js SSR + API clients)
-// XSS sanitiser for body/query/params — defence-in-depth against stored XSS.
-// Runs after body parsing so JSON is already an object, before routes.
-app.use(sanitizeRequest);
 app.use(captureClientInfo); // Captura IP y userAgent para auditoría
 
 // Static photos directory routing removed - photos are served from DB BLOB via API endpoints
 
-app.get("/", (_req, res) => {
-  res.type("html").send('<h1>LogMaster API</h1><p>Backend running. <a href="/api-docs">API docs</a></p>');
+// Root Landing Page
+app.get("/", (req, res) => {
+  res.send(`
+    <style>
+      body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; }
+      .container { text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+      h1 { color: #1a1a1a; margin-bottom: 1rem; }
+      p { color: #4a5568; margin-bottom: 1.5rem; }
+      .btn { display: inline-block; background-color: #3182ce; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 4px; font-weight: 500; transition: background-color 0.2s; }
+      .btn:hover { background-color: #2c5282; }
+    </style>
+    <div class="container">
+      <h1>Visitor Management System API</h1>
+      <p>Backend Service is Running 🟢</p>
+      <a href="/api-docs" class="btn">Explore API Documentation (Swagger)</a>
+    </div>
+  `);
 });
 
 // Healthcheck endpoint (exempt from rate limiting)
@@ -176,41 +169,25 @@ app.use("/api/v1/health", healthRoutes);
 // Global Rate Limiting
 app.use("/api", apiLimiter);
 
-// Note: mustChangePassword now runs per-router, immediately after verifyToken
-// (inside each tenantContext array), instead of here — mounting it globally
-// at this point ran before any router had set req.user, making it a
-// permanent no-op. See visit/visitor/report/audit/privacy/tenant-features
-// routes.
+// Must Change Password Middleware (applies to all protected routes)
+app.use("/api", mustChangePassword);
 
-// T-06: Swagger Documentation — disabled in production by default.
-// In production: requires ALLOW_SWAGGER=true to be explicitly set.
-// In non-production: always enabled (dev/staging convenience).
-const swaggerEnabled = config.nodeEnv !== "production" || process.env.ALLOW_SWAGGER === "true";
-if (swaggerEnabled) {
+// T-06: Swagger Documentation — disabled in production, protected in development
+if (config.nodeEnv !== "production") {
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
 
 // Routes
-// API v1
-// eventsRoutes must be registered before visitRoutes: GET /v1/events/visits
-// would otherwise be shadowed by visitRoutes' GET /v1/:tenantSlug/visits
-// (Express matches in registration order, and "events" is a valid — if
-// nonexistent — tenant slug value for that pattern).
-app.use("/api", eventsRoutes);
-app.use("/api", tenantFeaturesRoutes);
-app.use("/api", visitRoutes);
-app.use("/api", reportRoutes);
-app.use("/api", visitorRoutes);
-app.use("/api", backupRoutes);
-app.use("/api", authRoutes);
-app.use("/api", auditRoutes);
-app.use("/api", privacyRoutes);
+// Clean Architecture API v1
+app.use("/api", visitCleanRoutes);
+app.use("/api", reportCleanRoutes);
+app.use("/api", visitorCleanRoutes);
+app.use("/api", backupCleanRoutes);
+app.use("/api", authCleanRoutes);
+app.use("/api", auditCleanRoutes);
+app.use("/api", privacyCleanRoutes);
 app.use("/api", superadminRoutes);
-
-// Platform (superadmin) API — mounted at /platform so the full paths are
-// /platform/v1/*. The platform frontend (apps/platform) targets these paths
-// directly. Each route applies verifyToken + isSuperAdmin internally.
-app.use("/platform", platformRoutes);
+app.use("/api", eventsRoutes);
 
 // Global error handler - must be last middleware
 app.use(errorHandler);

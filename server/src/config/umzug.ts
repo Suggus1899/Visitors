@@ -1,7 +1,6 @@
 import { Umzug, SequelizeStorage } from 'umzug';
 import sequelize from '../database';
 import path from 'path';
-import fs from 'fs';
 import logger from './logger';
 
 export const migrator = new Umzug({
@@ -14,6 +13,7 @@ export const migrator = new Umzug({
           name,
           up: async () => {
             if (!filePath) return;
+            const fs = require('fs');
             const sql = fs.readFileSync(filePath, 'utf8');
             const statements = sql
               .split(';')
@@ -34,6 +34,7 @@ export const migrator = new Umzug({
           },
           down: async () => {
             if (!filePath) return;
+            const fs = require('fs');
             const downPath = filePath.replace(/\.sql$/, '.down.sql');
             if (!fs.existsSync(downPath)) {
               logger.warn(`No down migration file found for ${name} (expected ${downPath})`);
@@ -59,7 +60,6 @@ export const migrator = new Umzug({
         };
       }
       
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const migration = require(filePath as string);
       return {
         name,
