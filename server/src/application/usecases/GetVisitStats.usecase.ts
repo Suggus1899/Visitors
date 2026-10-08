@@ -59,7 +59,7 @@ export class GetVisitStatsUseCase {
     // Recent Activity (Daily counts)
     const dailyCounts: Record<string, number> = {};
     visits.forEach(v => {
-      const dateStr = v.checkInTime.toISOString().split('T')[0];
+      const dateStr = v.checkInTime.toLocaleDateString('en-CA', { timeZone: 'America/Caracas' });
       dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
     });
 
