@@ -7,16 +7,10 @@ const { mockInstance, mockAuthService } = vi.hoisted(() => {
   // The axios instance must be callable (api(originalRequest) on retry) AND
   // expose interceptors.request.use / interceptors.response.use so we can
   // capture the handlers registered at module-load time.
-  const instance: any = vi.fn();
-  instance.interceptors = {
-    request: { use: vi.fn() },
-    response: { use: vi.fn() },
-  };
-  instance.get = vi.fn();
-  instance.post = vi.fn();
-  instance.put = vi.fn();
-  instance.patch = vi.fn();
-  instance.delete = vi.fn();
+  const instance = Object.assign(vi.fn(), {
+    interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
+    get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn(),
+  });
 
   const authService = {
     getAccessToken: vi.fn(),
@@ -43,17 +37,27 @@ vi.mock('axios', () => ({
 // Side-effect import: ensures the module body (interceptor registration) runs
 // even though we don't use the exported `api` directly — we drive the
 // captured interceptor handlers and the mock axios instance instead.
-import '../services/api.v1';
+import { VisitService } from '../services/api.v1';
 
 // Capture the handlers registered at module-load time.
 // NOTE: do this at top level — vi.clearAllMocks() in beforeEach wipes call
 // history, so capturing there would read `undefined`.
-const requestFulfilled: (config: any) => Promise<any> =
+const requestFulfilled: (config: { headers: Record<string, string> }) => Promise<{ headers: Record<string, string> }> =
   mockInstance.interceptors.request.use.mock.calls[0][0];
-const responseRejected: (error: any) => Promise<any> =
+const responseRejected: (error: unknown) => Promise<unknown> =
   mockInstance.interceptors.response.use.mock.calls[0][1];
 
 describe('api.v1 interceptors', () => {
+  it('maps the monthly API summary and purpose into the report card contract', async () => {
+    mockInstance.get.mockResolvedValueOnce({ data: { success: true, data: {
+      summary: { totalVisits: 3, uniqueVisitors: 2, averageDuration: 45, completionRate: 67 },
+      byReason: [{ purpose: 'Entrega', count: 3, percentage: 100 }],
+    } } });
+    expect(await VisitService.getMonthlyReport(9, 2026)).toEqual({
+      totalVisits: 3, uniqueVisitors: 2, averageDuration: 45, completionRate: 67,
+      byReason: [{ purpose: 'Entrega', reason: 'Entrega', count: 3, percentage: 100 }],
+    });
+  });
   let originalLocationDescriptor: PropertyDescriptor | undefined;
 
   beforeEach(() => {

@@ -1,11 +1,19 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { AuthContext } from './AuthContextInstance';
+import { useQueryClient } from '@tanstack/react-query';
 import AuthService from '../services/AuthService';
 import type { User } from '../types';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+    const queryClient = useQueryClient();
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const clearSession = () => { queryClient.clear(); setUser(null); localStorage.removeItem('role'); localStorage.removeItem('username'); };
+        window.addEventListener('auth:logout', clearSession);
+        return () => window.removeEventListener('auth:logout', clearSession);
+    }, [queryClient]);
 
     useEffect(() => {
         const restoreSession = async () => {

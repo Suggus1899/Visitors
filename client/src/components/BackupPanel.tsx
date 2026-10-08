@@ -1,3 +1,5 @@
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api.v1';
 import Database from 'lucide-react/dist/esm/icons/database';
@@ -132,14 +134,14 @@ const BackupPanel = () => {
                     Panel de Respaldos
                 </h3>
                 <div className="flex items-center gap-2">
-                    <button
+                    <Button
                         onClick={fetchBackups}
                         className="btn-ghost px-2.5 py-2"
                         title="Actualizar"
                     >
                         <RefreshCw size={18} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={runBackup}
                         disabled={running}
                         className="btn-tech px-4 py-2 disabled:opacity-50 w-auto flex items-center justify-center gap-2"
@@ -155,7 +157,7 @@ const BackupPanel = () => {
                                 Ejecutar Backup
                             </>
                         )}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -198,7 +200,7 @@ const BackupPanel = () => {
                                 <Lock size={14} className="inline mr-1" />
                                 Contraseña de restauración (formato: trebol-XXXX-XXXX)
                             </label>
-                            <input
+                            <Input
                                 type="text"
                                 value={restoreModal.password}
                                 onChange={(e) => setRestoreModal({ ...restoreModal, password: e.target.value })}
@@ -208,14 +210,14 @@ const BackupPanel = () => {
                         </div>
 
                         <div className="flex gap-2 justify-end">
-                            <button
+                            <Button
                                 onClick={closeRestoreModal}
                                 className="btn-ghost px-4 py-2"
                                 disabled={restoring}
                             >
                                 Cancelar
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={handleRestore}
                                 disabled={restoring || !restoreModal.password.trim()}
                                 className="btn-tech px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50"
@@ -231,7 +233,7 @@ const BackupPanel = () => {
                                         Restaurar
                                     </>
                                 )}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -264,14 +266,14 @@ const BackupPanel = () => {
                                     <div className="text-xs text-[color:var(--text-3)]">Creado: {formatDate(backup.date)}</div>
                                 </div>
                             </div>
-                            <button
+                            <Button
                                 onClick={() => openRestoreModal(backup.name)}
                                 className="btn-ghost px-3 py-1.5 text-sm flex items-center gap-1.5 hover:text-[color:var(--accent-0)]"
                                 title="Restaurar este backup"
                             >
                                 <RotateCcw size={14} />
                                 Restaurar
-                            </button>
+                            </Button>
                         </div>
                     ))}
                 </div>

@@ -32,6 +32,8 @@ export interface CheckInDto {
   area?: string;
   action?: 'Carga' | 'Descarga' | 'Ninguna';
   department?: string;
+  targetDepartment?: string;
+  hostPerson?: string;
 }
 
 /**
@@ -39,10 +41,15 @@ export interface CheckInDto {
  */
 export interface ActiveVisitDto {
   id: number;
-  visitorCedula: string;
+  visitorCedula: string | null;
   visitorName: string;
   firstName?: string;
   lastName?: string;
+  jobTitle?: string;
+  email?: string;
+  phone?: string;
+  observations?: string;
+  isBlocked?: boolean;
   company: string;
   checkInTime: string;
   purpose: string;
@@ -60,6 +67,8 @@ export interface ActiveVisitDto {
   area?: string;
   action?: string;
   department?: string;
+  targetDepartment?: string;
+  hostPerson?: string;
 }
 
 /**
@@ -90,11 +99,16 @@ export interface IntermittentVisitDto extends ActiveVisitDto {
  */
 export interface VisitResponseDto {
   id: number;
-  visitorCedula: string;
+  visitorCedula: string | null;
   visitorName?: string;
   visitorCompany?: string;
   firstName?: string;
   lastName?: string;
+  jobTitle?: string;
+  email?: string;
+  phone?: string;
+  observations?: string;
+  isBlocked?: boolean;
   checkInTime: string; // ISO string
   checkOutTime?: string; // ISO string
   purpose: string;
@@ -110,6 +124,8 @@ export interface VisitResponseDto {
   area?: string;
   action?: 'Carga' | 'Descarga' | 'Ninguna';
   department?: string;
+  targetDepartment?: string;
+  hostPerson?: string;
   // Timestamp lifecycle fields
   arrivalTime?: string;  // ISO string
   entryTime?: string;    // ISO string - cuando se admitió la entrada

@@ -14,8 +14,17 @@ router.get('/v1/events/visits', verifySseToken, (_req: Request, res: Response) =
     res.flushHeaders();
   }
 
-  const send = (event: VisitRealtimeEvent) => {
-    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  const sessionAllowed = async () => {
+    const session = _req.user!;
+    const user = await container.userRepository.findById(session.id);
+    return !!user && !user.mustChangePassword && user.tokenVersion === session.tokenVersion &&
+      !!session.exp && session.exp * 1000 > Date.now() && !container.tokenBlacklist.isBlacklisted(String(_req.query.token));
+  };
+  const send = async (event: VisitRealtimeEvent) => {
+    try {
+      if (!await sessionAllowed()) return res.end();
+      if (!res.writableEnded) res.write(`data: ${JSON.stringify(event)}\n\n`);
+    } catch { res.end(); }
   };
 
   send({
@@ -23,8 +32,11 @@ router.get('/v1/events/visits', verifySseToken, (_req: Request, res: Response) =
     timestamp: new Date().toISOString(),
   });
 
-  const heartbeat = setInterval(() => {
-    res.write(':heartbeat\n\n');
+  const heartbeat = setInterval(async () => {
+    try {
+      if (!await sessionAllowed()) return res.end();
+      if (!res.writableEnded) res.write(':heartbeat\n\n');
+    } catch { res.end(); }
   }, 25_000);
 
   const unsubscribe = container.eventEmitter.subscribeToVisitEvents((event) => {

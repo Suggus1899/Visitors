@@ -51,7 +51,7 @@ const errorFileTransport = new DailyRotateFile({
 const isProduction = config.nodeEnv === 'production';
 
 const logger = winston.createLogger({
-  level: isProduction ? 'info' : 'debug',
+  level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   format: isProduction ? prodFormat : devFormat,
   defaultMeta: { service: 'visitor-system' },
   transports: [

@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import CalendarIcon from 'lucide-react/dist/esm/icons/calendar';
@@ -33,28 +34,28 @@ const CustomCalendarToolbar = (props: ToolbarProps) => {
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-[color:var(--surface-2)] p-2 rounded-xl border border-[color:var(--border-1)]">
             {/* Left: Navigation */}
             <div className="flex items-center gap-2">
-                <button
+                <Button
                     onClick={goToCurrent}
                     className="px-4 py-1.5 text-sm font-semibold text-[color:var(--text-2)] bg-[color:var(--surface-1)] hover:bg-[color:var(--surface-2)] rounded-full transition-colors flex items-center gap-2 border border-[color:var(--border-1)]"
                 >
                     <CalendarIcon size={14} />
                     Hoy
-                </button>
+                </Button>
                 <div className="flex items-center bg-[color:var(--surface-1)] border border-[color:var(--border-1)] rounded-full p-0.5 shadow-sm ml-2">
-                    <button
+                    <Button
                         onClick={goToBack}
                         className="p-1.5 hover:bg-[color:var(--surface-2)] rounded-full text-[color:var(--text-3)] transition-colors"
                         title="Anterior"
                     >
                         <ChevronLeft size={20} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={goToNext}
                         className="p-1.5 hover:bg-[color:var(--surface-2)] rounded-full text-[color:var(--text-3)] transition-colors"
                         title="Siguiente"
                     >
                         <ChevronRight size={20} />
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -71,7 +72,7 @@ const CustomCalendarToolbar = (props: ToolbarProps) => {
                     { id: 'day' as View, label: 'Día' },
                     { id: 'agenda' as View, label: 'Agenda' }
                 ]).map((v) => (
-                    <button
+                    <Button
                         key={v.id}
                         onClick={() => goToView(v.id)}
                         className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
@@ -81,7 +82,7 @@ const CustomCalendarToolbar = (props: ToolbarProps) => {
                         }`}
                     >
                         {v.label}
-                    </button>
+                    </Button>
                 ))}
             </div>
         </div>

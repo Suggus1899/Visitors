@@ -1,3 +1,6 @@
+import { AuthenticatedImage } from '../AuthenticatedImage';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import React from 'react';
 import Search from 'lucide-react/dist/esm/icons/search';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
@@ -37,17 +40,17 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
             <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-2)] font-mono font-bold">V-</span>
-                    <input
+                    <Input
                         type="text"
                         placeholder="12345678"
-                        value={cedula}
+                        aria-label="Cédula" value={cedula}
                         onChange={(e) => onCedulaChange(e.target.value)}
                         onBlur={onSearch}
                         maxLength={8}
                         className={`${getInputClass(validation.cedula)} font-mono pl-10`}
                     />
                 </div>
-                <button
+                <Button
                     type="button"
                     onClick={onSearch}
                     disabled={loading}
@@ -55,16 +58,16 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
                     title="Buscar visitante"
                 >
                     <Search size={18} />
-                </button>
+                </Button>
                 {validation.cedula === true && (
-                    <button
+                    <Button
                         type="button"
                         onClick={onShowHistory}
                         className="px-3 py-2 rounded-md border border-[color:var(--border-1)] bg-[color:var(--surface-2)] text-[color:var(--accent-0)] hover:text-[color:var(--text-1)] transition"
                         title="Ver historial de visitas"
                     >
                         <History size={18} />
-                    </button>
+                    </Button>
                 )}
             </div>
             {cedulaError && (
@@ -77,7 +80,7 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
         {/* Existing visitor photo */}
         {validation.cedula === true && formData.photo_url && (
             <div className="flex items-center gap-4 p-3 bg-[color:var(--surface-2)] rounded-lg border border-[color:var(--border-1)]">
-                <img
+                <AuthenticatedImage
                     src={formData.photo_url}
                     alt="Foto del visitante"
                     className="w-16 h-16 rounded-full object-cover border-2 border-[color:var(--accent-0)]"
@@ -99,7 +102,7 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
         <div className="grid grid-cols-2 gap-4">
             <div>
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">Nombres *</label>
-                <input
+                <Input
                     type="text"
                     placeholder="Juan Carlos"
                     value={formData.first_name}
@@ -110,7 +113,7 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
             </div>
             <div>
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">Apellidos *</label>
-                <input
+                <Input
                     type="text"
                     placeholder="Pérez García"
                     value={formData.last_name}
@@ -121,14 +124,14 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
             </div>
         </div>
 
-        <button
+        <Button
             type="button"
             onClick={onNext}
             disabled={!canProceed}
             className="btn-tech disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
             Siguiente <ArrowRight size={18} />
-        </button>
+        </Button>
     </div>
 );
 

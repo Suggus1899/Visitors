@@ -1,3 +1,6 @@
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import { User, UserFormData } from './types';
 
 interface UserModalsProps {
@@ -32,13 +35,13 @@ const UserModals = ({
     <>
       {/* Create User Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[color:var(--surface-1)] rounded-lg p-6 max-w-md w-full mx-4 border border-[color:var(--border-1)]">
-            <h3 className="text-lg font-semibold text-[color:var(--text-1)] mb-4">Crear Nuevo Usuario</h3>
+        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+          <DialogContent className="bg-[color:var(--surface-1)] rounded-lg p-6 max-w-md w-full mx-4 border border-[color:var(--border-1)]">
+            <DialogTitle className="text-lg font-semibold text-[color:var(--text-1)] mb-4">Crear Nuevo Usuario</DialogTitle><DialogDescription className="sr-only">Administración de la cuenta de usuario</DialogDescription>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-[color:var(--text-2)] mb-1">Nombre de usuario</label>
-                <input
+                <Input
                   type="text"
                   value={newUser.username}
                   onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
@@ -47,7 +50,7 @@ const UserModals = ({
               </div>
               <div>
                 <label className="block text-sm text-[color:var(--text-2)] mb-1">Contraseña</label>
-                <input
+                <Input
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
@@ -55,7 +58,9 @@ const UserModals = ({
                 />
               </div>
               <div>
-                <label className="block text-sm text-[color:var(--text-2)] mb-1">Rol</label>
+                <label className="block text-sm mb-1">Correo electrónico</label>
+                            <Input type="email" aria-label="Correo electrónico" value={newUser.email || ''} onChange={e => setNewUser({ ...newUser, email: e.target.value })} required={newUser.role !== 'demo'} className="input-tech mb-4" />
+                            <label className="block text-sm text-[color:var(--text-2)] mb-1">Rol</label>
                 <select
                   value={newUser.role}
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value as User['role'] })}
@@ -69,26 +74,26 @@ const UserModals = ({
               </div>
             </div>
             <div className="flex gap-2 justify-end mt-6">
-              <button onClick={() => setShowCreateModal(false)} className="btn-ghost px-4 py-2">
+              <Button onClick={() => setShowCreateModal(false)} className="btn-ghost px-4 py-2">
                 Cancelar
-              </button>
-              <button onClick={handleCreateUser} className="btn-tech px-4 py-2">
+              </Button>
+              <Button onClick={handleCreateUser} className="btn-tech px-4 py-2">
                 Crear Usuario
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[color:var(--surface-1)] rounded-lg p-6 max-w-md w-full mx-4 border border-[color:var(--border-1)]">
-            <h3 className="text-lg font-semibold text-[color:var(--text-1)] mb-4">Editar Usuario</h3>
+        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+          <DialogContent className="bg-[color:var(--surface-1)] rounded-lg p-6 max-w-md w-full mx-4 border border-[color:var(--border-1)]">
+            <DialogTitle className="text-lg font-semibold text-[color:var(--text-1)] mb-4">Editar Usuario</DialogTitle><DialogDescription className="sr-only">Administración de la cuenta de usuario</DialogDescription>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-[color:var(--text-2)] mb-1">Nombre de usuario</label>
-                <input
+                <Input
                   type="text"
                   value={editUser.username}
                   onChange={(e) => setEditUser({ ...editUser, username: e.target.value })}
@@ -96,7 +101,9 @@ const UserModals = ({
                 />
               </div>
               <div>
-                <label className="block text-sm text-[color:var(--text-2)] mb-1">Rol</label>
+                <label className="block text-sm mb-1">Correo electrónico</label>
+                            <Input type="email" aria-label="Correo electrónico" value={editUser.email || ''} onChange={e => setEditUser({ ...editUser, email: e.target.value })}  className="input-tech mb-4" />
+                            <label className="block text-sm text-[color:var(--text-2)] mb-1">Rol</label>
                 <select
                   value={editUser.role}
                   onChange={(e) => setEditUser({ ...editUser, role: e.target.value as User['role'] })}
@@ -110,28 +117,28 @@ const UserModals = ({
               </div>
             </div>
             <div className="flex gap-2 justify-end mt-6">
-              <button onClick={() => setShowEditModal(false)} className="btn-ghost px-4 py-2">
+              <Button onClick={() => setShowEditModal(false)} className="btn-ghost px-4 py-2">
                 Cancelar
-              </button>
-              <button onClick={handleUpdateUser} className="btn-tech px-4 py-2">
+              </Button>
+              <Button onClick={handleUpdateUser} className="btn-tech px-4 py-2">
                 Guardar Cambios
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Reset Password Modal */}
       {showResetModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[color:var(--surface-1)] rounded-lg p-6 max-w-md w-full mx-4 border border-[color:var(--border-1)]">
-            <h3 className="text-lg font-semibold text-[color:var(--text-1)] mb-2">Restablecer Contraseña</h3>
+        <Dialog open={showResetModal} onOpenChange={setShowResetModal}>
+          <DialogContent className="bg-[color:var(--surface-1)] rounded-lg p-6 max-w-md w-full mx-4 border border-[color:var(--border-1)]">
+            <DialogTitle className="text-lg font-semibold text-[color:var(--text-1)] mb-2">Restablecer Contraseña</DialogTitle><DialogDescription className="sr-only">Administración de la cuenta de usuario</DialogDescription>
             <p className="text-sm text-[color:var(--text-2)] mb-4">
               Usuario: <strong>{selectedUser.username}</strong>
             </p>
             <div>
               <label className="block text-sm text-[color:var(--text-2)] mb-1">Nueva contraseña</label>
-              <input
+              <Input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -139,15 +146,15 @@ const UserModals = ({
               />
             </div>
             <div className="flex gap-2 justify-end mt-6">
-              <button onClick={() => setShowResetModal(false)} className="btn-ghost px-4 py-2">
+              <Button onClick={() => setShowResetModal(false)} className="btn-ghost px-4 py-2">
                 Cancelar
-              </button>
-              <button onClick={handleResetPassword} className="btn-tech px-4 py-2">
+              </Button>
+              <Button onClick={handleResetPassword} className="btn-tech px-4 py-2">
                 Restablecer
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

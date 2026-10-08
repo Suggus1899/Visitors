@@ -9,6 +9,9 @@ export interface MonthlyReportDto {
     completedVisits: number;
     activeVisits: number;
     avgVisitsPerDay: number;
+    uniqueVisitors: number;
+    averageDuration: number;
+    completionRate: number;
   };
   byReason: {
     purpose: string;

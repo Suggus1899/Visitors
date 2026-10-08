@@ -1,3 +1,4 @@
+import { Input } from '../ui/input';
 import Search from 'lucide-react/dist/esm/icons/search';
 import Calendar from 'lucide-react/dist/esm/icons/calendar';
 
@@ -25,7 +26,7 @@ const AuditFilters = ({
         <div className="p-4 border-b border-[color:var(--border-1)] bg-[color:var(--surface-2)] flex flex-wrap gap-3 items-center">
             <div className="relative">
                 <Search className="absolute left-3 top-2.5 text-[color:var(--text-3)]" size={18} />
-                <input
+                <Input
                     type="text"
                     placeholder="Buscar detalles..."
                     value={searchQuery}
@@ -51,14 +52,14 @@ const AuditFilters = ({
 
             <div className="flex items-center gap-2 bg-[color:var(--surface-0)] border border-[color:var(--border-1)] rounded-lg px-2">
                 <Calendar size={18} className="text-[color:var(--text-3)]" />
-                <input 
+                <Input
                     type="date" 
                     value={filterStartDate}
                     onChange={(e) => setFilterStartDate(e.target.value)}
                     className="py-2 outline-none text-[color:var(--text-2)] text-sm bg-transparent"
                 />
                 <span className="text-[color:var(--text-3)]">-</span>
-                <input 
+                <Input
                     type="date" 
                     value={filterEndDate}
                     onChange={(e) => setFilterEndDate(e.target.value)}
@@ -66,7 +67,7 @@ const AuditFilters = ({
                 />
             </div>
 
-            <input
+            <Input
                 type="text"
                 placeholder="Usuario..."
                 value={filterUsername}

@@ -1,5 +1,6 @@
 import { IUserRepository } from '../../../domain/repositories/IUserRepository';
 import { User, UserEntity } from '../../../domain/entities/User.entity';
+import { literal, Op } from 'sequelize';
 import UserModel from '../../../models/User';
 
 export class SequelizeUserRepository implements IUserRepository {
@@ -45,7 +46,10 @@ export class SequelizeUserRepository implements IUserRepository {
         role: user.role,
         password: user.password,
         resetToken: user.resetToken,
-        resetTokenExpiry: user.resetTokenExpiry
+        resetTokenExpiry: user.resetTokenExpiry,
+        email: user.email,
+        mustChangePassword: user.mustChangePassword,
+        passwordChangedAt: user.passwordChangedAt
       }, { where: { id: user.id } });
       return user;
     } else {
@@ -54,21 +58,26 @@ export class SequelizeUserRepository implements IUserRepository {
         role: user.role,
         password: user.password!,
         resetToken: user.resetToken,
-        resetTokenExpiry: user.resetTokenExpiry
+        resetTokenExpiry: user.resetTokenExpiry,
+        email: user.email,
+        mustChangePassword: user.mustChangePassword,
+        passwordChangedAt: user.passwordChangedAt
       });
       return this.toDomain(newUser);
     }
   }
 
   async updatePassword(id: number, hashedPassword: string): Promise<void> {
-    await UserModel.update({ password: hashedPassword }, { where: { id } });
+    await this.updatePasswordChange(id, hashedPassword, true, new Date());
   }
 
   async updatePasswordChange(id: number, hashedPassword: string, mustChangePassword: boolean, passwordChangedAt: Date): Promise<void> {
     await UserModel.update({
       password: hashedPassword,
       mustChangePassword,
-      passwordChangedAt
+      passwordChangedAt,
+      tokenVersion: literal('"tokenVersion" + 1'),
+      resetToken: null, resetTokenExpiry: null, loginAttempts: 0, lockedUntil: null
     }, { where: { id } });
   }
 
@@ -77,6 +86,14 @@ export class SequelizeUserRepository implements IUserRepository {
       loginAttempts,
       lockedUntil
     }, { where: { id } });
+  }
+
+  async consumeResetToken(token: string, hashedPassword: string): Promise<boolean> {
+    const [count] = await UserModel.update({ password: hashedPassword, mustChangePassword: false,
+      passwordChangedAt: new Date(), tokenVersion: literal('"tokenVersion" + 1'), resetToken: null,
+      resetTokenExpiry: null, loginAttempts: 0, lockedUntil: null },
+      { where: { resetToken: token, resetTokenExpiry: { [Op.gt]: new Date() } } });
+    return count === 1;
   }
 
   async updateResetToken(id: number, token: string | null, expiry: Date | null): Promise<void> {
@@ -97,7 +114,9 @@ export class SequelizeUserRepository implements IUserRepository {
       model.mustChangePassword,
       model.passwordChangedAt,
       model.loginAttempts,
-      model.lockedUntil
+      model.lockedUntil,
+      model.email,
+      model.tokenVersion
     );
   }
 }

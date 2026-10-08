@@ -5,6 +5,7 @@ export interface UpdateUserDto {
   id: number;
   username?: string;
   role?: UserRole;
+  email?: string | null;
 }
 
 export class UpdateUserUseCase {
@@ -36,7 +37,9 @@ export class UpdateUserUseCase {
       existingUser.mustChangePassword,
       existingUser.passwordChangedAt,
       existingUser.loginAttempts,
-      existingUser.lockedUntil
+      existingUser.lockedUntil,
+      data.email === undefined ? existingUser.email : data.email,
+      existingUser.tokenVersion
     );
 
     // Save to repository

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import MonthlyReportCard from '../statistics/MonthlyReportCard';
+import { downloadMonthlyPDF } from '../statistics/pdfExport';
 import { Pie } from 'react-chartjs-2';
 
 // Mock dependencies
@@ -22,7 +23,8 @@ const mockMonthlyReport = {
         { reason: 'Entrega', count: 30, percentage: 20.0 },
         { reason: 'Mantenimiento', count: 25, percentage: 16.7 },
         { reason: 'Capacitación', count: 20, percentage: 13.3 },
-        { reason: 'Otro', count: 25, percentage: 16.7 },
+        { reason: 'Otro', count: 20, percentage: 13.3 },
+        { reason: 'Inspección', count: 5, percentage: 3.3 },
     ],
 };
 
@@ -40,6 +42,7 @@ const defaultProps = {
 describe('MonthlyReportCard', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(downloadMonthlyPDF).mockResolvedValue(undefined);
     });
 
     it('renders correctly with monthly report data', () => {
@@ -86,10 +89,9 @@ describe('MonthlyReportCard', () => {
     });
 
     it('handles PDF download', async () => {
-        const { downloadMonthlyPDF } = require('../statistics/pdfExport');
         render(<MonthlyReportCard {...defaultProps} />);
         
-        const downloadButton = screen.getByText('Descargar PDF');
+        const downloadButton = screen.getByRole('button', { name: 'Descargar PDF' });
         fireEvent.click(downloadButton);
         
         await waitFor(() => {
@@ -98,12 +100,11 @@ describe('MonthlyReportCard', () => {
     });
 
     it('shows loading state during PDF download', async () => {
-        const { downloadMonthlyPDF } = require('../statistics/pdfExport');
-        downloadMonthlyPDF.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+        vi.mocked(downloadMonthlyPDF).mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
         
         render(<MonthlyReportCard {...defaultProps} />);
         
-        const downloadButton = screen.getByText('Descargar PDF');
+        const downloadButton = screen.getByRole('button', { name: 'Descargar PDF' });
         fireEvent.click(downloadButton);
         
         expect(screen.getByText('Generando...')).toBeInTheDocument();
@@ -113,11 +114,13 @@ describe('MonthlyReportCard', () => {
         render(<MonthlyReportCard {...defaultProps} />);
         
         // Initially should show only 5 reasons
-        expect(screen.queryByText('Ver todos (5)')).toBeInTheDocument();
+        expect(screen.queryByText('Ver todos (6)')).toBeInTheDocument();
+        expect(screen.queryByText('Inspección')).not.toBeInTheDocument();
         
-        const toggleButton = screen.getByText('Ver todos (5)');
+        const toggleButton = screen.getByText('Ver todos (6)');
         fireEvent.click(toggleButton);
         
+        expect(screen.getByText('Inspección')).toBeInTheDocument();
         // Should now show all reasons and "Ver menos" button
         expect(screen.getByText('Ver menos')).toBeInTheDocument();
     });
@@ -134,7 +137,7 @@ describe('MonthlyReportCard', () => {
     it('disables download button when no data', () => {
         render(<MonthlyReportCard {...defaultProps} monthlyReport={null} />);
         
-        const downloadButton = screen.getByText('Descargar PDF');
+        const downloadButton = screen.getByRole('button', { name: 'Descargar PDF' });
         expect(downloadButton).toBeDisabled();
     });
 
@@ -143,7 +146,7 @@ describe('MonthlyReportCard', () => {
         
         const monthSelect = screen.getByDisplayValue('Enero');
         const yearSelect = screen.getByDisplayValue('2025');
-        const downloadButton = screen.getByText('Descargar PDF');
+        const downloadButton = screen.getByRole('button', { name: 'Descargar PDF' });
         
         expect(monthSelect).toBeDisabled();
         expect(yearSelect).toBeDisabled();
@@ -157,10 +160,10 @@ describe('MonthlyReportCard', () => {
         expect(Pie).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({
-                    labels: ['Reunión', 'Entrega', 'Mantenimiento', 'Capacitación', 'Otro'],
+                    labels: ['Reunión', 'Entrega', 'Mantenimiento', 'Capacitación', 'Otro', 'Inspección'],
                     datasets: expect.arrayContaining([
                         expect.objectContaining({
-                            data: [50, 30, 25, 20, 25],
+                            data: [50, 30, 25, 20, 20, 5],
                         })
                     ])
                 })
@@ -174,7 +177,7 @@ describe('MonthlyReportCard', () => {
         render(<MonthlyReportCard {...defaultProps} setSelectedMonth={mockSetSelectedMonth} />);
         
         // First expand to show all reasons
-        const toggleButton = screen.getByText('Ver todos (5)');
+        const toggleButton = screen.getByText('Ver todos (6)');
         fireEvent.click(toggleButton);
         expect(screen.getByText('Ver menos')).toBeInTheDocument();
         
@@ -190,7 +193,7 @@ describe('MonthlyReportCard', () => {
         render(<MonthlyReportCard {...defaultProps} setSelectedYear={mockSetSelectedYear} />);
         
         // First expand to show all reasons
-        const toggleButton = screen.getByText('Ver todos (5)');
+        const toggleButton = screen.getByText('Ver todos (6)');
         fireEvent.click(toggleButton);
         expect(screen.getByText('Ver menos')).toBeInTheDocument();
         

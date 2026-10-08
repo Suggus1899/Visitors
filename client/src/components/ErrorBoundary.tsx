@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
@@ -40,12 +41,12 @@ export class ErrorBoundary extends Component<Props, State> {
             <pre className="text-xs text-red-400 bg-[color:var(--surface-2)] p-3 rounded-lg mb-4 overflow-auto max-h-32">
               {this.state.error?.message}
             </pre>
-            <button
+            <Button
               onClick={() => window.location.reload()}
               className="btn-tech"
             >
               Recargar página
-            </button>
+            </Button>
           </div>
         </div>
       );

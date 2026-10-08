@@ -95,6 +95,7 @@ export const updateArcoRequestStatus = async (req: Request, res: Response) => {
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
+    if (error instanceof Error && error.message === 'OPEN_VISIT_EXISTS') return res.status(409).json(ResponseBuilder.error('OPEN_VISIT_EXISTS', 'Debe cerrar las visitas abiertas antes de cancelar los datos'));
     if (error instanceof Error && error.message === 'NOT_FOUND') {
       return res.status(404).json(ResponseBuilder.error('NOT_FOUND', 'Solicitud ARCO no encontrada'));
     }
@@ -120,6 +121,7 @@ export const accessSubjectData = async (req: Request, res: Response) => {
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
+    if (error instanceof Error && error.message === 'OPEN_VISIT_EXISTS') return res.status(409).json(ResponseBuilder.error('OPEN_VISIT_EXISTS', 'Debe cerrar las visitas abiertas antes de cancelar los datos'));
     if (error instanceof Error && error.message === 'NOT_FOUND') {
       return res.status(404).json(ResponseBuilder.error('NOT_FOUND', 'Titular no encontrado'));
     }
@@ -156,6 +158,7 @@ export const rectifySubjectData = async (req: Request, res: Response) => {
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
+    if (error instanceof Error && error.message === 'OPEN_VISIT_EXISTS') return res.status(409).json(ResponseBuilder.error('OPEN_VISIT_EXISTS', 'Debe cerrar las visitas abiertas antes de cancelar los datos'));
     if (error instanceof Error && error.message === 'NOT_FOUND') {
       return res.status(404).json(ResponseBuilder.error('NOT_FOUND', 'Titular no encontrado'));
     }
@@ -178,6 +181,7 @@ export const cancelSubjectData = async (req: Request, res: Response) => {
 
     res.json(ResponseBuilder.success(result));
   } catch (error) {
+    if (error instanceof Error && error.message === 'OPEN_VISIT_EXISTS') return res.status(409).json(ResponseBuilder.error('OPEN_VISIT_EXISTS', 'Debe cerrar las visitas abiertas antes de cancelar los datos'));
     if (error instanceof Error && error.message === 'NOT_FOUND') {
       return res.status(404).json(ResponseBuilder.error('NOT_FOUND', 'Titular no encontrado'));
     }

@@ -39,10 +39,14 @@ export class VisitorMapper {
       history: history.map((visit: any) => ({
         id: visit.id,
         purpose: visit.purpose,
-        checkInTime: visit.check_in_time,
-        checkOutTime: visit.check_out_time,
+        checkInTime: visit.checkInTime ?? visit.check_in_time,
+        checkOutTime: visit.checkOutTime ?? visit.check_out_time,
         status: visit.status,
-        targetDepartment: visit.target_department,
+        targetDepartment: visit.targetDepartment ?? visit.target_department ?? visit.department,
+        hostPerson: visit.hostPerson ?? visit.host_person ?? visit.person_to_visit,
+        vehicleBrand: visit.vehicleBrand ?? visit.vehicle_brand,
+        vehicleModel: visit.vehicleModel ?? visit.vehicle_model,
+        vehiclePlate: visit.vehiclePlate ?? visit.vehicle_plate,
       })),
     };
   }

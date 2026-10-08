@@ -1,3 +1,4 @@
+import { decodeVisitorPhoto } from '../../utils/visitorPhoto';
 import { IVisitorRepository } from '../../domain/repositories/IVisitorRepository';
 import { IVisitRepository } from '../../domain/repositories/IVisitRepository';
 import { Visit, VisitStatus } from '../../domain/entities/Visit.entity';
@@ -28,18 +29,8 @@ export class CheckInVisitorUseCase {
 
     if (!visitor && dto.visitorData) {
       // Create new visitor — photos stored as BYTEA in PostgreSQL
-      let photoData: Buffer | undefined;
-      let idPhotoData: Buffer | undefined;
-
-      if (dto.visitorData.photoBase64) {
-        const base64Clean = dto.visitorData.photoBase64.replace(/^data:image\/\w+;base64,/, '');
-        photoData = Buffer.from(base64Clean, 'base64');
-      }
-
-      if (dto.visitorData.idPhotoBase64) {
-        const base64Clean = dto.visitorData.idPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
-        idPhotoData = Buffer.from(base64Clean, 'base64');
-      }
+      const photoData = decodeVisitorPhoto(dto.visitorData.photoBase64);
+      const idPhotoData = decodeVisitorPhoto(dto.visitorData.idPhotoBase64);
 
       visitor = new Visitor(
         undefined, // id will be generated
@@ -60,19 +51,6 @@ export class CheckInVisitorUseCase {
       );
 
       visitor = await this.visitorRepository.create(visitor, photoData, idPhotoData);
-    } else if (visitor && dto.visitorData) {
-      const updateData: any = {};
-      if (dto.visitorData.photoBase64?.startsWith('data:')) {
-        const base64Clean = dto.visitorData.photoBase64.replace(/^data:image\/\w+;base64,/, '');
-        updateData.photoBlob = Buffer.from(base64Clean, 'base64');
-      }
-      if (dto.visitorData.idPhotoBase64?.startsWith('data:')) {
-        const base64Clean = dto.visitorData.idPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
-        updateData.idPhotoBlob = Buffer.from(base64Clean, 'base64');
-      }
-      if (updateData.photoBlob || updateData.idPhotoBlob) {
-        await this.visitorRepository.update(dto.visitorCedula, updateData);
-      }
     } else if (!visitor) {
       throw new Error('Visitor not found and no visitor data provided');
     }
@@ -133,6 +111,9 @@ export class CheckInVisitorUseCase {
       dto.department,
       now,         // arrivalTime - siempre la hora actual de registro
       entryTime,   // entryTime - solo si es active directo
+      undefined,
+      dto.targetDepartment || dto.department,
+      dto.hostPerson || dto.personToVisit
     );
 
     const createdVisit = await this.visitRepository.create(visit);

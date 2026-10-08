@@ -154,7 +154,7 @@ class Container {
 
   // New use cases
   get updateVisitorUseCase(): UpdateVisitorUseCase {
-    return new UpdateVisitorUseCase(this.visitorRepository, this.visitorEditHistoryRepository);
+    return new UpdateVisitorUseCase(this.visitorRepository);
   }
 
   get getAllVisitorsUseCase(): GetAllVisitorsUseCase {
@@ -225,7 +225,7 @@ class Container {
 
   createGetWaitingVisitsUseCase(): GetWaitingVisitsUseCase {
     return new GetWaitingVisitsUseCase(
-      this.visitRepository
+      this.visitRepository, this.visitorRepository
     );
   }
 
@@ -249,7 +249,7 @@ class Container {
 
   createGetVisitsUseCase(): GetVisitsUseCase {
     return new GetVisitsUseCase(
-      this.visitRepository
+      this.visitRepository, this.visitorRepository
     );
   }
 
@@ -403,11 +403,11 @@ class Container {
   }
 
   createRectifySubjectDataUseCase(): RectifySubjectDataUseCase {
-    return new RectifySubjectDataUseCase(this.visitorRepository, this.auditLogRepository);
+    return new RectifySubjectDataUseCase(this.visitorRepository);
   }
 
   createCancelSubjectDataUseCase(): CancelSubjectDataUseCase {
-    return new CancelSubjectDataUseCase(this.visitorRepository, this.arcoRequestRepository, this.auditLogRepository);
+    return new CancelSubjectDataUseCase(this.visitorRepository);
   }
 
   createCreateOppositionRequestUseCase(): CreateOppositionRequestUseCase {

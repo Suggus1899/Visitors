@@ -16,7 +16,12 @@
     "build": "pnpm run build:client && pnpm run build:server",
     "seed:clean": "pnpm --dir server run seed:clean",
     "backup": "pnpm --dir server run backup:full",
-    "backup:monitor": "pnpm --dir server run backup:monitor"
+    "backup:monitor": "pnpm --dir server run backup:monitor",
+    "local:setup": "pwsh -NoProfile -File scripts/setup-local.ps1",
+    "local:prepare": "pwsh -NoProfile -File scripts/run-local.ps1 -Mode prepare",
+    "local:start": "pwsh -NoProfile -File scripts/run-local.ps1 -Mode start",
+    "test:integration": "pwsh -NoProfile -File scripts/run-local.ps1 -Mode test",
+    "typecheck:client": "pnpm --dir client exec tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^25.2.1",
@@ -25,5 +30,6 @@
     "typescript": "^5.9.3"
   },
   "author": "Gustavo Colina (@Suggus1899)",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@12.4.2"
 }

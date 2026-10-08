@@ -8,7 +8,6 @@ import { errorHandler } from "./middleware/error";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import { apiLimiter } from "./middleware/rateLimiter";
-import { mustChangePassword } from "./middleware/mustChangePassword";
 // Clean Architecture routes
 import visitCleanRoutes from "./routes/visit-clean.routes";
 import reportCleanRoutes from "./routes/report-clean.routes";
@@ -170,7 +169,7 @@ app.use("/api/v1/health", healthRoutes);
 app.use("/api", apiLimiter);
 
 // Must Change Password Middleware (applies to all protected routes)
-app.use("/api", mustChangePassword);
+
 
 // T-06: Swagger Documentation — disabled in production, protected in development
 if (config.nodeEnv !== "production") {

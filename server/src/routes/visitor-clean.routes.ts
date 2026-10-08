@@ -3,6 +3,12 @@ import * as VisitorCleanController from '../controllers/VisitorCleanController';
 import { verifyToken } from '../middleware/auth';
 import { asyncHandler } from '../utils/asyncHandler';
 
+import { authorizeVisitorEdit } from '../middleware/visitorEdit';
+import { updateVisitorSchema } from '../schemas/visitor.schema';
+import { validate } from '../middleware/validate';
+import { denyAuditorOnly } from '../middleware/auditor';
+import { authLimiter } from '../middleware/rateLimiter';
+
 const router = express.Router();
 
 /**
@@ -103,9 +109,9 @@ router.get('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanControl
  *       404:
  *         description: Visitor not found
  */
-router.patch('/v1/visitors/:cedula', verifyToken, asyncHandler(VisitorCleanController.updateVisitor));
+router.patch('/v1/visitors/:cedula', verifyToken, authLimiter, authorizeVisitorEdit, validate(updateVisitorSchema), asyncHandler(VisitorCleanController.updateVisitor));
 
-router.post('/v1/visitors/verify-edit-password', verifyToken, asyncHandler(VisitorCleanController.verifyEditPassword));
+router.post('/v1/visitors/verify-edit-password', verifyToken, denyAuditorOnly, authLimiter, asyncHandler(VisitorCleanController.verifyEditPassword));
 
 router.get('/v1/visits/:visitId/edit-history', verifyToken, asyncHandler(VisitorCleanController.getEditHistory));
 
@@ -123,9 +129,9 @@ router.get('/v1/visitors/:cedula/edit-history', verifyToken, asyncHandler(Visito
  *       200:
  *         description: List of companies
  */
-router.get('/v1/visitors/:cedula/photo', asyncHandler(VisitorCleanController.getVisitorPhoto));
+router.get('/v1/visitors/:cedula/photo', verifyToken, asyncHandler(VisitorCleanController.getVisitorPhoto));
 
-router.get('/v1/visitors/:cedula/id-photo', asyncHandler(VisitorCleanController.getVisitorIdPhoto));
+router.get('/v1/visitors/:cedula/id-photo', verifyToken, asyncHandler(VisitorCleanController.getVisitorIdPhoto));
 
 
 export default router;

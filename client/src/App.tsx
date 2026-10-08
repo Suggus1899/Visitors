@@ -1,3 +1,6 @@
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import AuthService from './services/AuthService';
 import { useState, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -39,6 +42,7 @@ const OperationsView = () => {
     const [activeTab, setActiveTab] = useState<'active' | 'waiting' | 'intermittent' | 'visitor-admin'>('active');
     const { logout, user } = useAuth();
     const navigate = useNavigate();
+    const canOperate = ['operador', 'admin', 'root'].includes(user?.role || '');
     const searchInputRef = useRef<HTMLInputElement>(null);
     const { isUsingFallbackPolling } = useVisitEvents();
     const invalidateVisitQueries = useInvalidateVisitQueries();
@@ -108,62 +112,62 @@ const OperationsView = () => {
             <KeyboardShortcutsHelp show={showShortcuts} onClose={() => setShowShortcuts(false)} />
 
             <Header user={user} logout={logout}>
-                <button
+                <Button
                     onClick={() => setShowShortcuts(true)}
                     className="p-2 text-[color:var(--text-3)] hover:text-[color:var(--text-1)] rounded-full hover:bg-[color:var(--surface-2)] transition-colors"
                     title="Atajos de teclado"
                 >
                     <Keyboard size={18} />
-                </button>
+                </Button>
 
-                <button
+                <Button
                     onClick={startGuidedTour}
                     className="p-2 text-[color:var(--text-3)] hover:text-[color:var(--text-1)] rounded-full hover:bg-[color:var(--surface-2)] transition-colors"
                     title="Ver tutorial"
                 >
                     <HelpCircle size={18} />
-                </button>
+                </Button>
 
                 <div className="flex items-center gap-2">
                     {(user?.role === 'admin' || user?.role === 'root') && (
-                        <button
+                        <Button
                             data-tour="admin-btn"
                             onClick={() => navigate('/admin')}
                             className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-2 rounded-md text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition-colors h-9"
                         >
                             <LayoutDashboard size={16} /> Admin
-                        </button>
+                        </Button>
                     )}
 
                     {(user?.role === 'admin' || user?.role === 'auditor' || user?.role === 'root') && (
-                        <button
+                        <Button
                             onClick={() => navigate('/audit')}
                             className="bg-transparent border border-[color:var(--accent-2)] text-[color:var(--accent-0)] hover:text-[color:var(--text-1)] hover:border-[color:var(--accent-0)] hover:bg-[color:var(--surface-2)] px-3 py-2 rounded-md text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition-colors h-9"
                         >
                             <Shield size={16} /> Auditoría
-                        </button>
+                        </Button>
                     )}
                 </div>
             </Header>
 
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="flex flex-col xl:flex-row gap-8">
-                    <div className="w-full xl:w-1/3" data-tour="visit-form">
+                    {canOperate && <div className="w-full xl:w-1/3" data-tour="visit-form">
                         <ErrorBoundary fallback={
                             <div className="panel-tech rounded-2xl p-6 text-center">
                                 <div className="text-3xl mb-2">⚠️</div>
                                 <p className="text-sm text-[color:var(--text-2)] mb-3">Error en el formulario. Recarga la página.</p>
-                                <button onClick={() => window.location.reload()} className="btn-tech text-sm">Recargar</button>
+                                <Button onClick={() => window.location.reload()} className="btn-tech text-sm">Recargar</Button>
                             </div>
                         }>
                             <VisitForm onVisitAdded={invalidateVisitQueries} />
                         </ErrorBoundary>
-                    </div>
-                    <div className="w-full xl:w-2/3" data-tour="active-visits">
+                    </div>}
+                    <div className={canOperate ? "w-full xl:w-2/3" : "w-full"} data-tour="active-visits">
 
                         {/* Tabs Navigation */}
                         <div className="flex gap-4 mb-6 border-b border-[color:var(--border-1)]">
-                            <button
+                            <Button
                                 onClick={() => setActiveTab('active')}
                                 className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'active' ? 'text-[color:var(--accent-0)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
                             >
@@ -172,8 +176,8 @@ const OperationsView = () => {
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[color:var(--accent-2)] text-[color:var(--accent-0)]">{visits.length}</span>
                                 )}
                                 {activeTab === 'active' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--accent-0)]" />}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={() => setActiveTab('waiting')}
                                 className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'waiting' ? 'text-[color:var(--status-warning)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
                             >
@@ -182,8 +186,8 @@ const OperationsView = () => {
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[color:var(--status-warning)]/20 text-[color:var(--status-warning)]">{waitingVisits.length}</span>
                                 )}
                                 {activeTab === 'waiting' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--status-warning)]" />}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                     onClick={() => setActiveTab('intermittent')}
                                     className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'intermittent' ? 'text-blue-500' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
                                 >
@@ -192,15 +196,15 @@ const OperationsView = () => {
                                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600/20 text-blue-400">{intermittentVisits.length}</span>
                                     )}
                                     {activeTab === 'intermittent' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500" />}
-                            </button>
+                            </Button>
                     {(user?.role === 'admin' || user?.role === 'root') && (
-                                <button
+                                <Button
                                     onClick={() => setActiveTab('visitor-admin')}
                                     className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'visitor-admin' ? 'text-[color:var(--accent-0)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
                                 >
                                     <Users size={16} /> Admin Visitantes
                                     {activeTab === 'visitor-admin' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[color:var(--accent-0)]" />}
-                                </button>
+                                </Button>
                             )}
                         </div>
 
@@ -231,9 +235,9 @@ const OperationsView = () => {
                                     </h2>
 
                                     <div className="relative">
-                                        <input
+                                        <Input
                                             ref={searchInputRef}
-                                            type="text"
+                                            type="search" autoComplete="off" name="visit-search"
                                             placeholder="Buscar... (Ctrl+K)"
                                             value={searchQuery}
                                             onChange={e => setSearchQuery(e.target.value)}
@@ -248,12 +252,12 @@ const OperationsView = () => {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                         </svg>
                                         {searchQuery && (
-                                            <button
+                                            <Button
                                                 onClick={() => setSearchQuery('')}
                                                 className="absolute right-3 top-2.5 text-[color:var(--text-3)] hover:text-[color:var(--text-1)]"
                                             >
                                                 ×
-                                            </button>
+                                            </Button>
                                         )}
                                     </div>
                                 </div>
@@ -363,8 +367,7 @@ function AppRoutes() {
                 show={showPasswordChangeModal}
                 onPasswordChanged={() => {
                     setShowPasswordChangeModal(false);
-                    // Reload the page to refresh all data
-                    window.location.reload();
+                    AuthService.logout();
                 }}
             />
         </>

@@ -197,6 +197,10 @@ export class PostgresBackupService implements IBackupService {
         '-U', config.dbUser,
         '-d', config.dbName,
         '--clean',
+        '--no-owner',
+        '--no-acl',
+        '--exit-on-error',
+        '--single-transaction',
         '--no-password',
         '--if-exists',
         dumpPath

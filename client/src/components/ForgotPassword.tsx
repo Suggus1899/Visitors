@@ -1,5 +1,7 @@
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../services/api.v1';
 import { Link } from 'react-router-dom';
 import Mail from 'lucide-react/dist/esm/icons/mail';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
@@ -15,11 +17,10 @@ const ForgotPassword = () => {
         setLoading(true);
         setMessage('');
         try {
-            await axios.post('/api/v1/auth/forgot-password', { username });
-            // In a real app this would be an email. Here we show the simulation message.
-            setMessage(`✅ Link enviado (Simulado). Revisa la consola del servidor para ver el token.`);
+            await api.post('/auth/forgot-password', { username });
+            setMessage('✅ Si la cuenta tiene correo registrado, recibirás un enlace de recuperación.');
         } catch {
-            setMessage('❌ Usuario no encontrado.');
+            setMessage('❌ No se pudo procesar la solicitud. Inténtalo nuevamente.');
         } finally {
             setLoading(false);
         }
@@ -38,7 +39,7 @@ const ForgotPassword = () => {
                 </Link>
                 <div className="text-center mb-6">
                     <h2 className="text-2xl font-display text-[color:var(--text-1)]">Recuperar Contraseña</h2>
-                    <p className="text-sm text-[color:var(--text-3)] mt-2">Ingresa tu usuario o correo para enviarte un enlace de recuperación.</p>
+                    <p className="text-sm text-[color:var(--text-3)] mt-2">Ingresa tu usuario para enviarte un enlace de recuperación.</p>
                 </div>
 
                 {message && (
@@ -50,9 +51,9 @@ const ForgotPassword = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="relative">
                         <Mail className="absolute left-3 top-3 text-[color:var(--text-3)]" size={20} />
-                        <input
+                        <Input
                             type="text"
-                            placeholder="Usuario / Email"
+                            placeholder="Nombre de usuario" aria-label="Nombre de usuario"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className="input-tech pl-10"
@@ -60,13 +61,13 @@ const ForgotPassword = () => {
                         />
                     </div>
 
-                    <button
+                    <Button
                         type="submit"
                         disabled={loading}
                         className="btn-tech disabled:opacity-70 flex justify-center items-center"
                     >
                         {loading ? <Loader2 className="animate-spin" /> : 'ENVIAR ENLACE'}
-                    </button>
+                    </Button>
                 </form>
 
                 <div className="mt-8 pt-6 border-t border-[color:var(--border-1)] text-center">

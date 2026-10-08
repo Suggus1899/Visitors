@@ -14,7 +14,8 @@ export class JwtAuthService implements IAuthService {
     const payload: TokenPayload = {
       id: user.id!,
       username: user.username,
-      role: user.role
+      role: user.role,
+      tokenVersion: user.tokenVersion ?? 0
     };
     return jwt.sign(
       payload,
@@ -31,7 +32,8 @@ export class JwtAuthService implements IAuthService {
     const payload: TokenPayload = {
       id: user.id!,
       username: user.username,
-      role: user.role
+      role: user.role,
+      tokenVersion: user.tokenVersion ?? 0
     };
     return jwt.sign(
       payload,
@@ -99,7 +101,8 @@ export class JwtAuthService implements IAuthService {
     const newPayload: TokenPayload = {
       id: payload.id,
       username: payload.username,
-      role: payload.role
+      role: payload.role,
+      tokenVersion: payload.tokenVersion
     };
 
     // Generate new access token with fresh expiration

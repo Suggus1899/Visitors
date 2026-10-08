@@ -21,7 +21,7 @@ const baseProps = {
 describe('VisitorLookupStep', () => {
   it('renders cedula input field', () => {
     render(<VisitorLookupStep {...baseProps} />);
-    expect(screen.getByPlaceholderText('Ej: 12345678')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cédula')).toBeInTheDocument();
   });
 
   it('renders first name and last name fields', () => {
@@ -33,7 +33,7 @@ describe('VisitorLookupStep', () => {
   it('calls onCedulaChange when cedula input changes', () => {
     const onCedulaChange = vi.fn();
     render(<VisitorLookupStep {...baseProps} onCedulaChange={onCedulaChange} />);
-    fireEvent.change(screen.getByPlaceholderText('Ej: 12345678'), { target: { value: '12345' } });
+    fireEvent.change(screen.getByLabelText('Cédula'), { target: { value: '12345' } });
     expect(onCedulaChange).toHaveBeenCalledWith('12345');
   });
 

@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import { useState } from 'react';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
@@ -65,19 +66,19 @@ const CalendarView = ({ calendarEvents, fetchVisits }: CalendarViewProps) => {
                     <span className="text-sm font-medium text-[color:var(--text-3)]">Filtrar visitas:</span>
                     <div className="flex bg-[color:var(--surface-1)] rounded-lg p-1 border border-[color:var(--border-1)]">
                         {[{ value: 'all', label: 'Todas' }, { value: 'active', label: 'Activas' }, { value: 'completed', label: 'Finalizadas' }].map(opt => (
-                            <button key={opt.value} onClick={() => setCalendarFilter(opt.value as typeof calendarFilter)}
+                            <Button key={opt.value} onClick={() => setCalendarFilter(opt.value as typeof calendarFilter)}
                                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${calendarFilter === opt.value ? 'bg-[color:var(--surface-2)] text-[color:var(--accent-0)] shadow-sm border border-[color:var(--border-1)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-1)]'}`}>
                                 {opt.label}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
-                <button 
+                <Button
                     onClick={handleExport} 
                     className="btn-tech px-4 py-2 text-sm w-auto flex items-center justify-center gap-2"
                 >
                     <Download size={16} /> Exportar Calendario
-                </button>
+                </Button>
             </div>
 
             <div className="bg-[color:var(--surface-1)] rounded-xl border border-[color:var(--border-1)] p-2" style={{ height: '650px' }}>

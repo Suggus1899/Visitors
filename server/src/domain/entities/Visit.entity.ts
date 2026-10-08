@@ -68,7 +68,8 @@ export class Visit {
     public readonly entryTime?: Date,
     public readonly exitTime?: Date,
     public readonly targetDepartment?: string,
-    public readonly hostPerson?: string
+    public readonly hostPerson?: string,
+    public readonly anonymized: boolean = false
   ) {
     this.validate();
   }

@@ -55,7 +55,7 @@ describe('VisitDetailsStep', () => {
   it('calls onFormDataChange when target_department select changes', () => {
     const onFormDataChange = vi.fn();
     render(<VisitDetailsStep {...baseProps} onFormDataChange={onFormDataChange} />);
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Operaciones' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Área o departamento' }), { target: { value: 'Operaciones' } });
     expect(onFormDataChange).toHaveBeenCalledWith('target_department', 'Operaciones');
   });
 
@@ -69,13 +69,14 @@ describe('VisitDetailsStep', () => {
   it('calls onFormDataChange when reason input changes', () => {
     const onFormDataChange = vi.fn();
     render(<VisitDetailsStep {...baseProps} onFormDataChange={onFormDataChange} />);
-    fireEvent.change(screen.getByPlaceholderText(/Indique el motivo de la visita/i), { target: { value: 'Reunión comercial' } });
-    expect(onFormDataChange).toHaveBeenCalledWith('reason', 'Reunión comercial');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Motivo de la visita' }), { target: { value: 'Reunión' } });
+    expect(onFormDataChange).toHaveBeenCalledWith('reason', 'Reunión');
   });
 
-  it('shows required photo message when photo_url is empty', () => {
+  it('allows optional photographs when photo_url is empty', () => {
     render(<VisitDetailsStep {...baseProps} formData={{...baseProps.formData, photo_url: ''}} />);
-    expect(screen.getByText(/foto del rostro es obligatoria/i)).toBeInTheDocument();
+    expect(screen.getAllByText('(Opcional)')).toHaveLength(2);
+    expect(screen.queryByText(/foto del rostro es obligatoria/i)).not.toBeInTheDocument();
   });
 
   it('does NOT show required message when photo is provided', () => {

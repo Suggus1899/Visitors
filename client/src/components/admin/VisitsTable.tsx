@@ -1,3 +1,5 @@
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import React, { useState, useCallback, useMemo } from 'react';
 import { Visit } from '../../types';
 import { 
@@ -325,8 +327,7 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
             tableData.forEach((visit, index) => {
                 const rowNumber = headerRowNumber + 1 + index;
                 const row = worksheet.getRow(rowNumber);
-                const { intermittent_logs: _logs, Visitor: _visitor, ...exportable } = visit;
-                row.values = exportable as typeof row.values;
+                row.values = [visit.visitorName, visit.company, visit.reason, visit.arrivalTime, visit.entryTime, visit.exitTime, visit.statusText];
                 row.alignment = { vertical: 'middle', wrapText: true };
                 row.height = 22;
                 
@@ -420,15 +421,15 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                     <Filter size={20} className="text-[color:var(--accent-0)]" /> Filtros y Búsqueda
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <input type="text" placeholder="Buscar (Nombre, Cédula...)" className="input-tech text-sm" value={filters.search} onChange={e => onFilterChange('search', e.target.value)} />
-                    <input type="text" placeholder="Empresa" className="input-tech text-sm" value={filters.company} onChange={e => onFilterChange('company', e.target.value)} />
+                    <Input type="text" placeholder="Buscar (Nombre, Cédula...)" className="input-tech text-sm" value={filters.search} onChange={e => onFilterChange('search', e.target.value)} />
+                    <Input type="text" placeholder="Empresa" className="input-tech text-sm" value={filters.company} onChange={e => onFilterChange('company', e.target.value)} />
                     <select className="input-tech text-sm" value={filters.status} onChange={e => onFilterChange('status', e.target.value)}>
                         <option value="">Todos los estados</option>
                         <option value="active">Activos</option>
                         <option value="completed">Completados</option>
                     </select>
-                    <input type="date" className="input-tech text-sm" value={filters.startDate} onChange={e => onFilterChange('startDate', e.target.value)} />
-                    <input type="date" className="input-tech text-sm" value={filters.endDate} onChange={e => onFilterChange('endDate', e.target.value)} />
+                    <Input type="date" className="input-tech text-sm" value={filters.startDate} onChange={e => onFilterChange('startDate', e.target.value)} />
+                    <Input type="date" className="input-tech text-sm" value={filters.endDate} onChange={e => onFilterChange('endDate', e.target.value)} />
                 </div>
             </div>
 
@@ -436,12 +437,12 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
             <div className="bg-[color:var(--surface-2)] p-4 border-b border-[color:var(--border-1)] flex justify-between items-center">
                 <span className="text-sm text-[color:var(--text-3)]">Mostrando {sortedVisits.length} de {totalVisitsCount} visitas</span>
                 <div className="flex gap-2">
-                    <button onClick={exportPDF} className="border border-red-400 text-red-300 hover:text-red-200 hover:border-red-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">
+                    <Button onClick={exportPDF} className="border border-red-400 text-red-300 hover:text-red-200 hover:border-red-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">
                         <Download className="mr-2" size={16} /> Exportar PDF
-                    </button>
-                    <button onClick={exportExcel} className="border border-emerald-400 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">
+                    </Button>
+                    <Button onClick={exportExcel} className="border border-emerald-400 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">
                         <FileSpreadsheet className="mr-2" size={16} /> Exportar Excel
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -504,9 +505,9 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                 <div className="border-t border-[color:var(--border-1)] px-4 py-3 flex items-center justify-between bg-[color:var(--surface-2)]">
                     <div className="text-sm text-[color:var(--text-3)]">Página {currentPage} de {totalPages}</div>
                     <div className="flex gap-2">
-                        <button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="btn-ghost px-3 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
+                        <Button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="btn-ghost px-3 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
                             <ChevronLeft size={16} /> Anterior
-                        </button>
+                        </Button>
                         <div className="hidden sm:flex gap-1">
                             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                                 let page: number;
@@ -515,15 +516,15 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                                 else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
                                 else page = currentPage - 2 + i;
                                 return (
-                                    <button key={page} onClick={() => onPageChange(page)} className={`w-8 h-8 rounded text-sm ${currentPage === page ? 'bg-[color:var(--accent-0)] text-[#081116]' : 'hover:bg-[color:var(--surface-1)] text-[color:var(--text-2)]'}`}>
+                                    <Button key={page} onClick={() => onPageChange(page)} className={`w-8 h-8 rounded text-sm ${currentPage === page ? 'bg-[color:var(--accent-0)] text-[#081116]' : 'hover:bg-[color:var(--surface-1)] text-[color:var(--text-2)]'}`}>
                                         {page}
-                                    </button>
+                                    </Button>
                                 );
                             })}
                         </div>
-                        <button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="btn-ghost px-3 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
+                        <Button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="btn-ghost px-3 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
                             Siguiente <ChevronRight size={16} />
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

@@ -1,13 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ResponseBuilder } from '../shared/ApiResponse';
 
-interface AuthenticatedRequest extends Request {
-    user?: {
-        id: number;
-        username: string;
-        role: 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
-    };
-}
+type AuthenticatedRequest = Request;
 
 /**
  * Middleware para verificar acceso de auditor
@@ -41,7 +35,7 @@ export const denyAuditorOnly = (req: Request, res: Response, next: NextFunction)
     }
     
     // Si es auditor (y no admin), denegar acceso
-    if (authReq.user.role === 'auditor') {
+    if (authReq.user.role === 'auditor' || authReq.user.role === 'demo') {
         return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Auditores no tienen acceso a esta función'));
     }
     

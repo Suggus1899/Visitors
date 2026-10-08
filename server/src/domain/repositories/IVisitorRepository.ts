@@ -5,7 +5,16 @@ import { VisitEntity } from '../entities/Visit.entity';
  * Repository interface for Visitor
  * Defines contract without implementation details
  */
+export interface VisitorEditContext {
+  visitId: number | null;
+  editedBy: number;
+  editedByUsername: string;
+}
+
 export interface IVisitorRepository {
+  updateWithHistory(cedula: string, data: Partial<VisitorEntity>, actor: VisitorEditContext): Promise<Visitor>;
+  anonymize(cedula: string, actor: VisitorEditContext, ip?: string, userAgent?: string): Promise<void>;
+
   /**
    * Find visitor by cedula
    */

@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import { useTheme } from '../context/ThemeContext';
 import Sun from 'lucide-react/dist/esm/icons/sun';
 import Moon from 'lucide-react/dist/esm/icons/moon';
@@ -6,7 +7,7 @@ export const ThemeToggle = () => {
     const { theme, toggleTheme } = useTheme();
 
     return (
-        <button
+        <Button
             onClick={toggleTheme}
             className="p-2 text-[color:var(--text-3)] hover:text-[color:var(--text-1)] rounded-full hover:bg-[color:var(--surface-2)] transition-colors relative"
             title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
@@ -26,6 +27,6 @@ export const ThemeToggle = () => {
                     }`} 
                 />
             </div>
-        </button>
+        </Button>
     );
 };

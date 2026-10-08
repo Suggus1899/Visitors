@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useId } from 'react';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './dialog';
+import { Button } from './button';
+import { Textarea } from './textarea';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
-import X from 'lucide-react/dist/esm/icons/x';
 
 interface ConfirmDialogProps {
     isOpen: boolean;
@@ -29,7 +31,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 }) => {
     const [notes, setNotes] = useState('');
 
-    if (!isOpen) return null;
+    const notesId = useId();
+    useEffect(() => { if (!isOpen) setNotes(''); }, [isOpen]);
 
     const colors = {
         danger: 'border-red-400 text-red-400 bg-red-500/10',
@@ -54,8 +57,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-            <div className="panel-tech rounded-2xl max-w-md w-full transform transition-all scale-100 animate-slideUp relative">
+        <Dialog open={isOpen} onOpenChange={open => { if (!open) handleCancel(); }}>
+            <DialogContent className="panel-tech rounded-2xl max-w-md p-0">
                 {/* Accent bar */}
                 <div className={`absolute inset-x-0 top-0 h-1 rounded-t-2xl ${colors[variant].split(' ')[0]}`} />
 
@@ -66,28 +69,23 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                             <AlertTriangle size={24} />
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-lg font-display uppercase tracking-[0.15em] text-[color:var(--text-1)] mb-2">
+                            <DialogTitle className="text-lg font-display uppercase tracking-[0.15em] text-[color:var(--text-1)] mb-2">
                                 {title}
-                            </h3>
-                            <p className="text-sm text-[color:var(--text-2)] leading-relaxed">
+                            </DialogTitle>
+                            <DialogDescription className="text-sm text-[color:var(--text-2)] leading-relaxed">
                                 {message}
-                            </p>
+                            </DialogDescription>
                         </div>
-                        <button
-                            onClick={handleCancel}
-                            className="p-1.5 rounded-full text-[color:var(--text-3)] hover:text-[color:var(--text-1)] hover:bg-[color:var(--surface-2)] transition-colors"
-                        >
-                            <X size={18} />
-                        </button>
                     </div>
 
                     {/* Optional notes textarea */}
                     {notesLabel !== undefined && (
                         <div className="mt-4">
-                            <label className="block text-xs font-semibold text-[color:var(--text-3)] uppercase tracking-wider mb-1.5">
+                            <label htmlFor={notesId} className="block text-xs font-semibold text-[color:var(--text-3)] uppercase tracking-wider mb-1.5">
                                 {notesLabel}
                             </label>
-                            <textarea
+                            <Textarea
+                                id={notesId}
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 placeholder={notesPlaceholder}
@@ -99,21 +97,21 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
                     {/* Buttons */}
                     <div className="flex gap-3 mt-6">
-                        <button
+                        <Button
                             onClick={handleCancel}
                             className="flex-1 btn-ghost py-2.5 text-sm font-semibold"
                         >
                             {cancelText}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={handleConfirm}
                             className={`flex-1 py-2.5 px-4 rounded-lg text-[#081116] font-semibold text-sm transition-colors ${buttonColors[variant]}`}
                         >
                             {confirmText}
-                        </button>
+                        </Button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };

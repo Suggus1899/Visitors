@@ -144,6 +144,7 @@ class AuthService {
     private clearTokens(): void {
         this.accessToken = null;
         localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+        window.dispatchEvent(new Event('auth:logout'));
     }
 }
 

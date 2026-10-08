@@ -1,3 +1,5 @@
+import { AuthenticatedImage } from './AuthenticatedImage';
+import { Button } from './ui/button';
 import React from 'react';
 import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, LogOut } from 'lucide-react';
 import type { Visit } from '../types';
@@ -46,12 +48,12 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
                         <UserCircle2 className="w-6 h-6 mr-2 text-blue-600" />
                         Detalles de la Visita (Calendario)
                     </h2>
-                    <button
+                    <Button
                         onClick={onClose}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-700"
                     >
                         <X className="w-5 h-5" />
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Content */}
@@ -65,7 +67,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
                                 <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Fotografía del Visitante</h3>
                                 {visit.Visitor?.photo_url ? (
                                     <div className="aspect-square w-full sm:w-64 max-w-full rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
-                                        <img 
+                                        <AuthenticatedImage
                                             src={visit.Visitor.photo_url} 
                                             alt={`Foto de ${visitorName}`} 
                                             className="w-full h-full object-cover"
@@ -82,7 +84,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
                                 <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Identificación (Cédula/Carnet)</h3>
                                 {visit.Visitor?.id_photo_url ? (
                                     <div className="aspect-video w-full rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
-                                        <img 
+                                        <AuthenticatedImage
                                             src={visit.Visitor.id_photo_url} 
                                             alt={`ID de ${visitorName}`} 
                                             className="w-full h-full object-contain"
@@ -206,7 +208,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
                 {/* Footer Actions */}
                 <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center rounded-b-xl">
                     {isActive && onCheckout ? (
-                        <button
+                        <Button
                             onClick={() => {
                                 if (window.confirm(`¿Confirmar salida de ${visitorName}?`)) {
                                     onCheckout(visit.id);
@@ -217,17 +219,17 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
                         >
                             <LogOut className="w-4 h-4 mr-2" />
                             Registrar Salida
-                        </button>
+                        </Button>
                     ) : (
                         <div /> /* Spacer */
                     )}
                     
-                    <button
+                    <Button
                         onClick={onClose}
                         className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium cursor-pointer"
                     >
                         Cerrar Detalles
-                    </button>
+                    </Button>
                 </div>
 
             </div>

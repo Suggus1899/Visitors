@@ -1,5 +1,7 @@
+import { Button } from '../ui/button';
 import React, { useState, useCallback, useMemo } from 'react';
 import { Pie } from 'react-chartjs-2';
+import type { Chart } from 'chart.js';
 import Download from 'lucide-react/dist/esm/icons/download';
 import FileText from 'lucide-react/dist/esm/icons/file-text';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
@@ -20,7 +22,7 @@ interface MonthlyReportData {
 
 interface MonthlyReportCardProps {
     monthlyReport: MonthlyReportData | null;
-    pieChartRef: React.RefObject<any>;
+    pieChartRef: React.RefObject<Chart<'pie'> | null>;
     selectedMonth: number;
     setSelectedMonth: (month: number) => void;
     selectedYear: number;
@@ -69,7 +71,7 @@ const MonthlyReportCard = ({
 
     // Optimized download handler with loading state
     const handleDownloadPDF = useCallback(async () => {
-        if (!monthlyReport || isDownloading) return;
+        if (!monthlyReport || isDownloading || isLoading) return;
         
         setIsDownloading(true);
         try {
@@ -79,7 +81,7 @@ const MonthlyReportCard = ({
         } finally {
             setIsDownloading(false);
         }
-    }, [monthlyReport, pieChartRef, isDownloading]);
+    }, [monthlyReport, pieChartRef, isDownloading, isLoading]);
 
     // Optimized month/year handlers
     const handleMonthChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -139,18 +141,19 @@ const MonthlyReportCard = ({
                         </select>
                     </div>
 
-                    <button 
+                    <Button
                         onClick={handleDownloadPDF} 
                         disabled={!monthlyReport || isDownloading || isLoading}
                         className="btn-ghost px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         <Download size={16} className={isDownloading ? 'animate-spin' : ''} />
                         <span>{isDownloading ? 'Generando...' : 'Descargar PDF'}</span>
-                    </button>
+                    </Button>
                 </div>
             </div>
 
-            {monthlyReport && (
+            {(isLoading || !monthlyReport) && <p role="status" className="p-6 text-sm text-[color:var(--text-3)]">{isLoading ? 'Cargando datos...' : 'No hay datos suficientes para mostrar el gráfico'}</p>}
+            {!isLoading && monthlyReport && (
                 <div className="p-6 space-y-8">
                     {/* KPI Cards */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -252,7 +255,7 @@ const MonthlyReportCard = ({
                                 ))}
                                 
                                 {monthlyReport?.byReason && monthlyReport.byReason.length > 5 && (
-                                    <button 
+                                    <Button
                                         onClick={() => setShowAllReasons(!showAllReasons)}
                                         className="w-full mt-4 flex items-center justify-center gap-2 text-sm font-medium text-[color:var(--text-3)] hover:text-[color:var(--accent-0)] hover:bg-[color:var(--surface-2)] py-2 rounded-lg transition-all"
                                     >
@@ -267,7 +270,7 @@ const MonthlyReportCard = ({
                                                 <ChevronDown size={16} />
                                             </>
                                         )}
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         </div>

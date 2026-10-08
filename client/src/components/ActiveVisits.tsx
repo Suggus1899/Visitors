@@ -1,3 +1,6 @@
+import { AuthenticatedImage } from './AuthenticatedImage';
+import { Button } from './ui/button';
+import { useAuth } from '../hooks/useAuth';
 import React, { useState, useEffect } from 'react';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
@@ -22,6 +25,8 @@ interface ActiveVisitsProps {
 }
 
 const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading = false }) => {
+    const { user } = useAuth();
+    const canOperate = ['operador', 'admin', 'root'].includes(user?.role || '');
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [checkingOut, setCheckingOut] = useState<number | null>(null);
     const [markingIntermittent, setMarkingIntermittent] = useState<number | null>(null);
@@ -120,7 +125,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
         );
     }
 
-    if (!visits || visits.length === 0) {
+    if ((!visits || visits.length === 0) && !selectedVisit) {
         return (
             <div className="text-center p-12 panel-tech rounded-2xl border border-dashed border-[color:var(--border-1)]">
                 <User className="mx-auto h-12 w-12 text-[color:var(--text-3)]" />
@@ -162,7 +167,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                 {/* Photo */}
                                 <div className="relative flex-shrink-0">
                                     {visitorPhoto ? (
-                                        <img
+                                        <AuthenticatedImage
                                             src={visitorPhoto}
                                             alt={visitorName}
                                             className="w-14 h-14 rounded-2xl object-cover shadow-sm bg-[color:var(--surface-0)] border border-[color:var(--border-1)] group-hover:scale-105 transition-transform duration-500"
@@ -242,7 +247,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                     {/* Buttons */}
                                     <div className="flex items-center gap-2">
                                         {/* Salida Temporal */}
-                                        <button
+                                        {canOperate && <Button
                                             onClick={(e) => handleGoIntermittent(e, visit.id, visitorName)}
                                             disabled={isMarkingIntermittent || isCheckingOut}
                                             title="Salida temporal"
@@ -254,10 +259,10 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                                 <ArrowRightLeft size={12} />
                                             )}
                                             <span>Temp.</span>
-                                        </button>
+                                        </Button>}
 
                                         {/* Salida Final */}
-                                        <button
+                                        {canOperate && <Button
                                             onClick={(e) => handleCheckout(e, visit.id, visitorName)}
                                             disabled={isCheckingOut || isMarkingIntermittent}
                                             className="group/btn relative px-3 py-2 rounded-lg bg-red-500/10 border border-red-400/40 text-red-400 text-[11px] font-semibold hover:bg-red-500/20 hover:border-red-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
@@ -268,7 +273,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                                 <LogOutIcon size={12} />
                                             )}
                                             <span>Salir</span>
-                                        </button>
+                                        </Button>}
                                     </div>
                                 </div>
                             </div>
@@ -281,6 +286,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                 visit={selectedVisit}
                 isOpen={!!selectedVisit}
                 onClose={() => setSelectedVisit(null)}
+                onVisitorUpdated={onCheckout}
             />
 
             <ConfirmDialog

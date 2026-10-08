@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import React from 'react';
 
 export const KeyboardShortcutsHelp: React.FC<{ show: boolean; onClose: () => void }> = ({ show, onClose }) => {
@@ -34,12 +35,12 @@ export const KeyboardShortcutsHelp: React.FC<{ show: boolean; onClose: () => voi
                         </div>
                     ))}
                 </div>
-                <button
+                <Button
                     onClick={onClose}
                     className="mt-6 w-full btn-tech"
                 >
                     Entendido
-                </button>
+                </Button>
             </div>
         </div>
     );

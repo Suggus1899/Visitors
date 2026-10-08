@@ -17,6 +17,7 @@ export class GetMonthlyReportUseCase {
     // Statistics
     const totalVisits = visits.length;
     const completedVisits = visits.filter(v => v.status === VisitStatus.COMPLETED).length;
+    const totalDuration = visits.reduce((minutes, visit) => minutes + (visit.getDurationMinutes() || 0), 0);
     const activeVisits = visits.filter(v => v.isActive()).length;
     const daysInMonth = endDate.getDate();
     const avgVisitsPerDay = parseFloat((totalVisits / daysInMonth).toFixed(1));
@@ -97,7 +98,10 @@ export class GetMonthlyReportUseCase {
         totalVisits,
         completedVisits,
         activeVisits,
-        avgVisitsPerDay
+        avgVisitsPerDay,
+        uniqueVisitors: new Set(visits.map(visit => visit.visitorCedula)).size,
+        averageDuration: completedVisits ? Math.round(totalDuration / completedVisits) : 0,
+        completionRate: totalVisits ? Math.round(completedVisits / totalVisits * 100) : 0
       },
       byReason,
       byWeek,

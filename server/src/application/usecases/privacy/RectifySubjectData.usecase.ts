@@ -1,11 +1,9 @@
 import { IVisitorRepository } from '../../../domain/repositories/IVisitorRepository';
-import { IAuditLogRepository } from '../../../domain/repositories/IAuditLogRepository';
 import { RectifySubjectDataDto } from '../../dto/ArcoRequestDto';
 
 export class RectifySubjectDataUseCase {
   constructor(
-    private visitorRepository: IVisitorRepository,
-    private auditLogRepository: IAuditLogRepository
+    private visitorRepository: IVisitorRepository
   ) { }
 
   async execute(dto: RectifySubjectDataDto, actorId: number, actorUsername: string, ip?: string, userAgent?: string): Promise<{ message: string; visitor: unknown }> {
@@ -22,18 +20,8 @@ export class RectifySubjectDataUseCase {
     if (dto.email !== undefined) updates.email = dto.email;
     if (dto.phone !== undefined) updates.phone = dto.phone;
 
-    const updated = await this.visitorRepository.update(visitor.cedula, updates);
+    const updated = await this.visitorRepository.updateWithHistory(visitor.cedula, updates, { visitId: null, editedBy: actorId, editedByUsername: actorUsername });
 
-    await this.auditLogRepository.log({
-      userId: actorId,
-      username: actorUsername,
-      action: 'ARCO_RECTIFICATION_EXECUTED',
-      entity: 'Visitor',
-      entityId: visitor.cedula,
-      details: `Campos rectificados: ${Object.keys(updates).join(', ')}`,
-      ipAddress: ip,
-      userAgent
-    });
 
     return { message: 'Datos rectificados correctamente', visitor: updated.toObject() };
   }

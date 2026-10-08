@@ -5,6 +5,8 @@ import { verifyAuditor, denyAuditorOnly } from '../middleware/auditor';
 import { validate } from '../middleware/validate';
 import { createArcoRequestSchema, updateArcoStatusSchema, rectifyDataSchema, oppositionSchema } from '../schemas/privacy.schema';
 
+import { authorizeVisitorEdit } from '../middleware/visitorEdit';
+
 const router = express.Router();
 
 /**
@@ -15,14 +17,14 @@ const router = express.Router();
  */
 
 // Solicitudes ARCO
-router.post('/v1/privacy/arco-requests', verifyToken, validate(createArcoRequestSchema), PrivacyCleanController.createArcoRequest);
+router.post('/v1/privacy/arco-requests', verifyToken, denyAuditorOnly, validate(createArcoRequestSchema), PrivacyCleanController.createArcoRequest);
 router.get('/v1/privacy/arco-requests', verifyToken, verifyAuditor, PrivacyCleanController.listArcoRequests);
-router.patch('/v1/privacy/arco-requests/:id/status', verifyToken, verifyAuditor, validate(updateArcoStatusSchema), PrivacyCleanController.updateArcoRequestStatus);
+router.patch('/v1/privacy/arco-requests/:id/status', verifyToken, isAdmin, validate(updateArcoStatusSchema), PrivacyCleanController.updateArcoRequestStatus);
 
 // ARCO - Acceso, Rectificacion, Cancelacion, Oposicion
 router.get('/v1/privacy/subjects/:cedula', verifyToken, verifyAuditor, PrivacyCleanController.accessSubjectData);
-router.patch('/v1/privacy/subjects/:cedula', verifyToken, denyAuditorOnly, validate(rectifyDataSchema), PrivacyCleanController.rectifySubjectData);
+router.patch('/v1/privacy/subjects/:cedula', verifyToken, authorizeVisitorEdit, validate(rectifyDataSchema), PrivacyCleanController.rectifySubjectData);
 router.delete('/v1/privacy/subjects/:cedula', verifyToken, isAdmin, PrivacyCleanController.cancelSubjectData);
-router.post('/v1/privacy/subjects/:cedula/opposition', verifyToken, validate(oppositionSchema), PrivacyCleanController.createOppositionRequest);
+router.post('/v1/privacy/subjects/:cedula/opposition', verifyToken, denyAuditorOnly, validate(oppositionSchema), PrivacyCleanController.createOppositionRequest);
 
 export default router;

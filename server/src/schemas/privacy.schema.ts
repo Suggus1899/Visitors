@@ -13,13 +13,14 @@ export const createArcoRequestSchema = z.object({
 });
 
 export const rectifyDataSchema = z.object({
+  editPassword: z.string().min(1).max(200),
   firstName: z.string().trim().min(1, 'Nombre requerido').max(100, 'Nombre demasiado largo').optional(),
   lastName: z.string().trim().min(1, 'Apellido requerido').max(100, 'Apellido demasiado largo').optional(),
   company: z.string().trim().min(1, 'Compania requerida').max(200, 'Compania demasiado larga').optional(),
   jobTitle: z.string().trim().max(200, 'Cargo demasiado largo').optional(),
   email: z.string().email('Email invalido').max(200, 'Email demasiado largo').nullable().optional(),
   phone: z.string().trim().max(20, 'Telefono demasiado largo').nullable().optional(),
-}).refine((data) => Object.keys(data).length > 0, {
+}).refine((data) => Object.keys(data).some(key => key !== 'editPassword'), {
   message: 'Debe enviar al menos un campo para rectificar',
 });
 

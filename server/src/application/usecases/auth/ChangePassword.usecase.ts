@@ -49,10 +49,10 @@ export class ChangePasswordUseCase {
 
         await this.userRepository.updatePasswordChange(userId, hashedPassword, false, new Date());
 
-        if (this.emailService.isConfigured()) {
+        if (user.email && this.emailService.isConfigured()) {
             try {
                 await this.emailService.sendPasswordChangedEmail(
-                    user.username,
+                    user.email,
                     user.username
                 );
             } catch (error) {

@@ -20,7 +20,6 @@ export const validate = (schema: ZodSchema) => {
         path: req.path,
         method: req.method,
         errors,
-        body: req.body,
       });
 
       res.status(400).json({

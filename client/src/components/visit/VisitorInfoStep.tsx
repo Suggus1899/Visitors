@@ -1,10 +1,14 @@
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import React from 'react';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import Phone from 'lucide-react/dist/esm/icons/phone';
 
-const COUNTRY_CODES = [
+// Phone parsing in VisitForm uses the same choices as this control.
+// eslint-disable-next-line react-refresh/only-export-components
+export const COUNTRY_CODES = [
     { code: '+58', country: 'VE', flag: '🇻🇪' },
     { code: '+1', country: 'US', flag: '🇺🇸' },
     { code: '+57', country: 'CO', flag: '🇨🇴' },
@@ -52,7 +56,7 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">Empresa *</label>
                 <div className="relative">
                     <Building2 className="absolute left-3 top-3 text-[color:var(--text-3)]" size={18} />
-                    <input
+                    <Input
                         type="text"
                         placeholder="Nombre de la empresa"
                         value={formData.company}
@@ -80,7 +84,7 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
 
             <div>
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">Cargo</label>
-                <input
+                <Input
                     type="text"
                     placeholder="Ej: Gerente, Técnico, etc."
                     value={formData.job_title}
@@ -106,7 +110,7 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
                     </select>
                     <div className="relative flex-1">
                         <Phone className="absolute left-3 top-3 text-[color:var(--text-3)]" size={18} />
-                        <input
+                        <Input
                             type="tel"
                             placeholder="4121234567"
                             value={formData.phone}
@@ -121,17 +125,17 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
             </div>
 
             <div className="flex gap-3">
-                <button type="button" onClick={onPrev} className="flex-1 btn-ghost flex items-center justify-center gap-2">
+                <Button type="button" onClick={onPrev} className="flex-1 btn-ghost flex items-center justify-center gap-2">
                     <ArrowLeft size={18} /> Atrás
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     onClick={onNext}
                     disabled={!canProceed}
                     className="flex-1 btn-tech disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Siguiente <ArrowRight size={18} />
-                </button>
+                </Button>
             </div>
         </div>
     );

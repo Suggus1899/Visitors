@@ -35,13 +35,13 @@ export default function SuperAdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Form states
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'operador' as User['role'] });
+  const [newUser, setNewUser] = useState({ username: '', email: '', password: '', role: 'operador' as User['role'] });
   const [editUser, setEditUser] = useState<Partial<UserFormData> & { id?: number }>({ username: '', role: 'operador' });
   const [newPassword, setNewPassword] = useState('');
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/root/users');
+      const response = await api.get('/superadmin/users');
       setUsers(response.data.data || []);
     } catch {
       toast.error('Error al cargar usuarios');
@@ -50,7 +50,7 @@ export default function SuperAdminDashboard() {
 
   const fetchAuditLogs = async () => {
     try {
-      const response = await api.get('/root/audit-logs');
+      const response = await api.get('/superadmin/audit-logs');
       setAuditLogs(response.data.data?.logs || []);
     } catch {
       toast.error('Error al cargar logs de auditoría');
@@ -73,10 +73,10 @@ export default function SuperAdminDashboard() {
 
   const handleCreateUser = async () => {
     try {
-      await api.post('/root/users', newUser);
+      await api.post('/superadmin/users', newUser);
       toast.success('Usuario creado exitosamente');
       setShowCreateModal(false);
-      setNewUser({ username: '', password: '', role: 'operador' });
+      setNewUser({ username: '', email: '', password: '', role: 'operador' });
       fetchUsers();
     } catch (err) {
       const error = err as ApiError;
@@ -87,7 +87,7 @@ export default function SuperAdminDashboard() {
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
     try {
-      await api.put(`/root/users/${selectedUser.id}`, editUser);
+      await api.put(`/superadmin/users/${selectedUser.id}`, { username: editUser.username, role: editUser.role, email: editUser.email || null });
       toast.success('Usuario actualizado exitosamente');
       setShowEditModal(false);
       setSelectedUser(null);
@@ -101,7 +101,7 @@ export default function SuperAdminDashboard() {
   const handleDeleteUser = async (userId: number) => {
     if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
     try {
-      await api.delete(`/root/users/${userId}`);
+      await api.delete(`/superadmin/users/${userId}`);
       toast.success('Usuario eliminado exitosamente');
       fetchUsers();
     } catch (err) {
@@ -113,7 +113,7 @@ export default function SuperAdminDashboard() {
   const handleResetPassword = async () => {
     if (!selectedUser) return;
     try {
-      await api.post(`/root/users/${selectedUser.id}/reset-password`, 
+      await api.post(`/superadmin/users/${selectedUser.id}/reset-password`,
         { newPassword }
       );
       toast.success('Contraseña restablecida exitosamente');
@@ -128,7 +128,7 @@ export default function SuperAdminDashboard() {
 
   const openEditModal = (user: User) => {
     setSelectedUser(user);
-    setEditUser({ username: user.username, role: user.role });
+    setEditUser({ username: user.username, email: user.email || '', role: user.role });
     setShowEditModal(true);
   };
 

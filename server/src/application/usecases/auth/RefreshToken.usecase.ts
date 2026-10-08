@@ -26,7 +26,7 @@ export class RefreshTokenUseCase {
 
         const user = await this.userRepository.findById(payload.id);
 
-        if (!user) {
+        if (!user || payload.tokenVersion !== user.tokenVersion) {
             throw new Error('INVALID_REFRESH_TOKEN');
         }
 

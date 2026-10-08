@@ -1,6 +1,6 @@
 # LogMaster - Sistema de Gestión de Visitas
 
-LogMaster es una aplicación web moderna y segura para la gestión de visitantes en empresas, desarrollada con React, Node.js, TypeScript y PostgreSQL. Sistema perfeccionado con seguridad de nivel empresarial, monitoreo completo y CI/CD automatizado.
+LogMaster es una aplicación web moderna y segura para la gestión de visitantes en empresas, desarrollada con React, Node.js, TypeScript y PostgreSQL. La versión integral conserva la estructura existente y añade controles de permisos, privacidad y sesiones verificados en un entorno independiente.
 
 ## 🚀 Características Principales
 
@@ -16,53 +16,55 @@ LogMaster es una aplicación web moderna y segura para la gestión de visitantes
 
 - **Sistema Operativo**: Windows 10/11 (64-bit)
 - **RAM**: Mínimo 4GB
-- **Espacio en Disco**: 500MB para instalación + espacio para datos
+- **Espacio en Disco**: 2 GB para dependencias y entorno local + espacio para datos
 - **Resolución**: Mínimo 1366x768
-- **Node.js**: 20.x LTS
+- **Node.js**: 22.12 o superior (o 20.19 o superior)
 - **PostgreSQL**: 16
+- **PowerShell**: 7 para los comandos locales
+- **pnpm**: 12.4.2 (fijado en packageManager)
 
 ## ⚡ Inicio Rápido
 
-### Requisitos
+El entorno de validación usa PostgreSQL 16 en `127.0.0.1:55432` y Mailpit en `127.0.0.1:1025`. Sus binarios, datos, correo y respaldos quedan fuera del repositorio, en `../Visitors-local`. Las bases `logmaster_dev`, `logmaster_test` y `logmaster_restore_test` tienen roles y claves independientes.
 
-- Node.js 20.x LTS instalado
-- PostgreSQL 16 instalado y corriendo en el puerto 5432
+Desde PowerShell 7, en la raíz del proyecto:
 
-### Ejecutar (Primera vez)
-
-```bash
-# 1. Clonar el repositorio
-git clone https://github.com/Suggus1899/Visitors.git
-cd Visitors
-
-# 2. Instalar dependencias en todos los módulos
-pnpm run install-all
-
-# 3. Configurar variables de entorno
-copy .env.example .env
-# Edita .env con tu contraseña de PostgreSQL y claves de seguridad
-
-# 4. Crear la base de datos
-createdb -U postgres visitors
-
-# 5. Iniciar en modo desarrollo
-pnpm run dev
+```powershell
+pnpm install --frozen-lockfile
+pnpm run local:setup
+pnpm run local:prepare
+pnpm run local:start
 ```
 
-El servidor corre en `http://localhost:3000` y el cliente en `http://localhost:5173`.
+El cliente abre en http://localhost:5173 y la API en http://localhost:3000. El buzón de pruebas abre en http://127.0.0.1:8025 y captura los mensajes sin entregarlos a destinatarios externos. La primera descarga de PostgreSQL y Mailpit requiere conexión a Internet.
 
-### Uso Diario
+`local:setup` genera `.env.logmaster-dev.local`, `.env.logmaster-test.local` y `.env.logmaster-restore_test.local`, ignorados por Git. Estos archivos contienen las credenciales locales, la contraseña adicional `EDIT_PASSWORD` y las claves de semillas `SEED_*_PASSWORD`. El usuario root inicial es `trebolmaster`; su contraseña inicial proviene de `SEED_ROOT_PASSWORD` y exige un cambio al entrar. Las cuentas operativas nuevas requieren correo; las existentes pueden mantenerlo vacío.
 
-```bash
-pnpm run dev    # Inicia cliente y servidor
+`local:prepare` crea el esquema únicamente en una base local vacía, ejecuta migraciones y prepara usuarios ficticios. El arranque habitual comprueba conexión y migraciones pendientes sin sincronizar tablas ni insertar semillas. `DOTENV_CONFIG_PATH` selecciona el entorno explícitamente; la retención está desactivada en validación. Los comandos locales no leen la base anterior ni sus respaldos.
+
+Para uso diario: `pnpm run local:start`. Para validar:
+
+```powershell
+pnpm run test
+pnpm run test:integration
+pnpm run build
+pnpm run typecheck:client
 ```
 
-O usa el script de Windows:
+Las pruebas de integración vacían solo `logmaster_test`, utilizan datos ficticios y restauran los respaldos exclusivamente en `logmaster_restore_test`. No configures ese comando con una base operativa.
 
-```bash
-scripts\start.bat    # Inicia el sistema
-scripts\status.bat   # Ver estado y URLs
-```
+### Cambios de API y esquema
+
+- La edición y rectificación exigen `editPassword` en cada guardado y obtienen el actor de la sesión. Operador, admin y root pueden editar; solo admin y root pueden bloquear, cancelar datos y administrar respaldos. Root administra cuentas. Auditor y demo consultan sin modificar información operativa.
+- Ambas rutas de fotografías exigen Bearer token y responden con `Cache-Control: private, no-store`. El cliente usa Blob y revoca las URLs temporales al cerrar sus vistas.
+- Las consultas incluyen bloqueo, observaciones, historial, anfitrión, departamento, vehículo y fechas. Las listas y formularios conservan el perfil completo al editar.
+- El reporte mensual devuelve visitantes únicos, porcentaje de cierre y duración promedio en su resumen; el cliente adapta ese resumen y los motivos para mostrar y exportar las mismas cifras.
+- La migración `009-stabilization.ts` agrega `Users.email`, `Users.tokenVersion` y `Visitors.anonymizedAt`; permite `VisitorEditHistories.visitId = null`, cifra el historial previo y elimina valores de fotografías del historial. Normaliza las columnas antiguas de fechas escritas en UTC a TIMESTAMPTZ y amplía el cargo cifrado a TEXT.
+- Un índice parcial impide dos visitas abiertas por visitante. La migración informa los IDs duplicados y se detiene sin eliminarlos.
+- Cancelar con una visita en espera, activa o intermitente devuelve `409 OPEN_VISIT_EXISTS`. Después del cierre, la cancelación elimina datos personales y fotos de la base activa en una transacción, conserva eventos anonimizados y permite crear un perfil independiente al registrar la misma cédula.
+- Cambiar o restablecer una contraseña invalida sesiones anteriores mediante una versión persistente, incluso tras reiniciar. La recuperación utiliza enlaces `/#/reset-password?token=...`, hash del token, vencimiento de 15 minutos y uso único. El restablecimiento por root exige cambio obligatorio posterior.
+
+El SMTP de producción necesita configuración y prueba con el proveedor elegido. Los respaldos históricos pueden conservar datos personales cancelados: deben revisarse antes de restaurarlos. Las guías anteriores en `docs/` conservan instrucciones de la versión previa; esta sección describe el entorno y contratos de estabilización.
 
 ### Acceso desde Red LAN
 
@@ -115,7 +117,7 @@ DB_PASSWORD=tu_contraseña_postgres
 
 - **React 18** - Framework UI
 - **TypeScript** - Tipado estático
-- **Tailwind CSS** - Estilos
+- **Tailwind CSS 3 y shadcn/ui** - Estilos, controles y diálogos accesibles
 - **Vite** - Build tool
 - **Lucide React** - Iconos
 
@@ -135,7 +137,7 @@ DB_PASSWORD=tu_contraseña_postgres
 | **Admin**     | Gestión completa: respaldos, reportes, auditoría. No crea/modifica/elimina usuarios |
 | **Operador**  | Check-in/check-out de visitantes, ver visitas activas, reportes básicos             |
 | **Auditor**   | Solo lectura: ver logs de auditoría, generar reportes, sin modificar datos          |
-| **Demo**      | Operaciones con auto-tour guiado interactivo                                        |
+| **Demo**      | Consulta de visitas; sin modificaciones operativas                                  |
 
 ## 📦 Scripts Disponibles
 

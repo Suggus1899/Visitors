@@ -1,3 +1,5 @@
+import { AuthenticatedImage } from './AuthenticatedImage';
+import { Button } from './ui/button';
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import Camera from 'lucide-react/dist/esm/icons/camera';
@@ -141,15 +143,15 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
     if (image) {
         return (
             <div className="relative w-full max-w-sm mx-auto animate-fadeIn">
-                <img src={image} alt="Visitor" className="rounded-lg border border-[color:var(--border-1)] shadow-md w-full object-cover" />
-                <button
+                <AuthenticatedImage src={image} alt="Visitor" className="rounded-lg border border-[color:var(--border-1)] shadow-md w-full object-cover" />
+                <Button
                     type="button"
                     onClick={handleRetake}
                     className="absolute bottom-4 right-4 bg-[color:var(--surface-2)] text-[color:var(--text-1)] p-2 rounded-full shadow-lg hover:bg-[color:var(--surface-1)] transition-colors"
                     title="Retomar Foto"
                 >
                     <RefreshCcw size={20} />
-                </button>
+                </Button>
             </div>
         );
     }
@@ -206,14 +208,14 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                     onChange={handleFileUpload}
                     className="hidden"
                 />
-                <button
+                <Button
                     type="button"
                     onClick={triggerFileUpload}
                     className="w-full py-2 px-4 border border-[color:var(--border-1)] rounded-lg text-sm text-[color:var(--text-2)] hover:bg-[color:var(--surface-2)] hover:border-[color:var(--accent-0)] transition-colors flex items-center justify-center gap-2"
                 >
                     <Upload size={16} />
                     Subir desde archivo
-                </button>
+                </Button>
             </div>
         );
     }
@@ -254,29 +256,29 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                 )}
 
                 {/* Close button */}
-                <button
+                <Button
                     type="button"
                     onClick={stopCamera}
                     className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-1 hover:bg-opacity-75 z-20"
                 >
                     <X size={20} />
-                </button>
+                </Button>
 
                 {/* Guide toggle */}
                 {!countdown && (
-                    <button
+                    <Button
                         type="button"
                         onClick={() => setShowGuide(!showGuide)}
                         className="absolute top-2 left-2 text-white bg-black bg-opacity-50 rounded-full p-1 hover:bg-opacity-75 text-xs px-2 z-20"
                     >
                         {showGuide ? 'Ocultar guía' : 'Mostrar guía'}
-                    </button>
+                    </Button>
                 )}
             </div>
 
             {/* Capture button */}
             <div className="flex gap-2">
-                <button
+                <Button
                     type="button"
                     onClick={startCountdown}
                     disabled={countdown !== null}
@@ -284,10 +286,10 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                 >
                     <Camera size={20} />
                     <span>{countdown !== null ? 'Capturando...' : 'Capturar (3s)'}</span>
-                </button>
+                </Button>
 
                 {/* Instant capture option */}
-                <button
+                <Button
                     type="button"
                     onClick={handleCapture}
                     disabled={countdown !== null}
@@ -295,7 +297,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                     title="Captura instantánea"
                 >
                     <ImageIcon size={18} />
-                </button>
+                </Button>
             </div>
         </div>
     );

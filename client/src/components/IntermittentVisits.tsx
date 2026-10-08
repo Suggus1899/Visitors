@@ -1,3 +1,6 @@
+import { AuthenticatedImage } from './AuthenticatedImage';
+import { Button } from './ui/button';
+import { useAuth } from '../hooks/useAuth';
 import React, { useState, useEffect } from 'react';
 import LogIn from 'lucide-react/dist/esm/icons/log-in';
 import Clock from 'lucide-react/dist/esm/icons/clock';
@@ -31,6 +34,8 @@ interface IntermittentVisitsProps {
 }
 
 const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReactivated, loading = false }) => {
+    const { user } = useAuth();
+    const canOperate = ['operador', 'admin', 'root'].includes(user?.role || '');
     const [now, setNow] = useState(Date.now());
     const [reactivating, setReactivating] = useState<number | null>(null);
     const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -120,7 +125,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                                 {/* Photo */}
                                 <div className="relative flex-shrink-0">
                                     {photoUrl ? (
-                                        <img
+                                        <AuthenticatedImage
                                             src={photoUrl}
                                             alt={visitorName}
                                             className="w-14 h-14 rounded-2xl object-cover shadow-sm bg-[color:var(--surface-0)] border border-blue-500/30 group-hover:scale-105 transition-transform duration-500"
@@ -180,17 +185,17 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                                             <Clock size={13} className="mr-1.5 flex-shrink-0" />
                                             <span className="whitespace-nowrap">Salió: {new Date(visit.lastExitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                         </div>
-                                        <button
+                                        <Button
                                             onClick={() => setExpandedId(isExpanded ? null : visit.id)}
                                             className="flex items-center gap-0.5 text-[10px] text-[color:var(--text-3)] hover:text-blue-400 transition-colors px-1 py-0.5 rounded hover:bg-blue-600/10"
                                         >
                                             {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                             <span className="font-medium">{visit.intervals.length}</span>
-                                        </button>
+                                        </Button>
                                     </div>
 
                                     {/* Reingreso button */}
-                                    <button
+                                    {canOperate && <Button
                                         onClick={(e) => handleReactivate(e, visit.id, visitorName)}
                                         disabled={isReactivating}
                                         className="group/rbtn relative px-3 py-1.5 rounded-lg border border-emerald-500/50 text-emerald-300 text-[11px] font-semibold hover:border-emerald-400 hover:bg-emerald-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
@@ -201,7 +206,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                                             <LogIn size={12} />
                                         )}
                                         <span>REGRESÓ</span>
-                                    </button>
+                                    </Button>}
                                 </div>
 
                                 {/* Expanded interval history */}

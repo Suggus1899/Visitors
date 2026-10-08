@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api.v1';
 import Activity from 'lucide-react/dist/esm/icons/activity';
@@ -91,13 +92,13 @@ const ActivityLogPanel = () => {
                         <option value="CHECKOUT">Check-outs</option>
                         <option value="BACKUP">Respaldos</option>
                     </select>
-                    <button
+                    <Button
                         onClick={fetchActivities}
                         className="btn-ghost px-2.5 py-2"
                         title="Actualizar"
                     >
                         <RefreshCw size={18} />
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -137,23 +138,23 @@ const ActivityLogPanel = () => {
 
             {totalPages > 1 && (
                 <div className="flex justify-center gap-2 mt-4">
-                    <button
+                    <Button
                         onClick={() => setPage(p => Math.max(1, p - 1))}
                         disabled={page === 1}
                         className="btn-ghost px-3 py-1.5 disabled:opacity-50"
                     >
                         Anterior
-                    </button>
+                    </Button>
                     <span className="px-3 py-1 text-sm text-[color:var(--text-3)]">
                         Página {page} de {totalPages}
                     </span>
-                    <button
+                    <Button
                         onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                         disabled={page === totalPages}
                         className="btn-ghost px-3 py-1.5 disabled:opacity-50"
                     >
                         Siguiente
-                    </button>
+                    </Button>
                 </div>
             )}
         </div>

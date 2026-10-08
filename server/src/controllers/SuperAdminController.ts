@@ -43,7 +43,8 @@ export class SuperAdminController {
       const data: CreateUserDto = {
         username: req.body.username as string,
         password: req.body.password as string,
-        role: req.body.role as any
+        role: req.body.role as any,
+        email: req.body.email
       };
 
       // Validate required fields
@@ -86,7 +87,8 @@ export class SuperAdminController {
       const data: UpdateUserDto = {
         id: userId,
         username: req.body.username as string | undefined,
-        role: req.body.role as any
+        role: req.body.role as any,
+        email: req.body.email
       };
 
       const useCase = container.createUpdateUserUseCase();
@@ -195,6 +197,7 @@ export class SuperAdminController {
       if (error.message === 'USER_NOT_FOUND') {
         return res.status(404).json(ResponseBuilder.error('USER_NOT_FOUND', 'User not found'));
       }
+      if (error.message === 'PASSWORD_POLICY_VIOLATION') return res.status(400).json(ResponseBuilder.error('PASSWORD_POLICY_VIOLATION', 'Password does not satisfy the password policy'));
       res.status(500).json(ResponseBuilder.error('RESET_PASSWORD_FAILED', 'Failed to reset password'));
     }
   }

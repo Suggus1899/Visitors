@@ -1,3 +1,5 @@
+import { AuthenticatedImage } from './AuthenticatedImage';
+import { Button } from './ui/button';
 import React, { useEffect, useState, useCallback } from 'react';
 import { VisitService } from '../services/api.v1';
 import X from 'lucide-react/dist/esm/icons/x';
@@ -94,7 +96,7 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
 
                     {/* Photo / Avatar */}
                     {photoUrl ? (
-                        <img src={photoUrl} alt={visitorName}
+                        <AuthenticatedImage src={photoUrl} alt={visitorName}
                             className="w-12 h-12 rounded-xl object-cover border border-[color:var(--border-1)] flex-shrink-0"
                             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
@@ -118,11 +120,11 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
                         </div>
                     </div>
 
-                    <button onClick={onClose}
+                    <Button onClick={onClose}
                         className="p-2 text-[color:var(--text-2)] hover:text-[color:var(--text-1)] hover:bg-[color:var(--surface-1)] rounded-full transition flex-shrink-0"
                     >
                         <X size={20} />
-                    </button>
+                    </Button>
                 </div>
 
                 {/* ── Stats bar ── */}
@@ -247,23 +249,23 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
                             {/* ── Pagination ── */}
                             {totalPages > 1 && (
                                 <div className="flex items-center justify-between pt-2">
-                                    <button
+                                    <Button
                                         onClick={() => setPage(p => Math.max(1, p - 1))}
                                         disabled={page === 1}
                                         className="text-xs px-3 py-1 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-2)] disabled:opacity-30 hover:bg-[color:var(--surface-1)] transition"
                                     >
                                         ← Anterior
-                                    </button>
+                                    </Button>
                                     <span className="text-xs text-[color:var(--text-3)]">
                                         Página {page} / {totalPages}
                                     </span>
-                                    <button
+                                    <Button
                                         onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                                         disabled={page === totalPages}
                                         className="text-xs px-3 py-1 rounded-lg border border-[color:var(--border-1)] text-[color:var(--text-2)] disabled:opacity-30 hover:bg-[color:var(--surface-1)] transition"
                                     >
                                         Siguiente →
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
                         </div>

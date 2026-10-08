@@ -1,9 +1,33 @@
-import { IVisitorRepository, VisitorFilters } from '../../../domain/repositories/IVisitorRepository';
+import { IVisitorRepository, VisitorFilters, VisitorEditContext } from '../../../domain/repositories/IVisitorRepository';
 import { Visitor, VisitorEntity } from '../../../domain/entities/Visitor.entity';
 import { VisitEntity } from '../../../domain/entities/Visit.entity';
 import VisitorModel from '../../../models/Visitor';
+import sequelize from '../../../database';
+import VisitModel from '../../../models/Visit';
+import HistoryModel from '../../../models/VisitorEditHistory';
+import ArcoRequest from '../../../models/ArcoRequest';
+import ActivityLog from '../../../models/ActivityLog';
+import IntermittentLog from '../../../models/IntermittentLog';
+import config from '../../../config/AppConfig';
 import { Op, WhereOptions } from 'sequelize';
 import Encryption from '../../../utils/Encryption';
+
+function visitorFields(data: Partial<VisitorEntity>) {
+  return {
+      first_name: data.firstName,
+      last_name: data.lastName,
+      company: data.company,
+      job_title: data.jobTitle,
+      photo_url: data.photoUrl,
+      id_photo_url: data.idPhotoUrl,
+      photo_data: data.photoBlob !== undefined ? data.photoBlob : undefined,
+      id_photo_data: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
+      email: data.email,
+      phone: data.phone,
+      isBlocked: data.isBlocked,
+      observations: data.observations
+  };
+}
 
 /**
  * Sequelize implementation of IVisitorRepository
@@ -12,12 +36,12 @@ import Encryption from '../../../utils/Encryption';
 export class SequelizeVisitorRepository implements IVisitorRepository {
   async findByCedula(cedula: string): Promise<Visitor | null> {
     const hashed = Encryption.hash(cedula);
-    const model = await VisitorModel.findOne({ where: { cedula: hashed } });
+    const model = await VisitorModel.findOne({ where: { cedula: hashed, anonymizedAt: null } });
     return model ? this.toDomain(model) : null;
   }
 
   async findById(id: number): Promise<Visitor | null> {
-    const model = await VisitorModel.findByPk(id);
+    const model = await VisitorModel.findOne({ where: { id, anonymizedAt: null } });
     return model ? this.toDomain(model) : null;
   }
 
@@ -41,7 +65,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
   }
 
   async findAll(filters?: VisitorFilters): Promise<Visitor[]> {
-    const where: WhereOptions = {};
+    const where: WhereOptions = { anonymizedAt: null };
 
     // Encryption limits partial search capabilities.
     // Exact match on company is still possible if we stored company identically? 
@@ -80,7 +104,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     const hashed = Encryption.hash(query);
     
     // Check if it matches a cedula
-    const byCedula = await VisitorModel.findByPk(hashed);
+    const byCedula = await VisitorModel.findOne({ where: { cedula: hashed, anonymizedAt: null } });
     if (byCedula) {
         return [this.toDomain(byCedula)];
     }
@@ -88,6 +112,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     // Fallback: Search by Company (Unencrypted)
     const byCompany = await VisitorModel.findAll({
         where: {
+            anonymizedAt: null,
             company: { [Op.like]: `%${query}%` }
         },
         limit: 20
@@ -118,29 +143,78 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
     return this.toDomain(model);
   }
 
+  async updateWithHistory(cedula: string, data: Partial<VisitorEntity>, actor: VisitorEditContext): Promise<Visitor> {
+    if (!actor.editedBy || !actor.editedByUsername) throw new Error('Actor is required');
+    if (!/^[a-fA-F0-9]{64}$/.test(config.encryptionKey)) throw new Error('A valid encryption key is required');
+    return sequelize.transaction(async transaction => {
+      const model = await VisitorModel.findOne({ where: { cedula: Encryption.hash(cedula), anonymizedAt: null }, transaction, lock: transaction.LOCK.UPDATE });
+      if (!model) throw new Error('Visitor not found');
+      const visitId = actor.visitId || null;
+      if (visitId && !await VisitModel.findOne({ where: { id: visitId, visitor_id: model.id }, transaction })) throw new Error('INVALID_VISIT_CONTEXT');
+      const before = model.getDecrypted();
+      const values = visitorFields(data);
+      const changes = Object.entries(values).filter(([field, value]) => value !== undefined &&
+        (Buffer.isBuffer(value) ? !value.equals((model.getDataValue(field as keyof typeof values) as Buffer | null) || Buffer.alloc(0)) : String(before[field] ?? '') !== String(value ?? '')));
+      await model.update(values, { transaction });
+      for (const [field, value] of changes) {
+        const photograph = field === 'photo_data' || field === 'id_photo_data';
+        await HistoryModel.create({ visitId, visitorId: model.id, field,
+          oldValue: photograph || before[field] == null ? null : Encryption.encrypt(String(before[field])),
+          newValue: photograph || value == null ? null : Encryption.encrypt(String(value)),
+          editedBy: actor.editedBy, editedByUsername: actor.editedByUsername }, { transaction });
+      }
+      if (changes.length) await ActivityLog.create({ userId: actor.editedBy, username: actor.editedByUsername,
+        action: 'VISITOR_UPDATED', entity: 'Visitor', entityId: String(model.id),
+        details: 'Updated fields: ' + changes.map(([field]) => field).join(', ') }, { transaction });
+      return this.toDomain(model);
+    });
+  }
+
+  async anonymize(cedula: string, actor: VisitorEditContext, ip?: string, userAgent?: string): Promise<void> {
+    if (!actor.editedBy || !actor.editedByUsername) throw new Error('Actor is required');
+    await sequelize.transaction(async transaction => {
+      const hash = Encryption.hash(cedula);
+      const model = await VisitorModel.findOne({ where: { cedula: hash, anonymizedAt: null }, transaction, lock: transaction.LOCK.UPDATE });
+      if (!model) throw new Error('NOT_FOUND');
+      const visits = await VisitModel.findAll({ where: { visitor_id: model.id }, transaction });
+      if (visits.some(v => ['waiting', 'active', 'intermittent'].includes(v.status))) throw new Error('OPEN_VISIT_EXISTS');
+      const reference = Encryption.generateToken();
+      await model.update({ cedula: reference, encrypted_cedula: null, anonymizedAt: new Date(),
+        first_name: 'Anonimizado', last_name: '', company: 'Anonimizado', job_title: null,
+        email: null, phone: null, photo_data: null, id_photo_data: null, photo_url: null, id_photo_url: null,
+        observations: null, isBlocked: false }, { transaction });
+      await VisitModel.update({ visitor_cedula: reference, purpose: 'Anonimizado', person_to_visit: 'Anonimizado',
+        notes: null, companion_name: null, companion_cedula: null, vehicle_brand: null, vehicle_model: null,
+        vehicle_plate: null, target_department: null, host_person: null, department: null, area: null },
+        { where: { visitor_id: model.id }, transaction });
+      const visitIds = visits.map(v => v.id);
+      await IntermittentLog.update({ notes: null }, { where: { visit_id: { [Op.in]: visitIds } }, transaction });
+      await HistoryModel.update({ oldValue: null, newValue: null }, { where: { visitorId: model.id }, transaction });
+      await ArcoRequest.update({ subjectCedulaHash: reference, subjectCedulaEncrypted: null, requestedByName: 'Anonimizado',
+        contactEmail: null, reason: null, requestPayload: null, resolutionNotes: null }, { where: { subjectCedulaHash: hash }, transaction });
+      await ActivityLog.update({ entityId: reference, details: 'Anonimizado', path: null, ipAddress: null, userAgent: null }, {
+        where: { [Op.or]: [
+          { entity: 'Visitor', entityId: { [Op.in]: [cedula, hash, String(model.id)] } },
+          { entity: 'Visit', entityId: { [Op.in]: visitIds.map(String) } },
+          { path: { [Op.like]: '%' + cedula + '%' } },
+          { details: { [Op.like]: '%' + cedula + '%' } }
+        ] }, transaction });
+      await ArcoRequest.create({ requestType: 'cancellation', subjectCedulaHash: reference, subjectCedulaEncrypted: null,
+        requestedByName: actor.editedByUsername, requestedByUserId: actor.editedBy, status: 'completed', resolvedAt: new Date() }, { transaction });
+      await ActivityLog.create({ userId: actor.editedBy, username: actor.editedByUsername, action: 'ARCO_CANCELLATION_EXECUTED',
+        entity: 'Visitor', entityId: reference, details: 'Datos personales y fotografías eliminados', ipAddress: ip, userAgent }, { transaction });
+    });
+  }
+
   async update(cedula: string, data: Partial<VisitorEntity>): Promise<Visitor> {
     const hashed = Encryption.hash(cedula);
-    const model = await VisitorModel.findOne({ where: { cedula: hashed } });
+    const model = await VisitorModel.findOne({ where: { cedula: hashed, anonymizedAt: null } });
     
     if (!model) {
       throw new Error('Visitor not found');
     }
 
-    // Update fields (hooks handle encryption)
-    await model.update({
-      first_name: data.firstName,
-      last_name: data.lastName,
-      company: data.company,
-      job_title: data.jobTitle,
-      photo_url: data.photoUrl,
-      id_photo_url: data.idPhotoUrl,
-      photo_data: data.photoBlob !== undefined ? data.photoBlob : undefined,
-      id_photo_data: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
-      email: data.email,
-      phone: data.phone,
-      isBlocked: data.isBlocked,
-      observations: data.observations
-    });
+    await model.update(visitorFields(data));
 
     return this.toDomain(model);
   }
@@ -152,20 +226,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
       throw new Error('Visitor not found');
     }
 
-    await model.update({
-      first_name: data.firstName,
-      last_name: data.lastName,
-      company: data.company,
-      job_title: data.jobTitle,
-      photo_url: data.photoUrl,
-      id_photo_url: data.idPhotoUrl,
-      photo_data: data.photoBlob !== undefined ? data.photoBlob : undefined,
-      id_photo_data: data.idPhotoBlob !== undefined ? data.idPhotoBlob : undefined,
-      email: data.email,
-      phone: data.phone,
-      isBlocked: data.isBlocked,
-      observations: data.observations
-    });
+    await model.update(visitorFields(data));
 
     return this.toDomain(model);
   }
@@ -173,7 +234,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
   async getPhotoBlob(cedula: string): Promise<Buffer | null> {
     const hashed = Encryption.hash(cedula);
     const model = await VisitorModel.findOne({
-      where: { cedula: hashed },
+      where: { cedula: hashed, anonymizedAt: null },
       attributes: ['photo_data']
     });
     return model?.photo_data || null;
@@ -182,7 +243,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
   async getIdPhotoBlob(cedula: string): Promise<Buffer | null> {
     const hashed = Encryption.hash(cedula);
     const model = await VisitorModel.findOne({
-      where: { cedula: hashed },
+      where: { cedula: hashed, anonymizedAt: null },
       attributes: ['id_photo_data']
     });
     return model?.id_photo_data || null;
@@ -190,7 +251,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
 
   async delete(cedula: string): Promise<void> {
     const hashed = Encryption.hash(cedula);
-    await VisitorModel.destroy({ where: { cedula: hashed } });
+    await VisitorModel.destroy({ where: { cedula: hashed, anonymizedAt: null } });
   }
 
   async deleteById(id: number): Promise<void> {
@@ -199,12 +260,12 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
 
   async exists(cedula: string): Promise<boolean> {
     const hashed = Encryption.hash(cedula);
-    const count = await VisitorModel.count({ where: { cedula: hashed } });
+    const count = await VisitorModel.count({ where: { cedula: hashed, anonymizedAt: null } });
     return count > 0;
   }
 
   async count(filters?: VisitorFilters): Promise<number> {
-    const where: WhereOptions = {};
+    const where: WhereOptions = { anonymizedAt: null };
 
     if (filters?.company) {
       where.company = { [Op.like]: `%${filters.company}%` };
@@ -214,7 +275,7 @@ export class SequelizeVisitorRepository implements IVisitorRepository {
   }
 
   async findDistinctCompanies(query?: string): Promise<string[]> {
-    const where: WhereOptions = {};
+    const where: WhereOptions = { anonymizedAt: null };
     
     if (query) {
       where.company = { [Op.like]: `%${query}%` };

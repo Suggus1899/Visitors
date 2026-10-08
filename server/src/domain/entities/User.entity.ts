@@ -3,6 +3,8 @@ export type UserRole = 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
 export interface UserEntity {
   id?: number;
   username: string;
+  email?: string | null;
+  tokenVersion?: number;
   password?: string; // Hashed
   role: UserRole;
   resetToken?: string | null;
@@ -26,7 +28,9 @@ export class User {
     public readonly mustChangePassword?: boolean,
     public readonly passwordChangedAt?: Date | null,
     public readonly loginAttempts?: number,
-    public readonly lockedUntil?: Date | null
+    public readonly lockedUntil?: Date | null,
+    public readonly email: string | null = null,
+    public readonly tokenVersion: number = 0
   ) { }
 
   isAdmin(): boolean {
@@ -45,7 +49,9 @@ export class User {
       obj.mustChangePassword,
       obj.passwordChangedAt,
       obj.loginAttempts,
-      obj.lockedUntil
+      obj.lockedUntil,
+      obj.email,
+      obj.tokenVersion
     );
   }
 }

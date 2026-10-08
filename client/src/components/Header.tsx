@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import { ReactNode } from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
@@ -41,14 +42,14 @@ export const Header = ({
 
                     {/* Logout Button (if provided) */}
                     {logout && (
-                        <button
+                        <Button
                             data-tour="logout-btn"
                             onClick={logout}
                             className="p-2 text-[color:var(--text-3)] hover:text-[color:var(--text-1)] rounded-full hover:bg-[color:var(--surface-2)] transition-colors ml-1"
                             title="Cerrar sesión"
                         >
                             <LogOut size={18} />
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>

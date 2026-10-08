@@ -1,3 +1,6 @@
+import { AuthenticatedImage } from './AuthenticatedImage';
+import { Button } from './ui/button';
+import { useAuth } from '../hooks/useAuth';
 import React, { useEffect, useState } from 'react';
 import { Visit } from '../types';
 import toast from 'react-hot-toast';
@@ -7,7 +10,7 @@ import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import Timer from 'lucide-react/dist/esm/icons/timer';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
-import { useAdmitVisitorMutation, useWaitingVisitsQuery } from '../hooks/useVisitQueries';
+import { useAdmitVisitorMutation, useWaitingVisitsQuery, useInvalidateVisitQueries } from '../hooks/useVisitQueries';
 import { VisitService } from '../services/api.v1';
 
 function formatElapsed(ms: number): string {
@@ -26,9 +29,12 @@ interface WaitingVisitsProps {
 }
 
 const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallbackPollingMs = false }) => {
+    const { user } = useAuth();
+    const canOperate = ['operador', 'admin', 'root'].includes(user?.role || '');
     const [admittingId, setAdmittingId] = useState<number | null>(null);
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [now, setNow] = useState(Date.now());
+    const invalidateVisitQueries = useInvalidateVisitQueries();
     const admitMutation = useAdmitVisitorMutation();
 
     useEffect(() => {
@@ -114,7 +120,7 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex gap-3">
                                     {photoUrl ? (
-                                        <img src={photoUrl} alt="Foto" className="w-12 h-12 rounded-lg object-cover border border-[color:var(--border-1)]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                        <AuthenticatedImage src={photoUrl} alt="Foto" className="w-12 h-12 rounded-lg object-cover border border-[color:var(--border-1)]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                     ) : (
                                         <div className="w-12 h-12 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border-1)] flex items-center justify-center">
                                             <Clock className="text-[color:var(--text-3)]" size={20} />
@@ -145,7 +151,7 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                                     </span>
                                 </div>
 
-                                <button
+                                {canOperate && <Button
                                     onClick={(e) => handleAdmit(e, visit.id)}
                                     disabled={admittingId === visit.id}
                                     className="w-full btn-tech !bg-[color:var(--status-success)]/10 !text-[color:var(--status-success)] !border-[color:var(--status-success)]/50 hover:!bg-[color:var(--status-success)]/20 flex justify-center items-center gap-2 z-10 relative"
@@ -158,7 +164,7 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                                             ADMITIR ENTRADA
                                         </>
                                     )}
-                                </button>
+                                </Button>}
                             </div>
                         </div>
                     );
@@ -169,6 +175,7 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                 visit={selectedVisit}
                 isOpen={!!selectedVisit}
                 onClose={() => setSelectedVisit(null)}
+                onVisitorUpdated={invalidateVisitQueries}
             />
         </div>
     );

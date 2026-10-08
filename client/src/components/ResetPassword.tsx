@@ -1,14 +1,19 @@
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 import React, { useState } from 'react';
-import axios from 'axios';
-import { useNavigate, Link } from 'react-router-dom';
+import api from '../services/api.v1';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import Key from 'lucide-react/dist/esm/icons/key';
 import Lock from 'lucide-react/dist/esm/icons/lock';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 
 const ResetPassword = () => {
-    const [token, setToken] = useState('');
+    const [searchParams] = useSearchParams();
+    const [token, setToken] = useState(searchParams.get('token') || '');
     const [newPassword, setNewPassword] = useState('');
+    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const navigate = useNavigate();
@@ -16,12 +21,14 @@ const ResetPassword = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
         try {
-            await axios.post('/api/v1/auth/reset-password', { token, newPassword });
+            await api.post('/auth/reset-password', { token, newPassword });
             setSuccess(true);
             setTimeout(() => navigate('/login'), 3000);
-        } catch {
-            alert('Error: El token es inválido o ha expirado.');
+        } catch (err) {
+            const response = (err as AxiosError<{ error?: { message?: string } }>).response;
+            setError(response?.data?.error?.message || 'El enlace no es válido o ha expirado.');
         } finally {
             setLoading(false);
         }
@@ -49,12 +56,14 @@ const ResetPassword = () => {
             <div className="panel-tech rounded-2xl p-8 w-full max-w-md relative z-10">
                 <h2 className="text-2xl font-display text-center text-[color:var(--text-1)] mb-6">Nueva Contraseña</h2>
 
+                <p className="text-sm text-[color:var(--text-3)] mb-4">Usa de 12 a 128 caracteres, con mayúscula, minúscula, número y símbolo.</p>
+                {error && <p role="alert" className="text-sm text-red-400 mb-4">{error}</p>}
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="relative">
                         <Key className="absolute left-3 top-3 text-[color:var(--text-3)]" size={20} />
-                        <input
+                        <Input
                             type="text"
-                            placeholder="Token de Seguridad"
+                            placeholder="Token de Seguridad" aria-label="Token de seguridad"
                             value={token}
                             onChange={(e) => setToken(e.target.value)}
                             className="input-tech pl-10"
@@ -63,9 +72,9 @@ const ResetPassword = () => {
                     </div>
                     <div className="relative">
                         <Lock className="absolute left-3 top-3 text-[color:var(--text-3)]" size={20} />
-                        <input
+                        <Input
                             type="password"
-                            placeholder="Nueva Contraseña"
+                            placeholder="Nueva Contraseña" aria-label="Nueva contraseña" minLength={12} maxLength={128}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             className="input-tech pl-10"
@@ -73,13 +82,13 @@ const ResetPassword = () => {
                         />
                     </div>
 
-                    <button
+                    <Button
                         type="submit"
                         disabled={loading}
                         className="btn-tech disabled:opacity-70 flex justify-center items-center"
                     >
                         {loading ? <Loader2 className="animate-spin" /> : 'CAMBIAR CONTRASEÑA'}
-                    </button>
+                    </Button>
                 </form>
             </div>
         </div>

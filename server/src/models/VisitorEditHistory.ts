@@ -7,7 +7,7 @@ import sequelize from '../database';
  */
 class VisitorEditHistory extends Model<InferAttributes<VisitorEditHistory>, InferCreationAttributes<VisitorEditHistory>> {
     declare id: CreationOptional<number>;
-    declare visitId: number;
+    declare visitId: number | null;
     declare visitorId: number;
     declare field: string;
     declare oldValue: CreationOptional<string | null>;
@@ -25,7 +25,7 @@ VisitorEditHistory.init({
     },
     visitId: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true
     },
     visitorId: {
         type: DataTypes.INTEGER,

@@ -1,7 +1,11 @@
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { useState, useCallback, useMemo } from 'react';
 import { Eye, EyeOff, Lock, AlertCircle, CheckCircle, Shield, Key } from 'lucide-react';
 import { AuthAPI } from '../services/api.v1';
 import toast from 'react-hot-toast';
+import type { LucideIcon } from 'lucide-react';
 
 interface PasswordChangeModalProps {
     show: boolean;
@@ -11,7 +15,7 @@ interface PasswordChangeModalProps {
 interface PasswordRequirement {
     label: string;
     test: (password: string) => boolean;
-    icon?: React.ComponentType<any>;
+    icon?: LucideIcon;
 }
 
 const passwordRequirements: PasswordRequirement[] = [
@@ -20,7 +24,7 @@ const passwordRequirements: PasswordRequirement[] = [
     { label: 'Al menos una letra mayúscula', test: (p) => /[A-Z]/.test(p) },
     { label: 'Al menos una letra minúscula', test: (p) => /[a-z]/.test(p) },
     { label: 'Al menos un número', test: (p) => /[0-9]/.test(p) },
-    { label: 'Al menos un carácter especial', test: (p) => /[!@#$%^&*(),.?":{}|<>]/.test(p), icon: Shield },
+    { label: 'Al menos un carácter especial', test: (p) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p), icon: Shield },
 ];
 
 export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeModalProps) => {
@@ -112,20 +116,20 @@ export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeM
     if (!show) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="bg-[color:var(--surface-0)] border border-[color:var(--border-1)] rounded-lg shadow-2xl w-full max-w-md mx-4 p-6">
+        <Dialog open={show}>
+            <DialogContent showCloseButton={false} onEscapeKeyDown={e => e.preventDefault()} onPointerDownOutside={e => e.preventDefault()} className="bg-[color:var(--surface-0)] rounded-lg max-w-md max-h-[90vh] overflow-y-auto p-6">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-[color:var(--accent-0)]/10 rounded-lg">
                         <Lock className="text-[color:var(--accent-0)]" size={24} />
                     </div>
                     <div>
-                        <h2 className="text-xl font-display uppercase tracking-wider text-[color:var(--text-1)]">
+                        <DialogTitle className="text-xl font-display uppercase tracking-wider text-[color:var(--text-1)]">
                             Cambio de Contraseña Requerido
-                        </h2>
-                        <p className="text-sm text-[color:var(--text-3)] mt-1">
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-[color:var(--text-3)] mt-1">
                             Debes cambiar tu contraseña antes de continuar
-                        </p>
+                        </DialogDescription>
                     </div>
                 </div>
 
@@ -149,73 +153,73 @@ export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeM
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Current Password */}
                     <div>
-                        <label className="block text-sm font-medium text-[color:var(--text-2)] mb-2">
+                        <label htmlFor="currentPassword" className="block text-sm font-medium text-[color:var(--text-2)] mb-2">
                             Contraseña Actual
                         </label>
                         <div className="relative">
-                            <input
+                            <Input
                                 type={showCurrentPassword ? 'text' : 'password'}
-                                value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                id="currentPassword" value={currentPassword}
+                                onChange={(e) => { setCurrentPassword(e.target.value); setErrors([]); }}
                                 className="input-tech w-full pr-10"
                                 placeholder="Ingresa tu contraseña actual"
                                 disabled={loading}
                             />
-                            <button
+                            <Button
                                 type="button"
                                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-3)] hover:text-[color:var(--text-1)] transition-colors"
                             >
                                 {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
                     {/* New Password */}
                     <div>
-                        <label className="block text-sm font-medium text-[color:var(--text-2)] mb-2">
+                        <label htmlFor="newPassword" className="block text-sm font-medium text-[color:var(--text-2)] mb-2">
                             Nueva Contraseña
                         </label>
                         <div className="relative">
-                            <input
+                            <Input
                                 type={showNewPassword ? 'text' : 'password'}
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
+                                id="newPassword" value={newPassword}
+                                onChange={(e) => { setNewPassword(e.target.value); setErrors([]); }}
                                 className="input-tech w-full pr-10"
                                 placeholder="Ingresa tu nueva contraseña"
                                 disabled={loading}
                             />
-                            <button
+                            <Button
                                 type="button"
                                 onClick={() => setShowNewPassword(!showNewPassword)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-3)] hover:text-[color:var(--text-1)] transition-colors"
                             >
                                 {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
                     {/* Confirm Password */}
                     <div>
-                        <label className="block text-sm font-medium text-[color:var(--text-2)] mb-2">
+                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-[color:var(--text-2)] mb-2">
                             Confirmar Nueva Contraseña
                         </label>
                         <div className="relative">
-                            <input
+                            <Input
                                 type={showConfirmPassword ? 'text' : 'password'}
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                id="confirmPassword" value={confirmPassword}
+                                onChange={(e) => { setConfirmPassword(e.target.value); setErrors([]); }}
                                 className="input-tech w-full pr-10"
                                 placeholder="Confirma tu nueva contraseña"
                                 disabled={loading}
                             />
-                            <button
+                            <Button
                                 type="button"
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-3)] hover:text-[color:var(--text-1)] transition-colors"
                             >
                                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
@@ -244,13 +248,13 @@ export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeM
                     </div>
 
                     {/* Submit Button */}
-                    <button
+                    <Button
                         type="submit"
                         disabled={loading}
                         className="w-full bg-[color:var(--accent-0)] hover:bg-[color:var(--accent-1)] text-[#081116] font-semibold py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider text-sm"
                     >
                         {loading ? 'Cambiando Contraseña...' : 'Cambiar Contraseña'}
-                    </button>
+                    </Button>
                 </form>
 
                 {/* Info Note */}
@@ -260,7 +264,7 @@ export const PasswordChangeModal = ({ show, onPasswordChanged }: PasswordChangeM
                         Es un requisito de seguridad para proteger tu cuenta.
                     </p>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };

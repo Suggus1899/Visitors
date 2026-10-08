@@ -1,3 +1,4 @@
+import { AuthenticatedImage } from './AuthenticatedImage';
 import React from 'react';
 import { Visit } from '../types';
 import { SkeletonVisitCard } from './ui/Skeleton';
@@ -52,7 +53,7 @@ const RecentVisits: React.FC<RecentVisitsProps> = ({ visits, loading = false }) 
                 const name = sanitizeInput(
                     visit.Visitor
                         ? `${visit.Visitor.first_name} ${visit.Visitor.last_name}`.trim()
-                        : visit.visitor_cedula
+                        : visit.visitor_cedula || 'Anonimizado'
                 );
                 const company  = sanitizeInput(visit.Visitor?.company || '');
                 const reason   = sanitizeInput(visit.reason || visit.purpose || '');
@@ -74,7 +75,7 @@ const RecentVisits: React.FC<RecentVisitsProps> = ({ visits, loading = false }) 
                             {/* Photo */}
                             <div className="flex-shrink-0">
                                 {photoUrl ? (
-                                    <img
+                                    <AuthenticatedImage
                                         src={photoUrl}
                                         alt={name}
                                         className="w-10 h-10 rounded-lg object-cover border border-[color:var(--border-1)]"

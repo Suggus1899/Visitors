@@ -101,7 +101,7 @@ api.interceptors.response.use(
         }
 
         // Handle 401 Unauthorized - attempt token refresh
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !originalRequest.url?.startsWith('/auth/')) {
             originalRequest._retry = true;
 
             try {
@@ -147,7 +147,7 @@ const unwrapResponse = <T>(payload: { success?: boolean; data?: T; error?: { mes
 
 export interface EditHistoryEntry {
     id: number;
-    visitId: number;
+    visitId: number | null;
     visitorId: number;
     field: string;
     oldValue: string | null;
@@ -159,7 +159,7 @@ export interface EditHistoryEntry {
 
 interface VisitDTO {
     id: number;
-    visitorCedula: string;
+    visitorCedula: string | null;
     purpose: string;
     checkInTime: string;
     arrivalTime?: string;
@@ -181,6 +181,10 @@ interface VisitDTO {
     firstName?: string;
     lastName?: string;
     jobTitle?: string;
+    email?: string;
+    phone?: string;
+    observations?: string;
+    isBlocked?: boolean;
     companionName?: string;
     companionCedula?: string;
     vehicleBrand?: string;
@@ -224,11 +228,24 @@ const adaptVisit = (v: VisitDTO): Visit => {
             last_name: v.lastName || '',
             company: v.visitorCompany || v.company || 'Sin empresa',
             job_title: v.jobTitle,
+            email: v.email,
+            phone: v.phone,
+            observations: v.observations,
+            isBlocked: v.isBlocked,
             photo_url: v.visitorCedula ? `${API_URL}/visitors/${encodeURIComponent(v.visitorCedula)}/photo?t=${new Date().getTime()}` : undefined,
             id_photo_url: v.visitorCedula ? `${API_URL}/visitors/${encodeURIComponent(v.visitorCedula)}/id-photo?t=${new Date().getTime()}` : undefined
         }
     };
 };
+
+const adaptVisitor = (visitor: Visitor & { firstName?: string; lastName?: string; jobTitle?: string; photoUrl?: string; idPhotoUrl?: string }) => ({
+    ...visitor,
+    first_name: visitor.first_name ?? visitor.firstName ?? '',
+    last_name: visitor.last_name ?? visitor.lastName ?? '',
+    job_title: visitor.job_title ?? visitor.jobTitle,
+    photo_url: visitor.photo_url ?? visitor.photoUrl,
+    id_photo_url: visitor.id_photo_url ?? visitor.idPhotoUrl,
+});
 
 export const VisitService = {
     // Visits
@@ -338,19 +355,20 @@ export const VisitService = {
     // Visitors
     getVisitorByCedula: async (cedula: string, includeHistory: boolean = false): Promise<Visitor | VisitorWithHistory> => {
         const response = await api.get(`/visitors/${cedula}?history=${includeHistory}`);
-        return unwrapResponse<Visitor | VisitorWithHistory>(response.data);
+        return adaptVisitor(unwrapResponse<Visitor | VisitorWithHistory>(response.data));
     },
 
     getAllVisitors: async (page: number = 1, limit: number = 50, company?: string): Promise<{ visitors: Visitor[]; total: number }> => {
         let url = `/visitors?page=${page}&limit=${limit}`;
         if (company) url += `&company=${encodeURIComponent(company)}`;
         const response = await api.get(url);
-        return unwrapResponse(response.data);
+        const result = unwrapResponse<{ visitors: Visitor[]; total: number }>(response.data);
+        return { ...result, visitors: result.visitors.map(adaptVisitor) };
     },
 
-    updateVisitor: async (cedula: string, data: Partial<Visitor> & { photoBase64?: string; idPhotoBase64?: string; firstName?: string; lastName?: string; jobTitle?: string; photoUrl?: string; idPhotoUrl?: string; visitId?: number }): Promise<Visitor> => {
+    updateVisitor: async (cedula: string, data: Omit<Partial<Visitor>, 'email' | 'phone'> & { email?: string | null; phone?: string | null; editPassword: string; photoBase64?: string; idPhotoBase64?: string; firstName?: string; lastName?: string; jobTitle?: string; photoUrl?: string; idPhotoUrl?: string; visitId?: number }): Promise<Visitor> => {
         const response = await api.patch(`/visitors/${cedula}`, data);
-        return unwrapResponse<Visitor>(response.data);
+        return adaptVisitor(unwrapResponse<Visitor>(response.data));
     },
 
     verifyEditPassword: async (password: string): Promise<boolean> => {
@@ -384,7 +402,11 @@ export const VisitService = {
 
     getMonthlyReport: async (month: number, year: number) => {
         const response = await api.get(`/reports/stats/monthly?month=${month}&year=${year}`);
-        return unwrapResponse(response.data);
+        const report = unwrapResponse<{
+            summary: { totalVisits: number; uniqueVisitors: number; averageDuration: number; completionRate: number };
+            byReason: { purpose: string; count: number; percentage: number }[];
+        }>(response.data);
+        return { ...report.summary, byReason: report.byReason.map(item => ({ ...item, reason: item.purpose })) };
     },
 
     getComparisonStats: async (month?: number, year?: number): Promise<ComparisonStats> => {

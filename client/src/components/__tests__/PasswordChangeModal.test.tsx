@@ -129,8 +129,8 @@ describe('PasswordChangeModal', () => {
         await user.type(newPasswordInput, 'StrongPassword123!');
         
         // Check if password requirements are marked as valid
-        const checkIcons = screen.getAllByTestId('check-circle');
-        expect(checkIcons.length).toBeGreaterThan(0);
+        expect(screen.getByText('Mínimo 12 caracteres')).toHaveClass('text-green-400');
+        expect(screen.getByText('Al menos un carácter especial')).toHaveClass('text-green-400');
     });
 
     it('toggles password visibility', async () => {

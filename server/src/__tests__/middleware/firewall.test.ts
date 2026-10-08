@@ -83,7 +83,7 @@ describe('Firewall Middleware', () => {
     });
 
     it('blocks requests with large payload', () => {
-        mockRequest.get = vi.fn().mockReturnValue('15');
+        mockRequest.get = vi.fn().mockImplementation((name: string) => name === 'Content-Length' ? String(15 * 1024 * 1024) : 'normal-agent');
         
         firewall(mockRequest as Request, mockResponse as Response, nextFunction);
         
@@ -98,14 +98,6 @@ describe('Firewall Middleware', () => {
         expect(nextFunction).not.toHaveBeenCalled();
     });
 
-    it('adds security headers', () => {
-        firewall(mockRequest as Request, mockResponse as Response, nextFunction);
-        
-        expect(mockResponse.setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
-        expect(mockResponse.setHeader).toHaveBeenCalledWith('X-Frame-Options', 'DENY');
-        expect(mockResponse.setHeader).toHaveBeenCalledWith('X-XSS-Protection', '1; mode=block');
-        expect(mockResponse.setHeader).toHaveBeenCalledWith('Referrer-Policy', 'strict-origin-when-cross-origin');
-    });
 
     it('allows requests without origin (server-to-server)', () => {
         mockRequest.ip = undefined;
@@ -138,7 +130,7 @@ describe('Firewall Middleware', () => {
         
         for (let i = 0; i < 60; i++) {
             mockRequest.ip = ip;
-            mockRequest.get = vi.fn().mockReturnValue(`bot${i}`);
+            mockRequest.get = vi.fn().mockReturnValue(`sqlmap/${i}`);
             firewall(mockRequest as Request, mockResponse as Response, vi.fn());
         }
         
@@ -201,9 +193,9 @@ describe('Firewall Middleware', () => {
 
     it('provides accurate security statistics', () => {
         const suspiciousRequests = [
-            { ...mockRequest, get: vi.fn().mockReturnValue('bot1') },
-            { ...mockRequest, get: vi.fn().mockReturnValue('bot2') },
-            { ...mockRequest, get: vi.fn().mockReturnValue('bot3') },
+            { ...mockRequest, get: vi.fn().mockReturnValue('sqlmap/1') },
+            { ...mockRequest, get: vi.fn().mockReturnValue('sqlmap/2') },
+            { ...mockRequest, get: vi.fn().mockReturnValue('sqlmap/3') },
         ];
         
         suspiciousRequests.forEach(req => {

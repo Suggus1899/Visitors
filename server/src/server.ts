@@ -1,6 +1,6 @@
 import app from './app';
 import sequelize from './database';
-import { ensureBaseUsers } from './utils/seeder';
+import { migrator } from './config/umzug';
 import { initRetentionScheduler } from './utils/retention';
 import logger from './config/logger';
 import path from 'path';
@@ -14,23 +14,12 @@ const PORT = config.port;
 
 const startServer = async () => {
     try {
-        const useAlter = process.env.DB_SYNC_ALTER === '1';
-        if (useAlter && process.env.NODE_ENV === 'production') {
-            logger.warn('DB_SYNC_ALTER=1 is dangerous in production — forcing safe sync');
-            await sequelize.sync();
-        } else if (useAlter) {
-            await sequelize.sync({ alter: true });
-        } else {
-            await sequelize.sync();
-        }
-
-        logger.info('Database synced (data persists).');
-
-        // Ensure base users (root, admin, operador, auditor, demo) always exist
-        await ensureBaseUsers();
-
-        // Start daily retention cleanup (logs + photos)
-        initRetentionScheduler();
+        await sequelize.authenticate();
+        const tables = await sequelize.getQueryInterface().showAllTables();
+        if (!tables.includes('SequelizeMeta')) throw new Error('Database is not prepared. Run explicit database preparation and migrations before starting the server.');
+        const pending = await migrator.pending();
+        if (pending.length) throw new Error(`Pending migrations: ${pending.map(m => m.name).join(', ')}. Run pnpm --dir server migrate.`);
+        if (process.env.RETENTION_ENABLED !== 'false') initRetentionScheduler();
 
         const server = app.listen(PORT, () => {
             logger.info(`Server running on http://localhost:${PORT}`);
@@ -54,7 +43,9 @@ const startServer = async () => {
         process.on('SIGTERM', () => shutdown('SIGTERM'));
         process.on('SIGINT', () => shutdown('SIGINT'));
     } catch (err: any) {
-        logger.error('Unable to connect to the database:', err);
+        process.exitCode = 1;
+        await sequelize.close();
+        logger.error('Unable to start server:', err);
         try {
             const crashLogPath = path.join(config.dbPath, 'server_crash_log.txt');
             const errMsg = err?.message || String(err);

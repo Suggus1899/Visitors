@@ -1,3 +1,4 @@
+import { Input } from './ui/input';
 import React, { useState, useEffect } from 'react';
 import { VisitService } from '../services/api.v1';
 import { API_URL } from '../config/env';
@@ -12,7 +13,7 @@ import { useSoundFeedback } from '../hooks/useSoundFeedback';
 import { useVisitorQuery, useUpdateVisitorMutation } from '../hooks/useVisitQueries';
 import WizardProgress from './visit/WizardProgress';
 import VisitorLookupStep from './visit/VisitorLookupStep';
-import VisitorInfoStep from './visit/VisitorInfoStep';
+import VisitorInfoStep, { COUNTRY_CODES } from './visit/VisitorInfoStep';
 import VisitDetailsStep from './visit/VisitDetailsStep';
 import VehicleInfoStep, { Companion } from './visit/VehicleInfoStep';
 
@@ -59,6 +60,7 @@ const INITIAL_VALIDATION: ValidationState = {
 };
 
 const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
+    const [editPassword, setEditPassword] = useState('');
     const [currentStep, setCurrentStep] = useState(1);
     const [cedula, setCedula] = useState('');
     const [cedulaError, setCedulaError] = useState('');
@@ -94,6 +96,10 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     const handleCedulaChange = (value: string) => {
         const numericValue = value.replace(/\D/g, '');
         setCedula(numericValue);
+        setOriginalVisitorData(null);
+        setFormData(INITIAL_FORM_DATA);
+        setValidation(INITIAL_VALIDATION);
+        setEditPassword('');
         if (numericValue.length === 0) {
             setValidation(v => ({ ...v, cedula: null })); setCedulaError('');
         } else if (numericValue.length < 7 || numericValue.length > 8) {
@@ -144,6 +150,9 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     : '';
                 
                 // Guardar datos originales para detectar cambios (incluyendo URLs de fotos)
+                const countryCode = COUNTRY_CODES.find(country => visitor.phone?.startsWith(country.code))?.code;
+                setPhoneCode(countryCode || '+58');
+                const loadedPhone = countryCode ? visitor.phone!.slice(countryCode.length) : visitor.phone || '';
                 setOriginalVisitorData({ ...visitor, photo_url: photoUrl, id_photo_url: idPhotoUrl });
                 setHasVisitorDataChanged(false);
                 
@@ -153,7 +162,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     last_name: visitor.last_name || '',
                     company: visitor.company,
                     job_title: visitor.job_title || '',
-                    phone: visitor.phone || '',
+                    phone: loadedPhone,
                     photo_url: photoUrl,
                     id_photo_url: idPhotoUrl,
                 }));
@@ -166,6 +175,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                         ...prev,
                         reason: lastVisit.purpose || prev.reason,
                         target_department: lastVisit.targetDepartment || prev.target_department,
+                    host_person: lastVisit.hostPerson || prev.host_person,
                         department: lastVisit.targetDepartment || prev.department,
                         // Cargar datos del vehículo si existen
                         has_vehicle: !!lastVisit.vehiclePlate || prev.has_vehicle,
@@ -212,6 +222,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     ...prev,
                     reason: lastVisit.purpose || prev.reason,
                     target_department: lastVisit.targetDepartment || prev.target_department,
+                    host_person: lastVisit.hostPerson || prev.host_person,
                     department: lastVisit.targetDepartment || prev.department,
                     // Cargar datos del vehículo si existen
                     has_vehicle: !!lastVisit.vehiclePlate || prev.has_vehicle,
@@ -243,29 +254,29 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         try {
             // Si los datos del visitante cambiaron, actualizar primero
             if (hasVisitorDataChanged && originalVisitorData) {
-                try {
+                if (!editPassword) throw new Error('Ingrese la contraseña de edición para guardar los cambios');
                     // Detectar si la foto es base64 nueva o URL existente
                     const isNewPhoto = formData.photo_url.startsWith('data:');
                     const isNewIdPhoto = formData.id_photo_url.startsWith('data:');
                     await updateVisitorMutation.mutateAsync({
                         cedula: `V-${cedula}`,
                         data: {
+                            editPassword,
                             first_name: formData.first_name,
                             last_name: formData.last_name,
                             company: formData.company,
                             job_title: formData.job_title,
-                            phone: formData.phone,
+                            phone: formData.phone ? (formData.phone.startsWith('+') ? formData.phone : `${phoneCode}${formData.phone}`) : null,
                             ...(isNewPhoto && { photoBase64: formData.photo_url }),
                             ...(isNewIdPhoto && { idPhotoBase64: formData.id_photo_url }),
                         }
                     });
                     safeNotify.success('Datos del visitante actualizados');
-                } catch {
-                    safeNotify.error('Error al actualizar datos del visitante, pero continuará el registro');
-                }
+
             }
 
-            const fullPhone = formData.phone ? `${phoneCode}${formData.phone}` : '';
+            const fullPhone = formData.phone ? (formData.phone.startsWith('+') ? formData.phone : `${phoneCode}${formData.phone}`) : '';
+
 
             // Serialize companions list into the single-value backend fields
             const activeCompanions = formData.has_companion
@@ -281,7 +292,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     policyVersion: '1.0',
                     acceptedAt: new Date().toISOString()
                 },
-                visitorData: { firstName: formData.first_name, lastName: formData.last_name, company: formData.company, jobTitle: formData.job_title, phone: fullPhone, photoBase64: formData.photo_url, idPhotoBase64: formData.id_photo_url },
+                visitorData: { firstName: formData.first_name, lastName: formData.last_name, company: formData.company, jobTitle: formData.job_title, phone: fullPhone, photoBase64: formData.photo_url.startsWith('data:') ? formData.photo_url : undefined, idPhotoBase64: formData.id_photo_url.startsWith('data:') ? formData.id_photo_url : undefined },
                 purpose: formData.reason.trim(),
                 personToVisit: formData.host_person || formData.department || 'Recepcion',
                 targetDepartment: formData.target_department,
@@ -295,6 +306,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 vehiclePlate: formData.has_vehicle ? formData.vehicle_plate : undefined,
                 department: formData.target_department || formData.department
             });
+            setEditPassword('');
             playSuccess();
             
             if (status === 'waiting') {
@@ -317,7 +329,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             const error = err as AxiosError<{ message?: string; error?: { message: string } }>;
             playError();
             const errorData = error.response?.data;
-            const backendMessage = errorData?.error?.message || errorData?.message;
+            const backendMessage = errorData?.error?.message || errorData?.message || (err instanceof Error ? err.message : undefined);
             safeNotify.error(backendMessage || 'Error al registrar la visita. Intente nuevamente.');
             setLoading(false);
         }
@@ -365,12 +377,12 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             formData.last_name !== (originalVisitorData.last_name || '') ||
             formData.company !== (originalVisitorData.company || '') ||
             formData.job_title !== (originalVisitorData.job_title || '') ||
-            formData.phone !== (originalVisitorData.phone || '') ||
+            (formData.phone ? (formData.phone.startsWith('+') ? formData.phone : phoneCode + formData.phone) : '') !== (originalVisitorData.phone ? (originalVisitorData.phone.startsWith('+') ? originalVisitorData.phone : '+58' + originalVisitorData.phone) : '') ||
             formData.photo_url !== (originalVisitorData.photo_url || '') ||
             formData.id_photo_url !== (originalVisitorData.id_photo_url || '');
 
         setHasVisitorDataChanged(hasChanged);
-    }, [formData, originalVisitorData]);
+    }, [formData, originalVisitorData, phoneCode]);
 
     return (
         <div className="panel-tech p-6 rounded-2xl relative overflow-hidden">
@@ -480,6 +492,11 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                         onPrev={() => setCurrentStep(s => Math.max(s - 1, 1))}
                         getInputClass={getInputClass}
                     />
+                )}
+                {currentStep === 4 && hasVisitorDataChanged && originalVisitorData && (
+                    <label className="block text-sm mb-4">Contraseña de edición
+                        <Input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} autoComplete="off" className="input-tech" />
+                    </label>
                 )}
                 {currentStep === 4 && (
                     <VisitDetailsStep

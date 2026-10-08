@@ -1,6 +1,7 @@
 export interface User {
   id: number;
   username: string;
+  email: string | null;
   role: 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
   mustChangePassword: boolean;
   loginAttempts: number;
@@ -9,6 +10,7 @@ export interface User {
 
 export interface UserFormData {
   username: string;
+  email: string;
   password: string;
   role: 'root' | 'admin' | 'operador' | 'auditor' | 'demo';
 }

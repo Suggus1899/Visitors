@@ -1,3 +1,5 @@
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import React from 'react';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
@@ -78,21 +80,21 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                                         Acompañante {index + 1}
                                     </span>
                                     {formData.companions.length > 1 && (
-                                        <button
+                                        <Button
                                             type="button"
                                             onClick={() => removeCompanion(index)}
                                             className="text-red-400 hover:text-red-500 transition-colors p-1 rounded"
                                             title="Eliminar acompañante"
                                         >
                                             <Trash2 size={14} />
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                                         Nombre <span className="text-red-500">*</span>
                                     </label>
-                                    <input
+                                    <Input
                                         type="text"
                                         value={companion.name}
                                         onChange={(e) => updateCompanion(index, 'name', e.target.value)}
@@ -104,7 +106,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                                     <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                                         Cédula (Opcional)
                                     </label>
-                                    <input
+                                    <Input
                                         type="text"
                                         value={companion.cedula}
                                         onChange={(e) => updateCompanion(index, 'cedula', e.target.value.replace(/\D/g, ''))}
@@ -115,13 +117,13 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                             </div>
                         ))}
 
-                        <button
+                        <Button
                             type="button"
                             onClick={addCompanion}
                             className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border-2 border-dashed border-[color:var(--accent-0)] text-[color:var(--accent-0)] text-sm font-semibold hover:bg-[color:var(--accent-0)]/10 transition-colors"
                         >
                             <Plus size={16} /> Agregar Acompañante
-                        </button>
+                        </Button>
                     </div>
                 )}
             </div>
@@ -151,7 +153,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                                     Marca <span className="text-red-500">*</span>
                                 </label>
-                                <input
+                                <Input
                                     type="text"
                                     value={formData.vehicle_brand}
                                     onChange={(e) => onFormDataChange('vehicle_brand', e.target.value)}
@@ -163,7 +165,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                                     Modelo
                                 </label>
-                                <input
+                                <Input
                                     type="text"
                                     value={formData.vehicle_model}
                                     onChange={(e) => onFormDataChange('vehicle_model', e.target.value)}
@@ -176,7 +178,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                             <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                                 Placa <span className="text-red-500">*</span>
                             </label>
-                            <input
+                            <Input
                                 type="text"
                                 value={formData.vehicle_plate}
                                 onChange={(e) => onFormDataChange('vehicle_plate', e.target.value.toUpperCase())}
@@ -189,21 +191,21 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
             </div>
 
             <div className="flex gap-4 pt-4 mt-6 border-t border-[color:var(--border-0)]">
-                <button
+                <Button
                     type="button"
                     onClick={onPrev}
                     className="flex-1 btn-ghost flex items-center justify-center gap-2"
                 >
                     <ArrowLeft size={16} /> Atrás
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     onClick={onNext}
                     disabled={!canProceed}
                     className="flex-1 btn-tech flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     Continuar <ArrowRight size={16} />
-                </button>
+                </Button>
             </div>
         </div>
     );

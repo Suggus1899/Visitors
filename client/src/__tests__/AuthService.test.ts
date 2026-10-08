@@ -25,7 +25,7 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should store the access token in memory after a successful login', async () => {
-      (api.post as any).mockResolvedValue({
+      vi.mocked(api.post).mockResolvedValue({
         data: {
           success: true,
           data: {
@@ -54,7 +54,7 @@ describe('AuthService', () => {
     });
 
     it('should clear tokens on login failure', async () => {
-      (api.post as any).mockRejectedValue(new Error('Invalid credentials'));
+      vi.mocked(api.post).mockRejectedValue(new Error('Invalid credentials'));
 
       await expect(AuthService.login('admin', 'wrong')).rejects.toThrow(
         'Invalid credentials'
@@ -68,7 +68,7 @@ describe('AuthService', () => {
   describe('logout / clearTokens', () => {
     it('should clear the access token and refresh token on logout', async () => {
       // Seed tokens via login
-      (api.post as any).mockResolvedValue({
+      vi.mocked(api.post).mockResolvedValue({
         data: {
           success: true,
           data: {
@@ -93,7 +93,7 @@ describe('AuthService', () => {
     it('should call the API and update the access token', async () => {
       // Simulate a refresh token previously stored in localStorage
       localStorage.setItem('refreshToken', 'refresh-token-456');
-      (api.post as any).mockResolvedValue({
+      vi.mocked(api.post).mockResolvedValue({
         data: {
           success: true,
           data: { accessToken: 'new-access-token' },
@@ -118,7 +118,7 @@ describe('AuthService', () => {
 
     it('should clear all tokens when the refresh call fails', async () => {
       localStorage.setItem('refreshToken', 'refresh-token-456');
-      (api.post as any).mockRejectedValue(new Error('Refresh failed'));
+      vi.mocked(api.post).mockRejectedValue(new Error('Refresh failed'));
 
       await expect(AuthService.refreshAccessToken()).rejects.toThrow(
         'Refresh failed'
@@ -140,7 +140,7 @@ describe('AuthService', () => {
     });
 
     it('should return true when an access token exists in memory', async () => {
-      (api.post as any).mockResolvedValue({
+      vi.mocked(api.post).mockResolvedValue({
         data: {
           success: true,
           data: {

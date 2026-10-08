@@ -5,8 +5,6 @@ import { ActiveVisitDto, VisitResponseDto } from '../dto/VisitDto';
 
 export interface IntermittentVisitResponseDto extends Omit<ActiveVisitDto, 'durationMinutes'> {
   status: string;
-  targetDepartment?: string;
-  hostPerson?: string;
   intermittentSince: string | null;
   intermittentNotes: string | null;
   totalIntermittentEvents: number;
@@ -33,7 +31,12 @@ export class VisitMapper {
     const visitorName = visitor?.fullName || visit.visitorName;
     return {
       id: visit.id!,
-      visitorCedula: visit.visitorCedula,
+      jobTitle: visitor?.jobTitle,
+      email: visitor?.email,
+      phone: visitor?.phone,
+      observations: visitor?.observations,
+      isBlocked: visitor?.isBlocked,
+      visitorCedula: visit.anonymized ? null : visit.visitorCedula,
       visitorName,
       visitorCompany: visitor?.company || visit.visitorCompany,
       firstName: visitor?.firstName || visit.visitorName?.split(' ')[0],
@@ -53,6 +56,8 @@ export class VisitMapper {
       area: visit.area,
       action: visit.action,
       department: visit.department,
+      targetDepartment: visit.targetDepartment,
+      hostPerson: visit.hostPerson,
       arrivalTime: visit.arrivalTime?.toISOString(),
       entryTime: visit.entryTime?.toISOString(),
       exitTime: visit.exitTime?.toISOString(),
@@ -62,8 +67,15 @@ export class VisitMapper {
   static toActiveVisitDto(visit: Visit, visitor: Visitor | null): ActiveVisitDto {
     return {
       id: visit.id!,
-      visitorCedula: visit.visitorCedula,
-      visitorName: visitor?.fullName || 'Unknown',
+      jobTitle: visitor?.jobTitle,
+      email: visitor?.email,
+      phone: visitor?.phone,
+      observations: visitor?.observations,
+      isBlocked: visitor?.isBlocked,
+      visitorCedula: visit.anonymized ? null : visit.visitorCedula,
+      visitorName: visitor?.fullName || visit.visitorName || 'Anonimizado',
+      firstName: visitor?.firstName,
+      lastName: visitor?.lastName,
       company: visitor?.company || 'Unknown',
       checkInTime: visit.checkInTime.toISOString(),
       purpose: visit.purpose,
@@ -81,14 +93,23 @@ export class VisitMapper {
       area: visit.area,
       action: visit.action,
       department: visit.department,
+      targetDepartment: visit.targetDepartment,
+      hostPerson: visit.hostPerson,
     };
   }
 
   static toWaitingVisitDto(visit: Visit, visitor?: Visitor | null): ActiveVisitDto {
     return {
       id: visit.id!,
-      visitorCedula: visit.visitorCedula,
-      visitorName: visit.visitorName || 'Unknown',
+      jobTitle: visitor?.jobTitle,
+      email: visitor?.email,
+      phone: visitor?.phone,
+      observations: visitor?.observations,
+      isBlocked: visitor?.isBlocked,
+      visitorCedula: visit.anonymized ? null : visit.visitorCedula,
+      visitorName: visitor?.fullName || visit.visitorName || 'Unknown',
+      firstName: visitor?.firstName,
+      lastName: visitor?.lastName,
       company: visit.visitorCompany || 'Unknown',
       checkInTime: visit.checkInTime.toISOString(),
       purpose: visit.purpose,
@@ -105,6 +126,8 @@ export class VisitMapper {
       area: visit.area,
       action: visit.action,
       department: visit.department,
+      targetDepartment: visit.targetDepartment,
+      hostPerson: visit.hostPerson,
     };
   }
 
@@ -120,7 +143,12 @@ export class VisitMapper {
 
     return {
       id: visit.id!,
-      visitorCedula: visit.visitorCedula,
+      jobTitle: visitor?.jobTitle,
+      email: visitor?.email,
+      phone: visitor?.phone,
+      observations: visitor?.observations,
+      isBlocked: visitor?.isBlocked,
+      visitorCedula: visit.anonymized ? null : visit.visitorCedula,
       visitorName: visitor?.fullName || 'Desconocido',
       firstName: visitor?.firstName,
       lastName: visitor?.lastName,
@@ -130,10 +158,10 @@ export class VisitMapper {
       personToVisit: visit.personToVisit,
       status: visit.status,
       photoUrl: visitor?.photoUrl,
-      targetDepartment: visit.targetDepartment,
-      hostPerson: visit.hostPerson,
       area: visit.area,
       department: visit.department,
+      targetDepartment: visit.targetDepartment,
+      hostPerson: visit.hostPerson,
       intermittentSince: currentLog?.checkOut.toISOString() || null,
       intermittentNotes: currentLog?.notes || null,
       totalIntermittentEvents: logs.length,

@@ -7,7 +7,7 @@ export interface User {
 
 export interface Visitor {
     id?: number;
-    cedula: string;
+    cedula: string | null;
     first_name: string;
     last_name: string;
     company: string;
@@ -28,6 +28,7 @@ export interface VisitorHistoryItem {
     checkOutTime?: string;
     status: string;
     targetDepartment?: string;
+    hostPerson?: string;
     // Vehicle data from previous visits
     vehicleBrand?: string;
     vehicleModel?: string;
@@ -57,7 +58,7 @@ export interface IntermittentLog {
 
 export interface Visit {
     id: number;
-    visitor_cedula: string;
+    visitor_cedula: string | null;
     reason?: string; 
     purpose?: string;
     check_in?: string;

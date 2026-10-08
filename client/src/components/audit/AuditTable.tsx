@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import User from 'lucide-react/dist/esm/icons/user';
 import { ActivityItem } from './types';
@@ -113,20 +114,20 @@ const AuditTable = ({ loading, activities, page, setPage, totalPages }: AuditTab
                     Página {page} de {totalPages}
                 </div>
                 <div className="flex gap-2">
-                    <button
+                    <Button
                         onClick={() => setPage(p => Math.max(1, p - 1))}
                         disabled={page === 1}
                         className="btn-ghost px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         Anterior
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                         disabled={page === totalPages || totalPages === 0}
                         className="btn-ghost px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         Siguiente
-                    </button>
+                    </Button>
                 </div>
             </div>
         </>

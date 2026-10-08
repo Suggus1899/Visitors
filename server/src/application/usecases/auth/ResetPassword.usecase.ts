@@ -41,13 +41,12 @@ export class ResetPasswordUseCase {
 
         const hashedPassword = await this.authService.hashPassword(newPassword);
 
-        await this.userRepository.updatePasswordChange(user.id, hashedPassword, false, new Date());
-        await this.userRepository.updateResetToken(user.id, null, null);
+        if (!await this.userRepository.consumeResetToken(hashedToken, hashedPassword)) throw new Error('INVALID_TOKEN');
 
-        if (this.emailService.isConfigured()) {
+        if (user.email && this.emailService.isConfigured()) {
             try {
                 await this.emailService.sendPasswordChangedEmail(
-                    user.username,
+                    user.email,
                     user.username
                 );
             } catch (error) {

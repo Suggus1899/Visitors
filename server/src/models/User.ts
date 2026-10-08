@@ -5,6 +5,8 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
     declare id: CreationOptional<number>;
     declare username: string;
     declare password: string;
+    declare email: CreationOptional<string | null>;
+    declare tokenVersion: CreationOptional<number>;
     declare role: CreationOptional<'root' | 'admin' | 'operador' | 'auditor' | 'demo'>;
     declare resetToken: CreationOptional<string | null>;
     declare resetTokenExpiry: CreationOptional<Date | null>;
@@ -29,6 +31,8 @@ User.init({
         allowNull: false,
         unique: true
     },
+    email: { type: DataTypes.STRING, allowNull: true, validate: { isEmail: true } },
+    tokenVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     password: {
         type: DataTypes.STRING,
         allowNull: false

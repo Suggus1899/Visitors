@@ -54,7 +54,7 @@ const AuditDashboard = () => {
             
             setActivities(logsRes.data.data.logs);
             setTotalPages(logsRes.data.data.pagination.pages);
-        } catch (err) {
+        } catch {
             toast.error('Error al cargar datos de auditoría');
         } finally {
             setLoading(false);
@@ -98,7 +98,7 @@ const AuditDashboard = () => {
             link.click();
             link.remove();
             toast.success('Exportación completada');
-        } catch (err) {
+        } catch {
             toast.error('Error al exportar logs');
         }
     };

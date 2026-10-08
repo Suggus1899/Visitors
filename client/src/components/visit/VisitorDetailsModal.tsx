@@ -1,9 +1,15 @@
+import { AuthenticatedImage } from '../AuthenticatedImage';
+import { Textarea } from '../ui/textarea';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/dialog';
 
 import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, Car, Users, Lock, Save, Pencil, History } from 'lucide-react';
-import type { Visit } from '../../types';
+import type { Visit, Visitor } from '../../types';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { sanitizeInput } from '../../utils/sanitizer';
 import { VisitService, type EditHistoryEntry } from '../../services/api.v1';
+import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 interface VisitorDetailsModalProps {
@@ -48,8 +54,9 @@ const EditField = ({ label, name, value, onChange, type = 'text' }: {
 }) => (
   <div className="flex flex-col gap-0.5">
     <span className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em]">{label}</span>
-    <input
+    <Input
       type={type}
+      aria-label={label}
       value={value}
       onChange={(e) => onChange(name, e.target.value)}
       className="input-tech px-3 py-2 rounded-lg text-sm text-[color:var(--text-1)] border border-[color:var(--border-1)] bg-[color:var(--surface-0)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-0)]/20"
@@ -69,10 +76,14 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }: VisitorDetailsModalProps) {
+  const [visitorProfile, setVisitorProfile] = useState<Visitor | null>(visit?.Visitor || null);
   const [photoError, setPhotoError] = useState(false);
   const [idPhotoError, setIdPhotoError] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const { user } = useAuth();
+  const canEdit = !!visit?.visitor_cedula && ['operador', 'admin', 'root'].includes(user?.role || '');
+  const canBlock = ['admin', 'root'].includes(user?.role || '');
   const [editPassword, setEditPassword] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -89,7 +100,8 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
   });
 
   useEffect(() => {
-    if (isOpen) {
+    {
+      setVisitorProfile(visit?.Visitor || null);
       setPhotoError(false);
       setIdPhotoError(false);
       setIsEditMode(false);
@@ -115,10 +127,10 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
   }, [isOpen, visit]);
 
   // Hooks must be called unconditionally before any early return
-  const sanitizedFirstName = useMemo(() => sanitizeInput(visit?.Visitor?.first_name || ''), [visit]);
-  const sanitizedLastName = useMemo(() => sanitizeInput(visit?.Visitor?.last_name || ''), [visit]);
-  const sanitizedCompany = useMemo(() => sanitizeInput(visit?.Visitor?.company || 'Independiente'), [visit]);
-  const sanitizedJobTitle = useMemo(() => sanitizeInput(visit?.Visitor?.job_title || 'N/A'), [visit]);
+  const sanitizedFirstName = useMemo(() => sanitizeInput(visitorProfile?.first_name || ''), [visitorProfile]);
+  const sanitizedLastName = useMemo(() => sanitizeInput(visitorProfile?.last_name || ''), [visitorProfile]);
+  const sanitizedCompany = useMemo(() => sanitizeInput(visitorProfile?.company || 'Independiente'), [visitorProfile]);
+  const sanitizedJobTitle = useMemo(() => sanitizeInput(visitorProfile?.job_title || 'N/A'), [visitorProfile]);
   const sanitizedCedula = useMemo(() => sanitizeInput(visit?.visitor_cedula || '—'), [visit]);
   const sanitizedPersonToVisit = useMemo(() => sanitizeInput(visit?.person_to_visit || ''), [visit]);
   const sanitizedPurpose = useMemo(() => sanitizeInput(visit?.purpose || ''), [visit]);
@@ -151,20 +163,21 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
     try {
       const valid = await VisitService.verifyEditPassword(editPassword);
       if (valid) {
-        // Populate form with current visitor data
+        // Refresh the profile before editing so missing or stale list fields cannot erase data.
+        const visitor = await VisitService.getVisitorByCedula(visit!.visitor_cedula!);
+        setVisitorProfile(visitor);
         setEditFormData({
-          first_name: visit?.Visitor?.first_name || '',
-          last_name: visit?.Visitor?.last_name || '',
-          company: visit?.Visitor?.company || '',
-          job_title: visit?.Visitor?.job_title || '',
-          email: visit?.Visitor?.email || '',
-          phone: visit?.Visitor?.phone || '',
-          observations: visit?.Visitor?.observations || '',
-          isBlocked: visit?.Visitor?.isBlocked || false,
+          first_name: visitor.first_name || '',
+          last_name: visitor.last_name || '',
+          company: visitor.company || '',
+          job_title: visitor.job_title || '',
+          email: visitor.email || '',
+          phone: visitor.phone || '',
+          observations: visitor.observations || '',
+          isBlocked: visitor.isBlocked || false,
         });
         setIsEditMode(true);
         setShowPasswordPrompt(false);
-        setEditPassword('');
         toast.success('Contraseña validada — modo edición activado');
       } else {
         toast.error('Contraseña incorrecta');
@@ -176,7 +189,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
     }
   }, [editPassword, visit]);
 
-  const handleEditFieldChange = useCallback((name: string, value: string) => {
+  const handleEditFieldChange = useCallback((name: string, value: string | boolean) => {
     setEditFormData(prev => ({ ...prev, [name]: value }));
   }, []);
 
@@ -184,19 +197,22 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
     if (!visit?.visitor_cedula) return;
     setSaving(true);
     try {
-      await VisitService.updateVisitor(visit.visitor_cedula, {
+      const savedVisitor = await VisitService.updateVisitor(visit.visitor_cedula, {
+        editPassword,
         firstName: editFormData.first_name,
         lastName: editFormData.last_name,
         company: editFormData.company,
         jobTitle: editFormData.job_title,
-        email: editFormData.email,
+        email: editFormData.email || null,
         phone: editFormData.phone,
         observations: editFormData.observations,
-        isBlocked: editFormData.isBlocked,
+        ...(canBlock && { isBlocked: editFormData.isBlocked }),
         visitId: visit.id,
       });
+      setVisitorProfile(savedVisitor);
       toast.success('Cambios guardados correctamente');
       setIsEditMode(false);
+      setEditPassword('');
       // Reload edit history
       if (visit.id && visit.id > 0) {
         const history = await VisitService.getEditHistory(visit.id);
@@ -207,16 +223,18 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
       }
       // Notify parent to refresh data
       onVisitorUpdated?.();
-    } catch (err: any) {
-      const msg = err?.response?.data?.error?.message || err?.message || 'Error al guardar los cambios';
+    } catch (err) {
+      const error = err as import('axios').AxiosError<{ error?: { message?: string } }>;
+      const msg = error.response?.data?.error?.message || error.message || 'Error al guardar los cambios';
       toast.error(msg);
     } finally {
       setSaving(false);
     }
-  }, [visit, editFormData, onVisitorUpdated]);
+  }, [visit, editFormData, onVisitorUpdated, editPassword, canBlock]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditMode(false);
+    setEditPassword('');
   }, []);
 
   if (!isOpen || !visit) return null;
@@ -229,8 +247,9 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
     : 'text-[color:var(--text-3)] bg-[color:var(--surface-3)] border-[color:var(--border-1)]';
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="panel-tech rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative">
+    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent showCloseButton={false} className="panel-tech p-0 gap-0 rounded-2xl w-[calc(100%-2rem)] max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogDescription className="sr-only">Datos del visitante, fotografías e historial de la visita.</DialogDescription>
 
         {/* Accent bar top */}
         <div className="absolute inset-x-0 top-0 h-0.5 bg-[color:var(--accent-0)]" />
@@ -240,21 +259,22 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
           <div className="flex items-center gap-3">
             <UserCircle2 className="text-[color:var(--accent-0)] size={22}" />
             <div>
-              <h2 className="text-base font-display uppercase tracking-[0.18em] text-[color:var(--text-1)]">
+              <DialogTitle className="text-base font-display uppercase tracking-[0.18em] text-[color:var(--text-1)]">
                 {isEditMode ? 'Editar Visitante' : 'Detalles de la Visita'}
-              </h2>
+              </DialogTitle>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <span className={`text-[10px] font-bold uppercase tracking-[0.18em] border px-2 py-1 rounded-full ${statusColor}`}>
               {statusLabel}
             </span>
-            <button
+            <Button
               onClick={onClose}
+              aria-label="Cerrar detalles"
               className="p-1.5 rounded-full text-[color:var(--text-3)] hover:text-[color:var(--text-1)] hover:bg-[color:var(--surface-2)] transition-colors"
             >
               <X size={18} />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -277,7 +297,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
                 </p>
                 {visitorPhotoUrl && !photoError ? (
                   <div className="aspect-square w-full sm:w-56 rounded-xl overflow-hidden border border-[color:var(--border-1)] bg-[color:var(--surface-2)] shadow-inner">
-                    <img
+                    <AuthenticatedImage
                       src={visitorPhotoUrl}
                       alt={`Foto de ${sanitizedFirstName}`}
                       className="w-full h-full object-cover"
@@ -300,7 +320,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
                 <p className="text-xs font-mono text-[color:var(--text-2)] mb-2">C.I. {sanitizedCedula}</p>
                 {visitorIdPhotoUrl && !idPhotoError ? (
                   <div className="aspect-video w-full rounded-xl overflow-hidden border border-[color:var(--border-1)] bg-[color:var(--surface-2)] shadow-inner">
-                    <img
+                    <AuthenticatedImage
                       src={visitorIdPhotoUrl}
                       alt={`ID de ${sanitizedFirstName}`}
                       className="w-full h-full object-contain"
@@ -339,22 +359,23 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
                     <EditField label="Email" name="email" value={editFormData.email} onChange={handleEditFieldChange} type="email" />
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] font-semibold text-[color:var(--text-3)] uppercase tracking-[0.18em]">Observaciones</span>
-                      <textarea
+                      <Textarea
                         value={editFormData.observations}
                         onChange={(e) => handleEditFieldChange('observations', e.target.value)}
                         rows={2}
                         className="input-tech px-3 py-2 rounded-lg text-sm text-[color:var(--text-1)] border border-[color:var(--border-1)] bg-[color:var(--surface-0)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-0)]/20"
                       />
                     </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    {canBlock && <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={editFormData.isBlocked}
-                        onChange={(e) => handleEditFieldChange('isBlocked', e.target.checked ? 'true' : 'false')}
+                        disabled={!canBlock}
+                      checked={editFormData.isBlocked}
+                        onChange={(e) => handleEditFieldChange('isBlocked', e.target.checked)}
                         className="rounded"
                       />
                       <span className="text-sm text-[color:var(--text-1)]">Bloquear visitante</span>
-                    </label>
+                    </label>}
                   </div>
                 ) : (
                   <>
@@ -512,90 +533,91 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
         <div className="px-6 py-4 border-t border-[color:var(--border-1)] flex justify-between items-center flex-shrink-0">
           {isEditMode ? (
             <>
-              <button
+              <Button
                 onClick={handleCancelEdit}
                 className="btn-ghost px-6"
                 disabled={saving}
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSaveEdit}
                 disabled={saving}
                 className="btn-primary px-6 flex items-center gap-2"
               >
                 <Save size={16} />
                 {saving ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
+              </Button>
             </>
           ) : (
             <>
-              <button
-                onClick={handleEditClick}
+              {canEdit && <Button
+                disabled={!canEdit}
+                    onClick={handleEditClick}
                 className="btn-primary px-6 flex items-center gap-2"
               >
                 <Pencil size={16} />
                 Editar
-              </button>
-              <button
+              </Button>}
+              <Button
                 onClick={onClose}
                 className="btn-ghost px-6"
               >
                 Cerrar
-              </button>
+              </Button>
             </>
           )}
         </div>
 
-      </div>
 
       {/* Password Prompt Overlay */}
-      {showPasswordPrompt && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-          <div className="panel-tech rounded-2xl w-full max-w-md p-6 relative">
+      <Dialog open={showPasswordPrompt} onOpenChange={open => { if (!open) { setShowPasswordPrompt(false); setEditPassword(''); } }}>
+          <DialogContent className="panel-tech rounded-2xl max-w-md p-6">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-[color:var(--accent-0)] rounded-t-2xl" />
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-full bg-[color:var(--accent-0)]/10">
                 <Lock className="text-[color:var(--accent-0)]" size={20} />
               </div>
               <div>
-                <h3 className="text-base font-display uppercase tracking-[0.18em] text-[color:var(--text-1)]">
+                <DialogTitle className="text-base font-display uppercase tracking-[0.18em] text-[color:var(--text-1)]">
                   Contraseña de Edición
-                </h3>
-                <p className="text-xs text-[color:var(--text-3)] mt-0.5">
+                </DialogTitle>
+                <DialogDescription className="text-xs text-[color:var(--text-3)] mt-0.5">
                   Ingrese la contraseña para editar los datos del visitante
-                </p>
+                </DialogDescription>
               </div>
             </div>
-            <input
+            <form autoComplete="off" onSubmit={e => { e.preventDefault(); handleVerifyPassword(); }}>
+            <Input aria-label="Usuario que edita" type="text" name="username" autoComplete="username" value={user?.username || ''} readOnly className="input-tech mb-3" />
+            <Input
               type="password"
+              aria-label="Contraseña de edición" autoComplete="off" name="visitor-edit-password"
               value={editPassword}
               onChange={(e) => setEditPassword(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleVerifyPassword(); }}
               placeholder="••••••••"
               autoFocus
               className="input-tech w-full px-4 py-3 rounded-lg text-sm text-[color:var(--text-1)] border border-[color:var(--border-1)] bg-[color:var(--surface-0)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-0)]/20"
             />
             <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={() => { setShowPasswordPrompt(false); setEditPassword(''); }}
+              <Button
+                type="button" onClick={() => { setShowPasswordPrompt(false); setEditPassword(''); }}
                 className="btn-ghost px-5"
                 disabled={verifyingPassword}
               >
                 Cancelar
-              </button>
-              <button
-                onClick={handleVerifyPassword}
+              </Button>
+              <Button
+                type="submit"
                 disabled={verifyingPassword}
                 className="btn-primary px-5 flex items-center gap-2"
               >
                 {verifyingPassword ? 'Validando...' : 'Validar'}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
-
-    </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </DialogContent>
+    </Dialog>
   );
 }

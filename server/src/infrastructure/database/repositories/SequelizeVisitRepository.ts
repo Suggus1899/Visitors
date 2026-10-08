@@ -3,6 +3,7 @@ import { Visit, VisitEntity, VisitStatus } from '../../../domain/entities/Visit.
 import VisitModel from '../../../models/Visit';
 import VisitorModel from '../../../models/Visitor';
 import IntermittentLogModel from '../../../models/IntermittentLog';
+import sequelize from '../../../database';
 import { Op, WhereOptions } from 'sequelize';
 import Encryption from '../../../utils/Encryption';
 
@@ -147,14 +148,15 @@ export class SequelizeVisitRepository implements IVisitRepository {
   }
 
   async create(visit: Visit): Promise<Visit> {
+    return sequelize.transaction(async transaction => {
     const hashedCedula = Encryption.hash(visit.visitorCedula);
     
     // Find visitor by cedula to get the id (foreign key)
     const visitor = await VisitorModel.findOne({
-      where: { cedula: hashedCedula }
+      where: { cedula: hashedCedula, anonymizedAt: null }, transaction, lock: transaction.LOCK.UPDATE
     });
     
-    if (!visitor) {
+    if (!visitor || visitor.isBlocked) {
       throw new Error('Visitor not found');
     }
     
@@ -178,12 +180,15 @@ export class SequelizeVisitRepository implements IVisitRepository {
       area: visit.area || null,
       action: visit.action || 'Ninguna',
       department: visit.department || null,
-    });
+      target_department: visit.targetDepartment || visit.department || null,
+      host_person: visit.hostPerson || visit.personToVisit,
+    }, { transaction });
     
     // Reload to get visitor details (name, etc) for the returned entity
-    await model.reload({ include: [VisitorModel] });
+    await model.reload({ include: [VisitorModel], transaction });
 
     return this.toDomain(model);
+    });
   }
 
   async update(id: number, data: Partial<VisitEntity>): Promise<Visit> {
@@ -350,7 +355,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
                 const decrypted = model.Visitor.getDecrypted();
                 visitorName = `${decrypted.first_name || ''} ${decrypted.last_name || ''}`.trim();
                 visitorCompany = decrypted.company;
-                visitorCedula = decrypted.cedula;
+                visitorCedula = decrypted.cedula || model.visitor_cedula;
             } catch {
                 visitorName = 'Visitante (error de cifrado)';
                 visitorCompany = undefined;
@@ -382,6 +387,7 @@ export class SequelizeVisitRepository implements IVisitRepository {
       model.exit_time || undefined,
       model.target_department || undefined,
       model.host_person || undefined,
+      !!model.Visitor?.anonymizedAt,
     );
   }
 }

@@ -3,6 +3,7 @@ import { User, UserRole } from '../../domain/entities/User.entity';
 export interface UserDto {
   id?: number;
   username: string;
+  email: string | null;
   role: UserRole;
   mustChangePassword?: boolean;
 }
@@ -17,6 +18,7 @@ export class UserMapper {
     return {
       id: user.id,
       username: user.username,
+      email: user.email,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
     };

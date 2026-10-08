@@ -4,7 +4,7 @@
  */
 export interface VisitorEditHistoryEntity {
   id?: number;
-  visitId: number;
+  visitId: number | null;
   visitorId: number;
   field: string;
   oldValue: string | null;

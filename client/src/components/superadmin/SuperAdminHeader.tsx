@@ -1,8 +1,10 @@
+import { Button } from '../ui/button';
 import Shield from 'lucide-react/dist/esm/icons/shield';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
+import type { User } from '../../types';
 
 interface SuperAdminHeaderProps {
-  user: any;
+  user: User | null;
   handleLogout: () => void;
 }
 
@@ -21,10 +23,10 @@ const SuperAdminHeader = ({ user, handleLogout }: SuperAdminHeaderProps) => {
           <span className="text-sm text-[color:var(--text-2)]">
             {user?.username} ({user?.role})
           </span>
-          <button onClick={handleLogout} className="btn-ghost flex items-center gap-2">
+          <Button onClick={handleLogout} className="btn-ghost flex items-center gap-2">
             <LogOut className="w-4 h-4" />
             Salir
-          </button>
+          </Button>
         </div>
       </div>
     </header>

@@ -6,12 +6,10 @@
 import logger from '../../config/logger';
 import { IEmailService } from '../../domain/services/IEmailService';
 
-// Note: nodemailer will be installed separately
-// import nodemailer from 'nodemailer';
-// import type { Transporter } from 'nodemailer';
+import nodemailer, { Transporter } from 'nodemailer';
 
 export class EmailService implements IEmailService {
-  private transporter: any | null = null;
+  private transporter: Transporter | null = null;
   private readonly appUrl: string;
   private readonly emailFrom: string;
 
@@ -29,11 +27,8 @@ export class EmailService implements IEmailService {
    * Requirement: 11.2
    */
   isConfigured(): boolean {
-    return !!(
-      process.env.SMTP_HOST &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASSWORD
-    );
+    const host = process.env.SMTP_HOST;
+    return !!host && (['127.0.0.1', 'localhost', '::1'].includes(host) || !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD));
   }
 
   /**
@@ -42,18 +37,12 @@ export class EmailService implements IEmailService {
    */
   private initializeTransporter(): void {
     try {
-      // This will be uncommented when nodemailer is installed
-      /*
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT || '587', 10),
         secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASSWORD
-        }
+        auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } : undefined
       });
-      */
       logger.info('Email service configured successfully');
     } catch (error) {
       logger.error('Failed to initialize email transporter:', error);
@@ -70,15 +59,13 @@ export class EmailService implements IEmailService {
       throw new Error('Email service is not configured');
     }
 
-    const resetLink = `${this.appUrl}/reset-password?token=${token}`;
+    const resetLink = `${this.appUrl.replace(/\/$/, '')}/#/reset-password?token=${encodeURIComponent(token)}`;
 
     const subject = 'Password Reset Request - AF Visitor System';
     const html = this.getPasswordResetTemplate(username, resetLink);
     const text = this.getPasswordResetTextTemplate(username, resetLink);
 
     try {
-      // This will be uncommented when nodemailer is installed
-      /*
       await this.transporter.sendMail({
         from: this.emailFrom,
         to,
@@ -86,11 +73,8 @@ export class EmailService implements IEmailService {
         text,
         html
       });
-      */
-      logger.info(`Password reset email would be sent to ${to}`);
-      logger.debug(`Reset link: ${resetLink}`);
     } catch (error) {
-      logger.error('Failed to send password reset email:', error);
+      logger.error('Failed to send password reset email');
       // Requirement: 11.12 - Don't expose technical details
       throw new Error('Failed to send email. Please try again later.');
     }
@@ -112,8 +96,6 @@ export class EmailService implements IEmailService {
     const text = this.getPasswordChangedTextTemplate(username);
 
     try {
-      // This will be uncommented when nodemailer is installed
-      /*
       await this.transporter.sendMail({
         from: this.emailFrom,
         to,
@@ -121,10 +103,8 @@ export class EmailService implements IEmailService {
         text,
         html
       });
-      */
-      logger.info(`Password changed email would be sent to ${to}`);
     } catch (error) {
-      logger.error('Failed to send password changed email:', error);
+      logger.error('Failed to send password changed email');
       // Don't throw - this is a notification, not critical
     }
   }

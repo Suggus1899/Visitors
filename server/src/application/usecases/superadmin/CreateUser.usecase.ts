@@ -6,6 +6,7 @@ export interface CreateUserDto {
   username: string;
   password: string;
   role: UserRole;
+  email?: string | null;
 }
 
 export class CreateUserUseCase {
@@ -32,7 +33,8 @@ export class CreateUserUseCase {
       undefined,
       undefined,
       undefined,
-      true // mustChangePassword
+      true, // mustChangePassword
+      null, 0, null, data.email ?? null
     );
 
     // Save to repository (save handles both create and update)

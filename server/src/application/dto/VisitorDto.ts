@@ -27,6 +27,10 @@ export interface VisitorHistoryItem {
   checkOutTime?: Date;
   status: string;
   targetDepartment?: string;
+  hostPerson?: string;
+  vehicleBrand?: string;
+  vehicleModel?: string;
+  vehiclePlate?: string;
 }
 
 /**

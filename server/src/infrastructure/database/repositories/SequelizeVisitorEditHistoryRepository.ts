@@ -1,4 +1,5 @@
 import { IVisitorEditHistoryRepository, VisitorEditHistoryEntity } from '../../../domain/repositories/IVisitorEditHistoryRepository';
+import Encryption from '../../../utils/Encryption';
 import VisitorEditHistoryModel from '../../../models/VisitorEditHistory';
 
 /**
@@ -10,8 +11,8 @@ export class SequelizeVisitorEditHistoryRepository implements IVisitorEditHistor
       visitId: entry.visitId,
       visitorId: entry.visitorId,
       field: entry.field,
-      oldValue: entry.oldValue,
-      newValue: entry.newValue,
+      oldValue: entry.oldValue === null ? null : Encryption.encrypt(entry.oldValue),
+      newValue: entry.newValue === null ? null : Encryption.encrypt(entry.newValue),
       editedBy: entry.editedBy,
       editedByUsername: entry.editedByUsername,
     });
@@ -40,8 +41,8 @@ export class SequelizeVisitorEditHistoryRepository implements IVisitorEditHistor
       visitId: model.visitId,
       visitorId: model.visitorId,
       field: model.field,
-      oldValue: model.oldValue,
-      newValue: model.newValue,
+      oldValue: model.oldValue === null ? null : Encryption.decrypt(model.oldValue),
+      newValue: model.newValue === null ? null : Encryption.decrypt(model.newValue),
       editedBy: model.editedBy,
       editedByUsername: model.editedByUsername,
       editedAt: model.editedAt,

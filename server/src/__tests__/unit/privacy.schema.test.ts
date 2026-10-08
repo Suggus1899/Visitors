@@ -31,12 +31,14 @@ describe('privacy schemas', () => {
   });
 
   it('requires at least one field in rectification payload', () => {
-    const parsed = rectifyDataSchema.safeParse({});
+    const parsed = rectifyDataSchema.safeParse({
+      editPassword: 'test-password',});
     expect(parsed.success).toBe(false);
   });
 
   it('accepts valid rectification payload', () => {
     const parsed = rectifyDataSchema.safeParse({
+      editPassword: 'test-password',
       firstName: 'Maria',
       phone: '8290000000'
     });

@@ -1,10 +1,14 @@
+import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 import React, { useState } from 'react';
 import { useAllVisitorsQuery, useUpdateVisitorMutation, useRecentVisitsQuery } from '../hooks/useVisitQueries';
 import { Ban, CheckCircle, Search, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { API_URL } from '../config/env';
-import { Visit } from '../types';
+import { Visit, Visitor } from '../types';
 import RecentVisits from './RecentVisits';
 
 const RecentVisitsPanel: React.FC = () => {
@@ -28,12 +32,12 @@ const RecentVisitsPanel: React.FC = () => {
                     )}
                 </span>
                 {recentVisits.length > 3 && (
-                    <button
+                    <Button
                         onClick={() => setExpanded(v => !v)}
                         className="text-[11px] text-[color:var(--text-3)] hover:text-[color:var(--text-1)] transition"
                     >
                         {expanded ? 'Ver menos ↑' : `Ver todos (${recentVisits.length}) ↓`}
-                    </button>
+                    </Button>
                 )}
             </div>
             <div className="p-3">
@@ -44,11 +48,14 @@ const RecentVisitsPanel: React.FC = () => {
 };
 
 export const VisitorAdmin: React.FC = () => {
+    const { user } = useAuth();
+    const canBlock = ['admin', 'root'].includes(user?.role || '');
+    const [editPassword, setEditPassword] = useState('');
     const [page, setPage] = useState(1);
     const [companyFilter, setCompanyFilter] = useState('');
     const [cedulaFilter, setCedulaFilter] = useState('');
-    const [editingVisitor, setEditingVisitor] = useState<{ cedula: string; observations: string } | null>(null);
-    const [selectedVisitor, setSelectedVisitor] = useState<any>(null);
+    const [editingVisitor, setEditingVisitor] = useState<{ cedula: string; observations: string; isBlocked: boolean } | null>(null);
+    const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
     const limit = 20;
 
     const { data, isLoading, refetch } = useAllVisitorsQuery(page, limit, companyFilter || undefined);
@@ -62,24 +69,9 @@ export const VisitorAdmin: React.FC = () => {
     const total = data?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
-    const handleToggleBlock = async (cedula: string, currentStatus: boolean) => {
-        try {
-            if (!currentStatus) {
-                // Blocking - show edit modal first
-                setEditingVisitor({ cedula, observations: '' });
-                return;
-            }
-
-            // Unblocking - proceed directly
-            await updateMutation.mutateAsync({
-                cedula,
-                data: { isBlocked: false, observations: '' }
-            });
-            toast.success('Visitante desbloqueado');
-            refetch();
-        } catch {
-            toast.error('Error al actualizar estado');
-        }
+    const handleToggleBlock = (cedula: string, currentStatus: boolean) => {
+        setEditPassword('');
+        setEditingVisitor({ cedula, observations: '', isBlocked: !currentStatus });
     };
 
     const handleBlockWithReason = async () => {
@@ -88,9 +80,10 @@ export const VisitorAdmin: React.FC = () => {
         try {
             await updateMutation.mutateAsync({
                 cedula: editingVisitor.cedula,
-                data: { isBlocked: true, observations: editingVisitor.observations }
+                data: { editPassword, isBlocked: editingVisitor.isBlocked, observations: editingVisitor.observations }
             });
-            toast.success('Visitante bloqueado');
+            toast.success(editingVisitor.isBlocked ? 'Visitante bloqueado' : 'Visitante desbloqueado');
+            setEditPassword('');
             setEditingVisitor(null);
             refetch();
         } catch {
@@ -126,7 +119,7 @@ export const VisitorAdmin: React.FC = () => {
             <div className="mb-4 flex gap-2 flex-wrap">
                 <div className="relative flex-1 min-w-[160px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--text-3)]" />
-                    <input
+                    <Input
                         type="text"
                         placeholder="Filtrar por empresa..."
                         value={companyFilter}
@@ -136,7 +129,7 @@ export const VisitorAdmin: React.FC = () => {
                 </div>
                 <div className="relative min-w-[160px]" title="Búsqueda local por cédula exacta (sin prefijo V-)">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--text-3)]" />
-                    <input
+                    <Input
                         type="text"
                         placeholder="Buscar por cédula..."
                         value={cedulaFilter}
@@ -144,12 +137,12 @@ export const VisitorAdmin: React.FC = () => {
                         className="input-tech w-full pl-10"
                     />
                 </div>
-                <button
+                <Button
                     onClick={() => refetch()}
                     className="btn-ghost px-4 py-2 text-sm"
                 >
                     Actualizar
-                </button>
+                </Button>
             </div>
 
             {/* Stats */}
@@ -205,12 +198,12 @@ export const VisitorAdmin: React.FC = () => {
                                 </td>
                                 <td className="py-3 px-2">
                                     <div className="flex gap-2">
-                                        <button
+                                        {canBlock && <Button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleToggleBlock(visitor.cedula, !!visitor.isBlocked);
+                                                if (visitor.cedula) handleToggleBlock(visitor.cedula, !!visitor.isBlocked);
                                             }}
-                                            disabled={updateMutation.isPending}
+                                            disabled={!canBlock || updateMutation.isPending}
                                             className={`p-1.5 rounded transition-colors ${
                                                 visitor.isBlocked
                                                     ? 'text-emerald-400 hover:bg-emerald-500/10'
@@ -219,7 +212,7 @@ export const VisitorAdmin: React.FC = () => {
                                             title={visitor.isBlocked ? 'Desbloquear' : 'Bloquear'}
                                         >
                                             {visitor.isBlocked ? <CheckCircle size={18} /> : <Ban size={18} />}
-                                        </button>
+                                        </Button>}
                                         {visitor.isBlocked && visitor.observations && (
                                             <span className="text-xs text-[color:var(--text-3)] self-center max-w-[150px] truncate">
                                                 {visitor.observations}
@@ -240,20 +233,20 @@ export const VisitorAdmin: React.FC = () => {
                         Página {page} de {totalPages}
                     </span>
                     <div className="flex gap-2">
-                        <button
+                        <Button
                             onClick={() => setPage(p => Math.max(1, p - 1))}
                             disabled={page === 1}
                             className="btn-ghost p-2 disabled:opacity-50"
                         >
                             <ChevronLeft size={18} />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                             disabled={page === totalPages}
                             className="btn-ghost p-2 disabled:opacity-50"
                         >
                             <ChevronRight size={18} />
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
@@ -262,14 +255,14 @@ export const VisitorAdmin: React.FC = () => {
             {editingVisitor && (
                 <div
                     className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                    onClick={() => setEditingVisitor(null)}
+                    onClick={() => { setEditingVisitor(null); setEditPassword(''); }}
                 >
                     <div
                         className="panel-tech rounded-2xl max-w-md w-full p-6"
                         onClick={e => e.stopPropagation()}
                     >
                         <h3 className="text-lg font-display uppercase tracking-[0.2em] mb-4 text-[color:var(--text-1)]">
-                            Bloquear Visitante
+                            {editingVisitor.isBlocked ? 'Bloquear Visitante' : 'Desbloquear Visitante'}
                         </h3>
                         <p className="text-sm text-[color:var(--text-2)] mb-4">
                             C.I. {editingVisitor.cedula}
@@ -277,27 +270,30 @@ export const VisitorAdmin: React.FC = () => {
                         <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                             Motivo del bloqueo
                         </label>
-                        <textarea
+                        <Textarea
                             value={editingVisitor.observations}
                             onChange={(e) => setEditingVisitor({ ...editingVisitor, observations: e.target.value })}
                             placeholder="Indique el motivo del bloqueo..."
                             className="input-tech w-full mb-4"
                             rows={3}
                         />
+                        <label className="block text-sm mb-4">Contraseña de edición
+                            <Input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} className="input-tech" autoComplete="off" />
+                        </label>
                         <div className="flex gap-3">
-                            <button
+                            <Button
                                 onClick={() => setEditingVisitor(null)}
                                 className="flex-1 btn-ghost"
                             >
                                 Cancelar
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={handleBlockWithReason}
-                                disabled={!editingVisitor.observations.trim() || updateMutation.isPending}
+                                disabled={!editPassword || (editingVisitor.isBlocked && !editingVisitor.observations.trim()) || updateMutation.isPending}
                                 className="flex-1 btn-danger"
                             >
-                                {updateMutation.isPending ? 'Bloqueando...' : 'Bloquear'}
-                            </button>
+                                {updateMutation.isPending ? 'Guardando...' : 'Confirmar'}
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -311,8 +307,8 @@ export const VisitorAdmin: React.FC = () => {
                     status: selectedVisitor.isBlocked ? 'completed' : 'active',
                     Visitor: {
                         ...selectedVisitor,
-                        photo_url: `${API_URL}/visitors/${encodeURIComponent(selectedVisitor.cedula)}/photo?t=${new Date().getTime()}`,
-                        id_photo_url: `${API_URL}/visitors/${encodeURIComponent(selectedVisitor.cedula)}/id-photo?t=${new Date().getTime()}`
+                        photo_url: selectedVisitor.cedula ? `${API_URL}/visitors/${encodeURIComponent(selectedVisitor.cedula)}/photo?t=${new Date().getTime()}` : undefined,
+                        id_photo_url: selectedVisitor.cedula ? `${API_URL}/visitors/${encodeURIComponent(selectedVisitor.cedula)}/id-photo?t=${new Date().getTime()}` : undefined
                     }
                 } as Visit : null}
                 isOpen={!!selectedVisitor}
@@ -321,7 +317,7 @@ export const VisitorAdmin: React.FC = () => {
                     const result = await refetch();
                     // Update selectedVisitor with fresh data from the refetched list
                     if (selectedVisitor && result.data?.visitors) {
-                        const updated = result.data.visitors.find((v: any) => v.cedula === selectedVisitor.cedula);
+                        const updated = result.data.visitors.find(v => v.cedula === selectedVisitor.cedula);
                         if (updated) setSelectedVisitor(updated);
                     }
                 }}

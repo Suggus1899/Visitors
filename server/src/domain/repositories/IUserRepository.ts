@@ -10,5 +10,6 @@ export interface IUserRepository {
   updatePassword(id: number, hashedPassword: string): Promise<void>;
   updatePasswordChange(id: number, hashedPassword: string, mustChangePassword: boolean, passwordChangedAt: Date): Promise<void>;
   updateLoginAttempts(id: number, loginAttempts: number, lockedUntil: Date | null): Promise<void>;
+  consumeResetToken(token: string, hashedPassword: string): Promise<boolean>;
   updateResetToken(id: number, token: string | null, expiry: Date | null): Promise<void>;
 }

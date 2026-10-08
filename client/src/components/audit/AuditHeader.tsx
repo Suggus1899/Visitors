@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import { ThemeToggle } from '../ThemeToggle';
 import Shield from 'lucide-react/dist/esm/icons/shield';
 import Download from 'lucide-react/dist/esm/icons/download';
@@ -44,7 +45,7 @@ const AuditHeader = ({
                 <p className="text-[color:var(--text-3)]">Monitorización y rastro de actividades del sistema</p>
             </div>
             <div className="flex gap-3 items-center flex-wrap">
-                <button
+                <Button
                     onClick={handleBack}
                     className="btn-ghost px-4 py-2 border border-[color:var(--border-1)] flex items-center gap-2"
                     title="Volver al dashboard"
@@ -52,7 +53,7 @@ const AuditHeader = ({
                     <ArrowLeft size={16} />
                     <LayoutDashboard size={16} />
                     <span className="hidden sm:inline text-xs">Dashboard</span>
-                </button>
+                </Button>
                 <ThemeToggle />
                 <div className="flex items-center gap-2 mr-4 bg-[color:var(--surface-2)] rounded-lg px-3 py-2 border border-[color:var(--border-1)]">
                     <span className="text-xs text-[color:var(--text-3)] font-medium">Auto-refresh</span>
@@ -64,28 +65,28 @@ const AuditHeader = ({
                     </div>
                 </div>
 
-                <button 
+                <Button
                     onClick={handleExport}
                     className="btn-ghost px-4 py-2"
                 >
                     <Download size={18} />
                     <span className="hidden sm:inline">Exportar</span>
-                </button>
-                <button 
+                </Button>
+                <Button
                     onClick={fetchData}
                     className={`btn-ghost px-4 py-2 ${loading ? 'opacity-70' : ''}`}
                     disabled={loading}
                 >
                     <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
                     <span className="hidden sm:inline">Actualizar</span>
-                </button>
-                <button 
+                </Button>
+                <Button
                     onClick={handleLogout}
                     className="border border-red-400 text-red-300 hover:text-red-200 hover:border-red-300 px-4 py-2 rounded-lg transition-colors font-medium ml-2"
                 >
                     <LogOut size={18} />
                     <span className="hidden sm:inline">Salir</span>
-                </button>
+                </Button>
             </div>
         </div>
     );

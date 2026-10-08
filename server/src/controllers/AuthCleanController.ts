@@ -14,9 +14,7 @@ interface AuthError {
   errors?: unknown[];
 }
 
-interface AuthenticatedRequest extends Request {
-  user?: { id: number; username: string; role: string };
-}
+type AuthenticatedRequest = Request;
 
 /**
  * Clean Architecture Auth Controller
@@ -75,13 +73,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { username } = req.body;
     const useCase = container.createForgotPasswordUseCase();
-    const token = await useCase.execute(username);
-
-    // Security: Never expose the token in the API response.
-    // In production, send via email. Token is logged server-side for dev only.
-    if (process.env.NODE_ENV !== 'production') {
-      logger.debug(`[DEV ONLY] Password reset token for ${username}: ${token}`);
-    }
+    await useCase.execute(username);
 
     res.json(ResponseBuilder.success({
       message: 'If the account exists, a password reset has been initiated. Check your email or contact an administrator.'

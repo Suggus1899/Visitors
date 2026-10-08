@@ -117,7 +117,7 @@ router.post('/v1/visits/:id/admit', verifyToken, denyAuditorOnly, asyncHandler(V
  *       200:
  *         description: List of waiting visits
  */
-router.get('/v1/visits/waiting', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.getWaitingVisits));
+router.get('/v1/visits/waiting', verifyToken, asyncHandler(VisitCleanController.getWaitingVisits));
 
 /**
  * @swagger
@@ -131,7 +131,7 @@ router.get('/v1/visits/waiting', verifyToken, denyAuditorOnly, asyncHandler(Visi
  *       200:
  *         description: List of active visits
  */
-router.get('/v1/visits/active', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.getActiveVisits));
+router.get('/v1/visits/active', verifyToken, asyncHandler(VisitCleanController.getActiveVisits));
 
 router.post('/v1/visits/:id/intermittent', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.goIntermittent));
 
@@ -149,7 +149,7 @@ router.post('/v1/visits/:id/reactivate', verifyToken, denyAuditorOnly, asyncHand
  *       200:
  *         description: List of intermittent visits
  */
-router.get('/v1/visits/intermittent', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.getIntermittentVisits));
+router.get('/v1/visits/intermittent', verifyToken, asyncHandler(VisitCleanController.getIntermittentVisits));
 
 /**
  * @swagger
@@ -233,6 +233,6 @@ router.post('/v1/visits/:id/intermittent-reentry', verifyToken, denyAuditorOnly,
  *       200:
  *         description: Paginated list of visits
  */
-router.get('/v1/visits', verifyToken, denyAuditorOnly, asyncHandler(VisitCleanController.getVisits));
+router.get('/v1/visits', verifyToken, asyncHandler(VisitCleanController.getVisits));
 
 export default router;

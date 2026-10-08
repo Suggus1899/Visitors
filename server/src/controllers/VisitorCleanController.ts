@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
+import { validEditPassword } from '../middleware/visitorEdit';
+import { decodeVisitorPhoto, imageContentType } from '../utils/visitorPhoto';
 import { container } from '../shared/Container';
 import { ResponseBuilder } from '../shared/ApiResponse';
-import config from '../config/AppConfig';
 import logger from '../config/logger';
 
 const visitorRepo = container.visitorRepository;
@@ -24,12 +24,14 @@ export const getVisitor = async (req: Request, res: Response) => {
 
     // Map to snake_case for frontend compatibility
     const response = {
+      ...visitor,
       cedula: visitor.cedula,
       first_name: visitor.firstName,
       last_name: visitor.lastName,
       company: visitor.company,
       job_title: visitor.jobTitle,
       photo_url: visitor.photoUrl,
+      id_photo_url: visitor.idPhotoUrl,
       email: visitor.email,
       phone: visitor.phone,
     };
@@ -60,41 +62,24 @@ export const getAllVisitors = async (req: Request, res: Response) => {
 export const updateVisitor = async (req: Request, res: Response) => {
   try {
     const cedula = req.params.cedula as string;
-    const { photoBase64, idPhotoBase64, photoUrl, idPhotoUrl, visitId, ...rest } = req.body;
+    const { editPassword, photoBase64, idPhotoBase64, visitId, ...rest } = req.body;
 
     // Normalize snake_case fields from frontend to camelCase for DTO
     const firstName = rest.firstName || rest.first_name;
     const lastName = rest.lastName || rest.last_name;
-    const jobTitle = rest.jobTitle || rest.job_title;
+    const jobTitle = rest.jobTitle !== undefined ? rest.jobTitle : rest.job_title;
 
-    // Convert base64 photos to Buffer if provided
-    let photoBlob: Buffer | undefined;
-    let idPhotoBlob: Buffer | undefined;
-
-    if (photoBase64 && typeof photoBase64 === 'string' && photoBase64.startsWith('data:')) {
-      const clean = photoBase64.replace(/^data:image\/\w+;base64,/, '');
-      photoBlob = Buffer.from(clean, 'base64');
-    }
-
-    if (idPhotoBase64 && typeof idPhotoBase64 === 'string' && idPhotoBase64.startsWith('data:')) {
-      const clean = idPhotoBase64.replace(/^data:image\/\w+;base64,/, '');
-      idPhotoBlob = Buffer.from(clean, 'base64');
-    }
-
+    const photoBlob = decodeVisitorPhoto(photoBase64);
+    const idPhotoBlob = decodeVisitorPhoto(idPhotoBase64);
     const visitorData = { ...rest, firstName, lastName, jobTitle, photoBlob, idPhotoBlob };
-
-    // Build edit context if visitId is provided (for audit trail)
-    // visitId=0 means editing from visitor profile (no specific visit) — still log with visitId=0
-    const editContext = (visitId !== undefined && req.user)
-      ? { visitId: Number(visitId), editedBy: req.user.id, editedByUsername: req.user.username }
-      : undefined;
-
+    const editContext = { visitId: visitId || null, editedBy: req.user!.id, editedByUsername: req.user!.username };
     const useCase = container.updateVisitorUseCase;
     const updatedVisitor = await useCase.execute(cedula, visitorData, editContext);
 
     res.json(ResponseBuilder.success(updatedVisitor));
   } catch (error: any) {
     logger.error('Update visitor error:', error);
+    if (['INVALID_PHOTO', 'INVALID_VISIT_CONTEXT'].includes(error.message)) return res.status(400).json(ResponseBuilder.error(error.message, 'Datos de edición inválidos'));
     if (error.message === 'Visitor not found') {
       return res.status(404).json(ResponseBuilder.error('VISITOR_NOT_FOUND', error.message));
     }
@@ -113,20 +98,7 @@ export const verifyEditPassword = async (req: Request, res: Response) => {
       return res.status(400).json(ResponseBuilder.error('VALIDATION_ERROR', 'Password is required'));
     }
 
-    const storedPassword = config.editPassword;
-    if (!storedPassword) {
-      return res.status(500).json(ResponseBuilder.error('SERVER_ERROR', 'Edit password not configured'));
-    }
-
-    // If stored password is a bcrypt hash (starts with $2), use bcrypt.compare
-    // Otherwise do a direct comparison (for plaintext env values)
-    let valid: boolean;
-    if (storedPassword.startsWith('$2')) {
-      valid = await bcrypt.compare(password, storedPassword);
-    } else {
-      valid = password === storedPassword;
-    }
-
+    const valid = await validEditPassword(password);
     res.json(ResponseBuilder.success({ valid }));
   } catch (error) {
     logger.error('Verify edit password error:', error);
@@ -200,8 +172,8 @@ export const getVisitorPhoto = async (req: Request, res: Response) => {
       return res.status(404).json(ResponseBuilder.error('PHOTO_NOT_FOUND', 'Photo not found'));
     }
 
-    res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'private, max-age=3600');
+    res.set('Content-Type', imageContentType(blob));
+    res.set('Cache-Control', 'private, no-store');
     res.send(blob);
   } catch (error) {
     logger.error('Get visitor photo error:', error);
@@ -218,8 +190,8 @@ export const getVisitorIdPhoto = async (req: Request, res: Response) => {
       return res.status(404).json(ResponseBuilder.error('PHOTO_NOT_FOUND', 'ID photo not found'));
     }
 
-    res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'private, max-age=3600');
+    res.set('Content-Type', imageContentType(blob));
+    res.set('Cache-Control', 'private, no-store');
     res.send(blob);
   } catch (error) {
     logger.error('Get visitor ID photo error:', error);

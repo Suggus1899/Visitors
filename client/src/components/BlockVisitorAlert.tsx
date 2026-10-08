@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import { AlertTriangle, Ban } from 'lucide-react';
 
 interface BlockVisitorAlertProps {
@@ -34,7 +35,7 @@ export const BlockVisitorAlert = ({ observations, onDismiss }: BlockVisitorAlert
           )}
         </div>
         {onDismiss && (
-          <button
+          <Button
             onClick={onDismiss}
             className="flex-shrink-0 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
           >
@@ -46,7 +47,7 @@ export const BlockVisitorAlert = ({ observations, onDismiss }: BlockVisitorAlert
                 clipRule="evenodd"
               />
             </svg>
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -1,3 +1,5 @@
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import React from 'react';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Check from 'lucide-react/dist/esm/icons/check';
@@ -63,7 +65,7 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                     Área / Departamento a Visitar <span className="text-red-500">*</span>
                 </label>
                 <select
-                    value={formData.target_department}
+                    aria-label="Área o departamento" value={formData.target_department}
                     onChange={(e) => onFormDataChange('target_department', e.target.value)}
                     className={`${getInputClass(formData.target_department.trim() ? true : null)} w-full bg-[color:var(--surface-0)]`}
                     required
@@ -79,7 +81,7 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                     Persona a Visitar <span className="text-red-500">*</span>
                 </label>
-                <input
+                <Input
                     type="text"
                     placeholder="Ej: Ing. Carlos Machado, Dra. Ana Rodríguez..."
                     value={formData.host_person}
@@ -95,7 +97,7 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                     Motivo de la Visita <span className="text-red-500">*</span>
                 </label>
                 <select
-                    value={formData.reason === 'Otro' || formData.reason.startsWith('Otro: ') ? 'Otro' : formData.reason}
+                    aria-label="Motivo de la visita" value={formData.reason === 'Otro' || formData.reason.startsWith('Otro: ') ? 'Otro' : formData.reason}
                     onChange={(e) => onFormDataChange('reason', e.target.value)}
                     className={`${getInputClass(formData.reason.trim() ? true : null)} w-full bg-[color:var(--surface-0)]`}
                     required
@@ -106,7 +108,7 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                     ))}
                 </select>
                 {(formData.reason === 'Otro' || formData.reason.startsWith('Otro: ')) && (
-                    <input
+                    <Input
                         type="text"
                         placeholder="Especifique el motivo (opcional)..."
                         value={formData.reason.startsWith('Otro: ') ? formData.reason.slice(6) : ''}
@@ -158,14 +160,14 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
 
             <div className="flex flex-col gap-3 mt-4">
                 <div className="flex gap-3">
-                    <button
+                    <Button
                         type="button"
                         onClick={onPrev}
                         className="flex-1 btn-ghost flex items-center justify-center gap-2 text-sm"
                     >
                         <ArrowLeft size={16} /> Atrás
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="button"
                         onClick={() => onSaveStatus('waiting')}
                         disabled={loading || !canSubmit}
@@ -174,9 +176,9 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                         {loading ? (
                             <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
                         ) : 'PONER EN ESPERA'}
-                    </button>
+                    </Button>
                 </div>
-                <button
+                <Button
                     type="button"
                     onClick={() => onSaveStatus('active')}
                     disabled={loading || !canSubmit}
@@ -193,7 +195,7 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                             REGISTRAR ENTRADA
                         </>
                     )}
-                </button>
+                </Button>
             </div>
         </div>
     );

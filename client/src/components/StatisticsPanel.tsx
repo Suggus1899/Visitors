@@ -32,10 +32,10 @@ const StatisticsPanel = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-    const weekChartRef = useRef<Chart | null>(null);
-    const dayChartRef = useRef<Chart | null>(null);
-    const dayOfWeekChartRef = useRef<Chart | null>(null);
-    const pieChartRef = useRef<Chart | null>(null);
+    const weekChartRef = useRef<Chart<'bar'> | null>(null);
+    const dayChartRef = useRef<Chart<'bar'> | null>(null);
+    const dayOfWeekChartRef = useRef<Chart<'bar'> | null>(null);
+    const pieChartRef = useRef<Chart<'pie'> | null>(null);
 
     const fetchMonthlyReport = useCallback(async () => {
         try {

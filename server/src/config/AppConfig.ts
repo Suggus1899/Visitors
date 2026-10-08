@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 
 // Load environment variables from workspace .env file
-dotenv.config({ path: path.join(__dirname, '../../../.env') });
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || path.join(__dirname, '../../../.env') });
 
 interface AppConfig {
   // Server

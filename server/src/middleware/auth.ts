@@ -4,74 +4,42 @@ import config from '../config/AppConfig';
 import { ResponseBuilder } from '../shared/ApiResponse';
 import { container } from '../shared/Container';
 import type { AuthPayload } from '../types/express';
+import { mustChangePassword } from './mustChangePassword';
 
-export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'No Bearer token provided'));
-    }
-
-    const token = authHeader.slice(7).trim();
-    if (!token) {
-        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Empty token'));
-    }
-
-    if (container.tokenBlacklist.isBlacklisted(token)) {
-        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been revoked'));
-    }
-
-    jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }, (err, decoded) => {
-        if (err || !decoded) return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
-
-        const payload = decoded as AuthPayload;
-        if (payload.id && payload.iat && container.tokenBlacklist.isTokenInvalidatedForUser(payload.id, payload.iat)) {
-            return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been invalidated'));
-        }
-
-        req.user = payload;
-        next();
-    });
-};
-
-export const verifySseToken = (req: Request, res: Response, next: NextFunction) => {
-    const queryToken = typeof req.query.token === 'string' ? req.query.token : undefined;
-
-    if (!queryToken) {
-        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'No token provided'));
-    }
-
-    if (container.tokenBlacklist.isBlacklisted(queryToken)) {
-        return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been revoked'));
-    }
-
+async function authenticate(token: string | undefined, req: Request, res: Response, next: NextFunction) {
+    let payload: AuthPayload;
     try {
-        const decoded = jwt.verify(queryToken, config.jwtSecret, { algorithms: ['HS256'] }) as AuthPayload;
-
-        if (!decoded) {
-            return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
-        }
-
-        if (decoded.id && decoded.iat && container.tokenBlacklist.isTokenInvalidatedForUser(decoded.id, decoded.iat)) {
-            return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been invalidated'));
-        }
-
-        req.user = decoded;
-        next();
+        if (!token || container.tokenBlacklist.isBlacklisted(token)) throw new Error('Invalid token');
+        payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as AuthPayload;
+        if (!Number.isInteger(payload.id) || !Number.isInteger(payload.tokenVersion)) throw new Error('Invalid session');
     } catch {
         return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Failed to authenticate token'));
     }
+    try {
+        const user = await container.userRepository.findById(payload.id);
+        if (!user || payload.tokenVersion !== user.tokenVersion ||
+            (payload.iat && container.tokenBlacklist.isTokenInvalidatedForUser(payload.id, payload.iat))) {
+            return res.status(401).json(ResponseBuilder.error('UNAUTHORIZED', 'Token has been revoked'));
+        }
+        req.user = { ...payload, username: user.username, role: user.role, mustChangePassword: user.mustChangePassword };
+        return mustChangePassword(req, res, next);
+    } catch (error) { next(error); }
+}
+
+export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
+    const header = req.headers.authorization;
+    return authenticate(header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined, req, res, next);
 };
 
+export const verifySseToken = (req: Request, res: Response, next: NextFunction) =>
+    authenticate(typeof req.query.token === 'string' ? req.query.token : undefined, req, res, next);
+
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-    if (req.user?.role !== 'admin') {
-        return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Admin Role'));
-    }
+    if (!['admin', 'root'].includes(req.user?.role || '')) return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Admin Role'));
     next();
 };
 
 export const isSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
-    if (req.user?.role !== 'root') {
-        return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Root Role'));
-    }
+    if (req.user?.role !== 'root') return res.status(403).json(ResponseBuilder.error('FORBIDDEN', 'Require Root Role'));
     next();
 };

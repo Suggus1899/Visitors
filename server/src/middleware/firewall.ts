@@ -159,7 +159,7 @@ export const firewall = (req: Request, res: Response, next: NextFunction) => {
   const attackPatterns = [
     /<script/i,
     /javascript:/i,
-    /on\w+\s*=/i,
+    /\bon\w+\s*=/i,
     /union\s+select/i,
     /drop\s+table/i,
     /insert\s+into/i,

@@ -1,7 +1,9 @@
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 import React, { useState } from 'react';
 import { AxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import AuthService from '../services/AuthService';
 import type { User } from '../types';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
@@ -106,7 +108,7 @@ const Login = () => {
                                 Usuario
                             </label>
                             <div className="relative">
-                                <input
+                                <Input
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
@@ -122,7 +124,7 @@ const Login = () => {
                                 Contraseña
                             </label>
                             <div className="relative">
-                                <input
+                                <Input
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -130,17 +132,17 @@ const Login = () => {
                                     className="input-tech pr-10"
                                     placeholder="••••••••"
                                 />
-                                <button
+                                <Button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-3)] hover:text-[color:var(--accent-0)] focus:outline-none"
                                 >
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
-                        <button
+                        <Button
                             type="submit"
                             disabled={isLoading}
                             className="btn-tech flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -153,8 +155,9 @@ const Login = () => {
                             ) : (
                                 <span>INGRESAR</span>
                             )}
-                        </button>
+                        </Button>
                     </form>
+                    <Link to="/forgot-password" className="block mt-4 text-center text-sm text-[color:var(--accent-0)] hover:underline">¿Olvidaste tu contraseña?</Link>
 
                     <div className="mt-8 text-center animate-fadeIn" style={{ animationDelay: '0.4s' }}>
                         <p className="text-[10px] text-[color:var(--text-3)] uppercase tracking-[0.3em] font-medium">

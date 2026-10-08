@@ -4,6 +4,7 @@ import Encryption from '../utils/Encryption';
 
 class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAttributes<VisitorModel>> {
     declare id: CreationOptional<number>;
+    declare anonymizedAt: CreationOptional<Date | null>;
     declare cedula: string; // Stored as hash
     declare encrypted_cedula: CreationOptional<string | null>;
     declare first_name: string; // Encrypted
@@ -30,7 +31,8 @@ class VisitorModel extends Model<InferAttributes<VisitorModel>, InferCreationAtt
     getDecrypted(): Record<string, any> {
         return {
             id: this.id,
-            cedula: this.encrypted_cedula ? Encryption.decrypt(this.encrypted_cedula) : this.cedula,
+            anonymizedAt: this.anonymizedAt,
+            cedula: this.anonymizedAt ? null : this.encrypted_cedula ? Encryption.decrypt(this.encrypted_cedula) : this.cedula,
             first_name: this.first_name && Encryption.isEncrypted(this.first_name) ? Encryption.decrypt(this.first_name) : this.first_name,
             last_name: this.last_name && Encryption.isEncrypted(this.last_name) ? Encryption.decrypt(this.last_name) : this.last_name,
             company: this.company,
@@ -54,6 +56,7 @@ VisitorModel.init({
         autoIncrement: true,
         primaryKey: true
     },
+    anonymizedAt: { type: DataTypes.DATE, allowNull: true },
     cedula: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -76,7 +79,7 @@ VisitorModel.init({
         allowNull: false
     },
     job_title: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: true
     },
     photo_url: {

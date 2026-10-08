@@ -4,9 +4,11 @@ export interface TokenUser {
   id?: number;
   username: string;
   role: UserRole;
+  tokenVersion?: number;
 }
 
 export interface TokenPayload {
+  tokenVersion: number;
   id: number;
   username: string;
   role: UserRole;

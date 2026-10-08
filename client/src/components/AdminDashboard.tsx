@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { VisitService } from '../services/api.v1';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
@@ -126,9 +127,9 @@ const AdminDashboard = () => {
                         <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{alertsSummary.total}</span>
                     </div>
                 )}
-                <button onClick={() => navigate('/')} className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors">
+                <Button onClick={() => navigate('/')} className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors">
                     <Home size={16} className="mr-1" /> Operaciones
-                </button>
+                </Button>
             </Header>
 
             <main className="container mx-auto px-4 py-8 relative z-10">
@@ -137,10 +138,10 @@ const AdminDashboard = () => {
                 {/* Tabs */}
                 <div className="flex space-x-1 mb-6 border-b border-gray-300 overflow-x-auto">
                     {tabs.map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                        <Button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)}
                             className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-[color:var(--accent-0)] text-[color:var(--accent-0)] bg-[color:var(--surface-2)] rounded-t' : 'border-transparent text-[color:var(--text-3)] hover:text-[color:var(--text-1)]'}`}>
                             <tab.icon size={18} />{tab.label}
-                        </button>
+                        </Button>
                     ))}
                 </div>
 

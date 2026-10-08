@@ -3,9 +3,6 @@ packages:
   - 'server'
 
 allowBuilds:
-  '@scarf/scarf': set this to true or false
-
-onlyBuiltDependencies:
-  - esbuild
-  - core-js
-  - '@scarf/scarf'
+  esbuild: true
+  core-js: true
+  '@scarf/scarf': false

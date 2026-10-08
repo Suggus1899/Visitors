@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import Users from 'lucide-react/dist/esm/icons/users';
 import Activity from 'lucide-react/dist/esm/icons/activity';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
@@ -12,7 +13,7 @@ interface SuperAdminTabsProps {
 const SuperAdminTabs = ({ activeTab, setActiveTab, loadData, loading }: SuperAdminTabsProps) => {
   return (
     <div className="flex gap-2 mb-6">
-      <button
+      <Button
         onClick={() => setActiveTab('users')}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
           activeTab === 'users'
@@ -22,8 +23,8 @@ const SuperAdminTabs = ({ activeTab, setActiveTab, loadData, loading }: SuperAdm
       >
         <Users className="w-4 h-4" />
         Usuarios
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={() => setActiveTab('audit')}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
           activeTab === 'audit'
@@ -33,15 +34,15 @@ const SuperAdminTabs = ({ activeTab, setActiveTab, loadData, loading }: SuperAdm
       >
         <Activity className="w-4 h-4" />
         Logs de Auditoría
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={loadData}
         className="btn-ghost ml-auto flex items-center gap-2"
         disabled={loading}
       >
         <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         Actualizar
-      </button>
+      </Button>
     </div>
   );
 };

@@ -121,15 +121,7 @@ export const useAllVisitorsQuery = (page: number = 1, limit: number = 50, compan
     });
 };
 
-type UpdateVisitorData = Partial<Visitor> & {
-    first_name?: string;
-    last_name?: string;
-    company?: string;
-    job_title?: string;
-    phone?: string;
-    photoBase64?: string;
-    idPhotoBase64?: string;
-};
+type UpdateVisitorData = Parameters<typeof VisitService.updateVisitor>[1];
 
 export const useUpdateVisitorMutation = () => {
     const queryClient = useQueryClient();
