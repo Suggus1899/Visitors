@@ -4,6 +4,8 @@ LogMaster registra visitantes, fotografías y consentimiento, controla espera, a
 
 El backend predeterminado es **Go** en `server-go/`. El cliente conserva React, TypeScript, Vite, Tailwind y los componentes shadcn/ui existentes. PostgreSQL 16 conserva las tablas y formatos criptográficos compatibles con el servidor anterior. `server/` se mantiene como referencia y posibilidad de reversión controlada durante la validación.
 
+Al cerrar la validación, por petición del usuario, se detuvieron los servicios locales y se envió `F:\Proyectos\Visitors-local` a la Papelera. La carpeta ya no existe en esa ubicación y la aplicación de ensayo está detenida. Los comandos siguientes preparan un entorno nuevo y recrean esa carpeta; no recuperan automáticamente sus datos anteriores.
+
 ## Ejecutar en Windows
 
 Requiere PowerShell 7, Node.js 22.12 o superior, pnpm 12.4.2 y Go. `server-go/go.mod` fija el toolchain 1.27.2; Go puede descargarlo automáticamente. La instalación inicial necesita Internet.

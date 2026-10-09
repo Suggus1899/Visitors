@@ -2,7 +2,7 @@
 
 Referencia de partida: commit 3e3917e, versión integral restaurada. Entrega directamente en `main`, por indicación del usuario. Su referencia anterior se conserva en `backup/main-before-go-2026-10-09`.
 
-El backend predeterminado es Go. Las etapas se implementaron y comprobaron antes de cambiar el arranque local. El servidor TypeScript queda conservado para compatibilidad y reversión controlada. Las bases anteriores, respaldos, ramas de respaldo y stash se conservan. Ningún ensayo autoriza escribir en la base anterior.
+El backend predeterminado es Go. Las etapas se implementaron y comprobaron antes de cambiar el arranque local. El servidor TypeScript queda conservado para compatibilidad y reversión controlada. Las bases operativas anteriores, los respaldos dentro del repositorio, las ramas de respaldo y el stash se conservan. Los entornos ficticios se retiraron al cierre por petición del usuario, como se detalla al final. Ningún ensayo autoriza escribir en la base operativa anterior.
 
 ## Registro de etapas
 
@@ -15,7 +15,7 @@ El backend predeterminado es Go. Las etapas se implementaron y comprobaron antes
 | 4 | Privacidad e historial de auditoría | Verificado | Cancelación real y rollback en PostgreSQL; nuevo perfil independiente; CSV con filtros y fórmulas neutralizadas; IP confiable probada |
 | 5 | Consultas, informes y SSE | Verificado | Búsqueda por nombre/cédula, paginación SQL, fronteras Caracas y SSE real con revocación; reconexión y limpieza de consultas probadas en el cliente |
 | 6 | Respaldos, retención y operación | Verificado | Dump binario real, metadatos obligatorios, contraseña/rutas inválidas rechazadas; restauración HTTP aislada y retención con antigüedad, exclusión mutua y rollback aprobados |
-| 7 | Cliente, CI y ensayo de cambio | Verificado localmente | Recorrido real con fotos y ciclo completo; PDF/Excel leídos; 141 pruebas del cliente y 184 del servidor anterior; CI configurada y YAML validado; copia Node/Go interoperable |
+| 7 | Cliente, CI y ensayo de cambio | Verificado | Recorrido real con fotos y ciclo completo; PDF/Excel leídos; 141 pruebas del cliente y 184 del servidor anterior; CI completa aprobada en GitHub; copia Node/Go interoperable |
 
 Cada etapa debe registrar comandos y resultados antes de avanzar. Una prueba de contrato documenta el comportamiento esperado, sin convertir un fallo del servidor anterior en requisito del nuevo.
 
@@ -77,7 +77,7 @@ En server-go, con DOTENV_CONFIG_PATH apuntando al entorno ignorado de logmaster_
 | Interfaz real | Registro ficticio, consentimiento, dos fotos, vehículo, acompañante, admisión, salida temporal, regreso y cierre |
 | Exportaciones reales | PDF leído con pypdf; Excel leído con openpyxl: hojas Resumen/Visitas, fechas, filtros y encabezados conservados |
 | Pantalla móvil de operaciones y administración | Comprobada a 390 píxeles, sin desbordamiento horizontal de la página |
-| CI | YAML validado y comandos equivalentes ejecutados localmente; el resultado del runner remoto requiere una ejecución de GitHub Actions |
+| CI | [Ejecución 37962616176](https://github.com/Suggus1899/Visitors/actions/runs/37962616176), commit b1c26a5: ambos jobs aprobados en Ubuntu, con PostgreSQL 16, Mailpit, carreras, sqlc, govulncheck, cliente y regresión Node |
 
 El formulario root muestra su rol fijo y omite el rol al guardar correo/usuario; una prueba del cliente y un subcaso PostgreSQL cubren esa edición. Los controles de auditoría y cuentas tienen nombres accesibles. Vite escucha en loopback y su proxy apunta a la API IPv4; no redirige fotografías públicas mediante `/data`.
 
@@ -106,3 +106,11 @@ La restauración prepara el SQL en un archivo privado y reemplaza esquema/datos 
 ## Límites pendientes de operación
 
 El proveedor SMTP externo y el despliegue institucional no forman parte del ensayo. La búsqueda por nombre descifra perfiles y tiene coste lineal; se revisará para volúmenes grandes. El panel administrativo conserva un chunk diferido de aproximadamente 1,63 MB: la carga inicial se redujo de aproximadamente 2,4 MB a 570 KB, pero queda margen para optimizar ese panel. No se modificaron las bases operativas ni los respaldos originales.
+
+## Retirada del entorno auxiliar solicitada por el usuario
+
+Después de completar las pruebas se detuvieron Go, Vite, PostgreSQL y Mailpit. `F:\Proyectos\Visitors-local` se envió a la Papelera y se comprobó que ya no existe en su ubicación original. Contenía los binarios descargados, las bases ficticias y los ensayos; los respaldos de `backups/`, las ramas y el stash del repositorio permanecen. La aplicación local está detenida. `pnpm local:setup` y `pnpm local:prepare` pueden recrear un entorno vacío; las credenciales locales ignoradas siguen conservadas.
+
+La eliminación permanente fue rechazada por la revisión automática de la sesión; la retirada a la Papelera ofrece recuperación. La captura del recorrido se conserva en `logs/migration-verification/logmaster-go-admin.jpg`, ignorada por Git. Las pruebas anteriores describen el entorno antes de esta retirada, y la CI usa servicios independientes de GitHub.
+
+El primer runner detectó una dependencia de las pruebas Node respecto al JWT del archivo privado local. `server/vitest.config.ts` ahora proporciona configuración ficticia explícita y un puerto de base cerrado para esas pruebas unitarias; la ejecución completa posterior quedó aprobada. Codebase Memory y Graphify se actualizaron para incluir Go y la documentación vigente. El grafo Graphify no incluye AST SQL por falta de `tree_sitter_sql`; el SQL se corroboró mediante lectura y PostgreSQL real.
