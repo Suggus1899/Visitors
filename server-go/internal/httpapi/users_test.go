@@ -61,6 +61,20 @@ func TestUserAdministrationIntegration(t *testing.T) {
 			}
 		}
 	})
+	t.Run("root contact update does not require changing its protected role", func(t *testing.T) {
+		id, _, _ := fixtureUser(t, a, "root", false)
+		path := fmt.Sprintf("/api/v1/superadmin/users/%d", id)
+		if status, response := request(t, h, "PUT", path, `{"email":"root-contact@example.test"}`, rootToken); status != 200 {
+			t.Fatal(status, response)
+		}
+		var role, email string
+		if e := a.Pool.QueryRow(context.Background(), `SELECT role::text,email FROM "Users" WHERE id=$1`, id).Scan(&role, &email); e != nil || role != "root" || email != "root-contact@example.test" {
+			t.Fatal("root contact or role changed incorrectly", role, email, e)
+		}
+		if status, _ := request(t, h, "PUT", path, `{"role":"operador"}`, rootToken); status != 403 {
+			t.Fatal("root role is not protected", status)
+		}
+	})
 	id, username, password := fixtureUser(t, a, "operador", false)
 	old := loginFixture(t, h, username, password)["accessToken"].(string)
 	path := fmt.Sprintf("/api/v1/superadmin/users/%d/reset-password", id)

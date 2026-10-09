@@ -15,7 +15,7 @@ El backend predeterminado es Go. Las etapas se implementaron y comprobaron antes
 | 4 | Privacidad e historial de auditoría | Verificado | Cancelación real y rollback en PostgreSQL; nuevo perfil independiente; CSV con filtros y fórmulas neutralizadas; IP confiable probada |
 | 5 | Consultas, informes y SSE | Verificado | Búsqueda por nombre/cédula, paginación SQL, fronteras Caracas y SSE real con revocación; reconexión y limpieza de consultas probadas en el cliente |
 | 6 | Respaldos, retención y operación | Verificado | Dump binario real, metadatos obligatorios, contraseña/rutas inválidas rechazadas; restauración HTTP aislada y retención con antigüedad, exclusión mutua y rollback aprobados |
-| 7 | Cliente, CI y ensayo de cambio | Verificado localmente | Recorrido real con fotos y ciclo completo; PDF/Excel leídos; 140 pruebas del cliente y 184 del servidor anterior; CI configurada y YAML validado; copia Node/Go interoperable |
+| 7 | Cliente, CI y ensayo de cambio | Verificado localmente | Recorrido real con fotos y ciclo completo; PDF/Excel leídos; 141 pruebas del cliente y 184 del servidor anterior; CI configurada y YAML validado; copia Node/Go interoperable |
 
 Cada etapa debe registrar comandos y resultados antes de avanzar. Una prueba de contrato documenta el comportamiento esperado, sin convertir un fallo del servidor anterior en requisito del nuevo.
 
@@ -71,13 +71,15 @@ En server-go, con DOTENV_CONFIG_PATH apuntando al entorno ignorado de logmaster_
 | `go vet ./...`, `go mod verify` | Aprobadas |
 | sqlc 1.31.1 | Regeneración sin diferencias en los bindings |
 | govulncheck 1.8.0 | Cero vulnerabilidades alcanzables; una en un módulo requerido sin llamadas afectadas |
-| React / Testing Library / Vitest | 140 pruebas en 20 archivos aprobadas |
+| React / Testing Library / Vitest | 141 pruebas en 21 archivos aprobadas |
 | Regresión TypeScript | 184 pruebas en 18 archivos y comprobación de tipos aprobadas |
 | Ensayo Node → respaldo Go → restauración Go → lectura Node | Aprobado, sin modificar la base fuente |
 | Interfaz real | Registro ficticio, consentimiento, dos fotos, vehículo, acompañante, admisión, salida temporal, regreso y cierre |
 | Exportaciones reales | PDF leído con pypdf; Excel leído con openpyxl: hojas Resumen/Visitas, fechas, filtros y encabezados conservados |
 | Pantalla móvil de operaciones y administración | Comprobada a 390 píxeles, sin desbordamiento horizontal de la página |
 | CI | YAML validado y comandos equivalentes ejecutados localmente; el resultado del runner remoto requiere una ejecución de GitHub Actions |
+
+El formulario root muestra su rol fijo y omite el rol al guardar correo/usuario; una prueba del cliente y un subcaso PostgreSQL cubren esa edición. Los controles de auditoría y cuentas tienen nombres accesibles. Vite escucha en loopback y su proxy apunta a la API IPv4; no redirige fotografías públicas mediante `/data`.
 
 La actualización de `golang.org/x/image` a 0.45.0 corrige los avisos WebP alcanzables detectados durante la verificación. El código SQL generado tiene cobertura directa cero: las pruebas lo ejercitan a través de la API real. El CLI se valida mediante preparación, arranque y ensayos; no se interpreta la cobertura parcial como una auditoría exhaustiva de seguridad.
 

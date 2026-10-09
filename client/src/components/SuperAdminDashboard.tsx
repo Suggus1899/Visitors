@@ -87,7 +87,7 @@ export default function SuperAdminDashboard() {
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
     try {
-      await api.put(`/superadmin/users/${selectedUser.id}`, { username: editUser.username, role: editUser.role, email: editUser.email || null });
+      await api.put(`/superadmin/users/${selectedUser.id}`, { username: editUser.username, role: selectedUser.role === 'root' ? undefined : editUser.role, email: editUser.email || null });
       toast.success('Usuario actualizado exitosamente');
       setShowEditModal(false);
       setSelectedUser(null);

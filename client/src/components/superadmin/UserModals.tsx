@@ -43,6 +43,7 @@ const UserModals = ({
                 <label className="block text-sm text-[color:var(--text-2)] mb-1">Nombre de usuario</label>
                 <Input
                   type="text"
+                  aria-label="Nombre de usuario"
                   value={newUser.username}
                   onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                   className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
@@ -52,6 +53,7 @@ const UserModals = ({
                 <label className="block text-sm text-[color:var(--text-2)] mb-1">Contraseña</label>
                 <Input
                   type="password"
+                  aria-label="Contraseña"
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                   className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
@@ -62,6 +64,7 @@ const UserModals = ({
                             <Input type="email" aria-label="Correo electrónico" value={newUser.email || ''} onChange={e => setNewUser({ ...newUser, email: e.target.value })} required={newUser.role !== 'demo'} className="input-tech mb-4" />
                             <label className="block text-sm text-[color:var(--text-2)] mb-1">Rol</label>
                 <select
+                  aria-label="Rol"
                   value={newUser.role}
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value as User['role'] })}
                   className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
@@ -95,6 +98,7 @@ const UserModals = ({
                 <label className="block text-sm text-[color:var(--text-2)] mb-1">Nombre de usuario</label>
                 <Input
                   type="text"
+                  aria-label="Nombre de usuario"
                   value={editUser.username}
                   onChange={(e) => setEditUser({ ...editUser, username: e.target.value })}
                   className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
@@ -105,10 +109,13 @@ const UserModals = ({
                             <Input type="email" aria-label="Correo electrónico" value={editUser.email || ''} onChange={e => setEditUser({ ...editUser, email: e.target.value })}  className="input-tech mb-4" />
                             <label className="block text-sm text-[color:var(--text-2)] mb-1">Rol</label>
                 <select
+                  aria-label="Rol"
+                  disabled={selectedUser.role === 'root'}
                   value={editUser.role}
                   onChange={(e) => setEditUser({ ...editUser, role: e.target.value as User['role'] })}
                   className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
                 >
+                  {selectedUser.role === 'root' && <option value="root">Root</option>}
                   <option value="operador">Operador</option>
                   <option value="admin">Administrador</option>
                   <option value="auditor">Auditor</option>
@@ -140,6 +147,7 @@ const UserModals = ({
               <label className="block text-sm text-[color:var(--text-2)] mb-1">Nueva contraseña</label>
               <Input
                 type="password"
+                aria-label="Nueva contraseña"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full px-3 py-2 bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)]"
