@@ -1,238 +1,82 @@
-# API - Sistema de Gestion de Visitantes
+# API de LogMaster con Go
 
-## Resumen
-Backend REST montado en Express bajo el prefijo `/api`.
+Base local `http://127.0.0.1:3000/api/v1`. Se conservan las 53 rutas del contrato anterior. El inventario versionado es `server-go/contracts/routes.json`; una prueba compara ese inventario con el router real y comprueba el rechazo de solicitudes protegidas sin sesión.
 
-- Base local: `http://localhost:3000`
-- Prefijo API: `/api`
-- Version: `v1`
-- Swagger UI: `/api-docs`
+Las respuestas JSON mantienen `{ success: true, data: ... }` o `{ success: false, error: { code, message } }`, con metadatos de paginación según la ruta. Fotos, CSV y eventos son respuestas binarias/textuales. No hay publicación de fotografías en un directorio estático ni Swagger servido por el backend Go.
 
-## Seguridad y Autenticacion
+## Autorización y cambios
 
-- Mecanismo principal: JWT Bearer Token.
-- Header requerido en endpoints protegidos:
-  - `Authorization: Bearer <token>`
-- Rate limiting:
-  - General: aplicado a `/api`.
-  - Auth: aplicado a endpoints de autenticacion.
-- Politica de cambio de contrasena:
-  - Si el usuario tiene `mustChangePassword=true`, solo puede usar el endpoint de cambio de contrasena hasta cumplirlo.
+Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Solo login, recuperación, restablecimiento, refresh y health son públicos. Un usuario con cambio obligatorio solo puede renovar sesión y cambiar su propia contraseña. El servidor consulta rol, restricción y versión actuales; no confía en un rol obsoleto dentro del JWT.
 
-## Endpoints
+- `PATCH /visitors/:cedula`: datos parciales validados y `editPassword` obligatorio en cada guardado. Contexto de visita opcional y comprobado; actor obtenido de la sesión. Operador/admin/root pueden editar, solo admin/root pueden bloquear.
+- Rectificación usa la misma edición y autorización. Las fotografías no se actualizan implícitamente al registrar una nueva visita de un perfil existente.
+- `GET /visitors/:cedula/photo` y `/id-photo`: binario autenticado, `Cache-Control: private, no-store`; sin sesión devuelve 401.
+- La consulta devuelve bloqueo, observaciones, historial solicitado y datos previos de visita, departamento, anfitrión y vehículo.
+- El historial admite `visitId=null`; los valores personales se cifran en almacenamiento y desaparecen al cancelar. Las fotos solo dejan constancia de cambio.
+- Registro exige consentimiento con `accepted`, `policyVersion` y `acceptedAt`; sus columnas son independientes de `notes`. Espera → activa ↔ intermitente → completada aplica tiempos y bloqueos en el servidor.
+- Cancelación con visita abierta: `409 OPEN_VISIT_EXISTS`. Después del cierre elimina perfil identificativo, fotografías y valores personales relacionados dentro de una transacción. Los registros históricos devuelven cédula pública `null` y nombre «Anonimizado».
+- Usuarios: campo `email`; correo requerido en cuentas operativas nuevas. Solo root administra cuentas. Nuevas contraseñas: 12 caracteres, complejidad y máximo 72 bytes UTF-8; el restablecimiento administrativo deja cambio obligatorio y revoca sesiones.
+- Recuperación responde genéricamente, nunca devuelve el token. Mailpit recibe el enlace `APP_URL/#/reset-password?token=...`; el token se guarda como hash, vence en 15 minutos y admite un uso.
+- SSE `/events/visits`: Bearer en cabecera; rechaza `?token=...`, comprueba restricción, versión y vencimiento durante la conexión. El cliente renueva y reconecta con el token actual.
+- Fechas sin hora se interpretan en `America/Caracas`. El final de un rango de días incluye todo el último día. Búsqueda y filtros preceden a la paginación; CSV exporta todos los resultados filtrados y neutraliza fórmulas.
+- Respaldos: nombre contenido, contraseña y metadatos obligatorios. Restaurar fuera de `logmaster_restore_test` devuelve `409 RESTORE_TARGET_NOT_ALLOWED`. Tras restaurar, las sesiones anteriores dejan de ser válidas.
 
-### Auth
-Prefijo: `/api/v1/auth`
+Códigos generales: 400 validación, 401 sesión/contraseña inválida, 403 permiso o cambio obligatorio, 404 recurso, 409 conflicto de estado, 413 cuerpo mayor de 5 MB, 429 límite, 500 operación fallida y 503 conexión de base no disponible.
 
-1. `POST /login`
-- Publico.
-- Body:
-```json
-{
-  "username": "admin",
-  "password": "Admin123!@#"
-}
-```
-- Respuesta esperada: token de acceso y datos de usuario.
+## Inventario de rutas
 
-2. `POST /forgot-password`
-- Publico.
-- Body:
-```json
-{
-  "username": "admin"
-}
-```
-- Genera token de recuperacion.
-
-3. `POST /reset-password`
-- Publico.
-- Body:
-```json
-{
-  "token": "reset-token",
-  "newPassword": "NuevaClaveSegura123!"
-}
-```
-
-4. `POST /refresh`
-- Publico.
-- Body:
-```json
-{
-  "refreshToken": "refresh-token"
-}
-```
-
-5. `POST /change-password`
-- Protegido (`Bearer`).
-- Body:
-```json
-{
-  "currentPassword": "Actual123!",
-  "newPassword": "NuevaClaveSegura123!",
-  "confirmPassword": "NuevaClaveSegura123!"
-}
-```
-
-### Visits
-Prefijo: `/api/v1/visits`
-
-1. `POST /checkin`
-- Protegido (`Bearer`).
-- Restringido para rol `auditor` (auditor no puede operar check-in).
-- Body minimo:
-```json
-{
-  "visitorCedula": "12345678",
-  "consent": {
-    "accepted": true,
-    "policyVersion": "v1",
-    "acceptedAt": "2026-03-11T12:00:00.000Z"
-  },
-  "purpose": "Reunion",
-  "personToVisit": "Juan Perez"
-}
-```
-- Soporta datos extendidos: `notes`, `visitorData`, acompanante, vehiculo, area, accion, departamento.
-
-2. `POST /:id/checkout`
-- Protegido (`Bearer`).
-- Restringido para rol `auditor`.
-
-3. `POST /:id/admit`
-- Protegido (`Bearer`).
-- Restringido para rol `auditor`.
-- Admite visitas en estado `waiting`.
-
-4. `GET /waiting`
-- Protegido (`Bearer`).
-- Restringido para rol `auditor`.
-
-5. `GET /active`
-- Protegido (`Bearer`).
-- Restringido para rol `auditor`.
-
-6. `GET /`
-- Protegido (`Bearer`).
-- Restringido para rol `auditor`.
-- Filtros comunes: `page`, `limit`, `status`.
-
-### Visitors
-Prefijo: `/api/v1/visitors`
-
-1. `GET /:cedula`
-- Protegido (`Bearer`).
-- Obtiene visitante por cedula.
-
-### Reports
-Prefijo: `/api/v1/reports`
-
-1. `GET /stats`
-- Protegido (`Bearer`).
-- Filtros: `start`, `end`.
-
-2. `GET /stats/monthly`
-- Protegido (`Bearer`).
-- Filtros: `month`, `year`.
-
-3. `GET /alerts`
-- Protegido (`Bearer`).
-
-4. `GET /comparison`
-- Protegido (`Bearer`).
-
-### Backups
-Prefijo: `/api/v1/backups`
-
-1. `POST /`
-- Protegido (`Bearer`) + rol `admin`.
-- Crea respaldo.
-
-2. `GET /`
-- Protegido (`Bearer`) + rol `admin`.
-- Lista respaldos.
-
-### Audit
-Prefijo: `/api/v1/audit`
-
-1. `GET /logs`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-- Filtros: `page`, `limit`, `action`, `username`, `startDate`, `endDate`.
-
-2. `GET /stats`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-
-3. `GET /export`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-
-4. `GET /actions`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-
-5. `GET /users`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-
-6. `GET /config`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-
-### Privacy (ARCO)
-Prefijo: `/api/v1/privacy`
-
-1. `POST /arco-requests`
-- Protegido (`Bearer`).
-- Crea solicitud ARCO.
-- Body:
-```json
-{
-  "requestType": "access",
-  "cedula": "12345678",
-  "requestedByName": "Juan Perez",
-  "contactEmail": "juan@correo.com",
-  "reason": "Solicito acceso a mis datos",
-  "requestPayload": {
-    "source": "frontdesk"
-  }
-}
-```
-
-2. `GET /arco-requests`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-- Lista solicitudes con filtros (`page`, `limit`, `status`, `requestType`, `search`).
-
-3. `PATCH /arco-requests/:id/status`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-- Actualiza estado de la solicitud (`pending`, `in_progress`, `completed`, `rejected`).
-
-4. `GET /subjects/:cedula`
-- Protegido (`Bearer`) + `auditor` o `admin`.
-- ARCO Acceso: devuelve datos del titular y su historial de visitas.
-
-5. `PATCH /subjects/:cedula`
-- Protegido (`Bearer`).
-- Restringido para rol `auditor`.
-- ARCO Rectificacion: actualiza campos del titular (`firstName`, `lastName`, `company`, `jobTitle`, `email`, `phone`).
-
-6. `DELETE /subjects/:cedula`
-- Protegido (`Bearer`) + rol `admin`.
-- ARCO Cancelacion: anonimiza datos personales y elimina fotos asociadas cuando existan.
-
-7. `POST /subjects/:cedula/opposition`
-- Protegido (`Bearer`).
-- ARCO Oposicion: registra solicitud de oposicion para tratamiento.
-
-## Codigos de respuesta frecuentes
-
-- `200 OK`: operacion correcta.
-- `201 Created`: recurso creado.
-- `400 Bad Request`: validacion fallida.
-- `401 Unauthorized`: token ausente/invalido.
-- `403 Forbidden`: sin permisos o password change requerido.
-- `404 Not Found`: recurso no encontrado.
-- `429 Too Many Requests`: rate limit.
-- `500 Internal Server Error`: error interno.
-
-## Notas operativas
-
-- Las fotos se sirven desde `/data/photos`.
-- El backend aplica limpieza de retencion (logs/fotos) de forma automatica en segundo plano.
-- Revisar Swagger (`/api-docs`) para detalle de contratos en tiempo real.
+| Método | Ruta | Sesión |
+|---|---|---|
+| GET | /api/v1/audit/logs | Obligatoria |
+| GET | /api/v1/audit/stats | Obligatoria |
+| GET | /api/v1/audit/export | Obligatoria |
+| GET | /api/v1/audit/actions | Obligatoria |
+| GET | /api/v1/audit/users | Obligatoria |
+| GET | /api/v1/audit/config | Obligatoria |
+| POST | /api/v1/auth/login | Pública |
+| POST | /api/v1/auth/forgot-password | Pública |
+| POST | /api/v1/auth/reset-password | Pública |
+| POST | /api/v1/auth/refresh | Pública |
+| POST | /api/v1/auth/change-password | Obligatoria |
+| POST | /api/v1/backups | Obligatoria |
+| GET | /api/v1/backups | Obligatoria |
+| POST | /api/v1/backups/:filename/restore | Obligatoria |
+| GET | /api/v1/events/visits | Obligatoria |
+| GET | /api/v1/health | Pública |
+| POST | /api/v1/privacy/arco-requests | Obligatoria |
+| GET | /api/v1/privacy/arco-requests | Obligatoria |
+| PATCH | /api/v1/privacy/arco-requests/:id/status | Obligatoria |
+| GET | /api/v1/privacy/subjects/:cedula | Obligatoria |
+| PATCH | /api/v1/privacy/subjects/:cedula | Obligatoria |
+| DELETE | /api/v1/privacy/subjects/:cedula | Obligatoria |
+| POST | /api/v1/privacy/subjects/:cedula/opposition | Obligatoria |
+| GET | /api/v1/reports/stats | Obligatoria |
+| GET | /api/v1/reports/stats/monthly | Obligatoria |
+| GET | /api/v1/reports/alerts | Obligatoria |
+| GET | /api/v1/reports/comparison | Obligatoria |
+| GET | /api/v1/superadmin/users | Obligatoria |
+| POST | /api/v1/superadmin/users | Obligatoria |
+| PUT | /api/v1/superadmin/users/:id | Obligatoria |
+| DELETE | /api/v1/superadmin/users/:id | Obligatoria |
+| POST | /api/v1/superadmin/users/:id/reset-password | Obligatoria |
+| GET | /api/v1/superadmin/audit-logs | Obligatoria |
+| POST | /api/v1/visits/checkin | Obligatoria |
+| POST | /api/v1/visits/:id/checkout | Obligatoria |
+| POST | /api/v1/visits/:id/admit | Obligatoria |
+| GET | /api/v1/visits/waiting | Obligatoria |
+| GET | /api/v1/visits/active | Obligatoria |
+| POST | /api/v1/visits/:id/intermittent | Obligatoria |
+| POST | /api/v1/visits/:id/reactivate | Obligatoria |
+| GET | /api/v1/visits/intermittent | Obligatoria |
+| POST | /api/v1/visits/:id/intermittent-exit | Obligatoria |
+| POST | /api/v1/visits/:id/intermittent-reentry | Obligatoria |
+| GET | /api/v1/visits | Obligatoria |
+| GET | /api/v1/visitors/companies | Obligatoria |
+| GET | /api/v1/visitors | Obligatoria |
+| GET | /api/v1/visitors/:cedula | Obligatoria |
+| PATCH | /api/v1/visitors/:cedula | Obligatoria |
+| POST | /api/v1/visitors/verify-edit-password | Obligatoria |
+| GET | /api/v1/visits/:visitId/edit-history | Obligatoria |
+| GET | /api/v1/visitors/:cedula/edit-history | Obligatoria |
+| GET | /api/v1/visitors/:cedula/photo | Obligatoria |
+| GET | /api/v1/visitors/:cedula/id-photo | Obligatoria |

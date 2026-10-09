@@ -1,5 +1,5 @@
 import { Button } from './ui/button';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { VisitService } from '../services/api.v1';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import Home from 'lucide-react/dist/esm/icons/home';
@@ -31,6 +31,9 @@ interface AlertsResponse { total: number; }
 interface AlertSummary { total: number; warnings: number; critical: number; }
 
 const AdminDashboard = () => {
+    const visitRequest = useRef(0);
+    const [loadErrors, setLoadErrors] = useState<Record<string, string>>({});
+    useEffect(() => () => { visitRequest.current++; }, []);
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [visits, setVisits] = useState<Visit[]>([]);
     const [totalVisitsCount, setTotalVisitsCount] = useState(0);
@@ -48,7 +51,8 @@ const AdminDashboard = () => {
         try {
             const data = await VisitService.getStats() as VisitStatsResponse;
             setStats({ totalVisits: data.summary?.totalVisits || 0, activeVisits: data.summary?.activeVisits || 0, visitsPerDay: data.recentActivity || [] });
-        } catch { /* stats default to null/0 */ }
+            setLoadErrors(prev => ({ ...prev, stats: '' }));
+        } catch { setLoadErrors(prev => ({ ...prev, stats: 'No se pudieron cargar las estadísticas.' })); }
     }, []);
 
     const fetchAlerts = useCallback(async () => {
@@ -56,23 +60,25 @@ const AdminDashboard = () => {
             const data = await VisitService.getAlerts() as AlertsResponse;
             const total = data?.total || 0;
             setAlertsSummary({ total, warnings: total, critical: 0 });
-        } catch { /* alerts default to 0 */ }
+            setLoadErrors(prev => ({ ...prev, alerts: '' }));
+        } catch { setLoadErrors(prev => ({ ...prev, alerts: 'No se pudieron comprobar las alertas.' })); }
     }, []);
 
     const fetchVisits = useCallback(async () => {
+        const version = ++visitRequest.current;
         try {
-            const params: { page: number; limit: number; status?: string; search?: string; startDate?: string; endDate?: string } = { page: currentPage, limit: ITEMS_PER_PAGE };
+            const params: { page: number; limit: number; status?: string; search?: string; startDate?: string; endDate?: string; company?: string } = { page: currentPage, limit: ITEMS_PER_PAGE };
             if (filters.status) params.status = filters.status;
             if (filters.search) params.search = filters.search;
             if (filters.startDate) params.startDate = filters.startDate;
             if (filters.endDate) params.endDate = filters.endDate;
-            const data = filters.company ? await (async () => {
-                const all = await VisitService.getAllVisits({ ...params, company: filters.company });
-                return { visits: all.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE), total: all.length };
-            })() : await VisitService.getVisits(params);
+            if (filters.company) params.company = filters.company;
+            const data = await VisitService.getVisits(params);
+            if (version !== visitRequest.current) return;
             setVisits(data.visits);
             setTotalVisitsCount(data.total);
-        } catch { /* visits default to empty */ }
+            setLoadErrors(prev => ({ ...prev, visits: '' }));
+        } catch { if (version === visitRequest.current) setLoadErrors(prev => ({ ...prev, visits: 'No se pudieron cargar las visitas. Vuelve a intentarlo.' })); }
     }, [filters, currentPage]);
 
     useEffect(() => { fetchStats(); fetchVisits(); fetchAlerts(); }, [fetchStats, fetchVisits, fetchAlerts]);
@@ -116,6 +122,7 @@ const AdminDashboard = () => {
             </Header>
 
             <main className="container mx-auto px-4 py-8 relative z-10">
+                {Object.values(loadErrors).some(Boolean) && <p role="alert" className="mb-4 text-red-400">{Object.values(loadErrors).filter(Boolean).join(' ')}</p>}
                 <AdminStatsCards totalVisits={stats?.totalVisits || 0} activeVisits={stats?.activeVisits || 0} />
 
                 {/* Tabs */}

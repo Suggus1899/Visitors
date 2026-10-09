@@ -122,7 +122,7 @@ const MonthlyReportCard = ({
                 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center bg-[color:var(--surface-1)] border border-[color:var(--border-1)] rounded-full px-1 p-1">
-                        <select 
+                        <select aria-label="Mes del reporte"
                             value={selectedMonth} 
                             onChange={handleMonthChange} 
                             disabled={isLoading}
@@ -131,7 +131,7 @@ const MonthlyReportCard = ({
                             {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
                         </select>
                         <div className="w-px h-4 bg-[color:var(--border-1)] mx-1"></div>
-                        <select 
+                        <select aria-label="Año del reporte"
                             value={selectedYear} 
                             onChange={handleYearChange} 
                             disabled={isLoading}

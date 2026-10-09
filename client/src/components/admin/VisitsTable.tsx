@@ -99,20 +99,20 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <Input type="text" placeholder="Buscar (Nombre, Cédula...)" className="input-tech text-sm" value={filters.search} onChange={e => onFilterChange('search', e.target.value)} />
                     <Input type="text" placeholder="Empresa" className="input-tech text-sm" value={filters.company} onChange={e => onFilterChange('company', e.target.value)} />
-                    <select className="input-tech text-sm" value={filters.status} onChange={e => onFilterChange('status', e.target.value)}>
+                    <select aria-label="Estado de las visitas" className="input-tech text-sm" value={filters.status} onChange={e => onFilterChange('status', e.target.value)}>
                         <option value="">Todos los estados</option>
                         <option value="waiting">En espera</option>
                         <option value="active">Activos</option>
                         <option value="intermittent">Salida temporal</option>
                         <option value="completed">Completados</option>
                     </select>
-                    <Input type="date" className="input-tech text-sm" value={filters.startDate} onChange={e => onFilterChange('startDate', e.target.value)} />
-                    <Input type="date" className="input-tech text-sm" value={filters.endDate} onChange={e => onFilterChange('endDate', e.target.value)} />
+                    <Input aria-label="Fecha inicial de visitas" type="date" className="input-tech text-sm" value={filters.startDate} onChange={e => onFilterChange('startDate', e.target.value)} />
+                    <Input aria-label="Fecha final de visitas" type="date" className="input-tech text-sm" value={filters.endDate} onChange={e => onFilterChange('endDate', e.target.value)} />
                 </div>
             </div>
 
             {/* Export bar */}
-            <div className="bg-[color:var(--surface-2)] p-4 border-b border-[color:var(--border-1)] flex justify-between items-center">
+            <div className="bg-[color:var(--surface-2)] p-4 border-b border-[color:var(--border-1)] flex flex-wrap gap-3 justify-between items-center">
                 <span className="text-sm text-[color:var(--text-3)]">Mostrando {sortedVisits.length} de {totalVisitsCount} visitas · Se exportan todos los resultados</span>
                 <div className="flex gap-2">
                     <Button onClick={() => exportReport('pdf')} disabled={isExporting || totalVisitsCount === 0} className="border border-red-400 text-red-300 hover:text-red-200 hover:border-red-300 px-4 py-2 rounded flex items-center text-sm font-semibold transition-colors">

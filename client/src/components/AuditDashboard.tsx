@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api.v1';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
@@ -9,8 +9,13 @@ import AuditStats from './audit/AuditStats';
 import AuditFilters from './audit/AuditFilters';
 import AuditTable from './audit/AuditTable';
 import { ActivityItem, Stats } from './audit/types';
+import { useAuditActions } from '../hooks/useAuditActions';
 
 const AuditDashboard = () => {
+    const actions = useAuditActions();
+    const requestVersion = useRef(0);
+    const [loadError, setLoadError] = useState('');
+    useEffect(() => () => { requestVersion.current++; }, []);
     const [activities, setActivities] = useState<ActivityItem[]>([]);
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -31,12 +36,9 @@ const AuditDashboard = () => {
     const [searchQuery, setSearchQuery] = useState('');
 
     const fetchData = useCallback(async () => {
+        const version = ++requestVersion.current;
         try {
             setLoading(true);
-
-            // Fetch Stats
-            const statsRes = await api.get('/audit/stats');
-            setStats(statsRes.data.data);
 
             // Fetch Logs
             const params = new URLSearchParams({ 
@@ -50,14 +52,17 @@ const AuditDashboard = () => {
             if (filterEndDate) params.append('endDate', filterEndDate);
             if (searchQuery) params.append('search', searchQuery);
 
-            const logsRes = await api.get(`/audit/logs?${params}`);
+            const [statsRes, logsRes] = await Promise.all([api.get('/audit/stats'), api.get(`/audit/logs?${params}`)]);
+            if (version !== requestVersion.current) return;
+            setStats(statsRes.data.data);
             
             setActivities(logsRes.data.data.logs);
             setTotalPages(logsRes.data.data.pagination.pages);
+            setLoadError('');
         } catch {
-            toast.error('Error al cargar datos de auditoría');
+            if (version === requestVersion.current) setLoadError('No se pudieron cargar los datos de auditoría. Vuelve a intentarlo.');
         } finally {
-            setLoading(false);
+            if (version === requestVersion.current) setLoading(false);
         }
     }, [page, filterAction, filterUsername, filterStartDate, filterEndDate, searchQuery]);
 
@@ -85,6 +90,7 @@ const AuditDashboard = () => {
             if (filterUsername) params.append('username', filterUsername);
             if (filterStartDate) params.append('startDate', filterStartDate);
             if (filterEndDate) params.append('endDate', filterEndDate);
+			if (searchQuery) params.append('search', searchQuery);
 
             const response = await api.get(`/audit/export?${params}`, {
                 responseType: 'blob'
@@ -97,6 +103,7 @@ const AuditDashboard = () => {
             document.body.appendChild(link);
             link.click();
             link.remove();
+            window.URL.revokeObjectURL(url);
             toast.success('Exportación completada');
         } catch {
             toast.error('Error al exportar logs');
@@ -111,6 +118,8 @@ const AuditDashboard = () => {
             <div className="absolute -bottom-48 -right-40 h-[28rem] w-[28rem] rounded-full bg-[color:var(--accent-0)] opacity-12 blur-3xl" />
 
             <div className="max-w-7xl mx-auto space-y-6 relative z-10">
+                {loadError && <p role="alert" className="text-red-400">{loadError}</p>}
+                {actions.isError && <p role="alert">No se pudieron cargar los filtros de acciones.</p>}
                 
                 <AuditHeader 
                     autoRefresh={autoRefresh}
@@ -128,6 +137,7 @@ const AuditDashboard = () => {
 
                 <div className="panel-tech rounded-xl overflow-hidden">
                     <AuditFilters 
+                        actions={actions.data ?? []}
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
                         filterAction={filterAction}

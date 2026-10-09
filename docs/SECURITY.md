@@ -1,89 +1,25 @@
-# Security — LogMaster
+# Seguridad de LogMaster con Go
 
-## Authentication & Authorization
+El backend vigente valida las sesiones en PostgreSQL mediante `tokenVersion`. La revocación de contraseñas y el estado de cambio obligatorio sobreviven al reinicio; la renovación utiliza un secreto independiente. La política de contraseña exige 12 caracteres, mayúscula, minúscula, número y símbolo, con máximo 72 bytes UTF-8 para nuevas contraseñas bcrypt. Se conservan verificaciones de hashes históricos.
 
-- **JWT access tokens** (15min) + **refresh tokens** (7d) with HS256 signing
-- Token blacklist (in-memory) — revoked tokens rejected globally
-- Password policy: 12+ chars, upper+lower+digit+special, common-password check
-- Rate limiting: 100 req/min general, 30 req/min admin, 20 req/min reports (production)
-- Account lockout: 5 failed attempts → 15min lock
-
-## Environment & Secrets
-
-| Variable | Purpose |
+| Operación | Autorización |
 |---|---|
-| `JWT_SECRET` | 64-byte hex key for token signing |
-| `ENCRYPTION_KEY` | 32-byte hex key for AES-256-GCM field encryption |
-| `SEED_ADMIN_PASSWORD` | Admin seed password (overridable via env, never hardcoded) |
-| `DB_PASSWORD` | PostgreSQL password |
+| Consultar visitantes y visitas; fotografías | Sesión vigente |
+| Editar perfil, fotografías y rectificar | Operador, admin o root + contraseña adicional en cada guardado |
+| Bloquear/desbloquear | Admin o root + contraseña adicional |
+| Cancelar y administrar respaldos | Admin o root |
+| Administrar cuentas y restablecer a otros usuarios | Root |
+| Auditoría y solicitudes ARCO administrativas | Admin, root o auditor; escritura según la operación |
+| Operaciones de escritura con auditor o demo | Rechazadas |
 
-All secrets loaded via `AppConfig` from `.env`. Never logged.
+La comprobación del rol y del cambio obligatorio se aplica después de autenticar. El SSE usa Authorization y verifica de nuevo el usuario y la expiración; no utiliza tokens en URL. El cliente comparte la renovación concurrente y evita que una respuesta tardía restablezca una sesión cerrada.
 
-## CORS
+Los datos personales cifrados conservan AES-256-GCM y el formato Node `ENC:ciphertext:iv:tag`. La cancelación elimina los datos identificativos, las fotos y los valores personales del historial, mantiene eventos anonimizados y rechaza perfiles con visitas abiertas. Los respaldos históricos pueden contener valores anteriores; la cancelación no los reescribe.
 
-Controlled by `ALLOWED_ORIGINS` env var (comma-separated). Updated automatically by `auto-env.bat` when LAN IP changes.
+La configuración exige base y credenciales explícitas, una clave AES hexadecimal de 32 bytes y JWT de al menos 32 bytes. PostgreSQL con SSL verifica certificado y nombre del servidor; no se permite `InsecureSkipVerify`. La IP procede del socket; `X-Forwarded-For` solo se acepta a través de `TRUSTED_PROXY_CIDRS` validado explícitamente. El límite general predeterminado es 100 solicitudes por minuto e intentos de autenticación 20 por 15 minutos; el bloqueo de cuenta es de 5 intentos por 15 minutos.
 
-## Helmet & HTTP Headers
+JSON rechaza campos desconocidos, cuerpos múltiples y cargas de más de 5 MB. Las imágenes se validan por formato y decodificación, con límite de dimensiones. Se incluyen cabeceras privadas, CORS explícito, protección de frames y contra detección de tipo. Las consultas tienen tiempo máximo y el cierre cancela SSE y espera las tareas activas.
 
-- Helmet middleware active in all environments
-- HSTS enabled in production (requires valid SSL)
+Los respaldos requieren nombre contenido, metadatos y contraseña de restauración; el formato conserva scrypt, gzip y AES-GCM. Solo se permite restaurar en `logmaster_restore_test`. `pg_restore` prepara el SQL completo en un archivo temporal privado y `psql --single-transaction` reemplaza el esquema y los datos de forma atómica. Después se incrementan las versiones de sesión por encima de las existentes y se registra el cierre de la operación en otra transacción. Si esa última fase falla, debe revisarse la base de ensayo antes de utilizarla. No se usan redirecciones de PowerShell ni comandos construidos mediante shell.
 
-## Firewall
-
-- Blocks known aggressive crawlers/bots by User-Agent regex
-- All blocks logged via winston (not console.warn)
-- Whitelist/bypass capability for health endpoints
-
-## Input Validation
-
-- Zod schemas on all public endpoints (auth, visits, privacy)
-- Sanitization middleware on string fields
-- File upload size limits
-
-## Data Encryption
-
-- AES-256-GCM for PII fields (names, cedula, email, phone)
-- Encryption key in `ENCRYPTION_KEY` env var
-- Encrypted at application layer before DB storage
-
-## Retention & GDPR
-
-| Data | Retention | Action |
-|---|---|---|
-| Visitor data | `DATA_RETENTION_DAYS` (default 60) | Purged via scheduler |
-| Audit logs | `AUDIT_LOG_RETENTION_DAYS` (default 365) | Purged via scheduler |
-| Photos | Same as visitor data | Deleted with visitor record |
-
-## SMTP / Email
-
-SMTP credentials required for password-reset flow. Configurable via `.env`:
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`
-- `EMAIL_FROM`, `APP_URL`
-
-Emails are logged (not sent) when SMTP is not configured.
-
-## Pre-commit Checks (Husky)
-
-Husky v9 runs on every commit:
-- `pnpm run lint` (client)
-- `pnpm exec tsc --noEmit` (client + server)
-- `pnpm test` (client + server)
-
-## CI/CD (GitHub Actions)
-
-`.github/workflows/ci.yml` runs on push/PR:
-1. Server tests with PostgreSQL service container
-2. Client tests
-3. Lint
-4. Build
-
-## Production Checklist
-
-1. Generate fresh `JWT_SECRET` and `ENCRYPTION_KEY`
-2. Set `NODE_ENV=production`
-3. Configure SMTP credentials for password reset
-4. Set strong `SEED_*_PASSWORD` overrides
-5. Configure `ALLOWED_ORIGINS` with real domain
-6. Set up SSL certificate via Let's Encrypt or CA
-7. Verify rate limiter thresholds (production: 30 req/min admin)
-8. Run CI pipeline against a real PR
+La CI ejecuta pruebas reales de autorización, transacciones, anonimización y correo, así como `go test -race`, `go vet` y `govulncheck`. El análisis de vulnerabilidades conocidas no demuestra por sí solo ausencia de vulnerabilidades. La configuración SMTP externa y la seguridad del despliegue real quedan para una validación institucional posterior.

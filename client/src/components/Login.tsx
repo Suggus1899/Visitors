@@ -104,11 +104,13 @@ const Login = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-5 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
                         <div className="group">
-                            <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 ml-1 uppercase tracking-[0.22em]">
+                            <label htmlFor="login-username" className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 ml-1 uppercase tracking-[0.22em]">
                                 Usuario
                             </label>
                             <div className="relative">
                                 <Input
+                                    id="login-username"
+                                    autoComplete="username"
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
@@ -120,11 +122,13 @@ const Login = () => {
                         </div>
 
                         <div className="group">
-                            <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 ml-1 uppercase tracking-[0.22em]">
+                            <label htmlFor="login-password" className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 ml-1 uppercase tracking-[0.22em]">
                                 Contraseña
                             </label>
                             <div className="relative">
                                 <Input
+                                    id="login-password"
+                                    autoComplete="current-password"
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -134,6 +138,7 @@ const Login = () => {
                                 />
                                 <Button
                                     type="button"
+                                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-3)] hover:text-[color:var(--accent-0)] focus:outline-none"
                                 >

@@ -169,6 +169,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                         <div className="relative">
                             <Camera size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-3)] pointer-events-none" />
                             <select
+                                aria-label="Seleccionar cámara"
                                 value={selectedDeviceId}
                                 onChange={(e) => setSelectedDeviceId(e.target.value)}
                                 className="w-full pl-8 pr-8 py-2 text-sm bg-[color:var(--surface-1)] border border-[color:var(--border-1)] rounded-lg text-[color:var(--text-1)] focus:outline-none focus:border-[color:var(--accent-0)] appearance-none cursor-pointer"

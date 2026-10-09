@@ -105,6 +105,7 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
                 <Input
                     type="text"
                     placeholder="Juan Carlos"
+                    aria-label="Nombres"
                     value={formData.first_name}
                     onChange={(e) => onFormDataChange('first_name', e.target.value)}
                     className={getInputClass(validation.first_name)}
@@ -116,6 +117,7 @@ const VisitorLookupStep: React.FC<VisitorLookupStepProps> = ({
                 <Input
                     type="text"
                     placeholder="Pérez García"
+                    aria-label="Apellidos"
                     value={formData.last_name}
                     onChange={(e) => onFormDataChange('last_name', e.target.value)}
                     className={getInputClass(validation.last_name)}

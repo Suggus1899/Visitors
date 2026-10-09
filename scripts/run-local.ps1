@@ -18,7 +18,7 @@ try {
         & pnpm --dir server exec vitest run --config vitest.integration.config.ts
         if ($LASTEXITCODE) { throw 'Integration tests failed' }
     } elseif ($Mode -eq 'start') {
-        & pnpm run dev
+        & pnpm run start:legacy
         if ($LASTEXITCODE) { throw 'Local server failed' }
     }
 } finally { Pop-Location }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { VisitService } from '../services/api.v1';
 import type { Visitor, VisitorWithHistory } from '../types';
+import axios from 'axios';
 
 export const visitQueryKeys = {
     all: ['visits'] as const,
@@ -109,15 +110,20 @@ export const useInvalidateVisitQueries = () => {
 export const useVisitorQuery = (cedula: string | null, includeHistory: boolean = false) => {
     return useQuery<Visitor | VisitorWithHistory | null>({
         queryKey: [...visitQueryKeys.visitor(cedula || ''), { includeHistory }],
-        queryFn: () => cedula ? VisitService.getVisitorByCedula(cedula, includeHistory) : null,
+        queryFn: async ({ signal }) => {
+            if (!cedula) return null;
+            try { return await VisitService.getVisitorByCedula(cedula, includeHistory, signal); }
+            catch (error) { if (axios.isAxiosError(error) && error.response?.status === 404) return null; throw error; }
+        },
+        retry: 1,
         enabled: !!cedula,
     });
 };
 
-export const useAllVisitorsQuery = (page: number = 1, limit: number = 50, company?: string) => {
+export const useAllVisitorsQuery = (page: number = 1, limit: number = 50, company?: string, search?: string) => {
     return useQuery({
-        queryKey: [...visitQueryKeys.visitors, 'all', { page, limit, company }],
-        queryFn: () => VisitService.getAllVisitors(page, limit, company),
+        queryKey: [...visitQueryKeys.visitors, 'all', { page, limit, company, search }],
+        queryFn: () => VisitService.getAllVisitors(page, limit, company, search),
     });
 };
 
@@ -135,4 +141,3 @@ export const useUpdateVisitorMutation = () => {
         },
     });
 };
-

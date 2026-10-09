@@ -1,0 +1,25 @@
+{
+  "key": "1919191919191919191919191919191919191919191919191919191919191919",
+  "plaintext": "Visitante ficticio Álvarez 📷",
+  "encrypted": "ENC:fb0769cde3891d1748d6b1cd9d1c1c225db5f51f332097dafd324d1a3ac21694:cb635fcf85bdf6d2433796820c648ba5:97f452bc5b84bc4712a9fc222a4e088c",
+  "legacyEncrypted": "fb0769cde3891d1748d6b1cd9d1c1c225db5f51f332097dafd324d1a3ac21694:cb635fcf85bdf6d2433796820c648ba5:97f452bc5b84bc4712a9fc222a4e088c",
+  "cedula": "V-12345678",
+  "cedulaHash": "53d495c4ed895e649032144e17fe800bbe7a4abddac81cea44c0980d85406e96",
+  "password": "Ficticia!12Árbol",
+  "passwordHash": "$2b$04$hq78CQOkN8S5F.qfap0Jc.UuRqMPk.jhv5e/HTOi78rauxlnpCrk2",
+  "longPassword": "áááááááááááááááááááááááááááááááááááááááááááááááááá",
+  "longPasswordHash": "$2b$04$8QysKUxpCkWQb5TxqtsrhO023MUZbJD3okuMeiFlvDOutLuAskg9a",
+  "jwtSecret": "fixture-only-not-a-real-secret-fixture-only-not-a-real-secret-",
+  "jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTIzLCJ1c2VybmFtZSI6ImZpeHR1cmUiLCJyb2xlIjoib3BlcmFkb3IiLCJ0b2tlblZlcnNpb24iOjcsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoxOTAwMDAwMDAwfQ.SObJ0PPZ9Qfe_GrwcOB0apDahm6ZH9XVE2gQ3VdARi4",
+  "payload": {
+    "id": 123,
+    "username": "fixture",
+    "role": "operador",
+    "tokenVersion": 7,
+    "iat": 1700000000,
+    "exp": 1900000000
+  },
+  "backupPassword": "fixture-backup-password",
+  "backup": "JycnJycnJycnJycnJycnJzU1NTU1NTU1NTU1NTU1NTV+PbCjU72Ic5sUzAOSCMEYqlli2a4kogIYSe+rrDZj+UnLwWD4k0yR2j41/3a06fzD+Xqkg30dR4Q=",
+  "backupPlaintext": "fictitious dump bytes"
+}

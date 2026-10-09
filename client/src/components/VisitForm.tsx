@@ -1,5 +1,5 @@
 import { Input } from './ui/input';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { VisitService } from '../services/api.v1';
 import { API_URL } from '../config/env';
 import { Visitor } from '../types';
@@ -60,6 +60,8 @@ const INITIAL_VALIDATION: ValidationState = {
 };
 
 const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
+    const lookupVersion = useRef(0);
+    useEffect(() => () => { lookupVersion.current++; }, []);
     const [editPassword, setEditPassword] = useState('');
     const [currentStep, setCurrentStep] = useState(1);
     const [cedula, setCedula] = useState('');
@@ -94,6 +96,8 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     }, []);
 
     const handleCedulaChange = (value: string) => {
+        lookupVersion.current++;
+        setLoading(false);
         const numericValue = value.replace(/\D/g, '');
         setCedula(numericValue);
         setOriginalVisitorData(null);
@@ -131,10 +135,13 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         }
         
         setLoading(true);
+        const version = ++lookupVersion.current;
         
         try {
             // Forzar recarga de datos del visitante
             const result = await refetchVisitor();
+            if (version !== lookupVersion.current) return;
+            if (result.error) throw result.error;
             const freshData = result.data;
             
             if (freshData) {
@@ -194,9 +201,9 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 safeNotify.error('Visitante no encontrado');
             }
         } catch {
-            safeNotify.error('Error al buscar visitante');
+            if (version === lookupVersion.current) safeNotify.error('Error al buscar visitante. Comprueba la conexión y vuelve a intentarlo.');
         } finally {
-            setLoading(false);
+            if (version === lookupVersion.current) setLoading(false);
         }
     };
 
@@ -207,10 +214,13 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         }
         
         setLoading(true);
+        const version = ++lookupVersion.current;
         
         try {
             // Forzar recarga de datos del visitante
             const result = await refetchVisitor();
+            if (version !== lookupVersion.current) return;
+            if (result.error) throw result.error;
             const freshData = result.data;
             
             if (freshData && 'history' in freshData && freshData.history && freshData.history.length > 0) {
@@ -240,9 +250,9 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             // Abrir el modal de historial
             setShowHistory(true);
         } catch {
-            toast.error('Error al cargar datos');
+            if (version === lookupVersion.current) toast.error('Error al cargar datos');
         } finally {
-            setLoading(false);
+            if (version === lookupVersion.current) setLoading(false);
         }
     };
 

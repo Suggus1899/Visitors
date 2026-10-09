@@ -20,7 +20,7 @@ interface PasswordRequirement {
 
 const passwordRequirements: PasswordRequirement[] = [
     { label: 'Mínimo 12 caracteres', test: (p) => p.length >= 12, icon: Key },
-    { label: 'Máximo 128 caracteres', test: (p) => p.length <= 128 },
+    { label: 'Máximo 72 bytes UTF-8', test: (p) => new TextEncoder().encode(p).length <= 72 },
     { label: 'Al menos una letra mayúscula', test: (p) => /[A-Z]/.test(p) },
     { label: 'Al menos una letra minúscula', test: (p) => /[a-z]/.test(p) },
     { label: 'Al menos un número', test: (p) => /[0-9]/.test(p) },

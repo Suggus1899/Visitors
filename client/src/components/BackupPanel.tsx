@@ -45,7 +45,7 @@ const BackupPanel = () => {
             setBackups(response.data.data || []);
             setScheduler(null);
         } catch {
-            // handled silently; user sees empty state
+            setMessage({ type: 'error', text: 'No se pudieron cargar los respaldos. Pulsa Actualizar para volver a intentarlo.' });
         } finally {
             setLoading(false);
         }

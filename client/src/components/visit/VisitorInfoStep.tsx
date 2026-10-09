@@ -59,6 +59,7 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
                     <Input
                         type="text"
                         placeholder="Nombre de la empresa"
+                        aria-label="Empresa"
                         value={formData.company}
                         onChange={(e) => onCompanyChange(e.target.value)}
                         onFocus={onCompanyFocus}
@@ -72,10 +73,9 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
                         {filteredSuggestions.map((company, i) => (
                             <li
                                 key={i}
-                                onClick={() => onSelectCompany(company)}
                                 className="px-4 py-2 hover:bg-[color:var(--surface-2)] cursor-pointer text-sm text-[color:var(--text-1)]"
                             >
-                                {company}
+                                <Button type="button" className="w-full text-left" onMouseDown={e => e.preventDefault()} onClick={() => onSelectCompany(company)}>{company}</Button>
                             </li>
                         ))}
                     </ul>
@@ -87,6 +87,7 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
                 <Input
                     type="text"
                     placeholder="Ej: Gerente, Técnico, etc."
+                    aria-label="Cargo"
                     value={formData.job_title}
                     onChange={(e) => onFormDataChange('job_title', e.target.value)}
                     className={getInputClass(null)}
@@ -98,6 +99,7 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">Teléfono</label>
                 <div className="flex items-center">
                     <select
+                        aria-label="Código de país del teléfono"
                         value={phoneCode}
                         onChange={(e) => onPhoneCodeChange(e.target.value)}
                         className="w-28 p-3 border border-[color:var(--border-1)] rounded-l bg-[color:var(--surface-0)] text-sm font-medium focus:outline-none cursor-pointer text-[color:var(--text-1)]"
@@ -112,6 +114,7 @@ const VisitorInfoStep: React.FC<VisitorInfoStepProps> = ({
                         <Phone className="absolute left-3 top-3 text-[color:var(--text-3)]" size={18} />
                         <Input
                             type="tel"
+                            aria-label="Teléfono"
                             placeholder="4121234567"
                             value={formData.phone}
                             onChange={(e) => {

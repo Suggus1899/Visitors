@@ -1,7 +1,7 @@
 # Environment variables
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Dependencies
 node_modules/
@@ -17,11 +17,15 @@ data/
 # Backups
 backups/
 Backups/
+*.dump
+*.backup
 
 # Build outputs
 dist/
 client/dist/
 server/dist/
+*.exe
+/server-go/logmaster
 
 # Logs
 logs/
@@ -42,9 +46,21 @@ desktop.ini
 
 # SSL certificates (never commit)
 ssl/
+*.key
+*.pem
+*.p12
+*.pfx
+*.password
 
 # Tool caches
 .atl/
+.claude/
+.devin/
+.codebase-memory/
+graphify-out/
+coverage/
+coverage.out
+*.tsbuildinfo
 
 # Temporary files
 temp/

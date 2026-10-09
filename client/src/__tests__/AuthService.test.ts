@@ -10,6 +10,17 @@ vi.mock('../services/api.v1', () => ({
 }));
 
 describe('AuthService', () => {
+  it('shares concurrent refreshes and cannot resurrect a logged-out session', async () => {
+    AuthService.logout(); localStorage.setItem('refreshToken', 'fixture-refresh');
+    let resolve!: (value: unknown) => void;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise(done => { resolve = done; }) as never);
+    const first = AuthService.refreshAccessToken(); const second = AuthService.refreshAccessToken();
+    AuthService.logout();
+    resolve({ data: { data: { accessToken: 'late-token', refreshToken: 'late-refresh' } } });
+    const results = await Promise.allSettled([first, second]);
+    expect(results.every(result => result.status === 'rejected')).toBe(true);
+    expect(AuthService.getAccessToken()).toBeNull(); expect(localStorage.getItem('refreshToken')).toBeNull();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();

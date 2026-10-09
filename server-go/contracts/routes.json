@@ -1,0 +1,541 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/audit/logs",
+    "source": "server/src/routes/audit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "verifyAuditor"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/audit/stats",
+    "source": "server/src/routes/audit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "verifyAuditor"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/audit/export",
+    "source": "server/src/routes/audit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "verifyAuditor"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/audit/actions",
+    "source": "server/src/routes/audit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "verifyAuditor"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/audit/users",
+    "source": "server/src/routes/audit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "verifyAuditor"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/audit/config",
+    "source": "server/src/routes/audit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "verifyAuditor"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "source": "server/src/routes/auth-clean.routes.ts",
+    "protected": false,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/forgot-password",
+    "source": "server/src/routes/auth-clean.routes.ts",
+    "protected": false,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/reset-password",
+    "source": "server/src/routes/auth-clean.routes.ts",
+    "protected": false,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "source": "server/src/routes/auth-clean.routes.ts",
+    "protected": false,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/change-password",
+    "source": "server/src/routes/auth-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/backups",
+    "source": "server/src/routes/backup-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/backups",
+    "source": "server/src/routes/backup-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/backups/:filename/restore",
+    "source": "server/src/routes/backup-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/events/visits",
+    "source": "server/src/routes/events.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/health",
+    "source": "server/src/routes/health.routes.ts",
+    "protected": false,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/privacy/arco-requests",
+    "source": "server/src/routes/privacy-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/privacy/arco-requests",
+    "source": "server/src/routes/privacy-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "verifyAuditor"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/privacy/arco-requests/:id/status",
+    "source": "server/src/routes/privacy-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/privacy/subjects/:cedula",
+    "source": "server/src/routes/privacy-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "verifyAuditor"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/privacy/subjects/:cedula",
+    "source": "server/src/routes/privacy-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "authorizeVisitorEdit"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/privacy/subjects/:cedula",
+    "source": "server/src/routes/privacy-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/privacy/subjects/:cedula/opposition",
+    "source": "server/src/routes/privacy-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/stats",
+    "source": "server/src/routes/report-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/stats/monthly",
+    "source": "server/src/routes/report-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/alerts",
+    "source": "server/src/routes/report-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/comparison",
+    "source": "server/src/routes/report-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/superadmin/users",
+    "source": "server/src/routes/superadmin.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isSuperAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/superadmin/users",
+    "source": "server/src/routes/superadmin.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isSuperAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/superadmin/users/:id",
+    "source": "server/src/routes/superadmin.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isSuperAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/superadmin/users/:id",
+    "source": "server/src/routes/superadmin.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isSuperAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/superadmin/users/:id/reset-password",
+    "source": "server/src/routes/superadmin.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isSuperAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/superadmin/audit-logs",
+    "source": "server/src/routes/superadmin.routes.ts",
+    "protected": true,
+    "middleware": [
+      "isSuperAdmin"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visits/checkin",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visits/:id/checkout",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visits/:id/admit",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visits/waiting",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visits/active",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visits/:id/intermittent",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visits/:id/reactivate",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visits/intermittent",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visits/:id/intermittent-exit",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visits/:id/intermittent-reentry",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visits",
+    "source": "server/src/routes/visit-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visitors/companies",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visitors",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visitors/:cedula",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/visitors/:cedula",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "authorizeVisitorEdit"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visitors/verify-edit-password",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [
+      "denyAuditorOnly"
+    ],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visits/:visitId/edit-history",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visitors/:cedula/edit-history",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visitors/:cedula/photo",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": true,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visitors/:cedula/id-photo",
+    "source": "server/src/routes/visitor-clean.routes.ts",
+    "protected": true,
+    "middleware": [],
+    "binary": true,
+    "stream": false
+  }
+]

@@ -376,14 +376,15 @@ export const VisitService = {
     },
 
     // Visitors
-    getVisitorByCedula: async (cedula: string, includeHistory: boolean = false): Promise<Visitor | VisitorWithHistory> => {
-        const response = await api.get(`/visitors/${cedula}?history=${includeHistory}`);
+    getVisitorByCedula: async (cedula: string, includeHistory: boolean = false, signal?: AbortSignal): Promise<Visitor | VisitorWithHistory> => {
+        const response = await api.get(`/visitors/${encodeURIComponent(cedula)}?history=${includeHistory}`, { signal });
         return adaptVisitor(unwrapResponse<Visitor | VisitorWithHistory>(response.data));
     },
 
-    getAllVisitors: async (page: number = 1, limit: number = 50, company?: string): Promise<{ visitors: Visitor[]; total: number }> => {
+    getAllVisitors: async (page: number = 1, limit: number = 50, company?: string, search?: string): Promise<{ visitors: Visitor[]; total: number }> => {
         let url = `/visitors?page=${page}&limit=${limit}`;
         if (company) url += `&company=${encodeURIComponent(company)}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
         const response = await api.get(url);
         const result = unwrapResponse<{ visitors: Visitor[]; total: number }>(response.data);
         return { ...result, visitors: result.visitors.map(adaptVisitor) };

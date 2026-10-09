@@ -128,25 +128,21 @@ const AuditStats = ({ stats, activities }: AuditStatsProps) => {
                             Resumen de Seguridad
                         </h3>
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center p-3 bg-[color:var(--surface-2)] rounded-lg border border-[color:var(--border-1)]">
-                                <span className="text-sm text-[color:var(--text-2)]">Intentos fallidos (24h)</span>
-                                <span className="font-bold text-[color:var(--text-1)]">0</span>
-                            </div>
                             <div className="flex justify-between items-center p-3 bg-[color:var(--surface-2)] rounded-lg border border-red-400/40">
-                                <span className="text-sm text-red-300 font-medium">Acciones críticas</span>
+                                <span className="text-sm text-red-300 font-medium">Acciones críticas en esta página</span>
                                 <span className="font-bold text-red-300">
-                                    {activities.filter(a => ['DELETE', 'BACKUP'].includes(a.action)).length}
+                                    {activities.filter(a => ['DELETE', 'BACKUP', 'SUPERADMIN_DELETE_USER', 'ARCO_CANCELLATION_EXECUTED', 'BACKUP_CREATED', 'BACKUP_RESTORE_COMPLETED'].includes(a.action)).length}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-[color:var(--surface-2)] rounded-lg border border-[color:var(--border-1)]">
-                                <span className="text-sm text-[color:var(--text-2)]">Usuarios nuevos (7d)</span>
+                                <span className="text-sm text-[color:var(--text-2)]">Cuentas creadas en esta página</span>
                                 <span className="font-bold text-[color:var(--text-1)]">
-                                    {activities.filter(a => a.action === 'CREATE' && a.entity === 'User').length}
+                                    {activities.filter(a => ['CREATE', 'SUPERADMIN_CREATE_USER'].includes(a.action) && a.entity === 'User').length}
                                 </span>
                             </div>
                             <div className="mt-4 pt-4 border-t border-[color:var(--border-1)]">
                                 <div className="text-xs text-[color:var(--text-3)] text-center">
-                                    Política de Retención: 365 días
+                                    Retención según la configuración del servidor
                                 </div>
                             </div>
                         </div>

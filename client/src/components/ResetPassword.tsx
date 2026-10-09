@@ -56,7 +56,7 @@ const ResetPassword = () => {
             <div className="panel-tech rounded-2xl p-8 w-full max-w-md relative z-10">
                 <h2 className="text-2xl font-display text-center text-[color:var(--text-1)] mb-6">Nueva Contraseña</h2>
 
-                <p className="text-sm text-[color:var(--text-3)] mb-4">Usa de 12 a 128 caracteres, con mayúscula, minúscula, número y símbolo.</p>
+                <p className="text-sm text-[color:var(--text-3)] mb-4">Usa al menos 12 caracteres y un máximo de 72 bytes UTF-8, con mayúscula, minúscula, número y símbolo.</p>
                 {error && <p role="alert" className="text-sm text-red-400 mb-4">{error}</p>}
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="relative">
@@ -74,7 +74,7 @@ const ResetPassword = () => {
                         <Lock className="absolute left-3 top-3 text-[color:var(--text-3)]" size={20} />
                         <Input
                             type="password"
-                            placeholder="Nueva Contraseña" aria-label="Nueva contraseña" minLength={12} maxLength={128}
+                            placeholder="Nueva Contraseña" aria-label="Nueva contraseña" minLength={12} maxLength={72}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             className="input-tech pl-10"

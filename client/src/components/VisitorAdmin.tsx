@@ -58,14 +58,10 @@ export const VisitorAdmin: React.FC = () => {
     const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
     const limit = 20;
 
-    const { data, isLoading, refetch } = useAllVisitorsQuery(page, limit, companyFilter || undefined);
+    const { data, isLoading, isError, refetch } = useAllVisitorsQuery(page, limit, companyFilter || undefined, cedulaFilter || undefined);
     const updateMutation = useUpdateVisitorMutation();
 
-    const allVisitors = data?.visitors || [];
-    // Local filter by cedula (strips V- prefix for comparison)
-    const visitors = cedulaFilter
-        ? allVisitors.filter(v => (v.cedula || '').replace(/^V-/, '').includes(cedulaFilter))
-        : allVisitors;
+    const visitors = data?.visitors || [];
     const total = data?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
@@ -113,6 +109,7 @@ export const VisitorAdmin: React.FC = () => {
             </div>
 
             {/* Recent Departures */}
+            {isError && <p role="alert" className="mb-4 text-red-400">No se pudieron cargar los visitantes. Pulsa Actualizar para volver a intentarlo.</p>}
             <RecentVisitsPanel />
 
             {/* Filters */}
@@ -122,16 +119,18 @@ export const VisitorAdmin: React.FC = () => {
                     <Input
                         type="text"
                         placeholder="Filtrar por empresa..."
+                        aria-label="Filtrar visitantes por empresa"
                         value={companyFilter}
                         onChange={(e) => { setCompanyFilter(e.target.value); setPage(1); }}
                         className="input-tech w-full pl-10"
                     />
                 </div>
-                <div className="relative min-w-[160px]" title="Búsqueda local por cédula exacta (sin prefijo V-)">
+                <div className="relative min-w-[160px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--text-3)]" />
                     <Input
                         type="text"
                         placeholder="Buscar por cédula..."
+                        aria-label="Buscar visitantes por cédula"
                         value={cedulaFilter}
                         onChange={(e) => { setCedulaFilter(e.target.value.replace(/\D/g, '')); setPage(1); }}
                         className="input-tech w-full pl-10"

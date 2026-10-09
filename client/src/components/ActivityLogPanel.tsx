@@ -1,6 +1,7 @@
 import { Button } from './ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api.v1';
+import { useAuditActions } from '../hooks/useAuditActions';
 import Activity from 'lucide-react/dist/esm/icons/activity';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import User from 'lucide-react/dist/esm/icons/user';
@@ -41,6 +42,10 @@ const ACTION_LABELS: { [key: string]: string } = {
 };
 
 const ActivityLogPanel = () => {
+    const actions = useAuditActions();
+    const requestVersion = useRef(0);
+    const [loadError, setLoadError] = useState('');
+    useEffect(() => () => { requestVersion.current++; }, []);
     const [activities, setActivities] = useState<ActivityItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -48,19 +53,22 @@ const ActivityLogPanel = () => {
     const [filterAction, setFilterAction] = useState('');
 
     const fetchActivities = useCallback(async () => {
+        const version = ++requestVersion.current;
         try {
             setLoading(true);
             const params = new URLSearchParams({ page: String(page), limit: '20' });
             if (filterAction) params.append('action', filterAction);
 
             const response = await api.get(`/audit/logs?${params}`);
+            if (version !== requestVersion.current) return;
 
             setActivities(response.data.data.logs);
             setTotalPages(response.data.data.pagination.pages);
+            setLoadError('');
         } catch {
-            // errors are handled by the interceptor in api.v1.ts
+            if (version === requestVersion.current) setLoadError('No se pudo cargar la actividad. Vuelve a intentarlo.');
         } finally {
-            setLoading(false);
+            if (version === requestVersion.current) setLoading(false);
         }
     }, [page, filterAction]);
 
@@ -75,6 +83,8 @@ const ActivityLogPanel = () => {
 
     return (
         <div className="panel-tech rounded-lg p-5">
+            {loadError && <p role="alert" className="mb-4 text-red-400">{loadError}</p>}
+            {actions.isError && <p role="alert">No se pudieron cargar los filtros de acciones.</p>}
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-display uppercase tracking-[0.18em] text-[color:var(--text-1)] flex items-center gap-2">
                     <Activity size={20} className="text-[color:var(--accent-0)]" />
@@ -82,15 +92,13 @@ const ActivityLogPanel = () => {
                 </h3>
                 <div className="flex items-center gap-3">
                     <select
+                        aria-label="Filtrar actividad por acción"
                         value={filterAction}
                         onChange={(e) => { setFilterAction(e.target.value); setPage(1); }}
                         className="input-tech text-sm py-2 pl-3 pr-8"
                     >
                         <option value="">Todas las acciones</option>
-                        <option value="LOGIN">Inicios de sesión</option>
-                        <option value="CREATE">Creaciones</option>
-                        <option value="CHECKOUT">Check-outs</option>
-                        <option value="BACKUP">Respaldos</option>
+                        {(actions.data ?? []).map(action => <option key={action} value={action}>{ACTION_LABELS[action] || action}</option>)}
                     </select>
                     <Button
                         onClick={fetchActivities}

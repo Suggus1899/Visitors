@@ -2,110 +2,110 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'codex/**']
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  server-tests:
+  backend-go:
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: server-go
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: visitors_test
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
+          POSTGRES_PASSWORD: ci-admin-only
+        ports: ['127.0.0.1:55432:5432']
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
-
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit:v1.31.4
+        ports: ['127.0.0.1:1025:1025', '127.0.0.1:8025:8025']
+    env:
+      DOTENV_CONFIG_PATH: /tmp/logmaster-go-test.env
+      LOGMASTER_RESTORE_ENV: /tmp/logmaster-restore-test.env
+      LOGMASTER_DB_TEST: 'true'
+      CGO_ENABLED: '1'
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-go@v6
         with:
-          version: 12.4.2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm --dir server run test
+          go-version-file: server-go/go.mod
+          cache-dependency-path: server-go/go.sum
+      - name: Prepare independent PostgreSQL databases and environments
         env:
-          DB_HOST: localhost
-          DB_NAME: visitors_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_SSL: false
-          JWT_SECRET: test-jwt-secret-for-ci-min-32-chars-long!!
-          ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-
-  client-tests:
+          PGPASSWORD: ci-admin-only
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-16
+          for suffix in go_test restore_test; do
+            psql -h 127.0.0.1 -p 55432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE logmaster_$suffix LOGIN PASSWORD 'ci-$suffix-password';"
+            createdb -h 127.0.0.1 -p 55432 -U postgres -O "logmaster_$suffix" "logmaster_$suffix"
+            file="/tmp/logmaster-${suffix//_/-}.env"
+            cat > "$file" <<EOF
+          DB_HOST=127.0.0.1
+          DB_PORT=55432
+          DB_NAME=logmaster_$suffix
+          DB_USER=logmaster_$suffix
+          DB_PASSWORD=ci-$suffix-password
+          DB_SSL=false
+          NODE_ENV=test
+          JWT_SECRET=ci-fixture-jwt-secret-64-characters-never-used-outside-CI-validation
+          ENCRYPTION_KEY=1919191919191919191919191919191919191919191919191919191919191919
+          EDIT_PASSWORD=CI!EditFixture123
+          BACKUP_PASSWORD=ci-backup-key-fixture
+          BACKUP_PATH=/tmp/logmaster-ci-backups
+          RETENTION_ENABLED=false
+          SMTP_HOST=127.0.0.1
+          SMTP_PORT=1025
+          SMTP_SECURE=false
+          EMAIL_FROM=logmaster@example.test
+          APP_URL=http://localhost:5173
+          EOF
+          done
+      - run: go mod download && go mod verify
+      - run: go run ./cmd/logmaster migrate-test
+      - run: go test -race ./... -count=1 -coverprofile=coverage.out
+      - run: go vet ./...
+      - run: go build -trimpath -o /tmp/logmaster ./cmd/logmaster
+      - name: Verify generated SQL bindings
+        run: |
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+          sqlc generate
+          git diff --exit-code -- internal/store
+      - name: Check known reachable Go vulnerabilities
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          govulncheck ./...
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: go-coverage
+          path: server-go/coverage.out
+  client-and-legacy-regression:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           version: 12.4.2
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
-
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
-
-      - run: pnpm --dir client run test
-
-  lint:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12.4.2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
+      - run: pnpm --dir client exec tsc --noEmit
       - run: pnpm --dir client run lint
-
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12.4.2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build server
-        run: pnpm --dir server exec tsc -p tsconfig.json --noEmit
-
-      - name: Build client
-        run: pnpm --dir client run build
+      - run: pnpm --dir client run test
+      - run: pnpm --dir client run build
+      - run: pnpm --dir server exec tsc -p tsconfig.json --noEmit
+      - run: pnpm --dir server run test

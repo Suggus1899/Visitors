@@ -64,6 +64,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                             type="checkbox"
                             className="sr-only peer"
                             checked={formData.has_companion}
+                            aria-label="Ingresa con acompañantes"
                             onChange={(e) => onFormDataChange('has_companion', e.target.checked)}
                         />
                         <div className="w-11 h-6 bg-[color:var(--surface-3)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[color:var(--accent-0)]"></div>
@@ -97,6 +98,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                                     <Input
                                         type="text"
                                         value={companion.name}
+                                        aria-label={`Nombre del acompañante ${index + 1}`}
                                         onChange={(e) => updateCompanion(index, 'name', e.target.value)}
                                         placeholder="Ej: Juan Pérez"
                                         className={getInputClass(companion.name.trim().length > 2 ? true : companion.name.length === 0 ? null : false)}
@@ -109,6 +111,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                                     <Input
                                         type="text"
                                         value={companion.cedula}
+                                        aria-label={`Cédula del acompañante ${index + 1}`}
                                         onChange={(e) => updateCompanion(index, 'cedula', e.target.value.replace(/\D/g, ''))}
                                         placeholder="Ej: 12345678"
                                         className={getInputClass(null)}
@@ -140,6 +143,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                             type="checkbox"
                             className="sr-only peer"
                             checked={formData.has_vehicle}
+                            aria-label="Ingresa con vehículo"
                             onChange={(e) => onFormDataChange('has_vehicle', e.target.checked)}
                         />
                         <div className="w-11 h-6 bg-[color:var(--surface-3)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[color:var(--accent-0)]"></div>
@@ -156,6 +160,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                                 <Input
                                     type="text"
                                     value={formData.vehicle_brand}
+                                    aria-label="Marca del vehículo"
                                     onChange={(e) => onFormDataChange('vehicle_brand', e.target.value)}
                                     placeholder="Ej: Toyota"
                                     className={getInputClass(formData.vehicle_brand.trim().length > 1 ? true : formData.vehicle_brand.length === 0 ? null : false)}
@@ -168,6 +173,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                                 <Input
                                     type="text"
                                     value={formData.vehicle_model}
+                                    aria-label="Modelo del vehículo"
                                     onChange={(e) => onFormDataChange('vehicle_model', e.target.value)}
                                     placeholder="Ej: Corolla"
                                     className={getInputClass(null)}
@@ -181,6 +187,7 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({
                             <Input
                                 type="text"
                                 value={formData.vehicle_plate}
+                                aria-label="Placa del vehículo"
                                 onChange={(e) => onFormDataChange('vehicle_plate', e.target.value.toUpperCase())}
                                 placeholder="Ej: AB123CD"
                                 className={getInputClass(formData.vehicle_plate.trim().length > 3 ? true : formData.vehicle_plate.length === 0 ? null : false)}

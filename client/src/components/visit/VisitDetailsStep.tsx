@@ -84,6 +84,7 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                 <Input
                     type="text"
                     placeholder="Ej: Ing. Carlos Machado, Dra. Ana Rodríguez..."
+                    aria-label="Persona a visitar"
                     value={formData.host_person}
                     onChange={(e) => onFormDataChange('host_person', e.target.value)}
                     className={getInputClass(formData.host_person.trim() ? true : null)}
@@ -111,6 +112,7 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                     <Input
                         type="text"
                         placeholder="Especifique el motivo (opcional)..."
+                        aria-label="Otro motivo de visita"
                         value={formData.reason.startsWith('Otro: ') ? formData.reason.slice(6) : ''}
                         onChange={(e) => {
                             const val = e.target.value;

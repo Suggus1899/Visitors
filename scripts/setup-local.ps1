@@ -38,7 +38,7 @@ if (!(Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 1025 -State Listen
 }
 $env:PATH = "$pgBin;$env:PATH"
 if (!$StartOnly) {
-    foreach ($suffix in @('dev', 'test', 'restore_test')) {
+    foreach ($suffix in @('dev', 'test', 'restore_test', 'go_test', 'go_dev')) {
         $name = "logmaster_$suffix"
         $configPath = Join-Path $repo ".env.logmaster-$suffix.local"
         if (!(Test-Path $configPath)) {

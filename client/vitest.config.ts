@@ -27,6 +27,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    maxWorkers: 2,
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/__tests__/**/*.test.{ts,tsx}', 'src/components/__tests__/**/*.test.{ts,tsx}'],
     coverage: {

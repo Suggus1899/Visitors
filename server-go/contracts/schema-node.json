@@ -1,0 +1,778 @@
+{
+  "columns": [
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "userId",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "username",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "action",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "entity",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "entityId",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "details",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "ipAddress",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "userAgent",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "createdAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "method",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "path",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "statusCode",
+      "udt_name": "int4",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "duration",
+      "udt_name": "int4",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "severity",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "role",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "resource",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "resourceId",
+      "udt_name": "int4",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ActivityLogs",
+      "column_name": "status",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "requestType",
+      "udt_name": "enum_ArcoRequests_requestType",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "subjectCedulaHash",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "subjectCedulaEncrypted",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "requestedByName",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "requestedByUserId",
+      "udt_name": "int4",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "contactEmail",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "reason",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "requestPayload",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "status",
+      "udt_name": "enum_ArcoRequests_status",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "resolutionNotes",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "resolvedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "createdAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "column_name": "updatedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Departments",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Departments",
+      "column_name": "name",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Departments",
+      "column_name": "code",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Departments",
+      "column_name": "isActive",
+      "udt_name": "bool",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Departments",
+      "column_name": "createdAt",
+      "udt_name": "timestamp",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "column_name": "visit_id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "column_name": "check_out",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "column_name": "re_entry",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "column_name": "notes",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "column_name": "createdAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "column_name": "updatedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "column_name": "registered_by",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "SequelizeMeta",
+      "column_name": "name",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "username",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "email",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "tokenVersion",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "password",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "role",
+      "udt_name": "enum_Users_role",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "resetToken",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "resetTokenExpiry",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "createdAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "updatedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "mustChangePassword",
+      "udt_name": "bool",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "passwordChangedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "loginAttempts",
+      "udt_name": "int4",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Users",
+      "column_name": "lockedUntil",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "VisitPurposes",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "VisitPurposes",
+      "column_name": "name",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "VisitPurposes",
+      "column_name": "isActive",
+      "udt_name": "bool",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "VisitPurposes",
+      "column_name": "createdAt",
+      "udt_name": "timestamp",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "visitId",
+      "udt_name": "int4",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "visitorId",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "field",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "oldValue",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "newValue",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "editedBy",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "editedByUsername",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "editedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "column_name": "createdAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "anonymizedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "cedula",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "encrypted_cedula",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "first_name",
+      "udt_name": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "last_name",
+      "udt_name": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "company",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "job_title",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "photo_url",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "id_photo_url",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "email",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "phone",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "updatedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "photo_data",
+      "udt_name": "bytea",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "id_photo_data",
+      "udt_name": "bytea",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "isBlocked",
+      "udt_name": "bool",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "observations",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visitors",
+      "column_name": "createdAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "id",
+      "udt_name": "int4",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "visitor_cedula",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "purpose",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "person_to_visit",
+      "udt_name": "varchar",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "check_in_time",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "check_out_time",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "status",
+      "udt_name": "enum_Visits_status",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "notes",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "companion_name",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "companion_cedula",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "vehicle_brand",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "vehicle_model",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "vehicle_plate",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "area",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "action",
+      "udt_name": "enum_Visits_action",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "department",
+      "udt_name": "varchar",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "createdAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "updatedAt",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "visitor_id",
+      "udt_name": "int4",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "arrival_time",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "entry_time",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "exit_time",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "target_department",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "Visits",
+      "column_name": "host_person",
+      "udt_name": "text",
+      "is_nullable": "YES"
+    }
+  ],
+  "constraints": [
+    {
+      "table_name": "ActivityLogs",
+      "name": "ActivityLogs_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "ArcoRequests",
+      "name": "ArcoRequests_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "Departments",
+      "name": "Departments_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "name": "IntermittentLogs_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "IntermittentLogs",
+      "name": "IntermittentLogs_visit_id_fkey",
+      "definition": "FOREIGN KEY (visit_id) REFERENCES \"Visits\"(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "SequelizeMeta",
+      "name": "SequelizeMeta_pkey",
+      "definition": "PRIMARY KEY (name)"
+    },
+    {
+      "table_name": "Users",
+      "name": "Users_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "Users",
+      "name": "Users_username_key",
+      "definition": "UNIQUE (username)"
+    },
+    {
+      "table_name": "VisitPurposes",
+      "name": "VisitPurposes_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "VisitorEditHistories",
+      "name": "VisitorEditHistories_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "Visitors",
+      "name": "Visitors_cedula_key",
+      "definition": "UNIQUE (cedula)"
+    },
+    {
+      "table_name": "Visitors",
+      "name": "Visitors_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "Visits",
+      "name": "Visits_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "Visits",
+      "name": "Visits_visitor_id_fkey",
+      "definition": "FOREIGN KEY (visitor_id) REFERENCES \"Visitors\"(id) ON UPDATE CASCADE ON DELETE SET NULL"
+    }
+  ]
+}

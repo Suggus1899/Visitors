@@ -1,5 +1,6 @@
 import { AuthenticatedImage } from './AuthenticatedImage';
 import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 import React from 'react';
 import { X, Building2, UserCircle2, Briefcase, FileText, Clock, UserCheck, LogOut } from 'lucide-react';
 import type { Visit } from '../types';
@@ -39,17 +40,19 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
     const displayCheckOut = visit.check_out || visit.check_out_time || '';
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
+            <DialogContent showCloseButton={false} className="bg-white text-gray-800 p-0 gap-0 rounded-xl shadow-xl w-[calc(100%-2rem)] max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogDescription className="sr-only">Fotografías, datos del visitante y fechas de la visita seleccionada en el calendario.</DialogDescription>
                 
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
-                    <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                    <DialogTitle className="text-xl font-semibold text-gray-800 flex items-center">
                         <UserCircle2 className="w-6 h-6 mr-2 text-blue-600" />
                         Detalles de la Visita (Calendario)
-                    </h2>
+                    </DialogTitle>
                     <Button
                         onClick={onClose}
+                        aria-label="Cerrar detalles del calendario"
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-700"
                     >
                         <X className="w-5 h-5" />
@@ -232,8 +235,8 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ visit, isOpen, 
                     </Button>
                 </div>
 
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 

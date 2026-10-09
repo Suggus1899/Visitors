@@ -55,7 +55,7 @@ describe('PasswordChangeModal', () => {
         
         expect(screen.getByText('Requisitos de Contraseña:')).toBeInTheDocument();
         expect(screen.getByText('Mínimo 12 caracteres')).toBeInTheDocument();
-        expect(screen.getByText('Máximo 128 caracteres')).toBeInTheDocument();
+        expect(screen.getByText('Máximo 72 bytes UTF-8')).toBeInTheDocument();
         expect(screen.getByText('Al menos una letra mayúscula')).toBeInTheDocument();
         expect(screen.getByText('Al menos una letra minúscula')).toBeInTheDocument();
         expect(screen.getByText('Al menos un número')).toBeInTheDocument();

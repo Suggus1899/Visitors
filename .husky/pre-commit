@@ -4,25 +4,24 @@
 
 set -e
 
-# Skip checks on main/develop/master branches
-branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "unknown")
-case "$branch" in
-  main|develop|master) exit 0 ;;
-esac
-
 # Gather staged files
 staged=$(git diff --cached --name-only)
 
 # If no code files changed, skip
-echo "$staged" | grep -qE '\.(ts|tsx|js|jsx|json|yml|yaml|sh|bat)$' || {
+echo "$staged" | grep -qE '\.(ts|tsx|js|jsx|json|yml|yaml|sh|bat|ps1|go|sql|mod|sum)$' || {
   echo "husky - no code files staged, skipping checks"
   exit 0
 }
 
-client=0; server=0
+client=0; server=0; backend_go=0
 for f in $staged; do
-  case "$f" in client/*) client=1 ;; server/*) server=1 ;; esac
+  case "$f" in client/*) client=1 ;; server/*) server=1 ;; server-go/*) backend_go=1 ;; esac
 done
+
+if [ "$backend_go" = 1 ]; then
+  echo "--- Checking Go backend ---"
+  (cd server-go && go vet ./... && go test ./...)
+fi
 
 if [ "$client" = 1 ]; then
   echo "--- Checking client ---"

@@ -15,9 +15,8 @@
     "migrate": "ts-node src/scripts/apply-migrations.ts",
     "migrate:photos": "ts-node src/scripts/migrate-photos-to-blob.ts",
     "audit": "pnpm audit --audit-level=high",
-    "backup:full": "powershell -NoProfile -Command \"$d=(Get-Date).ToString('yyyyMMdd_HHmmss'); pg_dump -Fc -U postgres -h localhost visitors > ('../backups/backup_' + $d + '.dump')\"",
-    "backup:schema": "powershell -NoProfile -Command \"$d=(Get-Date).ToString('yyyyMMdd'); pg_dump -s -U postgres -h localhost visitors > ('../backups/schema_' + $d + '.sql')\"",
-    "backup:monitor": "psql -U postgres -h localhost -c \"SELECT pg_size_pretty(pg_total_relation_size('\\\"Visitors\\\"'));\""
+    "backup:full": "pwsh -NoProfile -File ../scripts/run-go.ps1 -Mode backup",
+    "backup:monitor": "pwsh -NoProfile -File ../scripts/run-go.ps1 -Mode backup-monitor"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

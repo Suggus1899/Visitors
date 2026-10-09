@@ -57,16 +57,20 @@ const AuditHeader = ({
                 <ThemeToggle />
                 <div className="flex items-center gap-2 mr-4 bg-[color:var(--surface-2)] rounded-lg px-3 py-2 border border-[color:var(--border-1)]">
                     <span className="text-xs text-[color:var(--text-3)] font-medium">Auto-refresh</span>
-                    <div 
+                    <Button
+                        role="switch"
+                        aria-label="Actualización automática"
+                        aria-checked={autoRefresh}
                         className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${autoRefresh ? 'bg-[color:var(--accent-0)]' : 'bg-[color:var(--border-1)]'}`}
                         onClick={() => setAutoRefresh(!autoRefresh)}
                     >
                         <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${autoRefresh ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </div>
+                    </Button>
                 </div>
 
                 <Button
                     onClick={handleExport}
+                    aria-label="Exportar auditoría"
                     className="btn-ghost px-4 py-2"
                 >
                     <Download size={18} />
@@ -74,6 +78,7 @@ const AuditHeader = ({
                 </Button>
                 <Button
                     onClick={fetchData}
+                    aria-label="Actualizar auditoría"
                     className={`btn-ghost px-4 py-2 ${loading ? 'opacity-70' : ''}`}
                     disabled={loading}
                 >
@@ -82,6 +87,7 @@ const AuditHeader = ({
                 </Button>
                 <Button
                     onClick={handleLogout}
+                    aria-label="Cerrar sesión"
                     className="border border-red-400 text-red-300 hover:text-red-200 hover:border-red-300 px-4 py-2 rounded-lg transition-colors font-medium ml-2"
                 >
                     <LogOut size={18} />

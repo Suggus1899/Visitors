@@ -1,7 +1,7 @@
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import AuthService from './services/AuthService';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -9,14 +9,11 @@ import { useAuth } from './hooks/useAuth';
 import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-import AdminDashboard from './components/AdminDashboard';
-import SuperAdminDashboard from './components/SuperAdminDashboard';
 import VisitForm from './components/VisitForm';
 import ActiveVisits from './components/ActiveVisits';
 import WaitingVisits from './components/WaitingVisits';
 import IntermittentVisits from './components/IntermittentVisits';
 import VisitorAdmin from './components/VisitorAdmin';
-import AuditDashboard from './components/AuditDashboard';
 import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
 import HelpCircle from 'lucide-react/dist/esm/icons/help-circle';
 import Keyboard from 'lucide-react/dist/esm/icons/keyboard';
@@ -35,6 +32,10 @@ import { useActiveVisitsQuery, useIntermittentVisitsQuery, useWaitingVisitsQuery
 import { useVisitEvents } from './hooks/useVisitEvents';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const SuperAdminDashboard = lazy(() => import('./components/SuperAdminDashboard'));
+const AuditDashboard = lazy(() => import('./components/AuditDashboard'));
+
 // Main Operations View (Guard + Admin)
 const OperationsView = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +50,7 @@ const OperationsView = () => {
     const {
         data: visits = [],
         isFetching: isVisitsLoading,
+		isError: activeError,
     } = useActiveVisitsQuery({
         refetchInterval: isUsingFallbackPolling ? 15_000 : false,
     });
@@ -56,12 +58,14 @@ const OperationsView = () => {
     const {
         data: intermittentVisits = [],
         isFetching: isIntermittentLoading,
+		isError: intermittentError,
     } = useIntermittentVisitsQuery({
         refetchInterval: isUsingFallbackPolling ? 15_000 : false,
     });
 
     const {
         data: waitingVisits = [],
+		isError: waitingError,
     } = useWaitingVisitsQuery({
         refetchInterval: isUsingFallbackPolling ? 15_000 : false,
     });
@@ -166,7 +170,8 @@ const OperationsView = () => {
                     <div className={canOperate ? "w-full xl:w-2/3" : "w-full"} data-tour="active-visits">
 
                         {/* Tabs Navigation */}
-                        <div className="flex gap-4 mb-6 border-b border-[color:var(--border-1)]">
+                        {(activeError || intermittentError || waitingError) && <p role="alert" className="mb-4 text-red-400">No se pudieron actualizar las listas de visitas. Comprueba la conexión y vuelve a intentarlo.</p>}
+                        <div className="flex flex-wrap gap-4 mb-6 border-b border-[color:var(--border-1)]">
                             <Button
                                 onClick={() => setActiveTab('active')}
                                 className={`pb-2 px-1 flex items-center gap-2 font-display uppercase tracking-wider text-sm transition-colors relative ${activeTab === 'active' ? 'text-[color:var(--accent-0)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-2)]'}`}
@@ -239,6 +244,7 @@ const OperationsView = () => {
                                             ref={searchInputRef}
                                             type="search" autoComplete="off" name="visit-search"
                                             placeholder="Buscar... (Ctrl+K)"
+                                            aria-label="Buscar visitas activas"
                                             value={searchQuery}
                                             onChange={e => setSearchQuery(e.target.value)}
                                             className="input-tech text-sm pl-10 sm:w-72"
@@ -336,7 +342,7 @@ function AppRoutes() {
 
     return (
         <>
-            <Routes>
+            <Suspense fallback={<p role="status" className="p-6">Cargando vista…</p>}><Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
@@ -360,7 +366,7 @@ function AppRoutes() {
                         <SuperAdminDashboard />
                     </RootRoute>
                 } />
-            </Routes>
+            </Routes></Suspense>
 
             {/* Global Password Change Modal */}
             <PasswordChangeModal

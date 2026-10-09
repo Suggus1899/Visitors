@@ -34,6 +34,8 @@ class AuthService {
     private static instance: AuthService;
     private accessToken: string | null = null; // Requirement 3.2: Memory only
     private readonly REFRESH_TOKEN_KEY = 'refreshToken';
+    private refreshing: Promise<string> | null = null;
+    private generation = 0;
 
     private constructor() {
         // Private constructor for singleton pattern
@@ -60,6 +62,7 @@ class AuthService {
      * Requirement 3.1: Store Access Token in memory, Refresh Token in localStorage
      */
     public async login(username: string, password: string): Promise<UserInfo> {
+        const generation = ++this.generation;
         try {
             const response = await api.post<LoginResponse>('/auth/login', {
                 username,
@@ -67,6 +70,7 @@ class AuthService {
             });
 
             const { accessToken, refreshToken, user } = response.data.data;
+            if (generation !== this.generation) throw new Error('La sesión cambió durante el inicio de sesión');
 
             // Store Access Token in memory (Requirement 3.2)
             this.accessToken = accessToken;
@@ -77,7 +81,7 @@ class AuthService {
             return user;
         } catch (error: unknown) {
             // Clear any existing tokens on login failure
-            this.clearTokens();
+            if (generation === this.generation) this.clearTokens();
             throw error;
         }
     }
@@ -102,6 +106,14 @@ class AuthService {
      * Requirement 3.6: Automatic token refresh
      */
     public async refreshAccessToken(): Promise<string> {
+        if (this.refreshing) return this.refreshing;
+        const operation = this.refreshSession();
+        this.refreshing = operation;
+        try { return await operation; } finally { if (this.refreshing === operation) this.refreshing = null; }
+    }
+
+    private async refreshSession(): Promise<string> {
+        const generation = this.generation;
         const refreshToken = localStorage.getItem(this.REFRESH_TOKEN_KEY);
 
         if (!refreshToken) {
@@ -111,12 +123,14 @@ class AuthService {
         try {
             const response = await api.post<{
                 success: boolean;
-                data: { accessToken: string };
+                data: { accessToken: string; refreshToken?: string };
             }>('/auth/refresh', {
                 refreshToken
             });
 
-            const { accessToken } = response.data.data;
+            const { accessToken, refreshToken: renewedRefreshToken } = response.data.data;
+            if (generation !== this.generation) throw new Error('Sesión cerrada durante la renovación');
+            if (renewedRefreshToken) localStorage.setItem(this.REFRESH_TOKEN_KEY, renewedRefreshToken);
 
             // Store new Access Token in memory
             this.accessToken = accessToken;
@@ -124,7 +138,7 @@ class AuthService {
             return accessToken;
         } catch (error) {
             // If refresh fails, clear all tokens and force re-login
-            this.clearTokens();
+            if (generation === this.generation) this.clearTokens();
             throw error;
         }
     }
@@ -142,6 +156,8 @@ class AuthService {
      * Clear all tokens
      */
     private clearTokens(): void {
+        this.generation++;
+        this.refreshing = null;
         this.accessToken = null;
         localStorage.removeItem(this.REFRESH_TOKEN_KEY);
         window.dispatchEvent(new Event('auth:logout'));
