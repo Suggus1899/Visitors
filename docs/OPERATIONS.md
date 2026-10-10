@@ -55,7 +55,7 @@ No ejecutar seed en bases operativas. Root debe cambiar la contraseña al entrar
 Conservar un respaldo verificado del estado actual, comprobar espacio y confirmar que el mismo root existe en destino y archivo. Mantener operadores fuera durante todo el mantenimiento:
 
 ```sh
-sudo systemctl stop logmaster-backup.timer logmaster-rehearse.timer
+sudo systemctl stop logmaster-backup.timer logmaster-rehearsal.timer
 docker compose stop web api
 docker compose up -d --wait postgres postgres-restore
 ```
@@ -95,10 +95,10 @@ Para inicio automático, respaldo 01:00 diario y ensayo domingo 03:00 Caracas:
 ```sh
 sudo cp deploy/systemd/logmaster* /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now logmaster.service logmaster-backup.timer logmaster-rehearse.timer
+sudo systemctl enable --now logmaster.service logmaster-backup.timer logmaster-rehearsal.timer
 systemctl list-timers 'logmaster*'
-systemctl status logmaster.service logmaster-backup.service logmaster-rehearse.service
-journalctl -u logmaster-backup.service -u logmaster-rehearse.service --since today
+systemctl status logmaster.service logmaster-backup.service logmaster-rehearsal.service
+journalctl -u logmaster-backup.service -u logmaster-rehearsal.service --since today
 docker compose ps
 docker compose logs --tail 100 api web
 df -h
