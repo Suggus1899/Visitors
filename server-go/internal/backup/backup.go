@@ -347,10 +347,17 @@ BEGIN
  IF EXISTS(SELECT 1 FROM "Users" WHERE "tokenVersion">=2147483646) THEN RAISE EXCEPTION 'session version exhausted'; END IF;
  UPDATE "Users" SET "tokenVersion"=GREATEST("tokenVersion",%d)+1,"updatedAt"=now();
  INSERT INTO "ActivityLogs"("userId",username,action,entity,"entityId",role,status,"createdAt") VALUES(actor_id,actor_name,'BACKUP_RESTORE_COMPLETED','Backup','maintenance',actor_role,'success',now());
-END $restore_finalize$;
+END; $restore_finalize$;
 `, allowedRole, sqlLiteral(root), sqlLiteral(root), highest)
 	cmd.Stdin = io.MultiReader(strings.NewReader(prefix), file, strings.NewReader(finalize))
+	var diagnostics bytes.Buffer
+	cmd.Args = append(cmd.Args, "--set=VERBOSITY=sqlstate")
+	cmd.Stderr = &cappedWriter{writer: &diagnostics, remaining: 4096}
 	if e = cmd.Run(); e != nil {
+		code := regexp.MustCompile(`ERROR:\s+([A-Z0-9]{5})`).FindStringSubmatch(diagnostics.String())
+		if len(code) == 2 {
+			return fmt.Errorf("transactional restore failed (SQLSTATE %s)", code[1])
+		}
 		return errors.New("transactional restore failed")
 	}
 	return nil
