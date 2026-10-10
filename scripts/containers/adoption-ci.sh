@@ -3,6 +3,8 @@ set -eu
 test "${GITHUB_ACTIONS:-false}" = true || { echo 'Disposable CI rehearsal only.' >&2; exit 1; }
 compose() { docker compose "$@"; }
 stage() { compose run --rm -e DOTENV_CONFIG_PATH=/run/secrets/staging_env ops ops "$@"; }
+compose up -d --wait postgres-restore
+trap 'compose stop postgres-restore' EXIT
 # Only this runner's separate restore service is reset; the pilot database is untouched.
 { printf 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;\n'; cat server-go/db/schema.sql; } |
   compose exec -T postgres-restore psql -X -U logmaster_restore_test -d logmaster_restore_test --single-transaction -v ON_ERROR_STOP=1
