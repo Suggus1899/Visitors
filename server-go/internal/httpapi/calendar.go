@@ -8,7 +8,12 @@ func (a *App) calendar(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "VALIDATION_ERROR", "Selecciona un rango de hasta 62 días")
 		return
 	}
-	rows, e := a.Pool.Query(r.Context(), `SELECT (check_in_time AT TIME ZONE 'America/Caracas')::date::text,count(*)::int FROM "Visits" WHERE check_in_time>=$1 AND check_in_time<$2 GROUP BY 1 ORDER BY 1`, start, end)
+	status := r.URL.Query().Get("status")
+	if status != "" && status != "active" && status != "completed" && status != "waiting" && status != "intermittent" {
+		failure(w, 400, "VALIDATION_ERROR", "Estado inválido")
+		return
+	}
+	rows, e := a.Pool.Query(r.Context(), `SELECT (check_in_time AT TIME ZONE 'America/Caracas')::date::text,count(*)::int FROM "Visits" WHERE check_in_time>=$1 AND check_in_time<$2 AND ($3='' OR status::text=$3) GROUP BY 1 ORDER BY 1`, start, end, status)
 	if e != nil {
 		a.serverError(w, e)
 		return

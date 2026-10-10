@@ -124,6 +124,7 @@ export const useAllVisitorsQuery = (page: number = 1, limit: number = 50, compan
     return useQuery({
         queryKey: [...visitQueryKeys.visitors, 'all', { page, limit, company, search }],
         queryFn: () => VisitService.getAllVisitors(page, limit, company, search),
+        enabled: !search || [...search.trim()].length >= 3,
     });
 };
 

@@ -62,6 +62,18 @@ describe('api.v1 interceptors', () => {
     expect(mockInstance.get.mock.calls.every(([url]) => url.includes('limit=100') && url.includes('status=completed'))).toBe(true);
   });
 
+  it.each([2000, 20000])('rejects an oversized export before downloading further pages: %d', async maximum => {
+    mockInstance.get.mockResolvedValueOnce(pageResponse([1], maximum + 1));
+    await expect(VisitService.getAllVisits({}, { maxRecords: maximum })).rejects.toThrow('Selecciona filtros');
+    expect(mockInstance.get).toHaveBeenCalledOnce();
+  });
+
+  it('does not start a cancelled export', async () => {
+    const controller = new AbortController(); controller.abort();
+    await expect(VisitService.getAllVisits({}, { signal: controller.signal })).rejects.toThrow('cancelada');
+    expect(mockInstance.get).not.toHaveBeenCalled();
+  });
+
   it.each([
     { ids: [101], total: 104 }, { ids: [], total: 103 }, { ids: [100, 101, 102], total: 103 }, { ids: [101, 101, 102], total: 103 },
   ])('rejects changed or incomplete export pages: %j', async ({ ids, total }) => {

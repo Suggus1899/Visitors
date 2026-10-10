@@ -1,6 +1,6 @@
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Visit } from '../../types';
 import { 
     Download, 
@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { VisitService } from '../../services/api.v1';
 import toast from 'react-hot-toast';
-import { buildVisitsPDF, buildVisitsWorkbook, sortReportVisits, visitReportRow, VISIT_STATUS_LABELS } from '../../utils/visitExport';
-import { reportFileDate, formatReportDate } from '../../utils/reportExport';
+import { sortReportVisits, visitReportRow, VISIT_STATUS_LABELS } from '../../utils/visitReport';
+import { reportFileDate, formatReportDate } from '../../utils/reportFormatting';
 
 
 import { VisitorDetailsModal } from '../visit/VisitorDetailsModal';
@@ -62,13 +62,18 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
     onFilterChange, onSort, onPageChange
 }) => {
     const [isExporting, setIsExporting] = useState(false);
+    const controller = useRef<AbortController | null>(null);
+    useEffect(() => () => controller.current?.abort(), []);
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
 
     const exportReport = useCallback(async (kind: 'pdf' | 'excel') => {
-        if (isExporting) return;
+        if (isExporting || controller.current) return;
         setIsExporting(true);
         try {
-            const records = sortReportVisits(await VisitService.getAllVisits({ ...filters }), sortField, sortDirection);
+            controller.current = new AbortController();
+            const records = sortReportVisits(await VisitService.getAllVisits({ ...filters }, { maxRecords: kind === 'pdf' ? 2000 : 20000, signal: controller.current.signal }), sortField, sortDirection);
+            const { buildVisitsPDF, buildVisitsWorkbook } = await import('../../utils/visitExport');
+            if (controller.current.signal.aborted) return;
             if (!records.length) { toast.error('No hay visitas que coincidan con los filtros.'); return; }
             const generatedAt = new Date();
             if (kind === 'pdf') {
@@ -83,21 +88,24 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
             }
             toast.success('Reporte exportado: ' + records.length + ' visitas.');
         } catch (error) {
+            if (controller.current?.signal.aborted) { toast('Exportación cancelada.'); return; }
             toast.error(error instanceof Error ? error.message : 'No se pudo exportar el reporte. Inténtalo nuevamente.');
         } finally {
+            controller.current = null;
             setIsExporting(false);
         }
     }, [isExporting, filters, sortField, sortDirection, username]);
 
     return (
         <div className="panel-tech rounded-lg overflow-hidden">
+            {isExporting && <Button onClick={() => controller.current?.abort()}>Cancelar exportación</Button>}
             {/* Filters */}
             <div className="p-5 border-b border-[color:var(--border-1)]">
                 <h3 className="text-lg font-display uppercase tracking-[0.2em] text-[color:var(--text-1)] flex items-center gap-2 mb-4">
                     <Filter size={20} className="text-[color:var(--accent-0)]" /> Filtros y Búsqueda
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <Input type="text" placeholder="Buscar (Nombre, Cédula...)" className="input-tech text-sm" value={filters.search} onChange={e => onFilterChange('search', e.target.value)} />
+                    <Input type="text" placeholder="Buscar (mínimo 3 caracteres)" className="input-tech text-sm" value={filters.search} onChange={e => onFilterChange('search', e.target.value)} />
                     <Input type="text" placeholder="Empresa" className="input-tech text-sm" value={filters.company} onChange={e => onFilterChange('company', e.target.value)} />
                     <select aria-label="Estado de las visitas" className="input-tech text-sm" value={filters.status} onChange={e => onFilterChange('status', e.target.value)}>
                         <option value="">Todos los estados</option>

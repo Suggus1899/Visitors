@@ -258,7 +258,7 @@ export const VisitService = {
         return Array.isArray(data) ? data.map(adaptVisit) : [];
     },
 
-    getVisits: async (filters: Record<string, string | number | boolean | undefined>) => {
+    getVisits: async (filters: Record<string, string | number | boolean | undefined>, signal?: AbortSignal) => {
         // Filter out undefined values
         const cleanFilters: Record<string, string> = {};
         Object.entries(filters).forEach(([key, val]) => {
@@ -269,7 +269,7 @@ export const VisitService = {
         });
 
         const params = new URLSearchParams(cleanFilters).toString();
-        const response = await api.get(`/visits?${params}`);
+        const response = await api.get(`/visits?${params}`, { signal });
         const result = unwrapResponse<{ visits: VisitDTO[]; total: number }>(response.data);
         const metaTotal = response.data?.meta?.total;
 
@@ -279,14 +279,19 @@ export const VisitService = {
         };
     },
 
-    getAllVisits: async (filters: Record<string, string | number | boolean | undefined> = {}): Promise<Visit[]> => {
-        const first = await VisitService.getVisits({ ...filters, page: 1, limit: 100 });
+    getAllVisits: async (filters: Record<string, string | number | boolean | undefined> = {}, options: { maxRecords?: number; signal?: AbortSignal } = {}): Promise<Visit[]> => {
+        const maximum = options.maxRecords ?? 20000;
+        if (!Number.isInteger(maximum) || maximum < 1 || maximum > 20000) throw new Error('Límite de exportación inválido.');
+        if (options.signal?.aborted) throw new DOMException('Exportación cancelada', 'AbortError');
+        const first = await VisitService.getVisits({ ...filters, page: 1, limit: 100 }, options.signal);
+        if (first.total > maximum) throw new Error(`El reporte admite hasta ${maximum.toLocaleString('es-VE')} visitas. Selecciona filtros o un intervalo menor.`);
         const visits = [...first.visits];
         const ids = new Set(visits.map(visit => visit.id));
         const changed = 'Los registros cambiaron durante la exportación. Vuelve a intentarlo.';
         if (!Number.isInteger(first.total) || first.total < 0 || ids.size !== visits.length) throw new Error(changed);
         for (let page = 2; visits.length < first.total; page++) {
-            const next = await VisitService.getVisits({ ...filters, page, limit: 100 });
+            if (options.signal?.aborted) throw new DOMException('Exportación cancelada', 'AbortError');
+            const next = await VisitService.getVisits({ ...filters, page, limit: 100 }, options.signal);
             if (next.total !== first.total || !next.visits.length || new Set(next.visits.map(visit => visit.id)).size !== next.visits.length || next.visits.some(visit => ids.has(visit.id))) throw new Error(changed);
             next.visits.forEach(visit => ids.add(visit.id));
             visits.push(...next.visits);
@@ -294,6 +299,13 @@ export const VisitService = {
         if (visits.length !== first.total) throw new Error(changed);
         const company = String(filters.company || '').trim().toLocaleLowerCase('es');
         return company ? visits.filter(visit => (visit.Visitor?.company || '').toLocaleLowerCase('es').includes(company)) : visits;
+    },
+
+    getCalendar: async (filters: { startDate: string; endDate: string; status?: string }, signal?: AbortSignal): Promise<{ date: string; count: number }[]> => {
+        const params = new URLSearchParams({ startDate: reportDateBoundary(filters.startDate, false), endDate: reportDateBoundary(filters.endDate, true) });
+        if (filters.status) params.set('status', filters.status);
+        const response = await api.get(`/visits/calendar?${params}`, { signal });
+        return unwrapResponse<{ days: { date: string; count: number }[] }>(response.data).days;
     },
 
     getRecentVisits: async (limit = 20) => {

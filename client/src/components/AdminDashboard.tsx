@@ -1,7 +1,6 @@
 import { Button } from './ui/button';
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { VisitService } from '../services/api.v1';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import Home from 'lucide-react/dist/esm/icons/home';
 import Activity from 'lucide-react/dist/esm/icons/activity';
 import Database from 'lucide-react/dist/esm/icons/database';
@@ -11,19 +10,18 @@ import FileSpreadsheet from 'lucide-react/dist/esm/icons/file-spreadsheet';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Visit } from '../types';
-import StatisticsPanel from './StatisticsPanel';
-import BackupPanel from './BackupPanel';
-import ActivityLogPanel from './ActivityLogPanel';
+const StatisticsPanel = lazy(() => import('./StatisticsPanel'));
+const BackupPanel = lazy(() => import('./BackupPanel'));
+const ActivityLogPanel = lazy(() => import('./ActivityLogPanel'));
 import { Header } from './Header';
-import CalendarView from './admin/CalendarView';
+const CalendarView = lazy(() => import('./admin/CalendarView'));
 
 // Sub-components
 import AdminStatsCards from './admin/AdminStatsCards';
 import VisitsTable, { ITEMS_PER_PAGE } from './admin/VisitsTable';
 import type { SortField, SortDirection, Filters } from './admin/VisitsTable';
-import { sortReportVisits } from '../utils/visitExport';
+import { sortReportVisits } from '../utils/visitReport';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 interface DashboardStats { totalVisits: number; activeVisits: number; visitsPerDay: { date: string; count: number }[]; }
 interface VisitStatsResponse { summary?: { totalVisits: number; activeVisits: number }; recentActivity?: { date: string; count: number }[]; }
@@ -69,6 +67,7 @@ const AdminDashboard = () => {
         try {
             const params: { page: number; limit: number; status?: string; search?: string; startDate?: string; endDate?: string; company?: string } = { page: currentPage, limit: ITEMS_PER_PAGE };
             if (filters.status) params.status = filters.status;
+            if (filters.search.trim() && [...filters.search.trim()].length < 3) return;
             if (filters.search) params.search = filters.search;
             if (filters.startDate) params.startDate = filters.startDate;
             if (filters.endDate) params.endDate = filters.endDate;
@@ -81,7 +80,8 @@ const AdminDashboard = () => {
         } catch { if (version === visitRequest.current) setLoadErrors(prev => ({ ...prev, visits: 'No se pudieron cargar las visitas. Vuelve a intentarlo.' })); }
     }, [filters, currentPage]);
 
-    useEffect(() => { fetchStats(); fetchVisits(); fetchAlerts(); }, [fetchStats, fetchVisits, fetchAlerts]);
+    useEffect(() => { fetchStats(); fetchAlerts(); }, [fetchStats, fetchAlerts]);
+    useEffect(() => { const timer = setTimeout(fetchVisits, 300); return () => clearTimeout(timer); }, [fetchVisits]);
     useEffect(() => { const interval = setInterval(fetchAlerts, 60000); return () => clearInterval(interval); }, [fetchAlerts]);
     useEffect(() => { setCurrentPage(1); }, [filters]);
 
@@ -121,7 +121,7 @@ const AdminDashboard = () => {
                 </Button>
             </Header>
 
-            <main className="container mx-auto px-4 py-8 relative z-10">
+            <Suspense fallback={<p role="status">Cargando panel…</p>}><main className="container mx-auto px-4 py-8 relative z-10">
                 {Object.values(loadErrors).some(Boolean) && <p role="alert" className="mb-4 text-red-400">{Object.values(loadErrors).filter(Boolean).join(' ')}</p>}
                 <AdminStatsCards totalVisits={stats?.totalVisits || 0} activeVisits={stats?.activeVisits || 0} />
 
@@ -163,7 +163,7 @@ const AdminDashboard = () => {
 
                 {activeTab === 'backups' && <BackupPanel />}
                 {activeTab === 'activity' && <ActivityLogPanel />}
-            </main>
+            </main></Suspense>
         </div>
     );
 };

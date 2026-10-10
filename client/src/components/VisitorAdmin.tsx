@@ -1,7 +1,7 @@
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAllVisitorsQuery, useUpdateVisitorMutation, useRecentVisitsQuery } from '../hooks/useVisitQueries';
 import { Ban, CheckCircle, Search, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -54,11 +54,13 @@ export const VisitorAdmin: React.FC = () => {
     const [page, setPage] = useState(1);
     const [companyFilter, setCompanyFilter] = useState('');
     const [cedulaFilter, setCedulaFilter] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    useEffect(() => { const timer = setTimeout(() => setDebouncedSearch(cedulaFilter.trim()), 300); return () => clearTimeout(timer); }, [cedulaFilter]);
     const [editingVisitor, setEditingVisitor] = useState<{ cedula: string; observations: string; isBlocked: boolean } | null>(null);
     const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
     const limit = 20;
 
-    const { data, isLoading, isError, refetch } = useAllVisitorsQuery(page, limit, companyFilter || undefined, cedulaFilter || undefined);
+    const { data, isLoading, isError, refetch } = useAllVisitorsQuery(page, limit, companyFilter || undefined, debouncedSearch || undefined);
     const updateMutation = useUpdateVisitorMutation();
 
     const visitors = data?.visitors || [];

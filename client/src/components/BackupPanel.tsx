@@ -248,6 +248,7 @@ const BackupPanel = () => {
             )}
 
             {/* Backups List */}
+            <p className="text-sm text-[color:var(--text-3)] mb-4">La restauración operativa requiere detener el sistema y ejecutar el procedimiento de mantenimiento. La restauración desde este panel está habilitada únicamente en la base de ensayo.</p>
             {loading ? (
                 <div className="text-center py-8 text-[color:var(--text-3)]">Cargando backups...</div>
             ) : backups.length === 0 ? (

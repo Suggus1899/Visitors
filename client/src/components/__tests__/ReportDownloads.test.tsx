@@ -7,10 +7,10 @@ import { VisitService } from '../../services/api.v1';
 import * as reportExport from '../../utils/reportExport';
 import toast from 'react-hot-toast';
 
-vi.mock('../../services/api.v1', () => ({ VisitService: { getAllVisits: vi.fn() } }));
+vi.mock('../../services/api.v1', () => ({ VisitService: { getAllVisits: vi.fn(), getCalendar: vi.fn(), getVisits: vi.fn() } }));
 vi.mock('../visit/VisitorDetailsModal', () => ({ VisitorDetailsModal: () => null }));
 vi.mock('../CalendarEventModal', () => ({ default: () => null }));
-vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('react-hot-toast', () => ({ default: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
 vi.mock('react-big-calendar', () => ({
   dateFnsLocalizer: vi.fn(), Views: { MONTH: 'month', WEEK: 'week', DAY: 'day', AGENDA: 'agenda' },
   Calendar: ({ events, onRangeChange }: { events: CalendarEvent[]; onRangeChange: (range: { start: Date; end: Date }) => void }) => (
@@ -25,7 +25,7 @@ const filters = { status: '' as const, startDate: '', endDate: '', search: '', c
 const props = { visits: visits.slice(0, 10), sortedVisits: visits.slice(0, 10), totalVisitsCount: 125, currentPage: 1, totalPages: 13,
   filters, sortField: 'visitor' as const, sortDirection: 'asc' as const, onFilterChange: vi.fn(), onSort: vi.fn(), onPageChange: vi.fn() };
 
-beforeEach(() => vi.mocked(VisitService.getAllVisits).mockReset());
+beforeEach(() => { vi.mocked(VisitService.getAllVisits).mockReset(); vi.mocked(VisitService.getCalendar).mockResolvedValue([{ date: '2026-10-08', count: 125 }]); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('report download controls', () => {
@@ -46,7 +46,7 @@ describe('report download controls', () => {
     resolve(visits);
     await waitFor(() => expect(save).toHaveBeenCalledOnce());
     expect(rowCount).toBe(125);
-    expect(VisitService.getAllVisits).toHaveBeenCalledWith(filters);
+    expect(VisitService.getAllVisits).toHaveBeenCalledWith(filters, { maxRecords: 2000, signal: expect.any(AbortSignal) });
     expect(screen.getByRole('button', { name: 'Exportar Excel' })).toBeEnabled();
   });
 
@@ -71,8 +71,29 @@ describe('report download controls', () => {
     render(<CalendarView fetchVisits={vi.fn()} />);
     await screen.findByText('125 eventos');
     fireEvent.click(screen.getByRole('button', { name: 'Exportar Calendario' }));
-    expect(rowCount).toBe(125);
+    await waitFor(() => expect(rowCount).toBe(125));
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar período' }));
-    await waitFor(() => expect(VisitService.getAllVisits).toHaveBeenLastCalledWith({ startDate: '2026-01-01', endDate: '2026-01-31', status: undefined }));
+    await waitFor(() => expect(VisitService.getAllVisits).toHaveBeenLastCalledWith({ startDate: '2026-01-01', endDate: '2026-01-31', status: undefined }, { maxRecords: 2000, signal: expect.any(AbortSignal) }));
+  });
+
+  it('uses daily counts for a dense calendar and refuses its PDF without collecting visits', async () => {
+    vi.mocked(VisitService.getCalendar).mockResolvedValueOnce([{ date: '2026-10-08', count: 2001 }]);
+    render(<CalendarView fetchVisits={vi.fn()} />);
+    await screen.findByText('1 eventos');
+    expect(VisitService.getAllVisits).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar Calendario' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(VisitService.getAllVisits).not.toHaveBeenCalled();
+  });
+
+  it('aborts collection when the user cancels an export', async () => {
+    vi.mocked(VisitService.getAllVisits).mockImplementationOnce((_filters, options) => new Promise((_resolve, reject) => {
+      options?.signal?.addEventListener('abort', () => reject(new DOMException('Canceled', 'AbortError')));
+    }));
+    render(<VisitsTable {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar exportación' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled());
+    expect(vi.mocked(VisitService.getAllVisits).mock.calls[0][1]?.signal?.aborted).toBe(true);
   });
 });
