@@ -27,6 +27,9 @@ jobs:
           docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab load --warmup 2m --duration 15m | tee .local/results/load.json
       - name: Verify large backup and isolated restoration
         run: |
+          (while true; do date -u; docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}} {{.BlockIO}}'; sleep 2; done) > .local/results/backup-resources.txt &
+          backup_monitor=$!
+          trap 'kill "$backup_monitor" || true' EXIT
           docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait postgres-restore
           docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops backup-daily | tee .local/results/backup.json
           docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops rehearse

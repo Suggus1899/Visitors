@@ -15,6 +15,7 @@ services:
     secrets: [app_env]
     environment: {DOTENV_CONFIG_PATH: /run/secrets/app_env, LOGMASTER_LOAD_TEST: 'true'}
     networks: [backend]
+    tmpfs: ['/var/lib/postgresql/data:uid=10001,gid=10001,mode=1700']
     depends_on: {postgres: {condition: service_healthy}}
     logging: {driver: json-file, options: {max-size: 10m, max-file: '3'}}
 secrets:
