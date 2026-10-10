@@ -38,9 +38,9 @@ const ChartsRow = ({
     visitsPerDay,
     visitsByDayOfWeek
 }: ChartsRowProps) => {
-    const exportChart = (ref: React.RefObject<Chart<'bar'> | null>, filename: string, title: string, data: { labels: string[]; values: number[] }) => {
+    const exportChart = async (ref: React.RefObject<Chart<'bar'> | null>, filename: string, title: string, data: { labels: string[]; values: number[] }) => {
         try {
-            downloadChartPDF(ref, filename, title, data, topReasons, period);
+            await downloadChartPDF(ref, filename, title, data, topReasons, period);
         } catch {
             toast.error('No se pudo exportar el gráfico. Inténtalo nuevamente.');
         }

@@ -11,9 +11,13 @@ graphify-out
 **/.env*
 !**/.env.example
 backups
+**/backups
 Backups
+**/Backups
 data
+**/data
 logs
+**/logs
 ssl
 **/*.pem
 **/*.key

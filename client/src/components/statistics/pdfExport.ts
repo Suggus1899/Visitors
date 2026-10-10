@@ -1,8 +1,7 @@
 import type { Chart } from 'chart.js';
-import autoTable from 'jspdf-autotable';
 import type { jsPDF } from 'jspdf';
 import type { ReasonData } from '../../types';
-import { createReportPDF, finishReportPDF, reportFileDate, REPORT_COLOR, REPORT_MARGINS } from '../../utils/reportExport';
+import { reportFileDate, REPORT_COLOR, REPORT_MARGINS } from '../../utils/reportFormatting';
 
 export interface MonthlyReportData {
   totalVisits: number;
@@ -45,7 +44,8 @@ const tableStyles = {
   rowPageBreak: 'avoid' as const,
 };
 
-export function downloadChartPDF(chartRef: React.RefObject<Chart | null>, filename: string, title: string, data: { labels: string[]; values: number[] }, reasons?: ReasonData[], period = 'Período seleccionado') {
+export async function downloadChartPDF(chartRef: React.RefObject<Chart | null>, filename: string, title: string, data: { labels: string[]; values: number[] }, reasons?: ReasonData[], period = 'Período seleccionado') {
+  const [{ default: autoTable }, { createReportPDF, finishReportPDF }] = await Promise.all([import('jspdf-autotable'), import('../../utils/reportExport')]);
   const generatedAt = new Date();
   const total = data.values.reduce((a, b) => a + b, 0);
   const max = data.values.length ? Math.max(...data.values) : 0;
@@ -60,7 +60,8 @@ export function downloadChartPDF(chartRef: React.RefObject<Chart | null>, filena
   doc.save(`${filename}-${reportFileDate(generatedAt)}.pdf`);
 }
 
-export function downloadMonthlyPDF(report: MonthlyReportData, pieChartRef: React.RefObject<Chart | null>, month: number, year: number) {
+export async function downloadMonthlyPDF(report: MonthlyReportData, pieChartRef: React.RefObject<Chart | null>, month: number, year: number) {
+  const [{ default: autoTable }, { createReportPDF, finishReportPDF }] = await Promise.all([import('jspdf-autotable'), import('../../utils/reportExport')]);
   const generatedAt = new Date();
   const title = 'Reporte mensual de visitas';
   const period = new Date(year, month, 15).toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });

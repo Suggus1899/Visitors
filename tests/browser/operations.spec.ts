@@ -48,6 +48,7 @@ test('HTTPS camera, authenticated photographs, consent and complete operational 
   await page.getByRole('button', { name: 'PONER EN ESPERA' }).click();
   expect((await created).status()).toBe(201);
   await page.getByRole('button', { name: /En Espera/ }).click();
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await expect(page.getByText('Prueba Navegador Ficticio', { exact: true })).toBeVisible();
   await expect.poll(() => page.locator('img[src^="blob:"]').count()).toBeGreaterThan(0);
   expect(await page.request.get('/api/v1/visitors/V-45678901/photo').then(response => response.status())).toBe(401);
@@ -124,7 +125,7 @@ test('administration defers inactive panels and produces real PDF and Excel file
   await page.goto('/#/admin');
   await expect(page.getByRole('button', { name: 'Exportar PDF', exact: true })).toBeEnabled();
   await expect(page.getByText('Prueba Navegador Ficticio', { exact: true })).toBeVisible();
-  expect(chunks.some(url => /\/(CalendarView|BackupPanel|ActivityLogPanel|reportExport|visitExport)-/.test(url))).toBe(false);
+  expect(chunks.filter(url => /\/(CalendarView|BackupPanel|ActivityLogPanel|reportExport|visitExport)-/.test(url))).toEqual([]);
   const pdfReady = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Exportar PDF', exact: true }).click();
   const pdf = await pdfReady;

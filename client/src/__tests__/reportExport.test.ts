@@ -85,7 +85,7 @@ describe('real PDF and Excel exports', () => {
     expect(excelReportDate(null)).toBeNull();
   });
 
-  it('keeps the selected monthly period and all reasons across pages even without a chart', () => {
+  it('keeps the selected monthly period and all reasons across pages even without a chart', async () => {
     let saved: jsPDF | undefined;
     const save = vi.fn();
     const create = reportExport.createReportPDF;
@@ -94,7 +94,7 @@ describe('real PDF and Excel exports', () => {
       vi.spyOn(saved, 'save').mockImplementation(filename => { save(filename); return saved!; });
       return saved;
     });
-    downloadMonthlyPDF({ totalVisits: 100, uniqueVisitors: 90, averageDuration: 30, completionRate: 100,
+    await downloadMonthlyPDF({ totalVisits: 100, uniqueVisitors: 90, averageDuration: 30, completionRate: 100,
       byReason: Array.from({ length: 100 }, (_, i) => ({ reason: `Reason${i} ${'extended text '.repeat(8)}`, count: 1, percentage: 1 })) }, { current: null }, 0, 2025);
     expect(save).toHaveBeenCalledWith('reporte-mensual-2025-01.pdf');
     expect(saved!.getNumberOfPages()).toBeGreaterThan(1);
@@ -102,7 +102,7 @@ describe('real PDF and Excel exports', () => {
     expect(saved!.output()).toContain('Reason99');
   });
 
-  it('exports an empty chart summary without infinity and does not truncate reasons', () => {
+  it('exports an empty chart summary without infinity and does not truncate reasons', async () => {
     let saved: jsPDF | undefined;
     const create = reportExport.createReportPDF;
     vi.spyOn(reportExport, 'createReportPDF').mockImplementation((...args) => {
@@ -110,18 +110,18 @@ describe('real PDF and Excel exports', () => {
       vi.spyOn(saved, 'save').mockImplementation(() => saved!);
       return saved;
     });
-    downloadChartPDF({ current: null }, 'test', 'Estadísticas', { labels: [], values: [] },
+    await downloadChartPDF({ current: null }, 'test', 'Estadísticas', { labels: [], values: [] },
       Array.from({ length: 20 }, (_, i) => ({ reason: `REASON${i}`, count: 1 })), 'Octubre 2026');
     expect(saved!.output()).not.toContain('Infinity');
     expect(saved!.output()).toContain('REASON19');
     expect(saved!.output()).toContain('Octubre 2026');
   });
 
-  it('restores the chart theme even when image generation fails', () => {
+  it('restores the chart theme even when image generation fails', async () => {
     const original = { plugins: { legend: { labels: { color: '#FFFFFF' } } } };
     const chart = { config: { options: original }, options: original, update: vi.fn(),
       canvas: { width: 200, height: 100, toDataURL: vi.fn(() => { throw new Error('Canvas unavailable'); }) } };
-    expect(() => downloadChartPDF({ current: chart as unknown as Chart }, 'test', 'Prueba', { labels: [], values: [] })).toThrow('Canvas unavailable');
+    await expect(downloadChartPDF({ current: chart as unknown as Chart }, 'test', 'Prueba', { labels: [], values: [] })).rejects.toThrow('Canvas unavailable');
     expect(chart.options).toBe(original);
     expect(chart.update.mock.calls).toEqual([['none'], ['none']]);
   });
