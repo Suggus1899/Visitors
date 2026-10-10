@@ -30,6 +30,7 @@
     "typecheck:client": "pnpm --dir client exec tsc --noEmit"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@types/node": "^25.2.1",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",

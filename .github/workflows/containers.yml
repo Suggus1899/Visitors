@@ -16,6 +16,18 @@ jobs:
         run: sh scripts/containers/configure.sh
       - name: Build, prepare, verify HTTPS and persistence
         run: sh scripts/containers/smoke.sh
+      - uses: pnpm/action-setup@v4
+        with: {version: 12.4.2}
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: pnpm}
+      - name: Browser journey against real containers
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          docker compose -f compose.yaml -f deploy/compose.test.yaml --profile test up -d mailpit
+          pnpm exec playwright test
+          spoofed=$(docker compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc "SELECT count(*) FROM \"ActivityLogs\" WHERE \"ipAddress\"='198.51.100.11'")
+          test "$spoofed" = 0
       - name: Sanitized service status
         if: always()
         run: docker compose --profile test ps
