@@ -139,10 +139,7 @@ func generate(c config.Config, people, total int) error {
 			if e != nil {
 				return e
 			}
-			company, e := security.Encrypt(c.EncryptionKey, "Empresa ficticia")
-			if e != nil {
-				return e
-			}
+			company := "Empresa ficticia"
 			var anon, encryptedCedula, photograph any
 			encryptedCedula = encrypted
 			if id%200 == 0 {

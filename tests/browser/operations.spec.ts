@@ -111,3 +111,25 @@ test('roles, short search, SSE and proxy headers are enforced by the real API', 
     if (username !== 'admin') expect(await request.post('/api/v1/visits/checkin', { headers, data: {} }).then(response => response.status())).toBe(403);
   }
 });
+
+test('administration defers inactive panels and produces real PDF and Excel files', async ({ page }) => {
+  const chunks: string[] = [];
+  page.on('request', request => { if (request.url().includes('/assets/')) chunks.push(request.url()); });
+  await page.goto('/#/login');
+  await page.getByLabel('Usuario', { exact: true }).fill('root');
+  await page.getByLabel('Contraseña', { exact: true }).fill(changedPassword);
+  await page.getByRole('button', { name: 'INGRESAR', exact: true }).click();
+  await expect(page.getByLabel('Cédula', { exact: true })).toBeVisible();
+  await page.goto('/#/admin');
+  await expect(page.getByRole('button', { name: 'Exportar PDF', exact: true })).toBeEnabled();
+  await expect(page.getByText('Prueba Navegador Ficticio', { exact: true })).toBeVisible();
+  expect(chunks.some(url => /\/(CalendarView|BackupPanel|ActivityLogPanel|reportExport|visitExport)-/.test(url))).toBe(false);
+  const pdfReady = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar PDF', exact: true }).click();
+  const pdf = await pdfReady;
+  expect(readFileSync((await pdf.path())!).subarray(0, 5).toString()).toBe('%PDF-');
+  const excelReady = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar Excel', exact: true }).click();
+  const excel = await excelReady;
+  expect(readFileSync((await excel.path())!).subarray(0, 2).toString()).toBe('PK');
+});
