@@ -1,20 +1,23 @@
 # Inicio rápido de LogMaster con Go
 
-Requisitos y comandos vigentes en [README](../README.md). Desde PowerShell 7:
+Requisitos y comandos vigentes en [README](../README.md). En Linux, con Docker Compose y OpenSSL instalados:
 
-```powershell
-pnpm install --frozen-lockfile
-pnpm local:setup
-pnpm local:prepare
-pnpm local:start
+```sh
+sh scripts/containers/configure.sh
+docker compose --profile test build
+docker compose --profile test up -d --wait postgres mailpit
+docker compose run --rm ops migrate
+docker compose run --rm ops seed
+docker compose --profile test up -d --wait api web
 ```
 
-Usa `.env.logmaster-go_dev.local`; los datos quedan en la base independiente `logmaster_go_dev`. La cuenta inicial es `root`, con `SEED_ROOT_PASSWORD` y cambio obligatorio. Cliente en http://localhost:5173, API en http://127.0.0.1:3000 y Mailpit en http://127.0.0.1:8025.
+Usa secretos privados en `.local/containers`; los datos ficticios quedan en el volumen PostgreSQL piloto. Root usa SEED_ROOT_PASSWORD y debe cambiarla al entrar. Acceso HTTPS en https://localhost:8443 con certificado temporal de localhost. El override deploy/compose.test.yaml habilita diagnósticos en loopback. No crea Visitors-local.
 
-```powershell
+```sh
+pnpm install --frozen-lockfile
 pnpm test
 pnpm test:integration
 pnpm build
 ```
 
-Las migraciones son explícitas. `local:start` comprueba el esquema y no lo sincroniza. Para la reversión y la evidencia de cada etapa, consulta [BACKEND_GO_MIGRATION](BACKEND_GO_MIGRATION.md).
+Las migraciones son explícitas; el arranque solo comprueba el esquema y el índice. Para instalación empresarial, SMTP seguro, claves, adopción y restauración confirmada, consulta [OPERATIONS](OPERATIONS.md). El [registro de migración](BACKEND_GO_MIGRATION.md) conserva la evidencia histórica.

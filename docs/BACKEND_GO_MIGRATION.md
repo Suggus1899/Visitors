@@ -1,5 +1,7 @@
 # Migración del backend a Go
 
+> Registro histórico del ensayo del 9 de octubre. Los comandos de Windows, restricciones de restauración y mediciones de esa fecha se conservan como evidencia de ese estado. La instalación y recuperación vigentes se describen en [OPERATIONS](OPERATIONS.md); la preparación actual usa contenedores Linux y no recrea Visitors-local.
+
 Referencia de partida: commit 3e3917e, versión integral restaurada. Entrega directamente en `main`, por indicación del usuario. Su referencia anterior se conserva en `backup/main-before-go-2026-10-09`.
 
 El backend predeterminado es Go. Las etapas se implementaron y comprobaron antes de cambiar el arranque local. El servidor TypeScript queda conservado para compatibilidad y reversión controlada. Las bases operativas anteriores, los respaldos dentro del repositorio, las ramas de respaldo y el stash se conservan. Los entornos ficticios se retiraron al cierre por petición del usuario, como se detalla al final. Ningún ensayo autoriza escribir en la base operativa anterior.
