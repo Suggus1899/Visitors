@@ -64,6 +64,11 @@ func operations(args []string) error {
 	if e = db.Preflight(ctx, database, c.EncryptionKey); e != nil {
 		return e
 	}
+	if command == "adopt" {
+		if e = db.ValidateAdoption(ctx, database); e != nil {
+			return e
+		}
+	}
 	if command == "restore" {
 		if *stageFile == "" || *passwordFile == "" {
 			return errors.New("restore requires staging environment and private password file")

@@ -16,6 +16,8 @@ jobs:
         run: sh scripts/containers/configure.sh
       - name: Build, prepare, verify HTTPS and persistence
         run: sh scripts/containers/smoke.sh
+      - name: Execute the daily and weekly timers ahead of schedule
+        run: sh scripts/containers/timers-ci.sh
       - uses: pnpm/action-setup@v4
         with: {version: 12.4.2}
       - uses: actions/setup-node@v4
@@ -37,3 +39,18 @@ jobs:
       - name: Remove only this job's disposable volumes
         if: always()
         run: docker compose --profile test down --volumes
+  small-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/containers/configure.sh
+      - name: Small concurrent laboratory regression
+        run: |
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load build api
+          docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait postgres
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab generate --visitors 100 --visits 1000
+          docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait api
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab load --warmup 5s --duration 30s
+      - if: always()
+        run: docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load down -v

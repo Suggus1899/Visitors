@@ -78,6 +78,15 @@ func Adopt(ctx context.Context, db *sql.DB) error {
 	return tx.Commit()
 }
 
+func ValidateAdoption(ctx context.Context, database *sql.DB) error {
+	tx, e := database.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if e != nil {
+		return e
+	}
+	defer tx.Rollback()
+	return validateLegacy(ctx, tx)
+}
+
 func validateLegacy(ctx context.Context, tx *sql.Tx) error {
 	raw, e := contracts.Files.ReadFile("schema-node.json")
 	if e != nil {

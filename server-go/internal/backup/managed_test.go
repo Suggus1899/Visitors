@@ -1,7 +1,12 @@
 package backup
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"github.com/Suggus1899/Visitors/server-go/internal/config"
+	"github.com/Suggus1899/Visitors/server-go/internal/security"
 	"os"
 	"testing"
 )
@@ -21,6 +26,63 @@ func TestSharedBackupLock(t *testing.T) {
 		t.Fatal(e)
 	}
 	again()
+}
+
+func TestRetentionKeepsThirtyCompletePairsAndStopsOnDamage(t *testing.T) {
+	t.Setenv("BACKUP_PASSWORD_PATH", t.TempDir())
+	service := Service{Config: config.Config{BackupPath: t.TempDir(), BackupPassword: "fixture-private-key"}}
+	root, e := service.root()
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer root.Close()
+	private, e := privateRoot()
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer private.Close()
+	archive, e := security.EncryptBackup(service.key(), []byte("PGDMP fixture"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	password, e := security.EncryptBackup(service.key(), []byte("fixture-password"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	digest := sha256.Sum256(archive)
+	for i := 0; i < 32; i++ {
+		name := fmt.Sprintf("backup-fixture-%02d.dump.enc", i)
+		metadata, e := json.Marshal(Metadata{OriginalName: name, Engine: "postgresql", PasswordHash: security.Hash("fixture-password"), Digest: hex.EncodeToString(digest[:])})
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = root.WriteFile(name, archive, 0600); e != nil {
+			t.Fatal(e)
+		}
+		if e = root.WriteFile(metaName(name), metadata, 0600); e != nil {
+			t.Fatal(e)
+		}
+		if e = private.WriteFile(name+".password.enc", password, 0600); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if e = service.prune(private, 30); e != nil {
+		t.Fatal(e)
+	}
+	files, e := service.List()
+	if e != nil || len(files) != 30 {
+		t.Fatal(len(files), e)
+	}
+	if e = root.WriteFile(files[0].Name, []byte("damaged"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e = service.prune(private, 1); e == nil {
+		t.Fatal("damaged backup allowed pruning")
+	}
+	files, e = service.List()
+	if e != nil || len(files) != 30 {
+		t.Fatal("pruning lost copies after validation failure", e)
+	}
 }
 func TestPrivatePasswordAndStatus(t *testing.T) {
 	t.Setenv("BACKUP_PASSWORD_PATH", t.TempDir())

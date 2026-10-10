@@ -17,7 +17,7 @@ func Preflight(ctx context.Context, database *sql.DB, key []byte) error {
 	if !exists {
 		return nil
 	}
-	rows, e := database.QueryContext(ctx, `SELECT id,first_name,last_name,encrypted_cedula FROM "Visitors" WHERE "anonymizedAt" IS NULL`)
+	rows, e := database.QueryContext(ctx, `SELECT id,first_name,last_name,encrypted_cedula,job_title,email,phone,observations FROM "Visitors" WHERE "anonymizedAt" IS NULL`)
 	if e != nil {
 		return errors.New("visitor schema incompatible with preflight")
 	}
@@ -25,11 +25,12 @@ func Preflight(ctx context.Context, database *sql.DB, key []byte) error {
 		var id int
 		var first, last string
 		var cedula sql.NullString
-		if e = rows.Scan(&id, &first, &last, &cedula); e != nil {
+		var job, email, phone, observations sql.NullString
+		if e = rows.Scan(&id, &first, &last, &cedula, &job, &email, &phone, &observations); e != nil {
 			rows.Close()
 			return e
 		}
-		for _, value := range []string{first, last, cedula.String} {
+		for _, value := range []string{first, last, cedula.String, job.String, email.String, phone.String, observations.String} {
 			if _, e = security.Decrypt(key, value); e != nil {
 				rows.Close()
 				return fmt.Errorf("identity decryption failed at visitor %d", id)
@@ -47,6 +48,13 @@ func Preflight(ctx context.Context, database *sql.DB, key []byte) error {
 	}
 	if duplicates > 0 {
 		return fmt.Errorf("%d visitor identifiers have duplicate open visits; no data was removed", duplicates)
+	}
+	var broken int
+	if e = database.QueryRowContext(ctx, `SELECT count(*) FROM "Visits" v LEFT JOIN "Visitors" p ON p.cedula=v.visitor_cedula WHERE p.id IS NULL OR (v.visitor_id IS NOT NULL AND v.visitor_id<>p.id)`).Scan(&broken); e != nil {
+		return e
+	}
+	if broken > 0 {
+		return fmt.Errorf("%d visits have incompatible visitor relationships", broken)
 	}
 	return nil
 }
