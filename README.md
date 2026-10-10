@@ -7,7 +7,7 @@ Aplicación para Industrias de Alimentos el Trébol: registro, consentimiento y 
 Requiere Docker Engine con Compose, Git y OpenSSL. Los scripts no instalan Docker. El laboratorio utiliza datos ficticios, Mailpit y un certificado temporal.
 
 ```sh
-sh scripts/containers/configure.sh
+sh deploy/scripts/configure.sh
 docker compose --profile test build
 docker compose --profile test up -d --wait postgres mailpit
 docker compose run --rm ops migrate
@@ -27,7 +27,7 @@ pnpm test                           # Go sin integración y cliente
 pnpm typecheck:client
 pnpm --dir client run lint
 pnpm build
-sh scripts/containers/smoke.sh       # laboratorio HTTPS y persistencia
+sh deploy/scripts/smoke.sh       # laboratorio HTTPS y persistencia
 pnpm exec playwright install chromium
 pnpm exec playwright test            # recorrido sobre Compose
 ```

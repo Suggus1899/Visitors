@@ -16,10 +16,10 @@
     "build": "pnpm run build:client && pnpm run build:server",
     "backup": "docker compose run --rm ops backup-daily",
     "backup:monitor": "docker compose run --rm ops backup-monitor",
-    "local:setup": "sh scripts/containers/configure.sh",
+    "local:setup": "sh deploy/scripts/configure.sh",
     "local:prepare": "docker compose --profile test build && docker compose --profile test up -d --wait postgres mailpit && docker compose run --rm ops migrate && docker compose run --rm ops seed",
     "local:start": "docker compose --profile test up -d --wait",
-    "test:integration": "sh scripts/containers/smoke.sh && pnpm exec playwright test",
+    "test:integration": "sh deploy/scripts/smoke.sh && pnpm exec playwright test",
     "typecheck:client": "pnpm --dir client exec tsc --noEmit"
   },
   "devDependencies": {

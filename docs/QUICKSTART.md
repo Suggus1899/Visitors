@@ -3,7 +3,7 @@
 Requisitos y comandos vigentes en [README](../README.md). En Linux, con Docker Compose y OpenSSL instalados:
 
 ```sh
-sh scripts/containers/configure.sh
+sh deploy/scripts/configure.sh
 docker compose --profile test build
 docker compose --profile test up -d --wait postgres mailpit
 docker compose run --rm ops migrate

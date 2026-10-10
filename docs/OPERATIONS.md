@@ -6,7 +6,7 @@ Los ensayos usan datos ficticios independientes; no modifican bases ni respaldos
 
 ```sh
 export LOGMASTER_CONFIG_DIR=/opt/logmaster/config
-sh scripts/containers/configure.sh
+sh deploy/scripts/configure.sh
 docker compose --profile test build
 docker compose --profile test up -d --wait postgres mailpit
 docker compose run --rm ops migrate

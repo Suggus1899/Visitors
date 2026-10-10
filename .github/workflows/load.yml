@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Prepare isolated secrets and record hardware
         run: |
-          sh scripts/containers/configure.sh
+          sh deploy/scripts/configure.sh
           mkdir -p .local/results
           { lscpu; free -m; df -h; docker version; } > .local/results/hardware.txt
       - name: Build and generate 100000 visitors and 1000000 visits

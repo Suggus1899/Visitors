@@ -13,13 +13,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - name: Generate private fictitious configuration
-        run: sh scripts/containers/configure.sh
+        run: sh deploy/scripts/configure.sh
       - name: Build, prepare, verify HTTPS and persistence
-        run: sh scripts/containers/smoke.sh
+        run: sh deploy/scripts/smoke.sh
       - name: Execute the daily and weekly timers ahead of schedule
-        run: sh scripts/containers/timers-ci.sh
+        run: sh deploy/scripts/timers-ci.sh
       - name: Adopt an independent legacy schema and bootstrap its first root
-        run: sh scripts/containers/adoption-ci.sh
+        run: sh deploy/scripts/adoption-ci.sh
       - uses: pnpm/action-setup@v4
         with: {version: 12.4.2}
       - uses: actions/setup-node@v4
@@ -52,7 +52,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - run: sh scripts/containers/configure.sh
+      - run: sh deploy/scripts/configure.sh
       - name: Small concurrent laboratory regression
         run: |
           docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load build api
