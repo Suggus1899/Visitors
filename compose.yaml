@@ -57,6 +57,11 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     logging: *logging
+    healthcheck:
+      test: [CMD-SHELL, 'wget --no-check-certificate -q -O /dev/null https://127.0.0.1:8443/api/v1/health']
+      interval: 5s
+      timeout: 3s
+      retries: 12
   mailpit:
     image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
     profiles: [test]

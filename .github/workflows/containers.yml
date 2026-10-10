@@ -19,6 +19,9 @@ jobs:
       - name: Sanitized service status
         if: always()
         run: docker compose --profile test ps
+      - name: Startup diagnostics
+        if: failure()
+        run: docker compose --profile test logs --tail 25 api web
       - name: Remove only this job's disposable volumes
         if: always()
         run: docker compose --profile test down --volumes
