@@ -8,6 +8,7 @@ graphify-out
 **/dist
 **/coverage*
 .env*
+**/.env*
 !**/.env.example
 backups
 Backups
@@ -16,6 +17,8 @@ logs
 ssl
 **/*.pem
 **/*.key
+**/*.p12
+**/*.pfx
 **/*.password
 **/*.dump*
 **/*.exe

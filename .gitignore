@@ -18,6 +18,7 @@ data/
 backups/
 Backups/
 *.dump
+*.dump.enc
 *.backup
 
 # Build outputs

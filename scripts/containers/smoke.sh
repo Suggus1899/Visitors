@@ -30,7 +30,10 @@ compose run --rm ops ops restore --archive "$archive" --staging-env /run/secrets
 compose run --rm ops ops migrate --apply --confirm-target postgres:5432/logmaster_pilot
 compose run --rm ops ops migrate --apply --confirm-target postgres:5432/logmaster_pilot
 version_after=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT max("tokenVersion") FROM "Users"')
-test "$version_after" -gt "$version_before"
+if ! test "$version_after" -gt "$version_before"; then
+  printf 'Session revocation assertion failed: before=%s after=%s\n' "$version_before" "$version_after" >&2
+  exit 1
+fi
 compose run --rm ops check
 compose up -d --wait api web
 systemd-analyze calendar '*-*-* 01:00:00 America/Caracas'
