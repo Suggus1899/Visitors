@@ -374,7 +374,7 @@ func (a *App) visitData(r *http.Request, v store.Visit, person store.Visitor, fo
 	return data, nil
 }
 func (a *App) statusVisits(w http.ResponseWriter, r *http.Request, status string) {
-	rows, e := a.Pool.Query(r.Context(), `SELECT * FROM "Visits" WHERE status::text=$1 AND check_out_time IS NULL ORDER BY check_in_time,id`, status)
+	rows, e := a.Pool.Query(r.Context(), `SELECT * FROM "Visits" WHERE status=$1::"enum_Visits_status" AND check_out_time IS NULL ORDER BY check_in_time,id`, status)
 	if e != nil {
 		a.serverError(w, e)
 		return

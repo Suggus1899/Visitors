@@ -34,7 +34,7 @@ test('HTTPS camera, authenticated photographs, consent and complete operational 
   await page.getByRole('button', { name: 'Siguiente' }).click();
   await page.getByLabel('Empresa', { exact: true }).fill('Laboratorio');
   await page.getByRole('button', { name: 'Siguiente' }).click();
-  await page.getByRole('button', { name: 'Siguiente' }).click();
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByLabel('Área o departamento').selectOption({ index: 1 });
   await page.getByLabel('Persona a visitar').fill('Responsable Ficticio');
   await page.getByLabel('Motivo de la visita', { exact: true }).selectOption({ index: 1 });

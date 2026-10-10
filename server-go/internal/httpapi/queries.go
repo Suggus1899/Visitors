@@ -73,7 +73,7 @@ func (a *App) visitFilter(r *http.Request) (sqlFilter, error) {
 		if status != "active" && status != "waiting" && status != "intermittent" && status != "completed" {
 			return f, fmt.Errorf("estado inválido")
 		}
-		f.add("v.status::text=?", status)
+		f.add("v.status=?::\"enum_Visits_status\"", status)
 	}
 	if company := q.Get("company"); company != "" {
 		if len(company) > 500 {
@@ -119,6 +119,9 @@ func (a *App) filteredVisits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	from := ` FROM "Visits" v LEFT JOIN "Visitors" p ON p.id=COALESCE(v.visitor_id,(SELECT legacy.id FROM "Visitors" legacy WHERE legacy.cedula=v.visitor_cedula))`
+	if r.URL.Query().Get("search") == "" && r.URL.Query().Get("company") == "" {
+		from = ` FROM "Visits" v`
+	}
 	var total int
 	if e = a.Pool.QueryRow(r.Context(), `SELECT count(*)`+from+f.where(), f.args...).Scan(&total); e != nil {
 		a.serverError(w, e)

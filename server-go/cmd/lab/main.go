@@ -267,6 +267,13 @@ func load(base string, warm, duration time.Duration) error {
 	var workers sync.WaitGroup
 	measured := time.Now().Add(warm)
 	end := measured.Add(duration)
+	record := func(kind string, started time.Time, err error) {
+		if !started.Before(measured) {
+			mu.Lock()
+			samples = append(samples, sample{kind, time.Since(started).Seconds(), err != nil})
+			mu.Unlock()
+		}
+	}
 	for worker := range 50 {
 		workers.Add(1)
 		go func(worker int) {
@@ -298,25 +305,27 @@ func load(base string, warm, duration time.Duration) error {
 					path = "/api/v1/visits?page=2&limit=20&status=completed&startDate=2026-09-01&endDate=2026-10-01"
 				}
 				start := time.Now()
-				e := call(client, "GET", base+path, session.Access, nil, nil)
+				var e error
+				if iteration%10 != 9 {
+					e = call(client, "GET", base+path, session.Access, nil, nil)
+					record(kind, start, e)
+				}
 				if iteration%10 == 9 {
-					kind = "operation"
 					cedula := fmt.Sprintf("V-%08d", 80000000+worker*100000+iteration)
 					body := map[string]any{"visitorCedula": cedula, "purpose": "Prueba de carga", "personToVisit": "Ficticio", "targetDepartment": "Laboratorio", "hostPerson": "Ficticio", "status": "waiting", "visitorData": map[string]string{"firstName": "Carga", "lastName": "Ficticio", "company": "Laboratorio"}, "consent": map[string]any{"accepted": true, "policyVersion": "1.0", "acceptedAt": time.Now().UTC().Format(time.RFC3339)}}
 					var visit struct {
 						ID int `json:"id"`
 					}
+					start = time.Now()
 					e = call(client, "POST", base+"/api/v1/visits/checkin", session.Access, body, &visit)
+					record("operation", start, e)
 					for _, transition := range []string{"admit", "intermittent-exit", "intermittent-reentry", "checkout"} {
 						if e == nil {
+							start = time.Now()
 							e = call(client, "POST", fmt.Sprintf("%s/api/v1/visits/%d/%s", base, visit.ID, transition), session.Access, nil, nil)
+							record("operation", start, e)
 						}
 					}
-				}
-				if !start.Before(measured) {
-					mu.Lock()
-					samples = append(samples, sample{kind, time.Since(start).Seconds(), e != nil})
-					mu.Unlock()
 				}
 				iteration++
 				time.Sleep(time.Second)
