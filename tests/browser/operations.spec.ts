@@ -80,7 +80,8 @@ test('Mailpit reset link works through HTTPS and cannot be reused', async ({ pag
   expect(await request.post('/api/v1/auth/reset-password', { data: { token, newPassword: changedPassword } }).then(response => response.status())).toBe(400);
 });
 
-test('roles, short search, SSE and proxy headers are enforced by the real API', async ({ request }) => {
+test('roles, short search, SSE and proxy headers are enforced by the real API', async ({ request, page }) => {
+  await page.goto('/#/login');
   for (const [username, key] of [['admin', 'SEED_ADMIN_PASSWORD'], ['auditor', 'SEED_AUDITOR_PASSWORD'], ['demo', 'SEED_DEMO_PASSWORD']]) {
     const login = await request.post('/api/v1/auth/login', { data: { username, password: fixture[key] }, headers: { 'X-Forwarded-For': '198.51.100.11', 'X-Real-IP': '198.51.100.11' } });
     const original = (await login.json()).data;
@@ -89,6 +90,17 @@ test('roles, short search, SSE and proxy headers are enforced by the real API', 
     expect(await request.post('/api/v1/auth/change-password', { headers: old, data: { currentPassword: fixture[key], newPassword: changedPassword, confirmPassword: changedPassword } }).then(response => response.status())).toBe(200);
     const next = await request.post('/api/v1/auth/login', { data: { username, password: changedPassword } }).then(response => response.json());
     const headers = { Authorization: `Bearer ${next.data.accessToken}` };
+    const frame = await page.evaluate(async token => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const stream = await fetch('/api/v1/events/visits', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
+        const reader = stream.body!.getReader();
+        const first = await reader.read(); await reader.cancel();
+        return new TextDecoder().decode(first.value);
+      } finally { clearTimeout(timer); controller.abort(); }
+    }, next.data.accessToken);
+    expect(frame).toContain('system:connected');
     expect(await request.get('/api/v1/visitors?search=ab', { headers }).then(response => response.status())).toBe(400);
     expect(await request.get('/api/v1/superadmin/users', { headers }).then(response => response.status())).toBe(403);
     if (username !== 'admin') expect(await request.post('/api/v1/visits/checkin', { headers, data: {} }).then(response => response.status())).toBe(403);
