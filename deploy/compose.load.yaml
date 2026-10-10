@@ -1,0 +1,21 @@
+services:
+  postgres:
+    environment: {POSTGRES_DB: logmaster_load_test, POSTGRES_USER: logmaster_load_test}
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U logmaster_load_test -d logmaster_load_test']
+  api:
+    environment: {LOGMASTER_LOAD_TEST: 'true'}
+  ops:
+    environment: {LOGMASTER_LOAD_TEST: 'true'}
+  lab:
+    image: logmaster-api:${LOGMASTER_TAG:-local}
+    profiles: [load]
+    entrypoint: [logmaster-lab]
+    command: [generate]
+    secrets: [app_env]
+    environment: {DOTENV_CONFIG_PATH: /run/secrets/app_env, LOGMASTER_LOAD_TEST: 'true'}
+    networks: [backend]
+    depends_on: {postgres: {condition: service_healthy}}
+    logging: {driver: json-file, options: {max-size: 10m, max-file: '3'}}
+secrets:
+  app_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/load.env'}

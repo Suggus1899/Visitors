@@ -50,6 +50,8 @@ SEED_AUDITOR_PASSWORD=Fixture!$(openssl rand -hex 12)
 SEED_DEMO_PASSWORD=Fixture!$(openssl rand -hex 12)
 EOF
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' -keyout "$directory/tls.key" -out "$directory/tls.pem" >/dev/null 2>&1
+sed -e 's/DB_NAME=logmaster_pilot/DB_NAME=logmaster_load_test/' -e 's/DB_USER=logmaster_pilot/DB_USER=logmaster_load_test/' -e 's/NODE_ENV=development/NODE_ENV=test/' "$directory/app.env" > "$directory/load.env"
+printf 'LAB_PASSWORD=Fixture!%s\n' "$(openssl rand -hex 12)" >> "$directory/load.env"
 # Compose file secrets are bind-mounted; the dedicated container users need read access.
 chmod 644 "$directory"/*
 echo 'Fictitious configuration created; the private parent directory remains mode 700.'

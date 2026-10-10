@@ -1,0 +1,38 @@
+name: Full laboratory load
+on: {workflow_dispatch: {}}
+permissions: {contents: read}
+jobs:
+  laboratory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated secrets and record hardware
+        run: |
+          sh scripts/containers/configure.sh
+          mkdir -p .local/results
+          { lscpu; free -m; df -h; docker version; } > .local/results/hardware.txt
+      - name: Build and generate 100000 visitors and 1000000 visits
+        run: |
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load build api
+          docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait postgres
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab generate | tee .local/results/generation.json
+          docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait api
+      - name: Two minutes warmup and fifteen minutes of mixed load
+        run: |
+          (while true; do date -u; docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}} {{.BlockIO}}'; sleep 15; done) > .local/results/resources.txt &
+          monitor=$!
+          trap 'kill "$monitor" || true' EXIT
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab load --warmup 2m --duration 15m | tee .local/results/load.json
+      - name: Verify large backup and isolated restoration
+        run: |
+          docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait postgres-restore
+          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops backup-daily | tee .local/results/backup.json
+          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops rehearse
+          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops backup-status | tee .local/results/status.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: fictitious-load-results, path: .local/results}
+      - name: Dispose only this runner's laboratory volumes
+        if: always()
+        run: docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load --profile ops down -v

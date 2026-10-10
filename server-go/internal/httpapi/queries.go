@@ -118,7 +118,7 @@ func (a *App) filteredVisits(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "VALIDATION_ERROR", e.Error())
 		return
 	}
-	from := ` FROM "Visits" v LEFT JOIN "Visitors" p ON p.id=v.visitor_id OR (v.visitor_id IS NULL AND p.cedula=v.visitor_cedula)`
+	from := ` FROM "Visits" v LEFT JOIN "Visitors" p ON p.id=COALESCE(v.visitor_id,(SELECT legacy.id FROM "Visitors" legacy WHERE legacy.cedula=v.visitor_cedula))`
 	var total int
 	if e = a.Pool.QueryRow(r.Context(), `SELECT count(*)`+from+f.where(), f.args...).Scan(&total); e != nil {
 		a.serverError(w, e)
