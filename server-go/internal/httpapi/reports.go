@@ -18,7 +18,9 @@ var dayNames = []string{"Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "V
 var monthNames = []string{"Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"}
 
 type reportVisit struct {
-	VisitorCedula string `db:"visitor_cedula"`
+	Count         int     `db:"count"`
+	Minutes       float64 `db:"minutes"`
+	VisitorCedula string  `db:"visitor_cedula"`
 	Purpose       string
 	CheckInTime   pgtype.Timestamptz `db:"check_in_time"`
 	CheckOutTime  pgtype.Timestamptz `db:"check_out_time"`
@@ -26,7 +28,7 @@ type reportVisit struct {
 }
 
 func (a *App) reportVisits(r *http.Request, start, end time.Time) ([]reportVisit, error) {
-	rows, e := a.Pool.Query(r.Context(), `SELECT visitor_cedula,purpose,check_in_time,check_out_time,status::text FROM "Visits" WHERE check_in_time>=$1 AND check_in_time<$2 ORDER BY check_in_time`, start, end)
+	rows, e := a.Pool.Query(r.Context(), `SELECT ''::text AS visitor_cedula,purpose,min(check_in_time) AS check_in_time,NULL::timestamptz AS check_out_time,status::text,count(*)::int AS count,COALESCE(sum(EXTRACT(epoch FROM(check_out_time-check_in_time))/60) FILTER(WHERE status='completed'),0)::float8 AS minutes FROM "Visits" WHERE check_in_time>=$1 AND check_in_time<$2 GROUP BY (check_in_time AT TIME ZONE 'America/Caracas')::date,purpose,status ORDER BY min(check_in_time)`, start, end)
 	if e != nil {
 		return nil, e
 	}
@@ -89,36 +91,41 @@ func aggregateReport(visits []reportVisit, start, end time.Time, monthly bool) m
 		dayReasons[i] = map[string]int{}
 	}
 	for _, v := range visits {
+		count := v.Count
+		if count == 0 {
+			count = 1
+		}
 		if v.Status == "completed" {
-			completed++
+			completed += count
+			minutes += v.Minutes
 			if v.CheckInTime.Valid && v.CheckOutTime.Valid {
 				minutes += v.CheckOutTime.Time.Sub(v.CheckInTime.Time).Minutes()
 			}
 		}
 		if v.Status == "active" {
-			active++
+			active += count
 		}
 		unique[v.VisitorCedula] = true
 		purpose := v.Purpose
 		if purpose == "" {
 			purpose = "Sin especificar"
 		}
-		reasons[purpose]++
+		reasons[purpose] += count
 		d := v.CheckInTime.Time.In(caracas)
 		weekday := int(d.Weekday())
-		dayCounts[weekday]++
-		dayReasons[weekday][purpose]++
-		days[d.Format("2006-01-02")]++
+		dayCounts[weekday] += count
+		dayReasons[weekday][purpose] += count
+		days[d.Format("2006-01-02")] += count
 		weekStart := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, caracas).AddDate(0, 0, -weekday)
 		week := weekStart.Format("2006-01-02")
 		if !monthly {
 			week = weekStart.UTC().Format(time.RFC3339)
 		}
-		weeks[week]++
+		weeks[week] += count
 		if weekReasons[week] == nil {
 			weekReasons[week] = map[string]int{}
 		}
-		weekReasons[week][purpose]++
+		weekReasons[week][purpose] += count
 	}
 	weekdays := []map[string]any{}
 	for i, count := range dayCounts {
@@ -151,7 +158,7 @@ func aggregateReport(visits []reportVisit, start, end time.Time, monthly bool) m
 	for _, key := range dailyKeys {
 		daily = append(daily, map[string]any{"date": key, "count": days[key]})
 	}
-	n := len(visits)
+	n := reportCount(visits)
 	divisor := math.Max(1, math.Ceil(end.Sub(start).Hours()/24))
 	summary := map[string]any{"totalVisits": n, "completedVisits": completed, "activeVisits": active, "avgVisitsPerDay": math.Round(float64(n)/divisor*10) / 10}
 	period := map[string]any{"start": start.UTC().Format(time.RFC3339Nano), "end": end.UTC().Format(time.RFC3339Nano)}
@@ -228,7 +235,14 @@ func (a *App) monthlyReport(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, e)
 		return
 	}
-	success(w, aggregateReport(visits, start, end, true))
+	result := aggregateReport(visits, start, end, true)
+	var unique int
+	if e = a.Pool.QueryRow(r.Context(), `SELECT count(DISTINCT visitor_cedula) FROM "Visits" WHERE check_in_time>=$1 AND check_in_time<$2`, start, end).Scan(&unique); e != nil {
+		a.serverError(w, e)
+		return
+	}
+	result["summary"].(map[string]any)["uniqueVisitors"] = unique
+	success(w, result)
 }
 func (a *App) comparison(w http.ResponseWriter, r *http.Request) {
 	start, end, e := monthRange(r.URL.Query())
@@ -247,20 +261,36 @@ func (a *App) comparison(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	growth := float64(0)
-	if len(last) > 0 {
-		growth = float64(len(current)-len(last)) * 100 / float64(len(last))
-	} else if len(current) > 0 {
+	if reportCount(last) > 0 {
+		growth = float64(reportCount(current)-reportCount(last)) * 100 / float64(reportCount(last))
+	} else if reportCount(current) > 0 {
 		growth = 100
 	}
 	reasons := map[string]any{}
 	for key, visits := range map[string][]reportVisit{"current": current, "last": last} {
 		counts := map[string]int{}
 		for _, v := range visits {
-			counts[v.Purpose]++
+			count := v.Count
+			if count == 0 {
+				count = 1
+			}
+			counts[v.Purpose] += count
 		}
 		reasons[key] = reasonGroups(counts, 0, 0)
 	}
-	success(w, map[string]any{"summary": map[string]any{"currentMonth": len(current), "lastMonth": len(last), "growth": growth}, "reasons": reasons})
+	success(w, map[string]any{"summary": map[string]any{"currentMonth": reportCount(current), "lastMonth": reportCount(last), "growth": growth}, "reasons": reasons})
+}
+
+func reportCount(visits []reportVisit) int {
+	count := 0
+	for _, visit := range visits {
+		if visit.Count == 0 {
+			count++
+		} else {
+			count += visit.Count
+		}
+	}
+	return count
 }
 func (a *App) alerts(w http.ResponseWriter, r *http.Request) {
 	threshold := 8

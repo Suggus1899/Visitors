@@ -77,6 +77,7 @@ func TestBackupRestoreIntegration(t *testing.T) {
 	defer restoredApp.Pool.Close()
 	defer restoredApp.StopEvents()
 	restoredApp.Config.BackupPath = a.Config.BackupPath
+	token = loginFixture(t, restoredApp.Router(), name, pw)["accessToken"].(string)
 	s, r = request(t, restoredApp.Router(), "POST", "/api/v1/backups/"+file+"/restore", string(body), token)
 	if s != 200 {
 		t.Fatal("real restore route", s, r)

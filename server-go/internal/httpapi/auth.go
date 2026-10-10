@@ -126,6 +126,11 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "VALIDATION_ERROR", "Usuario y contraseña requeridos")
 		return
 	}
+	if !a.allowRequest("account:"+a.ClientIP(r)+":"+body.Username, 20, 15*time.Minute, time.Now()) {
+		w.Header().Set("Retry-After", "900")
+		failure(w, 429, "RATE_LIMITED", "Demasiados intentos para esta cuenta")
+		return
+	}
 	tx, e := a.Pool.Begin(r.Context())
 	if e != nil {
 		a.serverError(w, e)

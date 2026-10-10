@@ -52,7 +52,10 @@ func TestRoutesMatchBaseline(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(actual) != len(routes) {
+	if !actual["GET /api/v1/visits/calendar"] {
+		t.Fatal("calendar route missing")
+	}
+	if len(actual) != len(routes)+1 {
 		t.Fatalf("route count %d instead of %d", len(actual), len(routes))
 	}
 	for _, route := range routes {

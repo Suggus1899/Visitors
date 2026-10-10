@@ -345,6 +345,10 @@ func (a *App) subjectCancel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	auditRequest := r.Clone(r.Context())
+	if e = a.indexVisitor(r.Context(), tx, v.ID); e != nil {
+		a.serverError(w, e)
+		return
+	}
 	auditURL := *r.URL
 	auditRequest.URL = &auditURL
 	auditRequest.URL.Path = "/api/v1/privacy/subjects/" + reference

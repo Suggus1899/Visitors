@@ -33,6 +33,9 @@ func TestMigrationIntegration(t *testing.T) {
 		if e := Migrate(ctx, database); e != nil {
 			t.Fatal(e)
 		}
+		if e := RebuildSearch(ctx, database, c.EncryptionKey, false); e != nil {
+			t.Fatal(e)
+		}
 		if e := Check(ctx, database); e != nil {
 			t.Fatal(e)
 		}

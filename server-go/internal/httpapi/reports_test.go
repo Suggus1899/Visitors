@@ -35,6 +35,11 @@ func TestQueriesAndReportsIntegration(t *testing.T) {
 	a, h := integrationApp(t)
 	_, name, pw := fixtureUser(t, a, "operador", false)
 	token := loginFixture(t, h, name, pw)["accessToken"].(string)
+	for _, path := range []string{"/api/v1/visits?search=ab", "/api/v1/visitors?search=á"} {
+		if s, r := request(t, h, "GET", path, "", token); s != 400 || r["error"].(map[string]any)["code"] != "SEARCH_TOO_SHORT" {
+			t.Fatal(path, s, r)
+		}
+	}
 	ids := []int32{createVisit(t, a, h, "V-98989201", "active", token), createVisit(t, a, h, "V-98989202", "active", token)}
 	for i, id := range ids {
 		if s, _ := request(t, h, "POST", fmt.Sprintf("/api/v1/visits/%d/checkout", id), "", token); s != 200 {

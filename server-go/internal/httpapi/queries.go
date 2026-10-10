@@ -2,7 +2,9 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	index "github.com/Suggus1899/Visitors/server-go/internal/search"
 	"github.com/Suggus1899/Visitors/server-go/internal/security"
 	"github.com/Suggus1899/Visitors/server-go/internal/store"
 	"github.com/jackc/pgx/v5"
@@ -14,25 +16,42 @@ const profileColumns = `id,"anonymizedAt",cedula,encrypted_cedula,first_name,las
 
 // Encrypted names are searched by streaming profiles, without loading photographs.
 func (a *App) matchingVisitors(r *http.Request, search string) ([]int32, error) {
-	rows, e := a.Pool.Query(r.Context(), `SELECT `+profileColumns+` FROM "Visitors" WHERE "anonymizedAt" IS NULL`)
+	if e := validateSearch(search); e != nil {
+		return nil, e
+	}
+	tokens := index.Tokens(a.Config.EncryptionKey, search)
+	rows, e := a.Pool.Query(r.Context(), `SELECT p.id,p.first_name,p.last_name,p.encrypted_cedula FROM "Visitors" p JOIN (SELECT visitor_id FROM "VisitorSearchTokens" WHERE token=ANY($1::bytea[]) GROUP BY visitor_id HAVING count(*)=$2) matches ON matches.visitor_id=p.id WHERE p."anonymizedAt" IS NULL`, tokens, len(tokens))
 	if e != nil {
 		return nil, e
 	}
 	defer rows.Close()
 	ids := []int32{}
-	needle := strings.ToLower(search)
+	needle := index.Normalize(search)
 	for rows.Next() {
-		v, e := pgx.RowToStructByName[store.Visitor](rows)
+		var id int32
+		var first, last string
+		var cedula *string
+		if e = rows.Scan(&id, &first, &last, &cedula); e != nil {
+			return nil, e
+		}
+		first, e = security.Decrypt(a.Config.EncryptionKey, first)
 		if e != nil {
 			return nil, e
 		}
-		profile, e := a.visitorDTO(v)
+		last, e = security.Decrypt(a.Config.EncryptionKey, last)
 		if e != nil {
 			return nil, e
 		}
-		haystack := strings.ToLower(fmt.Sprintf("%v %v %v", profile["firstName"], profile["lastName"], profile["cedula"]))
+		plain := ""
+		if cedula != nil {
+			plain, e = security.Decrypt(a.Config.EncryptionKey, *cedula)
+			if e != nil {
+				return nil, e
+			}
+		}
+		haystack := strings.ToLower(first + " " + last + " " + plain)
 		if strings.Contains(haystack, needle) {
-			ids = append(ids, v.ID)
+			ids = append(ids, id)
 		}
 	}
 	return ids, rows.Err()
@@ -92,6 +111,10 @@ func (a *App) filteredVisits(w http.ResponseWriter, r *http.Request) {
 	}
 	f, e := a.visitFilter(r)
 	if e != nil {
+		if errors.Is(e, errShortSearch) {
+			failure(w, 400, "SEARCH_TOO_SHORT", "Escribe al menos tres caracteres")
+			return
+		}
 		failure(w, 400, "VALIDATION_ERROR", e.Error())
 		return
 	}

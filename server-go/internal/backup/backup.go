@@ -8,8 +8,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/Suggus1899/Visitors/server-go/internal/config"
 	"github.com/Suggus1899/Visitors/server-go/internal/security"
+	"github.com/jackc/pgx/v5"
 	"io"
 	"os"
 	"os/exec"
@@ -260,8 +262,46 @@ func (s Service) Prepare(name, password string) ([]byte, error) {
 	return data, nil
 }
 func Restore(ctx context.Context, target config.Config, data []byte) error {
-	if !target.LocalTest() || target.Database != "logmaster_restore_test" {
+	return RestoreAs(ctx, target, data, "", false)
+}
+
+// Operational callers must confirm the destination and stop the application before calling.
+func RestoreAs(ctx context.Context, target config.Config, data []byte, root string, operational bool) error {
+	if !operational && (!target.LocalTest() || target.Database != "logmaster_restore_test") {
 		return ErrTarget
+	}
+	if operational && root == "" && target.Database != "logmaster_restore_test" {
+		return errors.New("root actor required")
+	}
+	connection, e := target.DBConfig()
+	if e != nil {
+		return e
+	}
+	database, e := pgx.ConnectConfig(ctx, connection)
+	if e != nil {
+		return e
+	}
+	defer database.Close(ctx)
+	var exists bool
+	if e = database.QueryRow(ctx, `SELECT to_regclass('public."Users"') IS NOT NULL`).Scan(&exists); e != nil {
+		return e
+	}
+	var highest int64
+	if exists {
+		if e = database.QueryRow(ctx, `SELECT COALESCE(max("tokenVersion"),0) FROM "Users"`).Scan(&highest); e != nil {
+			return e
+		}
+		if root != "" {
+			var valid bool
+			if e = database.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "Users" WHERE username=$1 AND (role='root' OR ($2=false AND role='admin')))`, root, operational).Scan(&valid); e != nil || !valid {
+				return errors.New("root actor absent before restore")
+			}
+		}
+	} else if root != "" {
+		return errors.New("root actor absent before restore")
+	}
+	if highest >= 2147483646 {
+		return errors.New("session version exhausted")
 	}
 	if len(data) < 5 || len(data) > maxSize || string(data[:5]) != "PGDMP" {
 		return errors.New("invalid PostgreSQL archive")
@@ -293,9 +333,27 @@ func Restore(ctx context.Context, target config.Config, data []byte) error {
 		prefix += "CREATE SCHEMA public;\n"
 	}
 	cmd := command(ctx, target, "psql", "-X", "-h", target.Host, "-p", target.Port, "-U", target.User, "-d", target.Database, "--single-transaction", "--no-password", "--set=ON_ERROR_STOP=1")
-	cmd.Stdin = io.MultiReader(strings.NewReader(prefix), file)
+	// Finalization belongs to the same transaction as the restored schema and data.
+	allowedRole := "role='root'"
+	if !operational {
+		allowedRole = "role IN ('root','admin')"
+	}
+	finalize := fmt.Sprintf(`
+DO $restore_finalize$
+DECLARE actor_id integer; actor_name text; actor_role text;
+BEGIN
+ SELECT id,username,role INTO actor_id,actor_name,actor_role FROM "Users" WHERE %s AND (%s='' OR username=%s) ORDER BY id LIMIT 1;
+ IF actor_id IS NULL THEN RAISE EXCEPTION 'root actor absent after restore'; END IF;
+ IF EXISTS(SELECT 1 FROM "Users" WHERE "tokenVersion">=2147483646) THEN RAISE EXCEPTION 'session version exhausted'; END IF;
+ UPDATE "Users" SET "tokenVersion"=GREATEST("tokenVersion",%d)+1,"updatedAt"=now();
+ INSERT INTO "ActivityLogs"("userId",username,action,entity,"entityId",role,status,"createdAt") VALUES(actor_id,actor_name,'BACKUP_RESTORE_COMPLETED','Backup','maintenance',actor_role,'success',now());
+END $restore_finalize$;
+`, allowedRole, sqlLiteral(root), sqlLiteral(root), highest)
+	cmd.Stdin = io.MultiReader(strings.NewReader(prefix), file, strings.NewReader(finalize))
 	if e = cmd.Run(); e != nil {
 		return errors.New("transactional restore failed")
 	}
 	return nil
 }
+
+func sqlLiteral(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }

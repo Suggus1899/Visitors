@@ -68,6 +68,7 @@ func (a *App) visitError(w http.ResponseWriter, e error) {
 	a.serverError(w, e)
 }
 func (a *App) mountVisits(router chi.Router) {
+	router.With(a.authenticate).Get("/api/v1/visits/calendar", a.calendar)
 	router.Group(func(r chi.Router) {
 		r.Use(a.authenticate)
 		r.Get("/api/v1/visits", a.filteredVisits)
@@ -177,6 +178,10 @@ func (a *App) checkIn(w http.ResponseWriter, r *http.Request) {
 	}
 	if v.IsBlocked.Bool {
 		failure(w, 403, "VISITOR_BLOCKED", "El visitante está bloqueado")
+		return
+	}
+	if e = a.indexVisitor(r.Context(), tx, v.ID); e != nil {
+		a.serverError(w, e)
 		return
 	}
 	now := time.Now().UTC()

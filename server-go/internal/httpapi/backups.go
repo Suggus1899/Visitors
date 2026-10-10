@@ -84,32 +84,8 @@ func (a *App) restoreBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
-	var highestVersion int64
-	if e = a.Pool.QueryRow(ctx, `SELECT COALESCE(max("tokenVersion"),0) FROM "Users"`).Scan(&highestVersion); e != nil {
-		a.serverError(w, e)
-		return
-	}
-	if highestVersion >= 2147483646 {
-		failure(w, 409, "SESSION_VERSION_EXHAUSTED", "No se puede invalidar las sesiones de forma segura")
-		return
-	}
-	if e = backup.Restore(ctx, a.Config, data); e != nil {
-		a.serverError(w, e)
-		return
-	}
-	tx, e := a.Pool.Begin(ctx)
-	if e != nil {
-		a.serverError(w, e)
-		return
-	}
-	defer tx.Rollback(ctx)
-	if _, e = tx.Exec(ctx, `UPDATE "Users" SET "tokenVersion"=GREATEST("tokenVersion",$1)+1,"updatedAt"=now()`, highestVersion); e == nil {
-		e = a.audit(ctx, a.Queries.WithTx(tx), r, actor(r), "BACKUP_RESTORE_COMPLETED", "Backup", name)
-	}
-	if e == nil {
-		e = tx.Commit(ctx)
-	}
-	if e != nil {
+	root := actor(r).Username
+	if e = backup.RestoreAs(ctx, a.Config, data, root, false); e != nil {
 		a.serverError(w, e)
 		return
 	}

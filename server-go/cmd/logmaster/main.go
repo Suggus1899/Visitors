@@ -23,6 +23,9 @@ func main() {
 	}
 }
 func run() error {
+	if len(os.Args) > 1 && os.Args[1] == "ops" {
+		return operations(os.Args[2:])
+	}
 	if len(os.Args) != 2 {
 		return errors.New("usage: logmaster check|adopt|migrate|migrate-test|seed|backup|backup-monitor|serve")
 	}
@@ -35,7 +38,7 @@ func run() error {
 		return e
 	}
 	defer database.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	if e = database.PingContext(ctx); e != nil {
 		return errors.New("database connection failed")
@@ -89,6 +92,9 @@ func run() error {
 		e = db.Migrate(ctx, database)
 		if e == nil {
 			e = db.EncryptHistory(ctx, database, c.EncryptionKey)
+		}
+		if e == nil {
+			e = db.RebuildSearch(ctx, database, c.EncryptionKey, false)
 		}
 	case "seed":
 		if e = db.Check(ctx, database); e != nil {

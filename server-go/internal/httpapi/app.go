@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Suggus1899/Visitors/server-go/internal/config"
+	"github.com/Suggus1899/Visitors/server-go/internal/search"
 	"github.com/Suggus1899/Visitors/server-go/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -98,6 +99,11 @@ func New(ctx context.Context, c config.Config) (*App, error) {
 		pool.Close()
 		return nil, errors.New("database connection failed")
 	}
+	var fingerprint string
+	if e = pool.QueryRow(ctx, `SELECT fingerprint FROM "SearchIndexState" WHERE id=true AND ready=true`).Scan(&fingerprint); e != nil || fingerprint != search.Fingerprint(c.EncryptionKey) {
+		pool.Close()
+		return nil, errors.New("protected search index not prepared for this key")
+	}
 	a := &App{Config: c, Pool: pool, Queries: store.New(pool), limits: map[string]window{}, events: map[chan visitEvent]struct{}{}, stopped: make(chan struct{})}
 	for _, entry := range strings.Split(os.Getenv("TRUSTED_PROXY_CIDRS"), ",") {
 		if strings.TrimSpace(entry) == "" {
@@ -168,31 +174,13 @@ func (a *App) limit(next http.Handler) http.Handler {
 		}
 		bucket := "api"
 		if strings.HasPrefix(r.URL.Path, "/api/v1/auth/") && r.URL.Path != "/api/v1/auth/refresh" {
-			max = 20
+			max = 100
 			ttl = 15 * time.Minute
 			bucket = "auth"
 		}
 		key := bucket + ":" + a.ClientIP(r)
 		now := time.Now()
-		a.mu.Lock()
-		for k, v := range a.limits {
-			if now.After(v.until) {
-				delete(a.limits, k)
-			}
-		}
-		state := a.limits[key]
-		if state.until.IsZero() {
-			state.until = now.Add(ttl)
-		}
-		allowed := state.count < max
-		if len(a.limits) >= 10000 && state.count == 0 {
-			allowed = false
-		}
-		state.count++
-		if allowed {
-			a.limits[key] = state
-		}
-		a.mu.Unlock()
+		allowed := a.allowRequest(key, max, ttl, now)
 		if !allowed {
 			w.Header().Set("Retry-After", "60")
 			failure(w, 429, "RATE_LIMITED", "Demasiadas solicitudes")
@@ -200,6 +188,29 @@ func (a *App) limit(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (a *App) allowRequest(key string, max int, ttl time.Duration, now time.Time) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for k, v := range a.limits {
+		if now.After(v.until) {
+			delete(a.limits, k)
+		}
+	}
+	if a.limits == nil {
+		a.limits = map[string]window{}
+	}
+	state := a.limits[key]
+	if state.until.IsZero() {
+		state.until = now.Add(ttl)
+	}
+	if state.count >= max || len(a.limits) >= 10000 && state.count == 0 {
+		return false
+	}
+	state.count++
+	a.limits[key] = state
+	return true
 }
 
 func (a *App) headers(next http.Handler) http.Handler {

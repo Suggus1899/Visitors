@@ -11,6 +11,8 @@ import (
 	"github.com/Suggus1899/Visitors/server-go/internal/config"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"strconv"
+	"strings"
 )
 
 //go:embed migrations/*.sql
@@ -35,10 +37,26 @@ func Check(ctx context.Context, db *sql.DB) error {
 	if e := db.QueryRowContext(ctx, `SELECT version_id FROM goose_db_version WHERE is_applied ORDER BY id DESC LIMIT 1`).Scan(&version); e != nil {
 		return errors.New("Go migration baseline missing; run explicit adopt or migrate command")
 	}
-	if version != 2 {
+	if version != LatestVersion() {
 		return fmt.Errorf("unexpected Go schema version %d", version)
 	}
+	var ready bool
+	if e := db.QueryRowContext(ctx, `SELECT ready FROM "SearchIndexState" WHERE id=true`).Scan(&ready); e != nil || !ready {
+		return errors.New("protected search index preparation required")
+	}
 	return nil
+}
+
+func LatestVersion() int {
+	files, _ := migrations.ReadDir("migrations")
+	latest := 0
+	for _, file := range files {
+		version, _ := strconv.Atoi(strings.SplitN(file.Name(), "_", 2)[0])
+		if version > latest {
+			latest = version
+		}
+	}
+	return latest
 }
 
 // Adopt validates the legacy schema before recording a baseline; it does not run legacy DDL.

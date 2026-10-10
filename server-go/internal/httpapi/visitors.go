@@ -170,6 +170,10 @@ func (a *App) listVisitors(w http.ResponseWriter, r *http.Request) {
 	}
 	company := r.URL.Query().Get("company")
 	search := r.URL.Query().Get("search")
+	if e := validateSearch(search); e != nil {
+		failure(w, 400, "SEARCH_TOO_SHORT", "Escribe al menos tres caracteres")
+		return
+	}
 	if len(company) > 500 || len(search) > 500 {
 		failure(w, 400, "VALIDATION_ERROR", "Filtro demasiado largo")
 		return
@@ -431,6 +435,10 @@ func (a *App) editVisitor(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, e)
 			return
 		}
+	}
+	if e = a.indexVisitor(r.Context(), tx, v.ID); e != nil {
+		a.serverError(w, e)
+		return
 	}
 	if e = a.audit(r.Context(), q, r, actor(r), "VISITOR_UPDATE", "Visitor", fmt.Sprint(v.ID)); e == nil {
 		e = tx.Commit(r.Context())
