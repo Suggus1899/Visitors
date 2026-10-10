@@ -40,7 +40,7 @@ describe('authenticated photographs', () => {
         const source = API_URL + '/visitors/V-12345678/photo';
         const view = render(<AuthenticatedImage src={source} alt="Foto" />);
         await waitFor(() => expect(screen.getByAltText('Foto')).toHaveAttribute('src', 'blob:private'));
-        expect(api.get).toHaveBeenCalledWith(source, expect.objectContaining({ responseType: 'blob', signal: expect.any(AbortSignal) }));
+        expect(api.get).toHaveBeenCalledWith('/visitors/V-12345678/photo', expect.objectContaining({ responseType: 'blob', signal: expect.any(AbortSignal) }));
         view.rerender(<AuthenticatedImage src={source + '?changed=1'} alt="Foto" />);
         await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
         expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);

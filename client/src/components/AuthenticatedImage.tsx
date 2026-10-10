@@ -10,7 +10,7 @@ export function AuthenticatedImage({ src, ...props }: ImgHTMLAttributes<HTMLImag
         if (!src || localImage || !src.startsWith(API_URL + '/visitors/')) return;
         const controller = new AbortController();
         let objectUrl: string | undefined;
-        api.get<Blob>(src, { responseType: 'blob', signal: controller.signal }).then(response => {
+        api.get<Blob>(src.slice(API_URL.length), { responseType: 'blob', signal: controller.signal }).then(response => {
             if (controller.signal.aborted) return;
             objectUrl = URL.createObjectURL(response.data);
             setImage({ source: src, url: objectUrl });
