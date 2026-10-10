@@ -10,7 +10,7 @@ x-api: &api
     - passwords:/var/lib/logmaster/passwords
   networks: [backend]
   read_only: true
-  tmpfs: [/tmp:uid=10001,gid=10001,mode=1700]
+  tmpfs: ['/tmp:uid=10001,gid=10001,mode=1700']
   cap_drop: [ALL]
   security_opt: [no-new-privileges:true]
   logging: &logging
@@ -53,7 +53,7 @@ services:
     depends_on: {api: {condition: service_healthy}}
     restart: unless-stopped
     read_only: true
-    tmpfs: [/tmp:uid=101,gid=101,mode=1700]
+    tmpfs: ['/tmp:uid=101,gid=101,mode=1700']
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     logging: *logging
