@@ -6,7 +6,7 @@ test.beforeAll(() => { fixture = Object.fromEntries(readFileSync('.local/contain
 const changedPassword = 'Ficticio!Changed123';
 
 async function signIn(page: Page, username: string, password: string) {
-  await page.goto('/#/login');
+  await page.goto('/login');
   await page.getByLabel('Usuario', { exact: true }).fill(username);
   await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'INGRESAR', exact: true }).click();
@@ -23,7 +23,7 @@ async function signIn(page: Page, username: string, password: string) {
   await expect(page.getByLabel('Cédula', { exact: true })).toBeVisible();
 }
 
-test('HTTPS camera, authenticated photographs, consent and complete operational cycle', async ({ page }) => {
+test('HTTPS camera, authenticated photographs, consent and complete operational cycle', async ({ page, request }) => {
   await signIn(page, 'operador', fixture.SEED_OPERADOR_PASSWORD);
   expect(await page.evaluate(() => window.isSecureContext)).toBe(true);
   const lookup = page.waitForResponse(response => response.url().includes('/visitors/V-45678901'));
@@ -51,7 +51,7 @@ test('HTTPS camera, authenticated photographs, consent and complete operational 
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await expect(page.getByText('Prueba Navegador Ficticio', { exact: true })).toBeVisible();
   await expect.poll(() => page.locator('img[src^="blob:"]').count()).toBeGreaterThan(0);
-  expect(await page.request.get('/api/v1/visitors/V-45678901/photo').then(response => response.status())).toBe(401);
+  expect(await request.get('/api/v1/visitors/V-45678901/photo').then(response => response.status())).toBe(401);
   await page.getByRole('button', { name: 'ADMITIR ENTRADA' }).click();
   await page.getByRole('button', { name: /Activas/ }).first().click();
   await page.getByTitle('Salida temporal').click();
@@ -66,7 +66,7 @@ test('HTTPS camera, authenticated photographs, consent and complete operational 
 });
 
 test('Mailpit reset link works through HTTPS and cannot be reused', async ({ page, request }) => {
-  await page.goto('/#/forgot-password');
+  await page.goto('/forgot-password');
   await page.getByLabel('Nombre de usuario').fill('root');
   await page.getByRole('button', { name: /ENVIAR/i }).click();
   await expect(page.getByText(/Si la cuenta tiene correo registrado/)).toBeVisible();
@@ -76,7 +76,7 @@ test('Mailpit reset link works through HTTPS and cannot be reused', async ({ pag
     messageId = messages.messages?.[0]?.ID || ''; return Boolean(messageId);
   }).toBe(true);
   const message = await request.get(`http://127.0.0.1:8025/api/v1/message/${messageId}`).then(response => response.json());
-  const link = String(message.Text).match(/https:\/\/localhost:8443\/#\/reset-password\?token=[a-f0-9]+/)?.[0];
+  const link = String(message.Text).match(/https:\/\/localhost:8443\/reset-password\?token=[a-f0-9]+/)?.[0];
   expect(Boolean(link)).toBe(true);
   await page.goto(link!);
   await page.getByLabel('Nueva contraseña', { exact: true }).fill(changedPassword);
@@ -84,48 +84,64 @@ test('Mailpit reset link works through HTTPS and cannot be reused', async ({ pag
   await page.getByRole('button', { name: 'CAMBIAR CONTRASEÑA' }).click();
   expect((await reset).status()).toBe(200);
   const token = new URLSearchParams(link!.split('?')[1]).get('token');
-  expect(await request.post('/api/v1/auth/reset-password', { data: { token, newPassword: changedPassword } }).then(response => response.status())).toBe(400);
+  const api = await request.newContext({ baseURL: 'http://127.0.0.1:3000' });
+  expect(await api.post('/api/v1/auth/reset-password', { data: { token, newPassword: changedPassword } }).then(response => response.status())).toBe(400);
+  await api.dispose();
 });
 
 test('roles, short search, SSE and proxy headers are enforced by the real API', async ({ request, page }) => {
-  await page.goto('/#/login');
+  await page.goto('/login');
+  const api = await request.newContext({ baseURL: 'http://127.0.0.1:3000' });
   for (const [username, key] of [['admin', 'SEED_ADMIN_PASSWORD'], ['auditor', 'SEED_AUDITOR_PASSWORD'], ['demo', 'SEED_DEMO_PASSWORD']]) {
-    const login = await request.post('/api/v1/auth/login', { data: { username, password: fixture[key] }, headers: { 'X-Forwarded-For': '198.51.100.11', 'X-Real-IP': '198.51.100.11' } });
+    const login = await api.post('/api/v1/auth/login', { data: { username, password: fixture[key] }, headers: { 'X-Forwarded-For': '198.51.100.11', 'X-Real-IP': '198.51.100.11' } });
     const original = (await login.json()).data;
     const old = { Authorization: `Bearer ${original.accessToken}` };
-    expect(await request.get('/api/v1/events/visits', { headers: old }).then(response => response.status())).toBe(403);
-    expect(await request.post('/api/v1/auth/change-password', { headers: old, data: { currentPassword: fixture[key], newPassword: changedPassword, confirmPassword: changedPassword } }).then(response => response.status())).toBe(200);
-    const next = await request.post('/api/v1/auth/login', { data: { username, password: changedPassword } }).then(response => response.json());
+    expect(await api.get('/api/v1/events/visits', { headers: old }).then(response => response.status())).toBe(403);
+    expect(await api.post('/api/v1/auth/change-password', { headers: old, data: { currentPassword: fixture[key], newPassword: changedPassword, confirmPassword: changedPassword } }).then(response => response.status())).toBe(200);
+    const next = await api.post('/api/v1/auth/login', { data: { username, password: changedPassword } }).then(response => response.json());
     const headers = { Authorization: `Bearer ${next.data.accessToken}` };
-    const frame = await page.evaluate(async token => {
+    expect(await api.get('/api/v1/visitors?search=ab', { headers }).then(response => response.status())).toBe(400);
+    expect(await api.get('/api/v1/superadmin/users', { headers }).then(response => response.status())).toBe(403);
+    if (username !== 'admin') expect(await api.post('/api/v1/visits/checkin', { headers, data: {} }).then(response => response.status())).toBe(403);
+  }
+  const bffLogin = await page.evaluate(async credentials => {
+    const response = await fetch('/api/v1/auth/login', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials),
+    });
+    return { status: response.status, body: await response.json() };
+  }, { username: 'admin', password: changedPassword });
+  expect(bffLogin.status).toBe(200);
+  expect(JSON.stringify(bffLogin.body)).not.toMatch(/accessToken|refreshToken/);
+  expect(await page.evaluate(() => ({
+    exposedCookie: /__Host-logmaster-(access|refresh)/.test(document.cookie),
+    exposedStorage: [localStorage, sessionStorage].some(storage => Object.keys(storage).some(key => /token|access|refresh/i.test(key))),
+  }))).toEqual({ exposedCookie: false, exposedStorage: false });
+  const frame = await page.evaluate(async () => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8000);
       try {
-        const stream = await fetch('/api/v1/events/visits', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
+        const stream = await fetch('/api/v1/events/visits', { credentials: 'same-origin', signal: controller.signal });
         const reader = stream.body!.getReader();
         const first = await reader.read(); await reader.cancel();
         return new TextDecoder().decode(first.value);
       } finally { clearTimeout(timer); controller.abort(); }
-    }, next.data.accessToken);
-    expect(frame).toContain('system:connected');
-    expect(await request.get('/api/v1/visitors?search=ab', { headers }).then(response => response.status())).toBe(400);
-    expect(await request.get('/api/v1/superadmin/users', { headers }).then(response => response.status())).toBe(403);
-    if (username !== 'admin') expect(await request.post('/api/v1/visits/checkin', { headers, data: {} }).then(response => response.status())).toBe(403);
-  }
+    });
+  expect(frame).toContain('system:connected');
+  await api.dispose();
 });
 
 test('administration defers inactive panels and produces real PDF and Excel files', async ({ page }) => {
   const chunks: string[] = [];
-  page.on('request', request => { if (request.url().includes('/assets/')) chunks.push(request.url()); });
-  await page.goto('/#/login');
+  page.on('request', request => { if (request.url().includes('/_next/static/')) chunks.push(request.url()); });
+  await page.goto('/login');
   await page.getByLabel('Usuario', { exact: true }).fill('root');
   await page.getByLabel('Contraseña', { exact: true }).fill(changedPassword);
   await page.getByRole('button', { name: 'INGRESAR', exact: true }).click();
-  await expect(page).toHaveURL(/#\/root$/);
-  await page.goto('/#/admin');
+  await expect(page).toHaveURL(/\/root$/);
+  await page.goto('/admin');
   await expect(page.getByRole('button', { name: 'Exportar PDF', exact: true })).toBeEnabled();
   await expect(page.getByText('Prueba Navegador Ficticio', { exact: true })).toBeVisible();
-  expect(chunks.filter(url => /\/(CalendarView|BackupPanel|ActivityLogPanel|reportExport|visitExport)-/.test(url))).toEqual([]);
+  expect(chunks.filter(url => /CalendarView|BackupPanel|ActivityLogPanel|reportExport|visitExport/.test(url))).toEqual([]);
   const pdfReady = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Exportar PDF', exact: true }).click();
   const pdf = await pdfReady;

@@ -1,9 +1,12 @@
+'use client';
+
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import React, { useState } from 'react';
 import { AxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AuthService from '../services/AuthService';
 import type { User } from '../types';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
@@ -17,7 +20,7 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,11 +44,11 @@ const Login = () => {
             login({ username: user.username, role: user.role as User['role'], mustChangePassword: user.mustChangePassword });
 
             if (user.role === 'root') {
-                setTimeout(() => navigate('/root'), 500);
+                router.replace('/root');
             } else if (user.role === 'auditor') {
-                setTimeout(() => navigate('/audit'), 500);
+                router.replace('/audit');
             } else {
-                setTimeout(() => navigate('/'), 500);
+                router.replace('/');
             }
         } catch (err) {
             const error = err as AxiosError<{ error?: { message?: string } }>;
@@ -162,7 +165,7 @@ const Login = () => {
                             )}
                         </Button>
                     </form>
-                    <Link to="/forgot-password" className="block mt-4 text-center text-sm text-[color:var(--accent-0)] hover:underline">¿Olvidaste tu contraseña?</Link>
+                    <Link href="/forgot-password" className="block mt-4 text-center text-sm text-[color:var(--accent-0)] hover:underline">¿Olvidaste tu contraseña?</Link>
 
                     <div className="mt-8 text-center animate-fadeIn" style={{ animationDelay: '0.4s' }}>
                         <p className="text-[10px] text-[color:var(--text-3)] uppercase tracking-[0.3em] font-medium">

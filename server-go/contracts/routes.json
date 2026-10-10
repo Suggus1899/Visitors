@@ -102,6 +102,15 @@
     "stream": false
   },
   {
+    "method": "GET",
+    "path": "/api/v1/auth/session",
+    "source": "server-go/internal/httpapi/auth.go",
+    "protected": true,
+    "middleware": ["authenticate"],
+    "binary": false,
+    "stream": false
+  },
+  {
     "method": "POST",
     "path": "/api/v1/auth/change-password",
     "source": "server/src/routes/auth-clean.routes.ts",

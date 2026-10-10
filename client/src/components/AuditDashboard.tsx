@@ -1,8 +1,10 @@
+'use client';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api.v1';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 import AuditHeader from './audit/AuditHeader';
 import AuditStats from './audit/AuditStats';
@@ -26,7 +28,7 @@ const AuditDashboard = () => {
     const [autoRefresh, setAutoRefresh] = useState(false);
 
     const { logout } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
     
     // Filters
     const [filterAction, setFilterAction] = useState('');
@@ -79,7 +81,7 @@ const AuditDashboard = () => {
 
     const handleLogout = () => {
         logout();
-        navigate('/login');
+        router.replace('/login');
         toast.success('Sesión cerrada correctamente');
     };
 

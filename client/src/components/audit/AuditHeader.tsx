@@ -1,4 +1,5 @@
 import { Button } from '../ui/button';
+import { Switch } from '@heroui/react';
 import { ThemeToggle } from '../ThemeToggle';
 import Shield from 'lucide-react/dist/esm/icons/shield';
 import Download from 'lucide-react/dist/esm/icons/download';
@@ -6,7 +7,7 @@ import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 
 interface AuditHeaderProps {
@@ -26,13 +27,13 @@ const AuditHeader = ({
     fetchData,
     loading
 }: AuditHeaderProps) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { user } = useAuth();
 
     const handleBack = () => {
-        if (user?.role === 'admin') navigate('/admin');
-        else if (user?.role === 'root') navigate('/root');
-        else navigate('/');
+        if (user?.role === 'admin') router.push('/admin');
+        else if (user?.role === 'root') router.push('/root');
+        else router.push('/');
     };
 
     return (
@@ -57,15 +58,14 @@ const AuditHeader = ({
                 <ThemeToggle />
                 <div className="flex items-center gap-2 mr-4 bg-[color:var(--surface-2)] rounded-lg px-3 py-2 border border-[color:var(--border-1)]">
                     <span className="text-xs text-[color:var(--text-3)] font-medium">Auto-refresh</span>
-                    <Button
-                        role="switch"
-                        aria-label="Actualización automática"
-                        aria-checked={autoRefresh}
-                        className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${autoRefresh ? 'bg-[color:var(--accent-0)]' : 'bg-[color:var(--border-1)]'}`}
-                        onClick={() => setAutoRefresh(!autoRefresh)}
-                    >
-                        <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${autoRefresh ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </Button>
+                    <Switch isSelected={autoRefresh} onChange={setAutoRefresh}>
+                        <Switch.Content>
+                            <span className="sr-only">Actualización automática</span>
+                            <Switch.Control className={`flex h-4 w-8 items-center rounded-full p-0.5 transition-colors ${autoRefresh ? 'bg-[color:var(--accent-0)]' : 'bg-[color:var(--border-1)]'}`}>
+                                <Switch.Thumb className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${autoRefresh ? 'translate-x-4' : 'translate-x-0'}`} />
+                            </Switch.Control>
+                        </Switch.Content>
+                    </Switch>
                 </div>
 
                 <Button

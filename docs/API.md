@@ -1,12 +1,12 @@
 # API de LogMaster con Go
 
-Base en Compose `https://localhost:8443/api/v1`. Se conservan las 53 rutas anteriores y se añade calendario agregado. El inventario `server-go/contracts/routes.json` se compara con el router real y comprueba solicitudes sin sesión.
+Base en Compose `https://localhost:8443/api/v1`. Se conservan las 53 rutas anteriores y se añaden `GET /auth/session` para validar la sesión del BFF y el calendario agregado (55 rutas en total). El inventario `server-go/contracts/routes.json` se compara con el router real y comprueba solicitudes sin sesión.
 
 Las respuestas JSON mantienen `{ success: true, data: ... }` o `{ success: false, error: { code, message } }`, con metadatos de paginación según la ruta. Fotos, CSV y eventos son respuestas binarias/textuales. No hay publicación de fotografías en un directorio estático ni Swagger servido por el backend Go.
 
 ## Autorización y cambios
 
-Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Solo login, recuperación, restablecimiento, refresh y health son públicos. Un usuario con cambio obligatorio solo puede renovar sesión y cambiar su propia contraseña. El servidor consulta rol, restricción y versión actuales; no confía en un rol obsoleto dentro del JWT.
+Las rutas protegidas de Go reciben `Authorization: Bearer <accessToken>`. El navegador nunca maneja tokens: Next.js los guarda en cookies `Secure`, `HttpOnly` y `SameSite=Lax`, y el BFF los agrega solo a la comunicación privada con Go. Solo login, recuperación, restablecimiento, refresh y health son públicos. `GET /auth/session` devuelve el usuario actual validado por Go. Un usuario con cambio obligatorio solo puede renovar sesión, consultar su sesión y cambiar su propia contraseña. El servidor consulta rol, restricción y versión actuales; no confía en un rol obsoleto dentro del JWT.
 
 - `PATCH /visitors/:cedula`: datos parciales validados y `editPassword` obligatorio en cada guardado. Contexto de visita opcional y comprobado; actor obtenido de la sesión. Operador/admin/root pueden editar, solo admin/root pueden bloquear.
 - Rectificación usa la misma edición y autorización. Las fotografías no se actualizan implícitamente al registrar una nueva visita de un perfil existente.
@@ -17,7 +17,7 @@ Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Solo login, 
 - Cancelación con visita abierta: `409 OPEN_VISIT_EXISTS`. Después del cierre elimina perfil identificativo, fotografías y valores personales relacionados dentro de una transacción. Los registros históricos devuelven cédula pública `null` y nombre «Anonimizado».
 - Usuarios: campo `email`; correo requerido en cuentas operativas nuevas. Solo root administra cuentas. Nuevas contraseñas: 12 caracteres, complejidad y máximo 72 bytes UTF-8; el restablecimiento administrativo deja cambio obligatorio y revoca sesiones.
 - Recuperación responde genéricamente, nunca devuelve el token. Mailpit recibe el enlace `APP_URL/#/reset-password?token=...`; el token se guarda como hash, vence en 15 minutos y admite un uso.
-- SSE `/events/visits`: Bearer en cabecera; rechaza `?token=...`, comprueba restricción, versión y vencimiento durante la conexión. El cliente renueva y reconecta con el token actual.
+- SSE `/events/visits`: Go recibe Bearer en la cabecera y rechaza `?token=...`; comprueba restricción, versión y vencimiento durante la conexión. El navegador abre el flujo por el mismo origen y usa la cookie HttpOnly; Next.js reenvía la credencial y el cliente renueva y reconecta a través del BFF.
 - Fechas sin hora se interpretan en `America/Caracas`. El final de un rango de días incluye todo el último día. Búsqueda y filtros preceden a la paginación; CSV exporta todos los resultados filtrados y neutraliza fórmulas.
 - Respaldos: nombre contenido, contraseña y metadatos obligatorios. Restaurar fuera de `logmaster_restore_test` devuelve `409 RESTORE_TARGET_NOT_ALLOWED`. Tras restaurar, las sesiones anteriores dejan de ser válidas.
 
@@ -43,6 +43,7 @@ El CLI de mantenimiento mantiene simulación por defecto y confirmación explíc
 | POST | /api/v1/auth/forgot-password | Pública |
 | POST | /api/v1/auth/reset-password | Pública |
 | POST | /api/v1/auth/refresh | Pública |
+| GET | /api/v1/auth/session | Obligatoria |
 | POST | /api/v1/auth/change-password | Obligatoria |
 | POST | /api/v1/backups | Obligatoria |
 | GET | /api/v1/backups | Obligatoria |

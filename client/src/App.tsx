@@ -1,14 +1,10 @@
+'use client';
+
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
-import AuthService from './services/AuthService';
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from './hooks/useAuth';
-import Login from './components/Login';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
 import VisitForm from './components/VisitForm';
 import ActiveVisits from './components/ActiveVisits';
 import WaitingVisits from './components/WaitingVisits';
@@ -23,26 +19,20 @@ import Activity from 'lucide-react/dist/esm/icons/activity';
 import ArrowRightLeft from 'lucide-react/dist/esm/icons/arrow-right-left';
 import Users from 'lucide-react/dist/esm/icons/users';
 import { startGuidedTour } from './utils/guidedTour';
-import { PasswordChangeModal } from './components/PasswordChangeModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp';
-import { Toaster } from 'react-hot-toast';
 import { Header } from './components/Header';
 import { useActiveVisitsQuery, useIntermittentVisitsQuery, useWaitingVisitsQuery, useInvalidateVisitQueries } from './hooks/useVisitQueries';
 import { useVisitEvents } from './hooks/useVisitEvents';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
-const SuperAdminDashboard = lazy(() => import('./components/SuperAdminDashboard'));
-const AuditDashboard = lazy(() => import('./components/AuditDashboard'));
-
 // Main Operations View (Guard + Admin)
-const OperationsView = () => {
+export const OperationsView = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showShortcuts, setShowShortcuts] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'waiting' | 'intermittent' | 'visitor-admin'>('active');
     const { logout, user } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
     const canOperate = ['operador', 'admin', 'root'].includes(user?.role || '');
     const searchInputRef = useRef<HTMLInputElement>(null);
     const { isUsingFallbackPolling } = useVisitEvents();
@@ -112,7 +102,6 @@ const OperationsView = () => {
             <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-[color:var(--accent-2)] opacity-15 blur-3xl pointer-events-none" />
             <div className="absolute -bottom-48 -right-40 h-[28rem] w-[28rem] rounded-full bg-[color:var(--accent-0)] opacity-12 blur-3xl pointer-events-none" />
 
-            <Toaster position="top-center" />
             <KeyboardShortcutsHelp show={showShortcuts} onClose={() => setShowShortcuts(false)} />
 
             <Header user={user} logout={logout}>
@@ -136,7 +125,7 @@ const OperationsView = () => {
                     {(user?.role === 'admin' || user?.role === 'root') && (
                         <Button
                             data-tour="admin-btn"
-                            onClick={() => navigate('/admin')}
+                            onClick={() => router.push('/admin')}
                             className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-2 rounded-md text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition-colors h-9"
                         >
                             <LayoutDashboard size={16} /> Admin
@@ -145,7 +134,7 @@ const OperationsView = () => {
 
                     {(user?.role === 'admin' || user?.role === 'auditor' || user?.role === 'root') && (
                         <Button
-                            onClick={() => navigate('/audit')}
+                            onClick={() => router.push('/audit')}
                             className="bg-transparent border border-[color:var(--accent-2)] text-[color:var(--accent-0)] hover:text-[color:var(--text-1)] hover:border-[color:var(--accent-0)] hover:bg-[color:var(--surface-2)] px-3 py-2 rounded-md text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition-colors h-9"
                         >
                             <Shield size={16} /> Auditoría
@@ -289,107 +278,3 @@ const OperationsView = () => {
         </div>
     );
 };
-
-
-
-const AdminRoute = ({ children }: { children: JSX.Element }) => {
-    const { user, loading } = useAuth();
-    if (loading) return <div>Loading...</div>;
-    if (user?.role !== 'admin' && user?.role !== 'root') return <Navigate to="/" />;
-    return children;
-};
-
-const RootRoute = ({ children }: { children: JSX.Element }) => {
-    const { user, loading } = useAuth();
-    if (loading) return <div>Loading...</div>;
-    if (user?.role !== 'root') return <Navigate to="/" />;
-    return children;
-};
-
-const AuditRoute = ({ children }: { children: JSX.Element }) => {
-    const { user, loading } = useAuth();
-    if (loading) return <div>Loading...</div>;
-    if (user?.role !== 'admin' && user?.role !== 'auditor' && user?.role !== 'root') return <Navigate to="/" />;
-    return children;
-};
-
-const OperationsRoute = ({ children }: { children: JSX.Element }) => {
-    const { user, loading } = useAuth();
-    if (loading) return <div>Loading...</div>;
-    if (!user) return <Navigate to="/login" />;
-
-    // Si es auditor, redirigir a su dashboard
-    if (user.role === 'auditor') return <Navigate to="/audit" />;
-
-    return children;
-};
-
-function AppRoutes() {
-    const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
-
-    useEffect(() => {
-        // Listen for password-change-required event globally
-        const handlePasswordChangeRequired = () => {
-            setShowPasswordChangeModal(true);
-        };
-
-        window.addEventListener('password-change-required', handlePasswordChangeRequired);
-
-        return () => {
-            window.removeEventListener('password-change-required', handlePasswordChangeRequired);
-        };
-    }, []);
-
-    return (
-        <>
-            <Suspense fallback={<p role="status" className="p-6">Cargando vista…</p>}><Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/" element={
-                    <OperationsRoute>
-                        <OperationsView />
-                    </OperationsRoute>
-                } />
-                <Route path="/audit" element={
-                    <AuditRoute>
-                        <AuditDashboard />
-                    </AuditRoute>
-                } />
-                <Route path="/admin" element={
-                    <AdminRoute>
-                        <AdminDashboard />
-                    </AdminRoute>
-                } />
-                <Route path="/root" element={
-                    <RootRoute>
-                        <SuperAdminDashboard />
-                    </RootRoute>
-                } />
-            </Routes></Suspense>
-
-            {/* Global Password Change Modal */}
-            <PasswordChangeModal
-                show={showPasswordChangeModal}
-                onPasswordChanged={() => {
-                    setShowPasswordChangeModal(false);
-                    AuthService.logout();
-                }}
-            />
-        </>
-    );
-}
-
-function App() {
-    return (
-        <AuthProvider>
-            <ThemeProvider>
-                <HashRouter>
-                    <AppRoutes />
-                </HashRouter>
-            </ThemeProvider>
-        </AuthProvider>
-    );
-}
-
-export default App;

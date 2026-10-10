@@ -44,13 +44,13 @@ services:
       timeout: 5s
       retries: 6
   web:
-    build: {context: ., dockerfile: client/Dockerfile}
+    build: {context: ., dockerfile: deploy/nginx.Dockerfile}
     image: logmaster-web:${LOGMASTER_TAG:-local}
     ports: ['${LOGMASTER_BIND:-127.0.0.1}:${LOGMASTER_HTTPS_PORT:-8443}:8443']
     networks:
       backend: {ipv4_address: '${LOGMASTER_PROXY_IP:-172.30.52.10}'}
     secrets: [tls_cert, tls_key]
-    depends_on: {api: {condition: service_healthy}}
+    depends_on: {frontend: {condition: service_healthy}}
     restart: unless-stopped
     read_only: true
     tmpfs: ['/tmp:uid=101,gid=101,mode=1700']
@@ -58,7 +58,26 @@ services:
     security_opt: [no-new-privileges:true]
     logging: *logging
     healthcheck:
-      test: [CMD-SHELL, 'wget --no-check-certificate -q -O /dev/null https://127.0.0.1:8443/api/v1/health']
+      test: [CMD-SHELL, 'wget --no-check-certificate -q -O /dev/null https://127.0.0.1:8443/health']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  frontend:
+    build: {context: ., dockerfile: client/Dockerfile}
+    image: logmaster-frontend:${LOGMASTER_TAG:-local}
+    command: [node, --env-file=/run/secrets/frontend_env, server.js]
+    environment: {NODE_ENV: production, HOSTNAME: 0.0.0.0, PORT: '3000', NEXT_TELEMETRY_DISABLED: '1'}
+    secrets: [frontend_env]
+    networks: [backend]
+    depends_on: {api: {condition: service_healthy}}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:uid=10001,gid=10001,mode=1700']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -100,6 +119,7 @@ volumes:
   restore:
 secrets:
   app_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/app.env'}
+  frontend_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/frontend.env'}
   db_password: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/db.password'}
   tls_cert: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/tls.pem'}
   tls_key: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/tls.key'}

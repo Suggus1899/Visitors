@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // vi.hoisted runs BEFORE any imports (and before vi.mock factories), so the
 // mock axios instance and AuthService mock are initialized in time for the
 // api.v1 module body to use them when it loads.
-const { mockInstance, mockAuthService } = vi.hoisted(() => {
+const { mockInstance, mockAuthService, axiosConfig } = vi.hoisted(() => {
   // The axios instance must be callable (api(originalRequest) on retry) AND
   // expose interceptors.request.use / interceptors.response.use so we can
   // capture the handlers registered at module-load time.
@@ -13,12 +13,11 @@ const { mockInstance, mockAuthService } = vi.hoisted(() => {
   });
 
   const authService = {
-    getAccessToken: vi.fn(),
     refreshAccessToken: vi.fn(),
     logout: vi.fn(),
   };
 
-  return { mockInstance: instance, mockAuthService: authService };
+  return { mockInstance: instance, mockAuthService: authService, axiosConfig: {} as Record<string, unknown> };
 });
 
 // --- Mock AuthService (loaded via dynamic import inside api.v1) ---
@@ -29,7 +28,7 @@ vi.mock('../services/AuthService', () => ({
 // --- Mock axios: create() returns our callable mock instance ---
 vi.mock('axios', () => ({
   default: {
-    create: vi.fn(() => mockInstance),
+    create: vi.fn((config: Record<string, unknown>) => { Object.assign(axiosConfig, config); return mockInstance; }),
   },
 }));
 
@@ -37,13 +36,11 @@ vi.mock('axios', () => ({
 // Side-effect import: ensures the module body (interceptor registration) runs
 // even though we don't use the exported `api` directly — we drive the
 // captured interceptor handlers and the mock axios instance instead.
-import { VisitService } from '../services/api.v1';
+import api, { VisitService } from '../services/api.v1';
 
 // Capture the handlers registered at module-load time.
 // NOTE: do this at top level — vi.clearAllMocks() in beforeEach wipes call
 // history, so capturing there would read `undefined`.
-const requestFulfilled: (config: { headers: Record<string, string> }) => Promise<{ headers: Record<string, string> }> =
-  mockInstance.interceptors.request.use.mock.calls[0][0];
 const responseRejected: (error: unknown) => Promise<unknown> =
   mockInstance.interceptors.response.use.mock.calls[0][1];
 
@@ -119,7 +116,7 @@ describe('api.v1 interceptors', () => {
     // Stub window.location so we can assert redirect without jsdom navigation noise
     originalLocationDescriptor = Object.getOwnPropertyDescriptor(window, 'location');
     Object.defineProperty(window, 'location', {
-      value: { href: '' },
+      value: { href: '', replace: vi.fn() },
       writable: true,
       configurable: true,
     });
@@ -132,31 +129,17 @@ describe('api.v1 interceptors', () => {
     }
   });
 
-  describe('request interceptor', () => {
-    it('should add Authorization header when an access token exists', async () => {
-      mockAuthService.getAccessToken.mockReturnValue('access-token-123');
-
-      const config = { headers: {} as Record<string, string> };
-      const result = await requestFulfilled(config);
-
-      expect(mockAuthService.getAccessToken).toHaveBeenCalled();
-      expect(result.headers.Authorization).toBe('Bearer access-token-123');
-    });
-
-    it('should not add Authorization header when there is no access token', async () => {
-      mockAuthService.getAccessToken.mockReturnValue(null);
-
-      const config = { headers: {} as Record<string, string> };
-      const result = await requestFulfilled(config);
-
-      expect(mockAuthService.getAccessToken).toHaveBeenCalled();
-      expect(result.headers.Authorization).toBeUndefined();
+  describe('cookie credentials', () => {
+    it('uses the same-origin BFF and does not install a JavaScript token interceptor', () => {
+      expect(axiosConfig).toEqual(expect.objectContaining({ baseURL: '/api/v1', withCredentials: true }));
+      expect(mockInstance.interceptors.request.use).not.toHaveBeenCalled();
+      expect(api).toBe(mockInstance);
     });
   });
 
   describe('response interceptor - 401 handling', () => {
     it('should refresh the access token and retry the original request on 401', async () => {
-      mockAuthService.refreshAccessToken.mockResolvedValue('new-access-token');
+      mockAuthService.refreshAccessToken.mockResolvedValue(undefined);
       // api(originalRequest) -> mockInstance(...) resolves with a retried response
       mockInstance.mockResolvedValue({ data: { success: true } });
 
@@ -173,7 +156,7 @@ describe('api.v1 interceptors', () => {
 
       expect(mockAuthService.refreshAccessToken).toHaveBeenCalled();
       expect(originalRequest._retry).toBe(true);
-      expect(originalRequest.headers.Authorization).toBe('Bearer new-access-token');
+      expect(originalRequest.headers.Authorization).toBeUndefined();
       expect(mockInstance).toHaveBeenCalledWith(originalRequest);
     });
 
@@ -194,11 +177,11 @@ describe('api.v1 interceptors', () => {
       await expect(responseRejected(error)).rejects.toThrow('refresh failed');
 
       expect(mockAuthService.logout).toHaveBeenCalled();
-      expect(window.location.href).toBe('#/login');
+      expect(window.location.replace).toHaveBeenCalledWith('/login');
     });
 
     it('should not attempt refresh twice for the same request (_retry guard)', async () => {
-      mockAuthService.refreshAccessToken.mockResolvedValue('new-access-token');
+      mockAuthService.refreshAccessToken.mockResolvedValue(undefined);
       mockInstance.mockResolvedValue({ data: { success: true } });
 
       const originalRequest = {

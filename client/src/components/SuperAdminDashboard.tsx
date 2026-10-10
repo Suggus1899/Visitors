@@ -1,7 +1,9 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api.v1';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 import SuperAdminHeader from './superadmin/SuperAdminHeader';
@@ -23,7 +25,7 @@ interface ApiError {
 
 export default function SuperAdminDashboard() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -140,7 +142,7 @@ export default function SuperAdminDashboard() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    router.replace('/login');
   };
 
   return (

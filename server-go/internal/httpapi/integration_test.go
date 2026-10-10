@@ -137,6 +137,11 @@ func TestAuthenticationIntegration(t *testing.T) {
 		if w.Code != 403 {
 			t.Fatal(w.Code)
 		}
+		status, response := request(t, h, "GET", "/api/v1/auth/session", "", access)
+		user, ok := response["data"].(map[string]any)["user"].(map[string]any)
+		if status != 200 || !ok || user["username"] != username || user["role"] != "operador" || user["mustChangePassword"] != true {
+			t.Fatalf("session endpoint must expose only the current user state: %d %v", status, response)
+		}
 	})
 	t.Run("password change revokes both sessions persistently", func(t *testing.T) {
 		b, _ := json.Marshal(map[string]string{"currentPassword": password, "newPassword": "Changed!Safe12Á"})

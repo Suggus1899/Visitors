@@ -69,7 +69,7 @@ describe('authenticated photographs', () => {
     });
 });
 
-describe('shadcn dialogs and visitor edit callers', () => {
+describe('HeroUI dialogs and visitor edit callers', () => {
     it('supports Escape and clears notes after an external close', async () => {
         const cancel = vi.fn();
         const props = { isOpen: true, title: 'Cerrar visita', message: 'Confirmar salida', notesLabel: 'Notas', onCancel: cancel, onConfirm: vi.fn() };

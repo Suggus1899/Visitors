@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from './ui/button';
 import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { VisitService } from '../services/api.v1';
@@ -8,7 +10,7 @@ import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import CalendarIcon from 'lucide-react/dist/esm/icons/calendar';
 import FileSpreadsheet from 'lucide-react/dist/esm/icons/file-spreadsheet';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Visit } from '../types';
 const StatisticsPanel = lazy(() => import('./StatisticsPanel'));
 const BackupPanel = lazy(() => import('./BackupPanel'));
@@ -43,7 +45,7 @@ const AdminDashboard = () => {
     const [alertsSummary, setAlertsSummary] = useState<AlertSummary>({ total: 0, warnings: 0, critical: 0 });
 
     const { logout, user } = useAuth();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const fetchStats = useCallback(async () => {
         try {
@@ -116,7 +118,7 @@ const AdminDashboard = () => {
                         <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{alertsSummary.total}</span>
                     </div>
                 )}
-                <Button onClick={() => navigate('/')} className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors">
+                <Button onClick={() => router.push('/')} className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors">
                     <Home size={16} className="mr-1" /> Operaciones
                 </Button>
             </Header>

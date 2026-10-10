@@ -10,7 +10,7 @@ compose up -d --wait api web
 test "$(compose exec -T api awk '$2 == "/var/lib/postgresql/data" { print $3 }' /proc/mounts)" = tmpfs
 curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert .local/containers/tls.pem https://localhost:8443/api/v1/health
 before=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT count(*) FROM "Users"')
-compose up -d --force-recreate --wait postgres api web
+compose up -d --force-recreate --wait postgres api frontend web
 after=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT count(*) FROM "Users"')
 test "$before" = "$after"
 test "$after" -ge 1
@@ -20,7 +20,7 @@ compose up -d --wait postgres-restore
 compose run --rm ops backup-daily
 compose run --rm ops rehearse
 compose run --rm ops backup-status
-compose stop web api
+compose stop web frontend api
 version_before=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT max("tokenVersion") FROM "Users"')
 archive=$(compose run --rm ops backup-status | python3 -c 'import json,sys; print(json.load(sys.stdin)["backup"]["archive"])')
 compose run --rm ops ops preflight
@@ -40,7 +40,7 @@ if ! test "$version_after" -gt "$version_before"; then
   exit 1
 fi
 compose run --rm ops check
-compose up -d --wait api web
+compose up -d --wait api frontend web
 systemd-analyze calendar '*-*-* 01:00:00 America/Caracas'
 systemd-analyze calendar 'Sun *-*-* 03:00:00 America/Caracas'
 systemd-analyze verify deploy/systemd/*.service deploy/systemd/*.timer

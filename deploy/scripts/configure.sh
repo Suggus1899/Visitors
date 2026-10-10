@@ -8,6 +8,7 @@ if [ -e "$directory/app.env" ]; then
   exit 1
 fi
 password=$(openssl rand -hex 24)
+app_url=${LOGMASTER_APP_URL:-https://localhost:8443}
 printf '%s' "$password" > "$directory/db.password"
 restore_password=$(openssl rand -hex 24)
 printf '%s' "$restore_password" > "$directory/restore.password"
@@ -38,8 +39,8 @@ SMTP_HOST=mailpit
 SMTP_PORT=1025
 SMTP_TLS_MODE=local
 EMAIL_FROM=logmaster@example.test
-APP_URL=https://localhost:8443
-CORS_ORIGINS=https://localhost:8443
+APP_URL=$app_url
+CORS_ORIGINS=$app_url
 TRUSTED_PROXY_CIDRS=${LOGMASTER_PROXY_IP:-172.30.52.10}/32
 RATE_LIMIT_MAX_REQUESTS=6000
 SEED_ROOT_PASSWORD=Fixture!$(openssl rand -hex 12)
@@ -48,6 +49,10 @@ SEED_OPERADOR_PASSWORD=Fixture!$(openssl rand -hex 12)
 SEED_GUARD_PASSWORD=Fixture!$(openssl rand -hex 12)
 SEED_AUDITOR_PASSWORD=Fixture!$(openssl rand -hex 12)
 SEED_DEMO_PASSWORD=Fixture!$(openssl rand -hex 12)
+EOF
+cat > "$directory/frontend.env" <<EOF
+APP_URL=$app_url
+GO_API_URL=http://api:3000
 EOF
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' -keyout "$directory/tls.key" -out "$directory/tls.pem" >/dev/null 2>&1
 sed -e 's/DB_HOST=postgres$/DB_HOST=postgres-restore/' -e 's/DB_NAME=logmaster_pilot/DB_NAME=logmaster_restore_test/' -e 's/DB_USER=logmaster_pilot/DB_USER=logmaster_restore_test/' -e "s/DB_PASSWORD=$password/DB_PASSWORD=$restore_password/" "$directory/app.env" > "$directory/staging.env"

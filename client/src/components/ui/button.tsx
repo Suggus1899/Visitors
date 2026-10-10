@@ -1,59 +1,45 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+'use client';
 
-import { cn } from "../../lib/utils"
+import { Button as HeroButton } from '@heroui/react';
+import type { ButtonHTMLAttributes, ComponentProps, MouseEvent } from 'react';
+import { forwardRef } from 'react';
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
-      },
-    },
-    defaultVariants: {
-      variant: "ghost",
-      size: null,
-    },
-  }
-)
+type HeroProps = ComponentProps<typeof HeroButton>;
+type LegacyVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+type LegacySize = 'default' | 'sm' | 'lg' | 'icon';
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean
-}
+type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size' | 'value' | 'onClick' | 'onFocus' | 'onBlur'> & {
+  value?: string;
+  onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
+  onFocus?: HeroProps['onFocus'];
+  onBlur?: HeroProps['onBlur'];
+  variant?: LegacyVariant;
+  size?: LegacySize;
+  fullWidth?: HeroProps['fullWidth'];
+};
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
+const variants: Record<LegacyVariant, NonNullable<HeroProps['variant']>> = {
+  default: 'primary', destructive: 'danger', outline: 'outline', secondary: 'secondary', ghost: 'tertiary', link: 'tertiary',
+};
 
-// shadcn exports the shared variants alongside Button.
-// eslint-disable-next-line react-refresh/only-export-components
-export { Button, buttonVariants }
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = 'ghost', size, disabled, className, fullWidth, title, onClick, ...props }, ref) => (
+    <HeroButton
+      ref={node => {
+        if (node && title) node.title = title;
+        if (typeof ref === 'function') ref(node);
+        else if (ref) ref.current = node;
+      }}
+      variant={variants[variant]}
+      size={size === 'default' ? 'md' : size === 'icon' ? 'sm' : size}
+      isIconOnly={size === 'icon'}
+      isDisabled={disabled}
+      fullWidth={fullWidth}
+      onPress={onClick ? event => onClick(event as unknown as MouseEvent<HTMLButtonElement>) : undefined}
+      className={className}
+      {...props}
+    />
+  ),
+);
+
+Button.displayName = 'Button';

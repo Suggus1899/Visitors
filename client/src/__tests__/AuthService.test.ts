@@ -1,170 +1,45 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AuthService from '../services/AuthService';
 import api from '../services/api.v1';
 
-// Mock the axios instance used by AuthService so no real HTTP calls are made
-vi.mock('../services/api.v1', () => ({
-  default: {
-    post: vi.fn(),
-  },
-}));
+vi.mock('../services/api.v1', () => ({ default: { post: vi.fn() } }));
 
-describe('AuthService', () => {
-  it('shares concurrent refreshes and cannot resurrect a logged-out session', async () => {
-    AuthService.logout(); localStorage.setItem('refreshToken', 'fixture-refresh');
+const user = { id: 7, username: 'admin', role: 'admin', mustChangePassword: false };
+
+describe('AuthService with HttpOnly session cookies', () => {
+  beforeEach(() => vi.clearAllMocks());
+  afterEach(() => window.dispatchEvent(new Event('auth:logout')));
+
+  it('returns only the user from login and never stores tokens in browser storage', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { data: { user } } } as never);
+
+    await expect(AuthService.login('admin', 'password')).resolves.toEqual(user);
+    expect(api.post).toHaveBeenCalledWith('/auth/login', { username: 'admin', password: 'password' });
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it('shares a concurrent refresh and sends no token in the request body', async () => {
     let resolve!: (value: unknown) => void;
     vi.mocked(api.post).mockImplementationOnce(() => new Promise(done => { resolve = done; }) as never);
-    const first = AuthService.refreshAccessToken(); const second = AuthService.refreshAccessToken();
-    AuthService.logout();
-    resolve({ data: { data: { accessToken: 'late-token', refreshToken: 'late-refresh' } } });
-    const results = await Promise.allSettled([first, second]);
-    expect(results.every(result => result.status === 'rejected')).toBe(true);
-    expect(AuthService.getAccessToken()).toBeNull(); expect(localStorage.getItem('refreshToken')).toBeNull();
-  });
-  beforeEach(() => {
-    vi.clearAllMocks();
-    localStorage.clear();
-    // Reset singleton in-memory state (clearTokens is private, reachable via logout)
-    AuthService.logout();
+    const first = AuthService.refreshAccessToken();
+    const second = AuthService.refreshAccessToken();
+
+    expect(second).toBe(first);
+    expect(api.post).toHaveBeenCalledOnce();
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh');
+    resolve({ data: { success: true } });
+    await expect(first).resolves.toBeUndefined();
   });
 
-  describe('getAccessToken', () => {
-    it('should return null initially', () => {
-      expect(AuthService.getAccessToken()).toBeNull();
-    });
-  });
+  it('announces logout even when the BFF request fails', async () => {
+    vi.mocked(api.post).mockRejectedValue(new Error('network unavailable'));
+    const onLogout = vi.fn();
+    window.addEventListener('auth:logout', onLogout, { once: true });
 
-  describe('login', () => {
-    it('should store the access token in memory after a successful login', async () => {
-      vi.mocked(api.post).mockResolvedValue({
-        data: {
-          success: true,
-          data: {
-            accessToken: 'access-token-123',
-            refreshToken: 'refresh-token-456',
-            user: { username: 'admin', role: 'ADMIN', mustChangePassword: false },
-          },
-        },
-      });
-
-      const user = await AuthService.login('admin', 'password');
-
-      expect(api.post).toHaveBeenCalledWith('/auth/login', {
-        username: 'admin',
-        password: 'password',
-      });
-      expect(user).toEqual({
-        username: 'admin',
-        role: 'ADMIN',
-        mustChangePassword: false,
-      });
-      // Access token kept in memory only
-      expect(AuthService.getAccessToken()).toBe('access-token-123');
-      // Refresh token persisted to localStorage
-      expect(localStorage.getItem('refreshToken')).toBe('refresh-token-456');
-    });
-
-    it('should clear tokens on login failure', async () => {
-      vi.mocked(api.post).mockRejectedValue(new Error('Invalid credentials'));
-
-      await expect(AuthService.login('admin', 'wrong')).rejects.toThrow(
-        'Invalid credentials'
-      );
-
-      expect(AuthService.getAccessToken()).toBeNull();
-      expect(localStorage.getItem('refreshToken')).toBeNull();
-    });
-  });
-
-  describe('logout / clearTokens', () => {
-    it('should clear the access token and refresh token on logout', async () => {
-      // Seed tokens via login
-      vi.mocked(api.post).mockResolvedValue({
-        data: {
-          success: true,
-          data: {
-            accessToken: 'a',
-            refreshToken: 'r',
-            user: { username: 'u', role: 'ADMIN', mustChangePassword: false },
-          },
-        },
-      });
-      await AuthService.login('u', 'p');
-      expect(AuthService.getAccessToken()).not.toBeNull();
-      expect(localStorage.getItem('refreshToken')).not.toBeNull();
-
-      AuthService.logout();
-
-      expect(AuthService.getAccessToken()).toBeNull();
-      expect(localStorage.getItem('refreshToken')).toBeNull();
-    });
-  });
-
-  describe('refreshAccessToken', () => {
-    it('should call the API and update the access token', async () => {
-      // Simulate a refresh token previously stored in localStorage
-      localStorage.setItem('refreshToken', 'refresh-token-456');
-      vi.mocked(api.post).mockResolvedValue({
-        data: {
-          success: true,
-          data: { accessToken: 'new-access-token' },
-        },
-      });
-
-      const token = await AuthService.refreshAccessToken();
-
-      expect(api.post).toHaveBeenCalledWith('/auth/refresh', {
-        refreshToken: 'refresh-token-456',
-      });
-      expect(token).toBe('new-access-token');
-      expect(AuthService.getAccessToken()).toBe('new-access-token');
-    });
-
-    it('should throw if no refresh token is available', async () => {
-      await expect(AuthService.refreshAccessToken()).rejects.toThrow(
-        'No refresh token available'
-      );
-      expect(api.post).not.toHaveBeenCalled();
-    });
-
-    it('should clear all tokens when the refresh call fails', async () => {
-      localStorage.setItem('refreshToken', 'refresh-token-456');
-      vi.mocked(api.post).mockRejectedValue(new Error('Refresh failed'));
-
-      await expect(AuthService.refreshAccessToken()).rejects.toThrow(
-        'Refresh failed'
-      );
-
-      expect(AuthService.getAccessToken()).toBeNull();
-      expect(localStorage.getItem('refreshToken')).toBeNull();
-    });
-  });
-
-  describe('isAuthenticated', () => {
-    it('should return false when no tokens are present', () => {
-      expect(AuthService.isAuthenticated()).toBe(false);
-    });
-
-    it('should return true when a refresh token exists in localStorage', () => {
-      localStorage.setItem('refreshToken', 'r');
-      expect(AuthService.isAuthenticated()).toBe(true);
-    });
-
-    it('should return true when an access token exists in memory', async () => {
-      vi.mocked(api.post).mockResolvedValue({
-        data: {
-          success: true,
-          data: {
-            accessToken: 'a',
-            refreshToken: 'r',
-            user: { username: 'u', role: 'ADMIN', mustChangePassword: false },
-          },
-        },
-      });
-      await AuthService.login('u', 'p');
-      // Remove refresh token so only the in-memory access token remains
-      localStorage.removeItem('refreshToken');
-      expect(AuthService.isAuthenticated()).toBe(true);
-    });
+    await expect(AuthService.logout()).rejects.toThrow('network unavailable');
+    expect(api.post).toHaveBeenCalledWith('/auth/logout');
+    expect(onLogout).toHaveBeenCalledOnce();
+    expect(localStorage.length).toBe(0);
   });
 });

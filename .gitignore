@@ -24,6 +24,7 @@ Backups/
 # Build outputs
 dist/
 client/dist/
+client/.next/
 server/dist/
 *.exe
 /server-go/logmaster

@@ -1,22 +1,24 @@
+'use client';
+
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import React, { useState } from 'react';
 import api from '../services/api.v1';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { AxiosError } from 'axios';
 import Key from 'lucide-react/dist/esm/icons/key';
 import Lock from 'lucide-react/dist/esm/icons/lock';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 
-const ResetPassword = () => {
-    const [searchParams] = useSearchParams();
-    const [token, setToken] = useState(searchParams.get('token') || '');
+const ResetPassword = ({ initialToken = '' }: { initialToken?: string }) => {
+    const [token, setToken] = useState(initialToken);
     const [newPassword, setNewPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,7 +27,7 @@ const ResetPassword = () => {
         try {
             await api.post('/auth/reset-password', { token, newPassword });
             setSuccess(true);
-            setTimeout(() => navigate('/login'), 3000);
+            setTimeout(() => router.replace('/login'), 3000);
         } catch (err) {
             const response = (err as AxiosError<{ error?: { message?: string } }>).response;
             setError(response?.data?.error?.message || 'El enlace no es válido o ha expirado.');
@@ -43,7 +45,7 @@ const ResetPassword = () => {
                     <CheckCircle className="mx-auto text-[color:var(--accent-0)] mb-4" size={64} />
                     <h2 className="text-2xl font-display text-[color:var(--text-1)] mb-2">¡Contraseña Actualizada!</h2>
                     <p className="text-[color:var(--text-3)] mb-6">Tu contraseña ha sido restablecida correctamente.</p>
-                    <Link to="/login" className="block w-full btn-tech">IR AL LOGIN</Link>
+                    <Link href="/login" className="block w-full btn-tech">IR AL LOGIN</Link>
                 </div>
             </div>
         )

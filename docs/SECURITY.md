@@ -12,7 +12,7 @@ El backend vigente valida las sesiones en PostgreSQL mediante `tokenVersion`. La
 | Auditoría y solicitudes ARCO administrativas | Admin, root o auditor; escritura según la operación |
 | Operaciones de escritura con auditor o demo | Rechazadas |
 
-La comprobación del rol y del cambio obligatorio se aplica después de autenticar. El SSE usa Authorization y verifica de nuevo el usuario y la expiración; no utiliza tokens en URL. El cliente comparte la renovación concurrente y evita que una respuesta tardía restablezca una sesión cerrada.
+La comprobación del rol y del cambio obligatorio se aplica después de autenticar. Go sigue exigiendo Authorization en el SSE y verifica de nuevo el usuario y la expiración; no utiliza tokens en URL. El navegador se conecta al BFF de Next.js con cookies HttpOnly y nunca recibe access o refresh tokens. Las solicitudes mutables al BFF validan el origen antes de reenviar la petición.
 
 Los datos personales cifrados conservan AES-256-GCM y el formato Node `ENC:ciphertext:iv:tag`. La cancelación elimina los datos identificativos, las fotos y los valores personales del historial, mantiene eventos anonimizados y rechaza perfiles con visitas abiertas. Los respaldos históricos pueden contener valores anteriores; la cancelación no los reescribe.
 

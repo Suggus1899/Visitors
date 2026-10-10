@@ -1,11 +1,12 @@
 # Arquitectura de LogMaster
 
-El cliente React/TypeScript en `client/` consume la API Go en `server-go/`, el único backend vigente. La referencia `backup/node-before-retirement-2026-10-10` conserva el servidor anterior; los fixtures y las pruebas Go mantienen sus contratos, esquema y formatos criptográficos.
+El cliente Next.js App Router, React 19 y TypeScript en `client/` sirve la interfaz y contiene el BFF del navegador. La API Go en `server-go/` es el único backend de dominio vigente. La referencia `backup/node-before-retirement-2026-10-10` conserva el servidor anterior; los fixtures y las pruebas Go mantienen sus contratos, esquema y formatos criptográficos.
 
 ```mermaid
 flowchart LR
-  Browser[React y shadcn/ui] -->|HTTPS mismo origen| Proxy[Nginx: cliente, API y SSE]
-  Proxy -->|JSON, Blob privado y SSE + Bearer| API[Go: net/http y Chi]
+  Browser[Next.js App Router, React 19 y HeroUI 3] -->|HTTPS, cookies HttpOnly, JSON, Blob privado y SSE| Proxy[Nginx TLS]
+  Proxy -->|Interfaz y /api/v1 mismo origen| Next[Next.js SSR y BFF]
+  Next -->|Bearer solo entre servidores| API[Go: net/http y Chi]
   API -->|pgx / sqlc y transacciones| PG[(PostgreSQL 16)]
   API -->|SMTP local o TLS explícito| Mail[Mailpit o proveedor configurado]
   API -->|pg_dump / pg_restore / psql sin shell| Backup[Respaldos cifrados]
@@ -24,5 +25,7 @@ Los rangos se calculan en America/Caracas, con TIMESTAMPTZ. Las listas se pagina
 Administración carga gráficos, estadísticas, calendario y respaldos al abrir sus pestañas; ExcelJS/jsPDF se importan al exportar. Se comprueba el total antes de recopilar páginas: PDF 2.000, Excel 20.000. La recopilación admite cancelación y detecta cambios en los datos.
 
 Compose utiliza imágenes con versiones/digests, usuarios dedicados, secretos de archivo y volúmenes separados. Solo publica HTTPS; el override de ensayo liga diagnósticos a loopback. Nginx limita solicitudes a 5 MB y desactiva buffering SSE. Systemd programa respaldo diario y restauración semanal desechable. Véase [OPERATIONS](OPERATIONS.md).
+
+El cliente usa HeroUI 3 con Tailwind CSS 4; la estructura, las rutas y la protección de sesión se resuelven mediante App Router. El navegador nunca recibe access ni refresh tokens: las rutas BFF convierten cookies seguras en credenciales para Go y entregan JSON, fotografías y eventos SSE bajo el mismo origen.
 
 Goose prepara el esquema por un comando explícito; el arranque solo comprueba su versión. Las migraciones inversas rechazan la eliminación de datos de consentimiento. Los detalles, restricciones locales y ensayos están en [BACKEND_GO_MIGRATION](BACKEND_GO_MIGRATION.md).

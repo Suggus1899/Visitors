@@ -22,17 +22,15 @@ export const useVisitEvents = (options?: UseVisitEventsOptions) => {
         let attempts = 0;
         const connect = async () => {
             try {
-                let token = AuthService.getAccessToken();
-                if (!token) throw new Error('Sesión no disponible');
-                const open = (accessToken: string) => fetch(`${API_URL}/events/visits`, {
-                    headers: { Authorization: `Bearer ${accessToken}` }, signal: controller.signal,
+                const open = () => fetch(`${API_URL}/events/visits`, {
+                    credentials: 'same-origin', signal: controller.signal,
                 });
-                let response = await open(token);
+                let response = await open();
                 if (response.status === 401) {
                     await response.body?.cancel();
-                    token = await AuthService.refreshAccessToken();
+                    await AuthService.refreshAccessToken();
                     if (controller.signal.aborted) return;
-                    response = await open(token);
+                    response = await open();
                 }
                 if (response.status === 403) {
                     const payload = await response.json();

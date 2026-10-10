@@ -5,17 +5,15 @@ import { API_URL } from '../config/env';
 // Configure axios instance
 const api = axios.create({
     baseURL: API_URL,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
     }
 });
 
-// Import AuthService for token management
-// Note: We use dynamic import to avoid circular dependencies
 type AuthServiceType = {
-    getAccessToken: () => string | null;
-    refreshAccessToken: () => Promise<string>;
-    logout: () => void;
+    refreshAccessToken: () => Promise<void>;
+    logout: () => Promise<void>;
 };
 let authServicePromise: Promise<AuthServiceType> | null = null;
 const getAuthService = async (): Promise<AuthServiceType> => {
@@ -24,25 +22,6 @@ const getAuthService = async (): Promise<AuthServiceType> => {
     }
     return authServicePromise;
 };
-
-/**
- * Request interceptor to inject Access Token
- */
-api.interceptors.request.use(
-    async (config) => {
-        const authService = await getAuthService();
-        const token = authService.getAccessToken();
-
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
 
 /**
  * Response interceptor for:
@@ -101,17 +80,15 @@ api.interceptors.response.use(
         }
 
         // Handle 401 Unauthorized - attempt token refresh
-        if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !originalRequest.url?.startsWith('/auth/')) {
+        const isPublicAuthRoute = /^\/auth\/(?:login|refresh|forgot-password|reset-password|logout)(?:\?|$)/.test(originalRequest?.url || '');
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isPublicAuthRoute) {
             originalRequest._retry = true;
 
             try {
                 const authService = await getAuthService();
 
                 // Try to refresh the access token (Requirement 3.6)
-                const newAccessToken = await authService.refreshAccessToken();
-
-                // Update the failed request with new token
-                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                await authService.refreshAccessToken();
 
                 // Retry the original request (Requirement 3.7)
                 return api(originalRequest);
@@ -122,7 +99,7 @@ api.interceptors.response.use(
 
                 // Redirect to login page
                 if (typeof window !== 'undefined') {
-                    window.location.href = '#/login';
+                    window.location.replace('/login');
                 }
 
                 return Promise.reject(refreshError);

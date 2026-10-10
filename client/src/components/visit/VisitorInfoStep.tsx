@@ -7,7 +7,6 @@ import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import Phone from 'lucide-react/dist/esm/icons/phone';
 
 // Phone parsing in VisitForm uses the same choices as this control.
-// eslint-disable-next-line react-refresh/only-export-components
 export const COUNTRY_CODES = [
     { code: '+58', country: 'VE', flag: '🇻🇪' },
     { code: '+1', country: 'US', flag: '🇺🇸' },

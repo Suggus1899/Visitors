@@ -1,6 +1,6 @@
 # LogMaster — control integral de visitantes
 
-Aplicación para Industrias de Alimentos el Trébol: registro, consentimiento y fotografías; espera, admisión, salida temporal, reingreso y cierre; administración, auditoría y exportaciones PDF/Excel. El backend vigente utiliza Go, Chi, pgx, sqlc y Goose sobre PostgreSQL 16. El cliente utiliza React, TypeScript, Vite y shadcn/ui.
+Aplicación para Industrias de Alimentos el Trébol: registro, consentimiento y fotografías; espera, admisión, salida temporal, reingreso y cierre; administración, auditoría y exportaciones PDF/Excel. El backend vigente utiliza Go, Chi, pgx, sqlc y Goose sobre PostgreSQL 16. El cliente utiliza Next.js App Router, React 19, TypeScript, HeroUI 3 y Tailwind CSS 4. Next.js sirve la interfaz y actúa como BFF del navegador: las sesiones se guardan en cookies HttpOnly, y la API Go permanece en la red privada.
 
 ## Laboratorio reproducible en Linux
 
@@ -33,6 +33,8 @@ pnpm exec playwright test            # recorrido sobre Compose
 ```
 
 CI ejecuta PostgreSQL/Mailpit independientes, Go con `-race`, sqlc, govulncheck, tipos, lint, pruebas y build. Containers comprueba persistencia, respaldo/restauración aislada, timers adelantados, navegador HTTPS y carga pequeña; publica las imágenes verificadas como artefacto `logmaster-images` durante siete días.
+
+Para desarrollo de la interfaz, `pnpm --dir client dev` inicia Next.js con HTTPS local en `https://localhost:5173`. El BFF necesita la API Go accesible en `http://127.0.0.1:3000`; Compose es el entorno recomendado para el recorrido integrado. `pnpm --dir client run build` genera la salida standalone que utiliza la imagen de frontend.
 
 El workflow manual **Full laboratory load** genera 100.000 visitantes y 1.000.000 de visitas ficticios, abre 50 sesiones, calienta dos minutos y mide quince. Publica hardware, recursos, latencias y respaldo/restauración. Un objetivo incumplido hace fallar el job.
 

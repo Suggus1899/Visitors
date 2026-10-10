@@ -168,7 +168,7 @@ describe('MonthlyReportCard', () => {
                     ])
                 })
             }),
-            {}
+            undefined
         );
     });
 

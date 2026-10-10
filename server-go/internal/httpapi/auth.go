@@ -53,7 +53,7 @@ func (a *App) tokens(s *Session) (map[string]any, error) {
 	if e != nil {
 		return nil, e
 	}
-	return map[string]any{"token": access, "accessToken": access, "refreshToken": refresh, "user": map[string]any{"username": s.Username, "role": s.Role, "mustChangePassword": s.MustChange}}, nil
+	return map[string]any{"token": access, "accessToken": access, "refreshToken": refresh, "user": map[string]any{"id": s.ID, "username": s.Username, "role": s.Role, "mustChangePassword": s.MustChange}}, nil
 }
 func (a *App) validateToken(ctx context.Context, value string, refresh bool) (*Session, error) {
 	secret := a.Config.JWTSecret
@@ -86,7 +86,7 @@ func (a *App) authenticate(next http.Handler) http.Handler {
 			failure(w, 401, "UNAUTHORIZED", "Sesión inválida o revocada")
 			return
 		}
-		if s.MustChange && r.URL.Path != "/api/v1/auth/change-password" {
+		if s.MustChange && r.URL.Path != "/api/v1/auth/change-password" && r.URL.Path != "/api/v1/auth/session" {
 			failure(w, 403, "PASSWORD_CHANGE_REQUIRED", "Debes cambiar tu contraseña")
 			return
 		}
@@ -112,7 +112,20 @@ func (a *App) mountAuth(router chi.Router) {
 	router.Post("/api/v1/auth/forgot-password", a.forgotPassword)
 	router.Post("/api/v1/auth/reset-password", a.resetPassword)
 	router.Post("/api/v1/auth/refresh", a.refresh)
+	router.With(a.authenticate).Get("/api/v1/auth/session", a.currentSession)
 	router.With(a.authenticate).Post("/api/v1/auth/change-password", a.changePassword)
+}
+
+func (a *App) currentSession(w http.ResponseWriter, r *http.Request) {
+	s := actor(r)
+	success(w, map[string]any{
+		"user": map[string]any{
+			"id":                 s.ID,
+			"username":           s.Username,
+			"role":               s.Role,
+			"mustChangePassword": s.MustChange,
+		},
+	})
 }
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -305,7 +318,7 @@ func sendResetEmail(ctx context.Context, to, token string) error {
 		return e
 	}
 	msg.Subject("Restablecimiento de contraseña — LogMaster")
-	link := strings.TrimRight(os.Getenv("APP_URL"), "/") + "/#/reset-password?token=" + url.QueryEscape(token)
+	link := strings.TrimRight(os.Getenv("APP_URL"), "/") + "/reset-password?token=" + url.QueryEscape(token)
 	msg.SetBodyString(mail.TypeTextPlain, "Solicitud de restablecimiento de contraseña. El enlace vence en 15 minutos y tiene un solo uso:\n"+link)
 	return client.DialAndSendWithContext(ctx, msg)
 }

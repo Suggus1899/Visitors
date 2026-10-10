@@ -6,6 +6,8 @@
 graphify-out
 **/node_modules
 **/dist
+**/.next
+**/.turbo
 **/coverage*
 .env*
 **/.env*

@@ -1,11 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import api from '../../services/api.v1';
 import SuperAdminDashboard from '../SuperAdminDashboard';
 
 vi.mock('../../services/api.v1', () => ({ default: { get: vi.fn(), put: vi.fn() } }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'root', username: 'fixture_root' }, logout: vi.fn() }) }));
 vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }));
 
@@ -14,7 +14,7 @@ describe('root account editing', () => {
         vi.mocked(api.get).mockResolvedValue({ data: { data: [{ id: 42, username: 'fixture_root', role: 'root', email: 'root@example.test', mustChangePassword: false }] } });
         vi.mocked(api.put).mockResolvedValue({ data: { success: true } });
         const user = userEvent.setup();
-        render(<MemoryRouter><SuperAdminDashboard /></MemoryRouter>);
+        render(<SuperAdminDashboard />);
         await user.click(await screen.findByRole('button', { name: 'Editar' }));
         expect(screen.getByRole('combobox', { name: 'Rol' })).toBeDisabled();
         expect(screen.getByRole('combobox', { name: 'Rol' })).toHaveValue('root');
