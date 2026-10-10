@@ -9,6 +9,7 @@ import (
 	"github.com/Suggus1899/Visitors/server-go/internal/security"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -57,6 +58,14 @@ func TestBackupMetadataAndNames(t *testing.T) {
 }
 
 type fullDisk struct{}
+
+func TestRestoreOwnsOnlyPublicSchemaCreation(t *testing.T) {
+	manifest := "6; 2615 2200 SCHEMA - public owner\n7; 0 0 COMMENT - SCHEMA public owner\n8; 1259 2201 TABLE public Visitors owner\n9; 2615 2202 SCHEMA - other owner\n"
+	result := restoreList(manifest)
+	if !strings.HasPrefix(result, ";6;") || !strings.Contains(result, "\n7; 0 0 COMMENT") || !strings.Contains(result, "\n8; 1259") || !strings.Contains(result, "\n9; 2615") {
+		t.Fatal(result)
+	}
+}
 
 func (fullDisk) Write([]byte) (int, error) { return 0, syscall.ENOSPC }
 

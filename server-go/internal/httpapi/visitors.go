@@ -189,12 +189,12 @@ func (a *App) listVisitors(w http.ResponseWriter, r *http.Request) {
 	}
 	where := ` WHERE "anonymizedAt" IS NULL AND ($1='' OR company ILIKE '%'||$1||'%') AND ($2='' OR id=ANY($3) OR company ILIKE '%'||$2||'%')`
 	var total int
-	e = a.Pool.QueryRow(r.Context(), `SELECT count(*) FROM "Visitors"`+where, company, search, ids).Scan(&total)
+	e = a.Pool.QueryRow(r.Context(), `SELECT count(*) FROM "Visitors"`+where, pgx.QueryExecModeExec, company, search, ids).Scan(&total)
 	if e != nil {
 		a.serverError(w, e)
 		return
 	}
-	rows, e := a.Pool.Query(r.Context(), `SELECT `+profileColumns+` FROM "Visitors"`+where+` ORDER BY id LIMIT $4 OFFSET $5`, company, search, ids, limit, (page-1)*limit)
+	rows, e := a.Pool.Query(r.Context(), `SELECT `+profileColumns+` FROM "Visitors"`+where+` ORDER BY id LIMIT $4 OFFSET $5`, pgx.QueryExecModeExec, company, search, ids, limit, (page-1)*limit)
 	if e != nil {
 		a.serverError(w, e)
 		return

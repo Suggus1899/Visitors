@@ -26,6 +26,10 @@ compose run --rm ops ops preflight
 compose run --rm ops ops restore --archive "$archive" --staging-env /run/secrets/staging_env
 version_dry=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT max("tokenVersion") FROM "Users"')
 test "$version_before" = "$version_dry"
+if compose run --rm ops ops restore --archive "$archive" --root nonexistent --staging-env /run/secrets/staging_env --apply --confirm-target postgres:5432/logmaster_pilot; then
+  echo 'Restoration with absent root unexpectedly succeeded.' >&2
+  exit 1
+fi
 compose run --rm ops ops restore --archive "$archive" --staging-env /run/secrets/staging_env --apply --confirm-target postgres:5432/logmaster_pilot
 compose run --rm ops ops migrate --apply --confirm-target postgres:5432/logmaster_pilot
 compose run --rm ops ops migrate --apply --confirm-target postgres:5432/logmaster_pilot

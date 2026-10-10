@@ -20,7 +20,7 @@ func (a *App) matchingVisitors(r *http.Request, search string) ([]int32, error) 
 		return nil, e
 	}
 	tokens := index.Tokens(a.Config.EncryptionKey, search)
-	rows, e := a.Pool.Query(r.Context(), `SELECT p.id,p.first_name,p.last_name,p.encrypted_cedula FROM "Visitors" p JOIN (SELECT visitor_id FROM "VisitorSearchTokens" WHERE token=ANY($1::bytea[]) GROUP BY visitor_id HAVING count(*)=$2) matches ON matches.visitor_id=p.id WHERE p."anonymizedAt" IS NULL`, tokens, len(tokens))
+	rows, e := a.Pool.Query(r.Context(), `SELECT p.id,p.first_name,p.last_name,p.encrypted_cedula FROM "Visitors" p JOIN (SELECT visitor_id FROM "VisitorSearchTokens" WHERE token=ANY($1::bytea[]) GROUP BY visitor_id HAVING count(*)=$2) matches ON matches.visitor_id=p.id WHERE p."anonymizedAt" IS NULL`, pgx.QueryExecModeExec, tokens, len(tokens))
 	if e != nil {
 		return nil, e
 	}
@@ -123,11 +123,12 @@ func (a *App) filteredVisits(w http.ResponseWriter, r *http.Request) {
 		from = ` FROM "Visits" v`
 	}
 	var total int
-	if e = a.Pool.QueryRow(r.Context(), `SELECT count(*)`+from+f.where(), f.args...).Scan(&total); e != nil {
+	args := append([]any{pgx.QueryExecModeExec}, f.args...)
+	if e = a.Pool.QueryRow(r.Context(), `SELECT count(*)`+from+f.where(), args...).Scan(&total); e != nil {
 		a.serverError(w, e)
 		return
 	}
-	rows, e := a.Pool.Query(r.Context(), `SELECT v.*`+from+f.where()+fmt.Sprintf(` ORDER BY v.check_in_time DESC,v.id DESC LIMIT $%d OFFSET $%d`, len(f.args)+1, len(f.args)+2), append(f.args, limit, (page-1)*limit)...)
+	rows, e := a.Pool.Query(r.Context(), `SELECT v.*`+from+f.where()+fmt.Sprintf(` ORDER BY v.check_in_time DESC,v.id DESC LIMIT $%d OFFSET $%d`, len(f.args)+1, len(f.args)+2), append(args, limit, (page-1)*limit)...)
 	if e != nil {
 		a.serverError(w, e)
 		return
@@ -155,7 +156,7 @@ func (a *App) visitDTOs(r *http.Request, visits []store.Visit) ([]map[string]any
 			hashes = append(hashes, v.VisitorCedula)
 		}
 	}
-	rows, e := a.Pool.Query(r.Context(), `SELECT `+profileColumns+` FROM "Visitors" WHERE id=ANY($1) OR cedula=ANY($2)`, ids, hashes)
+	rows, e := a.Pool.Query(r.Context(), `SELECT `+profileColumns+` FROM "Visitors" WHERE id=ANY($1) OR cedula=ANY($2)`, pgx.QueryExecModeExec, ids, hashes)
 	if e != nil {
 		return nil, e
 	}

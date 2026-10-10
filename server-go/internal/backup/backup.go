@@ -334,12 +334,24 @@ func RestoreAs(ctx context.Context, target config.Config, data []byte, root stri
 	if e := list.Run(); e != nil {
 		return errors.New("invalid PostgreSQL archive manifest")
 	}
+	selection, e := os.CreateTemp("", "logmaster-restore-*.list")
+	if e != nil {
+		return e
+	}
+	defer os.Remove(selection.Name())
+	if _, e = selection.WriteString(restoreList(manifest.String())); e != nil {
+		selection.Close()
+		return e
+	}
+	if e = selection.Close(); e != nil {
+		return e
+	}
 	file, e := os.CreateTemp("", "logmaster-restore-*.sql")
 	if e != nil {
 		return e
 	}
 	defer func() { file.Close(); os.Remove(file.Name()) }()
-	render := command(ctx, target, "pg_restore", "--no-owner", "--no-acl", "--file=-")
+	render := command(ctx, target, "pg_restore", "--no-owner", "--no-acl", "--use-list", selection.Name(), "--file=-")
 	render.Stdin = bytes.NewReader(data)
 	// Compressed archives can expand substantially; fail before filling the temporary filesystem.
 	output := &cappedWriter{writer: file, remaining: 4 * 1024 * 1024 * 1024}
@@ -357,10 +369,7 @@ func RestoreAs(ctx context.Context, target config.Config, data []byte, root stri
 		return e
 	}
 	// A clean schema also handles SERIAL/IDENTITY differences and removes stale objects.
-	prefix := "DROP SCHEMA public CASCADE;\n"
-	if !strings.Contains(manifest.String(), " SCHEMA - public ") {
-		prefix += "CREATE SCHEMA public;\n"
-	}
+	prefix := "DROP SCHEMA public CASCADE;\nCREATE SCHEMA public;\n"
 	cmd := command(ctx, target, "psql", "-X", "-h", target.Host, "-p", target.Port, "-U", target.User, "-d", target.Database, "--single-transaction", "--no-password", "--set=ON_ERROR_STOP=1")
 	// Finalization belongs to the same transaction as the restored schema and data.
 	allowedRole := "role='root'"
@@ -394,3 +403,14 @@ END; $restore_finalize$;
 }
 
 func sqlLiteral(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
+
+// pg_restore can omit CREATE public even when its manifest contains a SCHEMA entry.
+func restoreList(manifest string) string {
+	lines := strings.Split(manifest, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, " SCHEMA - public ") {
+			lines[i] = ";" + line
+		}
+	}
+	return strings.Join(lines, "\n")
+}
