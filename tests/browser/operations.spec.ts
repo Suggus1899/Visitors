@@ -26,8 +26,8 @@ async function signIn(page: Page, username: string, password: string) {
 test('HTTPS camera, authenticated photographs, consent and complete operational cycle', async ({ page }) => {
   await signIn(page, 'operador', fixture.SEED_OPERADOR_PASSWORD);
   expect(await page.evaluate(() => window.isSecureContext)).toBe(true);
-  await page.getByLabel('Cédula', { exact: true }).fill('45678901');
   const lookup = page.waitForResponse(response => response.url().includes('/visitors/V-45678901'));
+  await page.getByLabel('Cédula', { exact: true }).fill('45678901');
   await page.getByLabel('Nombres', { exact: true }).click(); await lookup;
   await page.getByLabel('Nombres', { exact: true }).fill('Prueba Navegador');
   await page.getByLabel('Apellidos', { exact: true }).fill('Ficticio');
@@ -43,6 +43,7 @@ test('HTTPS camera, authenticated photographs, consent and complete operational 
   await page.getByText('Usar Cámara', { exact: true }).first().click();
   await expect.poll(() => page.locator('video').evaluate((video: HTMLVideoElement) => video.readyState)).toBeGreaterThan(1);
   await page.getByTitle('Captura instantánea').click();
+  await expect(page.locator('img[src^="data:image/"]')).toBeVisible();
   const created = page.waitForResponse(response => response.url().endsWith('/visits/checkin') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'PONER EN ESPERA' }).click();
   expect((await created).status()).toBe(201);
@@ -119,7 +120,7 @@ test('administration defers inactive panels and produces real PDF and Excel file
   await page.getByLabel('Usuario', { exact: true }).fill('root');
   await page.getByLabel('Contraseña', { exact: true }).fill(changedPassword);
   await page.getByRole('button', { name: 'INGRESAR', exact: true }).click();
-  await expect(page.getByLabel('Cédula', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/#\/root$/);
   await page.goto('/#/admin');
   await expect(page.getByRole('button', { name: 'Exportar PDF', exact: true })).toBeEnabled();
   await expect(page.getByText('Prueba Navegador Ficticio', { exact: true })).toBeVisible();

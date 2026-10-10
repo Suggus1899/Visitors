@@ -5,6 +5,7 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: 'https://localhost:8443', ignoreHTTPSErrors: true,
+    actionTimeout: 15_000, navigationTimeout: 15_000,
     permissions: ['camera'], trace: 'off',
     launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
   },
