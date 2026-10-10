@@ -18,6 +18,8 @@ jobs:
         run: sh scripts/containers/smoke.sh
       - name: Execute the daily and weekly timers ahead of schedule
         run: sh scripts/containers/timers-ci.sh
+      - name: Adopt an independent legacy schema and bootstrap its first root
+        run: sh scripts/containers/adoption-ci.sh
       - uses: pnpm/action-setup@v4
         with: {version: 12.4.2}
       - uses: actions/setup-node@v4
