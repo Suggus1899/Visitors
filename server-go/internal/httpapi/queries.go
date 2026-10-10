@@ -14,7 +14,7 @@ import (
 
 const profileColumns = `id,"anonymizedAt",cedula,encrypted_cedula,first_name,last_name,company,job_title,photo_url,id_photo_url,email,phone,"updatedAt",NULL::bytea AS photo_data,NULL::bytea AS id_photo_data,"isBlocked",observations,"createdAt"`
 
-// Encrypted names are searched by streaming profiles, without loading photographs.
+// Verify indexed candidates after decryption, without loading photographs.
 func (a *App) matchingVisitors(r *http.Request, search string) ([]int32, error) {
 	if e := validateSearch(search); e != nil {
 		return nil, e

@@ -9,6 +9,7 @@ import (
 	"github.com/Suggus1899/Visitors/server-go/internal/security"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestSharedBackupLock(t *testing.T) {
@@ -103,5 +104,32 @@ func TestPrivatePasswordAndStatus(t *testing.T) {
 	}
 	if _, e = (Service{}).SavedPassword("../outside"); e != ErrName {
 		t.Fatal(e)
+	}
+}
+
+func TestFailedAttemptPreservesLastSuccessfulDate(t *testing.T) {
+	t.Setenv("BACKUP_PASSWORD_PATH", t.TempDir())
+	root, e := privateRoot()
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer root.Close()
+	verified := time.Date(2026, 10, 10, 5, 0, 0, 0, time.UTC)
+	for _, name := range []string{"backup", "restore"} {
+		if e = writeStatus(root, name+"-status.json", Status{At: verified, Successful: true}); e != nil {
+			t.Fatal(e)
+		}
+		if e = writeStatus(root, name+"-status.json", Status{At: verified.Add(time.Hour)}); e != nil {
+			t.Fatal(e)
+		}
+	}
+	statuses, e := ReadStatus()
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, status := range statuses {
+		if status.Successful || !status.LastSuccessfulAt.Equal(verified) {
+			t.Fatal(status)
+		}
 	}
 }

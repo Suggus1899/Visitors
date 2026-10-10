@@ -1,6 +1,6 @@
 # API de LogMaster con Go
 
-Base local `http://127.0.0.1:3000/api/v1`. Se conservan las 53 rutas del contrato anterior. El inventario versionado es `server-go/contracts/routes.json`; una prueba compara ese inventario con el router real y comprueba el rechazo de solicitudes protegidas sin sesión.
+Base en Compose `https://localhost:8443/api/v1`. Se conservan las 53 rutas anteriores y se añade calendario agregado. El inventario `server-go/contracts/routes.json` se compara con el router real y comprueba solicitudes sin sesión.
 
 Las respuestas JSON mantienen `{ success: true, data: ... }` o `{ success: false, error: { code, message } }`, con metadatos de paginación según la ruta. Fotos, CSV y eventos son respuestas binarias/textuales. No hay publicación de fotografías en un directorio estático ni Swagger servido por el backend Go.
 
@@ -22,6 +22,12 @@ Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Solo login, 
 - Respaldos: nombre contenido, contraseña y metadatos obligatorios. Restaurar fuera de `logmaster_restore_test` devuelve `409 RESTORE_TARGET_NOT_ALLOWED`. Tras restaurar, las sesiones anteriores dejan de ser válidas.
 
 Códigos generales: 400 validación, 401 sesión/contraseña inválida, 403 permiso o cambio obligatorio, 404 recurso, 409 conflicto de estado, 413 cuerpo mayor de 5 MB, 429 límite, 500 operación fallida y 503 conexión de base no disponible.
+
+Los filtros generales `search` exigen al menos tres caracteres tras normalización; entradas menores devuelven `400 SEARCH_TOO_SHORT`. La consulta directa por cédula permanece. La búsqueda conserva distinción de acentos y usa candidatos del índice protegido.
+
+`GET /api/v1/visits/calendar?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&status=...` devuelve `{ success: true, data: { days: [{ date, count }] } }`, con días Caracas y rango máximo de 62 días. Usa los permisos de consulta existentes. El detalle sigue paginado por `/visits`. PDF/Excel del cliente rechazan totales mayores de 2.000/20.000, incluyendo PDF de calendario; no hay generación masiva en el servidor.
+
+El CLI de mantenimiento mantiene simulación por defecto y confirmación explícita; no añade rutas públicas. Véase [OPERATIONS](OPERATIONS.md).
 
 ## Inventario de rutas
 
@@ -71,6 +77,7 @@ Códigos generales: 400 validación, 401 sesión/contraseña inválida, 403 perm
 | POST | /api/v1/visits/:id/intermittent-exit | Obligatoria |
 | POST | /api/v1/visits/:id/intermittent-reentry | Obligatoria |
 | GET | /api/v1/visits | Obligatoria |
+| GET | /api/v1/visits/calendar | Obligatoria |
 | GET | /api/v1/visitors/companies | Obligatoria |
 | GET | /api/v1/visitors | Obligatoria |
 | GET | /api/v1/visitors/:cedula | Obligatoria |

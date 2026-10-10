@@ -11,7 +11,6 @@ import (
 	"github.com/Suggus1899/Visitors/server-go/internal/backup"
 	"github.com/Suggus1899/Visitors/server-go/internal/config"
 	"github.com/Suggus1899/Visitors/server-go/internal/security"
-	"github.com/joho/godotenv"
 	"io"
 	"net/mail"
 	"os"
@@ -134,23 +133,9 @@ func operations(args []string) error {
 		if e != nil {
 			return e
 		}
-		var env map[string]string
-		env, e = godotenv.Read(*stageFile)
+		stage, e := stagingConfig(c, *stageFile)
 		if e != nil {
-			return errors.New("staging environment unavailable")
-		}
-		stage := c
-		stage.Host = env["DB_HOST"]
-		stage.Port = env["DB_PORT"]
-		stage.Database = env["DB_NAME"]
-		stage.User = env["DB_USER"]
-		stage.Password = env["DB_PASSWORD"]
-		stage.DBSSL = env["DB_SSL"] == "true"
-		if stage.Database != "logmaster_restore_test" || stage.Host == "" || stage.Port == "" || stage.Host == c.Host && stage.Port == c.Port && stage.Database == c.Database {
-			return errors.New("staging must be an independent logmaster_restore_test")
-		}
-		if stage.User == "" || stage.Password == "" {
-			return errors.New("explicit staging credentials required")
+			return e
 		}
 		if e = backup.RestoreAs(ctx, stage, data, "", true); e != nil {
 			return e

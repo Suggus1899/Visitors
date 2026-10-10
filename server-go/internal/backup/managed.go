@@ -12,11 +12,12 @@ import (
 )
 
 type Status struct {
-	At              time.Time `json:"at"`
-	DurationSeconds float64   `json:"durationSeconds"`
-	Successful      bool      `json:"successful"`
-	Archive         string    `json:"archive,omitempty"`
-	SizeBytes       int64     `json:"sizeBytes,omitempty"`
+	At               time.Time `json:"at"`
+	DurationSeconds  float64   `json:"durationSeconds"`
+	Successful       bool      `json:"successful"`
+	Archive          string    `json:"archive,omitempty"`
+	SizeBytes        int64     `json:"sizeBytes,omitempty"`
+	LastSuccessfulAt time.Time `json:"lastSuccessfulAt"`
 }
 
 // The shared volume serializes CLI and HTTP backups, including retention.
@@ -147,6 +148,20 @@ func (s Service) prune(private *os.Root, keep int) error {
 }
 
 func writeStatus(root *os.Root, name string, status Status) error {
+	if status.Successful {
+		status.LastSuccessfulAt = status.At
+	} else if previous, e := root.ReadFile(name); e == nil {
+		var saved Status
+		if e = json.Unmarshal(previous, &saved); e != nil {
+			return e
+		}
+		status.LastSuccessfulAt = saved.LastSuccessfulAt
+		if status.LastSuccessfulAt.IsZero() && saved.Successful {
+			status.LastSuccessfulAt = saved.At
+		}
+	} else if !os.IsNotExist(e) {
+		return e
+	}
 	data, e := json.Marshal(status)
 	if e != nil {
 		return e

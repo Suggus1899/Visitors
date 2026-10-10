@@ -33,6 +33,12 @@ jobs:
       - name: Sanitized service status
         if: always()
         run: docker compose --profile test ps
+      - name: Export verified application images
+        run: |
+          mkdir -p .local/images
+          docker save logmaster-api:local logmaster-web:local | gzip > .local/images/logmaster-images.tar.gz
+      - uses: actions/upload-artifact@v4
+        with: {name: logmaster-images, path: .local/images/logmaster-images.tar.gz, retention-days: 7}
       - name: Startup diagnostics
         if: failure()
         run: docker compose --profile test logs --tail 25 api web

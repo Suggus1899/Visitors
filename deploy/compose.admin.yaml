@@ -1,0 +1,7 @@
+# Supply a private maintenance.password only for bootstrap-root or archive restoration.
+services:
+  ops:
+    secrets: [maintenance_password]
+secrets:
+  maintenance_password:
+    file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/maintenance.password'
