@@ -64,6 +64,34 @@ func operations(args []string) error {
 	if e = db.Preflight(ctx, database, c.EncryptionKey); e != nil {
 		return e
 	}
+	if command == "restore" {
+		if *stageFile == "" || *passwordFile == "" {
+			return errors.New("restore requires staging environment and private password file")
+		}
+		if _, e = stagingConfig(c, *stageFile); e != nil {
+			return e
+		}
+		raw, e := readPassword(*passwordFile)
+		if e != nil {
+			return e
+		}
+		if _, e = (backup.Service{Config: c}).Prepare(*archive, string(raw)); e != nil {
+			return e
+		}
+	}
+	if command == "bootstrap-root" {
+		address, e := mail.ParseAddress(*email)
+		if e != nil || address.Address != *email {
+			return errors.New("valid root email required")
+		}
+		raw, e := readPassword(*passwordFile)
+		if e != nil {
+			return e
+		}
+		if e = security.ValidatePassword(string(raw)); e != nil {
+			return e
+		}
+	}
 	if !*apply || command == "preflight" {
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"command": command, "target": target, "dryRun": true, "validated": true})
 	}
@@ -113,8 +141,8 @@ func operations(args []string) error {
 		stage.User = env["DB_USER"]
 		stage.Password = env["DB_PASSWORD"]
 		stage.DBSSL = env["DB_SSL"] == "true"
-		if stage.Host != c.Host || stage.Port != c.Port || stage.Database != "logmaster_restore_test" || stage.Database == c.Database {
-			return errors.New("staging must be the independent logmaster_restore_test on the same cluster")
+		if stage.Database != "logmaster_restore_test" || stage.Host == "" || stage.Port == "" || stage.Host == c.Host && stage.Port == c.Port && stage.Database == c.Database {
+			return errors.New("staging must be an independent logmaster_restore_test")
 		}
 		if stage.User == "" || stage.Password == "" {
 			return errors.New("explicit staging credentials required")
@@ -130,6 +158,15 @@ func operations(args []string) error {
 		defer staged.Close()
 		if e = db.Preflight(ctx, staged, c.EncryptionKey); e != nil {
 			return e
+		}
+		var baseline bool
+		if e = staged.QueryRowContext(ctx, `SELECT to_regclass('public.goose_db_version') IS NOT NULL`).Scan(&baseline); e != nil {
+			return e
+		}
+		if !baseline {
+			if e = db.Adopt(ctx, staged); e != nil {
+				return e
+			}
 		}
 		if e = db.Migrate(ctx, staged); e != nil {
 			return e

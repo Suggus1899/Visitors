@@ -95,6 +95,14 @@ func (w *cappedWriter) Write(p []byte) (int, error) {
 	return n, e
 }
 func (s Service) Create(ctx context.Context) (Result, error) {
+	unlock, e := s.lock()
+	if e != nil {
+		return Result{}, e
+	}
+	defer unlock()
+	return s.create(ctx)
+}
+func (s Service) create(ctx context.Context) (Result, error) {
 	root, e := s.root()
 	if e != nil {
 		return Result{}, e
@@ -320,7 +328,8 @@ func RestoreAs(ctx context.Context, target config.Config, data []byte, root stri
 	defer func() { file.Close(); os.Remove(file.Name()) }()
 	render := command(ctx, target, "pg_restore", "--no-owner", "--no-acl", "--file=-")
 	render.Stdin = bytes.NewReader(data)
-	render.Stdout = &cappedWriter{writer: file, remaining: maxSize}
+	// Compressed archives can expand substantially; fail before filling the temporary filesystem.
+	render.Stdout = &cappedWriter{writer: file, remaining: 4 * 1024 * 1024 * 1024}
 	if e = render.Run(); e != nil {
 		return errors.New("archive SQL preparation failed")
 	}

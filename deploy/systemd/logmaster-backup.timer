@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily LogMaster backup at 01:00 Caracas
+
+[Timer]
+OnCalendar=*-*-* 01:00:00 America/Caracas
+Persistent=true
+Unit=logmaster-backup.service
+
+[Install]
+WantedBy=timers.target

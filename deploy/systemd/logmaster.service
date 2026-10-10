@@ -1,0 +1,16 @@
+[Unit]
+Description=LogMaster containers
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/logmaster
+Environment=LOGMASTER_CONFIG_DIR=/opt/logmaster/config
+ExecStart=/usr/bin/docker compose up -d --wait api web
+ExecStop=/usr/bin/docker compose stop web api
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

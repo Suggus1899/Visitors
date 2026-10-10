@@ -1,0 +1,13 @@
+[Unit]
+Description=LogMaster restore rehearsal in disposable PostgreSQL
+Requires=logmaster.service
+After=logmaster.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/logmaster
+Environment=LOGMASTER_CONFIG_DIR=/opt/logmaster/config
+ExecStartPre=/usr/bin/docker compose up -d --wait postgres-restore
+ExecStart=/usr/bin/docker compose run --rm ops rehearse
+ExecStopPost=/usr/bin/docker compose stop postgres-restore
+TimeoutStartSec=1800

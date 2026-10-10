@@ -9,6 +9,16 @@ if [ -e "$directory/app.env" ]; then
 fi
 password=$(openssl rand -hex 24)
 printf '%s' "$password" > "$directory/db.password"
+restore_password=$(openssl rand -hex 24)
+printf '%s' "$restore_password" > "$directory/restore.password"
+cat > "$directory/staging.env" <<EOF
+DB_HOST=postgres-restore
+DB_PORT=5432
+DB_NAME=logmaster_restore_test
+DB_USER=logmaster_restore_test
+DB_PASSWORD=$restore_password
+DB_SSL=false
+EOF
 cat > "$directory/app.env" <<EOF
 DB_HOST=postgres
 DB_PORT=5432

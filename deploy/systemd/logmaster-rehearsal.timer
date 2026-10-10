@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly isolated restore rehearsal
+
+[Timer]
+OnCalendar=Sun *-*-* 03:00:00 America/Caracas
+Persistent=true
+Unit=logmaster-rehearsal.service
+
+[Install]
+WantedBy=timers.target

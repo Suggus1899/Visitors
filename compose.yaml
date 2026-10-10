@@ -70,8 +70,26 @@ services:
   ops:
     <<: *api
     profiles: [ops]
+    secrets: [app_env, staging_env]
+    environment: {LOGMASTER_STAGING_ENV: /run/secrets/staging_env}
     depends_on: {postgres: {condition: service_healthy}}
     command: [check]
+  postgres-restore:
+    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    profiles: [ops]
+    environment:
+      POSTGRES_DB: logmaster_restore_test
+      POSTGRES_USER: logmaster_restore_test
+      POSTGRES_PASSWORD_FILE: /run/secrets/restore_password
+    secrets: [restore_password]
+    volumes: [restore:/var/lib/postgresql/data]
+    networks: [backend]
+    logging: *logging
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U logmaster_restore_test -d logmaster_restore_test']
+      interval: 5s
+      timeout: 3s
+      retries: 20
 networks:
   backend:
     ipam: {config: [{subnet: '${LOGMASTER_SUBNET:-172.30.52.0/24}'}]}
@@ -79,8 +97,11 @@ volumes:
   postgres:
   backups:
   passwords:
+  restore:
 secrets:
   app_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/app.env'}
   db_password: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/db.password'}
   tls_cert: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/tls.pem'}
   tls_key: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/tls.key'}
+  staging_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/staging.env'}
+  restore_password: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/restore.password'}

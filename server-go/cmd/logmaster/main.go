@@ -115,6 +115,20 @@ func run() error {
 			return e
 		}
 		return json.NewEncoder(os.Stdout).Encode(result)
+	case "backup-daily":
+		result, e := (backup.Service{Config: c}).Managed(ctx)
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(os.Stdout).Encode(result)
+	case "backup-status":
+		result, e := backup.ReadStatus()
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(os.Stdout).Encode(result)
+	case "rehearse":
+		return rehearse(ctx, c)
 	case "backup-monitor":
 		var bytes int64
 		if e = database.QueryRowContext(ctx, `SELECT pg_database_size(current_database())`).Scan(&bytes); e != nil {

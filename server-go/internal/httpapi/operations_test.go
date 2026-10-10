@@ -93,6 +93,53 @@ func TestBackupRestoreIntegration(t *testing.T) {
 	if s, _ = request(t, restoredApp.Router(), "GET", "/api/v1/superadmin/users", "", fresh); s != 200 {
 		t.Fatal("fresh login after restore", s)
 	}
+	for _, point := range []string{"session", "audit"} {
+		t.Run("rollback_"+point, func(t *testing.T) {
+			ctx := context.Background()
+			statement := `CREATE FUNCTION fixture_restore_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected finalization failure'; END $$; CREATE TRIGGER fixture_restore_failure BEFORE UPDATE ON "Users" FOR EACH ROW EXECUTE FUNCTION fixture_restore_failure()`
+			if point == "audit" {
+				statement = `CREATE FUNCTION fixture_restore_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='BACKUP_RESTORE_COMPLETED' THEN RAISE EXCEPTION 'injected audit failure'; END IF; RETURN NEW; END $$;CREATE TRIGGER fixture_restore_failure BEFORE INSERT ON "ActivityLogs" FOR EACH ROW EXECUTE FUNCTION fixture_restore_failure()`
+			}
+			if _, e = a.Pool.Exec(ctx, statement); e != nil {
+				t.Fatal(e)
+			}
+			bad, e := service.Create(ctx)
+			table := "Users"
+			if point == "audit" {
+				table = "ActivityLogs"
+			}
+			if _, cleanup := a.Pool.Exec(ctx, fmt.Sprintf(`DROP TRIGGER fixture_restore_failure ON "%s";DROP FUNCTION fixture_restore_failure()`, table)); cleanup != nil {
+				t.Fatal(cleanup)
+			}
+			if e != nil {
+				t.Fatal(e)
+			}
+			badData, e := service.Prepare(filepath.Base(bad.FilePath), bad.RestorePassword)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if _, e = restored.Exec(ctx, `CREATE TABLE rollback_marker(id integer); INSERT INTO rollback_marker VALUES(71)`); e != nil {
+				t.Fatal(e)
+			}
+			var before, after int64
+			if e = restored.QueryRow(ctx, `SELECT max("tokenVersion") FROM "Users"`).Scan(&before); e != nil {
+				t.Fatal(e)
+			}
+			if e = backup.RestoreAs(ctx, target, badData, name, true); e == nil {
+				t.Fatal("injected finalization committed")
+			}
+			var marker int
+			if e = restored.QueryRow(ctx, `SELECT id FROM rollback_marker`).Scan(&marker); e != nil || marker != 71 {
+				t.Fatal("original schema lost", e)
+			}
+			if e = restored.QueryRow(ctx, `SELECT max("tokenVersion") FROM "Users"`).Scan(&after); e != nil || after != before {
+				t.Fatal("session changes partially committed", e)
+			}
+			if _, e = restored.Exec(ctx, `DROP TABLE rollback_marker`); e != nil {
+				t.Fatal(e)
+			}
+		})
+	}
 }
 func TestRetentionIntegration(t *testing.T) {
 	a, h := integrationApp(t)

@@ -67,7 +67,10 @@ func RebuildSearch(ctx context.Context, database *sql.DB, key []byte, force bool
 		if e != nil {
 			return e
 		}
-		for _, p := range batch {
+		ids := make([]int, len(batch))
+		tokenIDs := []int{}
+		tokens := [][]byte{}
+		for i, p := range batch {
 			var first, last, cedula string
 			first, e = security.Decrypt(key, p.first)
 			if e == nil {
@@ -80,15 +83,20 @@ func RebuildSearch(ctx context.Context, database *sql.DB, key []byte, force bool
 				tx.Rollback()
 				return e
 			}
-			if _, e = tx.ExecContext(ctx, `DELETE FROM "VisitorSearchTokens" WHERE visitor_id=$1`, p.id); e != nil {
-				tx.Rollback()
-				return e
-			}
-			if _, e = tx.ExecContext(ctx, `INSERT INTO "VisitorSearchTokens"(visitor_id,token) SELECT $1,unnest($2::bytea[]) ON CONFLICT DO NOTHING`, p.id, search.Tokens(key, first+" "+last+" "+cedula)); e != nil {
-				tx.Rollback()
-				return e
+			ids[i] = p.id
+			for _, token := range search.Tokens(key, first+" "+last+" "+cedula) {
+				tokenIDs = append(tokenIDs, p.id)
+				tokens = append(tokens, token)
 			}
 			cursor = p.id
+		}
+		if _, e = tx.ExecContext(ctx, `DELETE FROM "VisitorSearchTokens" WHERE visitor_id=ANY($1::integer[])`, ids); e != nil {
+			tx.Rollback()
+			return e
+		}
+		if _, e = tx.ExecContext(ctx, `INSERT INTO "VisitorSearchTokens"(visitor_id,token) SELECT * FROM unnest($1::integer[],$2::bytea[]) ON CONFLICT DO NOTHING`, tokenIDs, tokens); e != nil {
+			tx.Rollback()
+			return e
 		}
 		if _, e = tx.ExecContext(ctx, `UPDATE "SearchIndexState" SET cursor=$1 WHERE id=true`, cursor); e != nil {
 			tx.Rollback()
