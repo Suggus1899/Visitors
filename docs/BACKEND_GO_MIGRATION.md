@@ -1,6 +1,6 @@
 # Migración del backend a Go
 
-> Registro histórico del ensayo del 9 de octubre. Los comandos de Windows, restricciones de restauración y mediciones de esa fecha se conservan como evidencia de ese estado. La instalación y recuperación vigentes se describen en [OPERATIONS](OPERATIONS.md); la preparación actual usa contenedores Linux y no recrea Visitors-local.
+> Registro histórico del ensayo del 9 de octubre. Los comandos de Windows, restricciones de restauración y mediciones de esa fecha se conservan como evidencia de ese estado. El backend Node y sus comandos se retiraron del árbol vigente después de verificar compatibilidad, adopción, restauración y carga; su referencia es `backup/node-before-retirement-2026-10-10`. La instalación y recuperación vigentes se describen en [OPERATIONS](OPERATIONS.md); la preparación actual usa contenedores Linux y no recrea Visitors-local.
 
 Referencia de partida: commit 3e3917e, versión integral restaurada. Entrega directamente en `main`, por indicación del usuario. Su referencia anterior se conserva en `backup/main-before-go-2026-10-09`.
 

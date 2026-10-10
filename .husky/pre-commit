@@ -13,9 +13,9 @@ echo "$staged" | grep -qE '\.(ts|tsx|js|jsx|json|yml|yaml|sh|bat|ps1|go|sql|mod|
   exit 0
 }
 
-client=0; server=0; backend_go=0
+client=0; backend_go=0
 for f in $staged; do
-  case "$f" in client/*) client=1 ;; server/*) server=1 ;; server-go/*) backend_go=1 ;; esac
+  case "$f" in client/*) client=1 ;; server-go/*) backend_go=1 ;; esac
 done
 
 if [ "$backend_go" = 1 ]; then
@@ -28,13 +28,5 @@ if [ "$client" = 1 ]; then
   cd client
   [ -d node_modules ] || pnpm install --frozen-lockfile
   pnpm run lint && pnpm exec tsc --noEmit && pnpm test
-  cd ..
-fi
-
-if [ "$server" = 1 ]; then
-  echo "--- Checking server ---"
-  cd server
-  [ -d node_modules ] || pnpm install --frozen-lockfile
-  pnpm exec tsc --noEmit && pnpm test
   cd ..
 fi

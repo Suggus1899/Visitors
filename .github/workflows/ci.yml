@@ -91,7 +91,7 @@ jobs:
         with:
           name: go-coverage
           path: server-go/coverage.out
-  client-and-legacy-regression:
+  client:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -107,5 +107,4 @@ jobs:
       - run: pnpm --dir client run lint
       - run: pnpm --dir client run test
       - run: pnpm --dir client run build
-      - run: pnpm --dir server exec tsc -p tsconfig.json --noEmit
-      - run: pnpm --dir server run test
+      - run: pnpm audit --prod --audit-level moderate

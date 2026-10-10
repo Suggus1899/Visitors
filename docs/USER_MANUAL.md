@@ -20,9 +20,9 @@ LogMaster es un sistema de control de acceso para visitantes en empresas. Permit
 ### 2.2 Para el Administrador del Sistema
 
 - Acceso fisico o remoto al servidor donde corre la aplicacion
-- Node.js 20.x LTS y PostgreSQL 16 instalados en el servidor
+- Linux con Docker Engine y Compose; aplicación y PostgreSQL 16 en contenedores
 - Conocimientos basicos de linea de comandos
-- Puertos 3000, 5432 y 5173 disponibles en el firewall
+- Acceso HTTPS al servidor; PostgreSQL y API permanecen en la red interna
 
 ---
 
@@ -31,8 +31,8 @@ LogMaster es un sistema de control de acceso para visitantes en empresas. Permit
 ### 2.1 Inicio de Sesion
 
 1. Abrir el navegador web en la URL del sistema:
-   - Local: `http://localhost`
-   - LAN: `http://192.168.x.x` (ver con `scripts\status.bat`)
+   - Laboratorio local: `https://localhost:8443` con certificado temporal
+   - Empresa: hostname HTTPS y certificado confiable proporcionados por el administrador (véase [OPERATIONS](OPERATIONS.md))
 2. Ingresar **usuario** y **contrasena**
 3. Hacer clic en **Iniciar Sesion**
 
@@ -41,7 +41,7 @@ LogMaster es un sistema de control de acceso para visitantes en empresas. Permit
 Si es la primera vez que inicia sesion, el sistema solicitara cambiar la contrasena:
 
 1. Ingresar la **contrasena actual** (la proporcionada por el administrador)
-2. Ingresar la **nueva contrasena** (minimo 8 caracteres, debe incluir mayuscula, minuscula, numero y caracter especial)
+2. Ingresar la **nueva contrasena** (minimo 12 caracteres, maximo 72 bytes UTF-8; debe incluir mayuscula, minuscula, numero y caracter especial)
 3. Confirmar la nueva contrasena
 4. Hacer clic en **Cambiar Contrasena**
 

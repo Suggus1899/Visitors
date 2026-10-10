@@ -46,4 +46,6 @@ Fotografías y SSE requieren sesión. La API exige roles y contraseña adicional
 
 Consulta [operación y recuperación](docs/OPERATIONS.md), [arquitectura](docs/ARCHITECTURE.md), [API](docs/API.md), [seguridad](docs/SECURITY.md) y el [registro histórico](docs/BACKEND_GO_MIGRATION.md).
 
+El backend Node se conserva en la referencia Git `backup/node-before-retirement-2026-10-10`. Sus fixtures de contratos, cifrado y esquema se comprueban en Go; no quedan tareas activas que dependan de ese backend. Los archivos privados anteriores permanecen fuera de Git y de las imágenes.
+
 La instalación empresarial requiere servidor, hostname, certificado confiable, responsables, SMTP y aceptación de operadores. Al adoptar datos se conservan sus claves originales. Los respaldos pueden contener información cancelada y requieren revisión antes de restaurarse.

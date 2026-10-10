@@ -1,6 +1,6 @@
 # Arquitectura de LogMaster
 
-El cliente React/TypeScript en `client/` consume la API Go en `server-go/`. El servidor TypeScript en `server/` se conserva para regresión y reversión controlada; no es el backend predeterminado.
+El cliente React/TypeScript en `client/` consume la API Go en `server-go/`, el único backend vigente. La referencia `backup/node-before-retirement-2026-10-10` conserva el servidor anterior; los fixtures y las pruebas Go mantienen sus contratos, esquema y formatos criptográficos.
 
 ```mermaid
 flowchart LR

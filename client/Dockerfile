@@ -3,7 +3,6 @@ WORKDIR /src
 RUN corepack enable && corepack prepare pnpm@12.4.2 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY client/package.json client/package.json
-COPY server/package.json server/package.json
 RUN pnpm install --frozen-lockfile --filter @logmaster/client...
 COPY client/ client/
 RUN VITE_API_URL='' pnpm --dir client build
