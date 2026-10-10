@@ -339,6 +339,7 @@ func RestoreAs(ctx context.Context, target config.Config, data []byte, root stri
 		allowedRole = "role IN ('root','admin')"
 	}
 	finalize := fmt.Sprintf(`
+SET LOCAL search_path=public,pg_catalog;
 DO $restore_finalize$
 DECLARE actor_id integer; actor_name text; actor_role text;
 BEGIN
