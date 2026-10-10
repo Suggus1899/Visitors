@@ -7,8 +7,7 @@ compose up -d --wait postgres mailpit
 compose run --rm ops migrate
 compose run --rm ops seed
 compose up -d --wait api web
-api_container=$(compose ps -q api)
-test "$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Type}}{{end}}{{end}}' "$api_container")" = tmpfs
+test "$(compose exec -T api awk '$2 == "/var/lib/postgresql/data" { print $3 }' /proc/mounts)" = tmpfs
 curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert .local/containers/tls.pem https://localhost:8443/api/v1/health
 before=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT count(*) FROM "Users"')
 compose up -d --force-recreate --wait postgres api web

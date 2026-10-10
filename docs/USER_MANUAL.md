@@ -158,7 +158,7 @@ El sistema registra automaticamente los horarios de salida y reingreso.
 
 ### 5.2 Editar Datos del Visitante
 
-**Acceso**: Admin
+**Acceso**: Admin o Root
 
 1. Buscar al visitante por cedula
 2. Hacer clic en **Editar**
@@ -323,15 +323,13 @@ Derechos ARCO: Acceso, Rectificacion, Cancelacion, Oposicion.
 
 ## 9. Modulo de Respaldos (Backups)
 
-**Acceso**: Admin
+**Acceso**: Admin o Root
 
 ### 9.1 Crear Respaldo
 
 1. En el menu lateral, hacer clic en **Respaldos**
 2. Hacer clic en **Crear Respaldo**
-3. El sistema genera un archivo .dump con:
-   - Todas las tablas y datos
-   - Configuracion del sistema
+3. El sistema genera un archivo cifrado `.dump.enc` y sus metadatos con las tablas y datos de PostgreSQL. Conservar la contraseña por separado; las claves y la configuración privada requieren custodia independiente.
 4. El respaldo aparece en el listado con fecha y hora
 
 ### 9.2 Listar Respaldos
@@ -341,9 +339,9 @@ Derechos ARCO: Acceso, Rectificacion, Cancelacion, Oposicion.
 
 ### 9.3 Restaurar Respaldo
 
-1. En el listado, hacer clic en **Restaurar** sobre el respaldo deseado
-2. Confirmar la restauracion
-3. **ADVERTENCIA**: Esto sobrescribe todos los datos actuales
+La restauración desde la interfaz solo está habilitada para el entorno de ensayo `logmaster_restore_test`. En una instalación operativa, el administrador debe detener la aplicación y utilizar el CLI de mantenimiento descrito en [OPERATIONS](OPERATIONS.md). Se valida una copia temporal antes de reemplazar el destino confirmado; los usuarios deben volver a iniciar sesión tras la restauración.
+
+Un respaldo puede contener datos personales cancelados después de su creación. Revisar esas cancelaciones antes de restaurarlo.
 
 ---
 
