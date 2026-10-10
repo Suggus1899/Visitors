@@ -130,7 +130,8 @@ func operations(args []string) error {
 		if e != nil {
 			return e
 		}
-		stage, e := stagingConfig(c, *stageFile)
+		var stage config.Config
+		stage, e = stagingConfig(c, *stageFile)
 		if e != nil {
 			return e
 		}
