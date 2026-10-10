@@ -19,6 +19,20 @@ compose up -d --wait postgres-restore
 compose run --rm ops backup-daily
 compose run --rm ops rehearse
 compose run --rm ops backup-status
+compose stop web api
+version_before=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT max("tokenVersion") FROM "Users"')
+archive=$(compose run --rm ops backup-status | python3 -c 'import json,sys; print(json.load(sys.stdin)["backup"]["archive"])')
+compose run --rm ops ops preflight
+compose run --rm ops ops restore --archive "$archive" --staging-env /run/secrets/staging_env
+version_dry=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT max("tokenVersion") FROM "Users"')
+test "$version_before" = "$version_dry"
+compose run --rm ops ops restore --archive "$archive" --staging-env /run/secrets/staging_env --apply --confirm-target postgres:5432/logmaster_pilot
+compose run --rm ops ops migrate --apply --confirm-target postgres:5432/logmaster_pilot
+compose run --rm ops ops migrate --apply --confirm-target postgres:5432/logmaster_pilot
+version_after=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT max("tokenVersion") FROM "Users"')
+test "$version_after" -gt "$version_before"
+compose run --rm ops check
+compose up -d --wait api web
 systemd-analyze calendar '*-*-* 01:00:00 America/Caracas'
 systemd-analyze calendar 'Sun *-*-* 03:00:00 America/Caracas'
 systemd-analyze verify deploy/systemd/*.service deploy/systemd/*.timer

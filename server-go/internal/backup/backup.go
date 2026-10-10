@@ -84,13 +84,16 @@ func command(ctx context.Context, c config.Config, tool string, args ...string) 
 type cappedWriter struct {
 	writer    io.Writer
 	remaining int64
+	err       error
 }
 
 func (w *cappedWriter) Write(p []byte) (int, error) {
 	if int64(len(p)) > w.remaining {
-		return 0, errors.New("backup exceeds size limit")
+		w.err = errors.New("backup exceeds size limit")
+		return 0, w.err
 	}
 	n, e := w.writer.Write(p)
+	w.err = e
 	w.remaining -= int64(n)
 	return n, e
 }
@@ -125,8 +128,15 @@ func (s Service) create(ctx context.Context) (Result, error) {
 	defer os.Remove(temp.Name())
 	defer temp.Close()
 	cmd := command(ctx, s.Config, "pg_dump", "-h", s.Config.Host, "-p", s.Config.Port, "-U", s.Config.User, "-d", s.Config.Database, "--format=custom", "--no-password")
-	cmd.Stdout = &cappedWriter{writer: temp, remaining: maxSize}
+	output := &cappedWriter{writer: temp, remaining: maxSize}
+	cmd.Stdout = output
 	if e = cmd.Run(); e != nil {
+		if output.err != nil {
+			return Result{}, fmt.Errorf("backup write failed: %w", output.err)
+		}
+		if ctx.Err() != nil {
+			return Result{}, ctx.Err()
+		}
 		return Result{}, errors.New("pg_dump failed")
 	}
 	if _, e = temp.Seek(0, io.SeekStart); e != nil {
@@ -142,6 +152,9 @@ func (s Service) create(ctx context.Context) (Result, error) {
 	encrypted, e := security.EncryptBackup(s.key(), plain)
 	if e != nil {
 		return Result{}, e
+	}
+	if len(encrypted) > maxSize {
+		return Result{}, errors.New("encrypted backup exceeds size limit")
 	}
 	digest := sha256.Sum256(encrypted)
 	metadata := Metadata{CreatedAt: time.Now().UTC(), PasswordHash: security.Hash(password), OriginalName: name, Engine: "postgresql", Digest: hex.EncodeToString(digest[:])}
@@ -329,8 +342,15 @@ func RestoreAs(ctx context.Context, target config.Config, data []byte, root stri
 	render := command(ctx, target, "pg_restore", "--no-owner", "--no-acl", "--file=-")
 	render.Stdin = bytes.NewReader(data)
 	// Compressed archives can expand substantially; fail before filling the temporary filesystem.
-	render.Stdout = &cappedWriter{writer: file, remaining: 4 * 1024 * 1024 * 1024}
+	output := &cappedWriter{writer: file, remaining: 4 * 1024 * 1024 * 1024}
+	render.Stdout = output
 	if e = render.Run(); e != nil {
+		if output.err != nil {
+			return fmt.Errorf("archive SQL preparation failed: %w", output.err)
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		return errors.New("archive SQL preparation failed")
 	}
 	if _, e = file.Seek(0, io.SeekStart); e != nil {

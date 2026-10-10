@@ -69,6 +69,8 @@ docker compose run --rm ops check
 docker compose up -d --wait api web
 ```
 
+Para copias automáticas, omitir `--password-file` y el override admin: el CLI obtiene su contraseña cifrada del volumen privado sin imprimirla. Para copias manuales/importadas, usar el archivo privado como en el ejemplo.
+
 La simulación valida destino/configuración/contraseña/archivo sin modificar. Aplicar restaura primero en logmaster_restore_test, prevalida y actualiza el esquema, y rearchiva esa copia. Solo después reemplaza el destino. Esquema/datos, validación de root, incremento de versiones de sesión y auditoría comparten `psql --single-transaction --set=ON_ERROR_STOP=1`. Un fallo revierte íntegramente el destino; staging puede haber cambiado y es desechable.
 
 Verificar nuevo acceso, auditoría BACKUP_RESTORE_COMPLETED, búsquedas/conteos y rechazo de sesiones anteriores; retirar contraseña temporal, detener postgres-restore y reactivar timers tras revisión. Ante fallo mantener aplicación detenida y comprobar el estado antes de reintentar. HTTP solo permite restauración en ensayo. Revisar cancelaciones posteriores a la copia: restaurar puede reintroducir información cancelada y requiere tratamiento empresarial.

@@ -69,13 +69,13 @@ func operations(args []string) error {
 		}
 	}
 	if command == "restore" {
-		if *stageFile == "" || *passwordFile == "" {
-			return errors.New("restore requires staging environment and private password file")
+		if *stageFile == "" {
+			return errors.New("restore requires an independent staging environment")
 		}
 		if _, e = stagingConfig(c, *stageFile); e != nil {
 			return e
 		}
-		raw, e := readPassword(*passwordFile)
+		raw, e := restorePassword(c, *archive, *passwordFile)
 		if e != nil {
 			return e
 		}
@@ -120,11 +120,8 @@ func operations(args []string) error {
 	case "bootstrap-root":
 		e = bootstrapRoot(ctx, database, *username, *email, *passwordFile)
 	case "restore":
-		if *stageFile == "" || *passwordFile == "" {
-			return errors.New("restore requires staging environment and private password file")
-		}
 		var raw []byte
-		raw, e = readPassword(*passwordFile)
+		raw, e = restorePassword(c, *archive, *passwordFile)
 		if e != nil {
 			return e
 		}
@@ -190,6 +187,14 @@ func operations(args []string) error {
 		return e
 	}
 	return json.NewEncoder(os.Stdout).Encode(map[string]any{"command": command, "target": target, "completed": true})
+}
+
+func restorePassword(c config.Config, archive, file string) ([]byte, error) {
+	if file != "" {
+		return readPassword(file)
+	}
+	password, e := (backup.Service{Config: c}).SavedPassword(archive)
+	return []byte(password), e
 }
 
 func readPassword(path string) ([]byte, error) {

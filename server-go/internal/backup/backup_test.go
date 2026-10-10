@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"github.com/Suggus1899/Visitors/server-go/internal/security"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -51,5 +53,21 @@ func TestBackupMetadataAndNames(t *testing.T) {
 	}
 	if e = Restore(context.Background(), config.Config{Database: "visitors"}, plain); !errors.Is(e, ErrTarget) {
 		t.Fatal("original database allowed", e)
+	}
+}
+
+type fullDisk struct{}
+
+func (fullDisk) Write([]byte) (int, error) { return 0, syscall.ENOSPC }
+
+func TestArchiveWriterRejectsLimitAndPreservesDiskFailure(t *testing.T) {
+	var buffer bytes.Buffer
+	limit := &cappedWriter{writer: &buffer, remaining: 3}
+	if n, e := limit.Write([]byte("four")); e == nil || n != 0 || limit.err == nil || buffer.Len() != 0 {
+		t.Fatal("oversized data was written")
+	}
+	disk := &cappedWriter{writer: fullDisk{}, remaining: 10}
+	if _, e := disk.Write([]byte("data")); !errors.Is(e, syscall.ENOSPC) || !errors.Is(disk.err, syscall.ENOSPC) {
+		t.Fatal("disk error discarded", e)
 	}
 }
