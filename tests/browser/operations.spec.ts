@@ -16,6 +16,11 @@ async function signIn(page: Page, username: string, password: string) {
   await page.getByPlaceholder('Confirma tu nueva contraseña').fill(changedPassword);
   await page.getByRole('button', { name: /Cambiar Contraseña/i }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
+  // Password changes invalidate the session; the application requires a fresh login.
+  await page.getByLabel('Usuario', { exact: true }).fill(username);
+  await page.getByLabel('Contraseña', { exact: true }).fill(changedPassword);
+  await page.getByRole('button', { name: 'INGRESAR', exact: true }).click();
+  await expect(page.getByLabel('Cédula', { exact: true })).toBeVisible();
 }
 
 test('HTTPS camera, authenticated photographs, consent and complete operational cycle', async ({ page }) => {
