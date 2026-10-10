@@ -1,0 +1,24 @@
+name: Containers
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Generate private fictitious configuration
+        run: sh scripts/containers/configure.sh
+      - name: Build, prepare, verify HTTPS and persistence
+        run: sh scripts/containers/smoke.sh
+      - name: Sanitized service status
+        if: always()
+        run: docker compose --profile test ps
+      - name: Remove only this job's disposable volumes
+        if: always()
+        run: docker compose --profile test down --volumes

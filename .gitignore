@@ -53,6 +53,9 @@ ssl/
 *.password
 
 # Tool caches
+.local/
+playwright-report/
+test-results/
 .atl/
 .claude/
 .devin/

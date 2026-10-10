@@ -160,5 +160,5 @@ func (c Config) LocalTest() bool {
 	return c.Host == "127.0.0.1" && c.Port == "55432" && (c.Database == "logmaster_test" || c.Database == "logmaster_restore_test" || c.Database == "logmaster_go_test")
 }
 func (c Config) LocalDevelopment() bool {
-	return c.LocalTest() || c.Host == "127.0.0.1" && c.Port == "55432" && c.Database == "logmaster_go_dev"
+	return c.LocalTest() || c.Host == "127.0.0.1" && c.Port == "55432" && c.Database == "logmaster_go_dev" || c.Environment != "production" && c.Host == "postgres" && c.Port == "5432" && c.Database == "logmaster_pilot"
 }

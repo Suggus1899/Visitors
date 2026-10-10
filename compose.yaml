@@ -1,0 +1,81 @@
+name: logmaster
+x-api: &api
+  build:
+    context: .
+    dockerfile: server-go/Dockerfile
+  image: logmaster-api:${LOGMASTER_TAG:-local}
+  secrets: [app_env]
+  volumes:
+    - backups:/var/lib/logmaster/backups
+    - passwords:/var/lib/logmaster/passwords
+  networks: [backend]
+  read_only: true
+  tmpfs: [/tmp:uid=10001,gid=10001,mode=1700]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  logging: &logging
+    driver: json-file
+    options: {max-size: 10m, max-file: '3'}
+services:
+  postgres:
+    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    environment:
+      POSTGRES_DB: logmaster_pilot
+      POSTGRES_USER: logmaster_pilot
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes: [postgres:/var/lib/postgresql/data]
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U logmaster_pilot -d logmaster_pilot']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+  api:
+    <<: *api
+    restart: unless-stopped
+    environment: {HTTP_HOST: 0.0.0.0}
+    depends_on: {postgres: {condition: service_healthy}}
+    healthcheck:
+      test: [CMD, logmaster, check]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  web:
+    build: {context: ., dockerfile: client/Dockerfile}
+    image: logmaster-web:${LOGMASTER_TAG:-local}
+    ports: ['${LOGMASTER_BIND:-127.0.0.1}:${LOGMASTER_HTTPS_PORT:-8443}:8443']
+    networks:
+      backend: {ipv4_address: '${LOGMASTER_PROXY_IP:-172.30.52.10}'}
+    secrets: [tls_cert, tls_key]
+    depends_on: {api: {condition: service_healthy}}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp:uid=101,gid=101,mode=1700]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+  mailpit:
+    image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
+    profiles: [test]
+    networks: [backend]
+    logging: *logging
+  ops:
+    <<: *api
+    profiles: [ops]
+    depends_on: {postgres: {condition: service_healthy}}
+    command: [check]
+networks:
+  backend:
+    ipam: {config: [{subnet: '${LOGMASTER_SUBNET:-172.30.52.0/24}'}]}
+volumes:
+  postgres:
+  backups:
+  passwords:
+secrets:
+  app_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/app.env'}
+  db_password: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/db.password'}
+  tls_cert: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/tls.pem'}
+  tls_key: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/tls.key'}

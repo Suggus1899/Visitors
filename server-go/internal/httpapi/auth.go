@@ -271,11 +271,19 @@ func sendResetEmail(ctx context.Context, to, token string) error {
 		return errors.New("invalid SMTP port")
 	}
 	options := []mail.Option{mail.WithPort(port), mail.WithTimeout(10 * time.Second)}
-	if host == "127.0.0.1" || host == "localhost" || host == "::1" {
+	mode := os.Getenv("SMTP_TLS_MODE")
+	if mode != "" && mode != "local" && mode != "starttls" && mode != "implicit" {
+		return errors.New("invalid SMTP_TLS_MODE")
+	}
+	local := host == "127.0.0.1" || host == "localhost" || host == "::1"
+	if mode == "local" && (os.Getenv("NODE_ENV") == "production" || (!local && host != "mailpit")) {
+		return errors.New("local SMTP restricted to isolated validation")
+	}
+	if mode == "local" || mode == "" && local && os.Getenv("NODE_ENV") != "production" {
 		options = append(options, mail.WithTLSPolicy(mail.NoTLS))
 	} else {
 		options = append(options, mail.WithTLSPolicy(mail.TLSMandatory))
-		if os.Getenv("SMTP_SECURE") == "true" {
+		if mode == "implicit" || mode == "" && os.Getenv("SMTP_SECURE") == "true" {
 			options = append(options, mail.WithSSL())
 		}
 		options = append(options, mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(os.Getenv("SMTP_USER")), mail.WithPassword(os.Getenv("SMTP_PASSWORD")))
