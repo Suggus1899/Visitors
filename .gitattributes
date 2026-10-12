@@ -9,3 +9,5 @@
 *.bat text eol=crlf
 Dockerfile text eol=lf
 *.conf text eol=lf
+*.docx binary
+*.pdf binary
