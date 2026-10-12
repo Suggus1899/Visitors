@@ -28,7 +28,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm exec playwright install --with-deps chromium
-          docker compose -f compose.yaml -f deploy/compose.test.yaml --profile test up -d mailpit
+          docker compose -f compose.yaml -f deploy/compose.test.yaml --profile test up -d api mailpit
           pnpm exec playwright test
           spoofed=$(docker compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc "SELECT count(*) FROM \"ActivityLogs\" WHERE \"ipAddress\"='198.51.100.11'")
           test "$spoofed" = 0

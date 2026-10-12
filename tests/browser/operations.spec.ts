@@ -84,14 +84,16 @@ test('HTTPS camera, authenticated photographs, consent and complete operational 
   await page.getByRole('button', { name: 'PONER EN ESPERA' }).click();
   const primaryVisit = await created;
   expect(primaryVisit.status()).toBe(201);
-  expect((await primaryVisit.json()).data.action).toBe('Descarga');
+  const primaryVisitBody = await primaryVisit.json();
+  expect(primaryVisitBody.data.action).toBe('Descarga');
   await page.getByRole('button', { name: /En Espera/ }).click();
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await expect(page.getByText('Prueba Navegador Ficticio', { exact: true })).toBeVisible();
   await expect.poll(() => page.locator('img[src^="blob:"]').count()).toBeGreaterThan(0);
   expect(await request.get('/api/v1/visitors/V-45678901/photo').then(response => response.status())).toBe(401);
+  const admitted = page.waitForResponse(response => response.url().endsWith(`/visits/${primaryVisitBody.data.id}/admit`) && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'ADMITIR ENTRADA' }).click();
-  await page.getByRole('button', { name: /Activas/ }).first().click();
+  expect((await admitted).status()).toBe(200);
   await page.getByTitle('Salida temporal').click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByRole('button', { name: /Intermitencia/ }).click();
@@ -185,7 +187,7 @@ test('administration defers inactive panels and produces real PDF and Excel file
   await expect(page.getByRole('button', { name: 'Exportar PDF', exact: true })).toBeEnabled();
   const beforeCalendar = new Set(chunks);
   await page.getByRole('button', { name: 'Calendario', exact: true }).click();
-  await expect(page.getByText('Calendario de visitas', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exportar Calendario', exact: true })).toBeVisible();
   await expect.poll(() => chunks.some(url => !beforeCalendar.has(url))).toBe(true);
   await page.getByRole('button', { name: 'Reportes', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Exportar PDF', exact: true })).toBeEnabled();
