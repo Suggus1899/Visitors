@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, request as playwrightRequest, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 let fixture: Record<string, string>;
@@ -10,6 +10,7 @@ async function signIn(page: Page, username: string, password: string, readyLabel
   await page.getByLabel('Usuario', { exact: true }).fill(username);
   await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'INGRESAR', exact: true }).click();
+  await expect(page).toHaveURL(/\/change-password$/);
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByPlaceholder('Ingresa tu contraseña actual').fill(password);
   await page.getByPlaceholder('Ingresa tu nueva contraseña').fill(changedPassword);
@@ -17,6 +18,7 @@ async function signIn(page: Page, username: string, password: string, readyLabel
   await page.getByRole('button', { name: /Cambiar Contraseña/i }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
   // Password changes invalidate the session; the application requires a fresh login.
+  await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel('Usuario', { exact: true }).fill(username);
   await page.getByLabel('Contraseña', { exact: true }).fill(changedPassword);
   await page.getByRole('button', { name: 'INGRESAR', exact: true }).click();
@@ -126,14 +128,14 @@ test('Mailpit reset link works through HTTPS and cannot be reused', async ({ pag
   await page.getByRole('button', { name: 'CAMBIAR CONTRASEÑA' }).click();
   expect((await reset).status()).toBe(200);
   const token = new URLSearchParams(link!.split('?')[1]).get('token');
-  const api = await request.newContext({ baseURL: 'http://127.0.0.1:3000' });
+  const api = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:3000' });
   expect(await api.post('/api/v1/auth/reset-password', { data: { token, newPassword: changedPassword } }).then(response => response.status())).toBe(400);
   await api.dispose();
 });
 
 test('roles, short search, SSE and proxy headers are enforced by the real API', async ({ request, page }) => {
   await page.goto('/login');
-  const api = await request.newContext({ baseURL: 'http://127.0.0.1:3000' });
+  const api = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:3000' });
   for (const [username, key] of [['admin', 'SEED_ADMIN_PASSWORD'], ['auditor', 'SEED_AUDITOR_PASSWORD'], ['demo', 'SEED_DEMO_PASSWORD']]) {
     const login = await api.post('/api/v1/auth/login', { data: { username, password: fixture[key] }, headers: { 'X-Forwarded-For': '198.51.100.11', 'X-Real-IP': '198.51.100.11' } });
     const original = (await login.json()).data;
