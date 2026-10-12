@@ -16,8 +16,8 @@ FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /src/client/.next/standalone ./
-COPY --from=build --chown=10001:10001 /src/client/.next/static ./.next/static
-COPY --from=build --chown=10001:10001 /src/client/public ./public
+COPY --from=build --chown=10001:10001 /src/client/.next/static ./client/.next/static
+COPY --from=build --chown=10001:10001 /src/client/public ./client/public
 USER 10001:10001
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "client/server.js"]
