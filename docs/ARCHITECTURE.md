@@ -14,6 +14,8 @@ flowchart LR
   CLI --> Stage[(PostgreSQL de restauración separado)]
 ```
 
+En Compose, `LOGMASTER_PROXY_IP` fija la dirección del servicio Next.js porque es el BFF quien se conecta a Go. La API confía solo en esa dirección; Nginx sustituye los encabezados de IP del navegador antes de enviar la solicitud a Next.js.
+
 `cmd/logmaster` coordina configuración, comprobación del esquema, servidor y apagado. `internal/httpapi` contiene los handlers y reglas de operación; `internal/store` contiene consultas pgx generadas con sqlc. `internal/security` conserva los formatos criptográficos; `internal/backup` contiene el archivo cifrado y la ejecución binaria de PostgreSQL; `db` contiene las migraciones SQL y la adopción de la baseline validada.
 
 La sesión se valida contra el usuario actual de PostgreSQL en cada solicitud y durante el SSE. La API aplica roles, cambio obligatorio, límites de solicitud y contraseña adicional. El perfil y los valores personales del historial se cifran; las fotografías son BYTEA y solo se sirven autenticadas.

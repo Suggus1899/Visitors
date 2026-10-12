@@ -1,16 +1,16 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { accessCookie, clearSessionCookies, failure, goApiURL, originAllowed, refreshCookie, setSessionCookies, type CurrentUser } from '@/server/auth-cookies';
+import { accessCookie, clearSessionCookies, clientRequestHeaders, failure, goApiURL, originAllowed, refreshCookie, setSessionCookies, type CurrentUser } from '@/server/auth-cookies';
 
 type Context = { params: Promise<{ path: string[] }> };
 const hopHeaders = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'set-cookie', 'server', 'date']);
 
 type SessionTokens = { accessToken: string; refreshToken: string; user: CurrentUser };
 
-async function refreshTokens(refreshToken: string, signal: AbortSignal): Promise<SessionTokens | null> {
+async function refreshTokens(refreshToken: string, request: Request): Promise<SessionTokens | null> {
   const response = await fetch(`${goApiURL()}/auth/refresh`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }), cache: 'no-store', signal,
+    method: 'POST', headers: clientRequestHeaders(request, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ refreshToken }), cache: 'no-store', signal: request.signal,
   });
   const result = await response.json() as { data?: { accessToken?: string; refreshToken?: string; user?: CurrentUser }; error?: unknown };
   if (!response.ok || !result.data?.accessToken || !result.data.refreshToken || !result.data.user) return null;
@@ -39,15 +39,14 @@ async function proxy(request: Request, context: Context) {
 
   const send = (token?: string) => {
     const headers = new Headers();
-    for (const name of ['accept', 'content-type', 'range', 'if-none-match', 'if-modified-since', 'user-agent']) {
+    for (const name of ['accept', 'content-type', 'range', 'if-none-match', 'if-modified-since']) {
       const value = request.headers.get(name);
       if (value) headers.set(name, value);
     }
-    const clientIP = request.headers.get('x-real-ip');
-    if (clientIP) headers.set('X-Forwarded-For', clientIP);
     if (token) headers.set('Authorization', `Bearer ${token}`);
+    const clientHeaders = clientRequestHeaders(request, headers);
     const body = ['GET', 'HEAD'].includes(request.method) ? undefined : request.body;
-    return fetch(target, { method: request.method, headers, body, cache: 'no-store', redirect: 'manual', signal: request.signal, ...(body ? { duplex: 'half' as const } : {}) });
+    return fetch(target, { method: request.method, headers: clientHeaders, body, cache: 'no-store', redirect: 'manual', signal: request.signal, ...(body ? { duplex: 'half' as const } : {}) });
   };
 
   try {
@@ -55,7 +54,7 @@ async function proxy(request: Request, context: Context) {
     if (upstream.status === 401 && access && refresh && ['GET', 'HEAD'].includes(request.method)) {
       const body = await upstream.clone().json().catch(() => null) as { error?: { code?: string } } | null;
       if (body?.error?.code === 'UNAUTHORIZED') {
-        tokens = await refreshTokens(refresh, request.signal);
+        tokens = await refreshTokens(refresh, request);
         if (tokens) {
           access = tokens.accessToken;
           upstream = await send(access);

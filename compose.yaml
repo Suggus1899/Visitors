@@ -47,8 +47,7 @@ services:
     build: {context: ., dockerfile: deploy/nginx.Dockerfile}
     image: logmaster-web:${LOGMASTER_TAG:-local}
     ports: ['${LOGMASTER_BIND:-127.0.0.1}:${LOGMASTER_HTTPS_PORT:-8443}:8443']
-    networks:
-      backend: {ipv4_address: '${LOGMASTER_PROXY_IP:-172.30.52.10}'}
+    networks: [backend]
     secrets: [tls_cert, tls_key]
     depends_on: {frontend: {condition: service_healthy}}
     restart: unless-stopped
@@ -68,7 +67,8 @@ services:
     command: [node, --env-file=/run/secrets/frontend_env, server.js]
     environment: {NODE_ENV: production, HOSTNAME: 0.0.0.0, PORT: '3000', NEXT_TELEMETRY_DISABLED: '1'}
     secrets: [frontend_env]
-    networks: [backend]
+    networks:
+      backend: {ipv4_address: '${LOGMASTER_PROXY_IP:-172.30.52.10}'}
     depends_on: {api: {condition: service_healthy}}
     restart: unless-stopped
     read_only: true

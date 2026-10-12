@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { clearSessionCookies, failure, goApiURL, originAllowed, refreshCookie, setSessionCookies } from '@/server/auth-cookies';
+import { clearSessionCookies, clientRequestHeaders, failure, goApiURL, originAllowed, refreshCookie, setSessionCookies } from '@/server/auth-cookies';
 
 export async function POST(request: Request) {
   if (!originAllowed(request)) return failure(403, 'FORBIDDEN', 'Origen no autorizado');
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   }
   try {
     const upstream = await fetch(`${goApiURL()}/auth/refresh`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken }), cache: 'no-store', signal: request.signal,
+      method: 'POST', headers: clientRequestHeaders(request, { 'Content-Type': 'application/json' }), body: JSON.stringify({ refreshToken }), cache: 'no-store', signal: request.signal,
     });
     const result = await upstream.json() as { data?: { accessToken?: string; refreshToken?: string; user?: unknown }; error?: unknown };
     if (!upstream.ok || !result.data?.accessToken || !result.data.refreshToken || !result.data.user) {

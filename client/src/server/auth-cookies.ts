@@ -14,6 +14,15 @@ export type CurrentUser = {
 
 export const goApiURL = () => (process.env.GO_API_URL || 'http://127.0.0.1:3000').replace(/\/$/, '') + '/api/v1';
 
+export function clientRequestHeaders(request: Request, initial?: HeadersInit): Headers {
+  const headers = new Headers(initial);
+  const ip = request.headers.get('x-real-ip');
+  const userAgent = request.headers.get('user-agent');
+  if (ip) headers.set('X-Forwarded-For', ip);
+  if (userAgent) headers.set('User-Agent', userAgent);
+  return headers;
+}
+
 export function originAllowed(request: Request): boolean {
   const origin = request.headers.get('origin');
   if (!origin) return false;

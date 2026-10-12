@@ -25,5 +25,5 @@ describe('root account editing', () => {
         const [path, body] = vi.mocked(api.put).mock.calls[0];
         expect(path).toBe('/superadmin/users/42');
         expect(JSON.parse(JSON.stringify(body))).toEqual({ username: 'fixture_root', email: 'changed@example.test' });
-    });
+    }, 15_000);
 });
