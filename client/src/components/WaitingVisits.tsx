@@ -55,8 +55,7 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
         }
     }, [isError]);
 
-    const handleAdmit = async (e: React.MouseEvent, id: number) => {
-        e.stopPropagation(); // prevent modal
+    const handleAdmit = async (id: number) => {
         try {
             setAdmittingId(id);
             await admitMutation.mutateAsync(id);
@@ -152,7 +151,7 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                                 </div>
 
                                 {canOperate && <Button
-                                    onClick={(e) => handleAdmit(e, visit.id)}
+                                    onClick={() => handleAdmit(visit.id)}
                                     disabled={admittingId === visit.id}
                                     className="w-full btn-tech !bg-[color:var(--status-success)]/10 !text-[color:var(--status-success)] !border-[color:var(--status-success)]/50 hover:!bg-[color:var(--status-success)]/20 flex justify-center items-center gap-2 z-10 relative"
                                 >

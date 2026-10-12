@@ -200,8 +200,7 @@ export const VisitorAdmin: React.FC = () => {
                                 <td className="py-3 px-2">
                                     <div className="flex gap-2">
                                         {canBlock && <Button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
+                                            onClick={() => {
                                                 if (visitor.cedula) handleToggleBlock(visitor.cedula, !!visitor.isBlocked);
                                             }}
                                             disabled={!canBlock || updateMutation.isPending}

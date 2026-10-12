@@ -54,8 +54,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
         variant: 'danger' | 'warning' | 'info';
     }>({ isOpen: false, title: '', message: '', onConfirm: () => {}, variant: 'info' });
 
-    const handleReactivate = (e: React.MouseEvent, id: number, visitorName: string) => {
-        e.stopPropagation();
+    const handleReactivate = (id: number, visitorName: string) => {
         setConfirmDialog({
             isOpen: true,
             title: 'Confirmar Reingreso',
@@ -196,7 +195,7 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
 
                                     {/* Reingreso button */}
                                     {canOperate && <Button
-                                        onClick={(e) => handleReactivate(e, visit.id, visitorName)}
+                                        onClick={() => handleReactivate(visit.id, visitorName)}
                                         disabled={isReactivating}
                                         className="group/rbtn relative px-3 py-1.5 rounded-lg border border-emerald-500/50 text-emerald-300 text-[11px] font-semibold hover:border-emerald-400 hover:bg-emerald-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
                                     >

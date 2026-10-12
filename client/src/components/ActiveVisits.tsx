@@ -44,8 +44,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
         notesLabel?: string;
     }>({ isOpen: false, title: '', message: '', onConfirm: () => {}, variant: 'warning' });
 
-    const handleGoIntermittent = async (e: React.MouseEvent, id: number, visitorName: string) => {
-        e.stopPropagation();
+    const handleGoIntermittent = async (id: number, visitorName: string) => {
         setConfirmDialog({
             isOpen: true,
             title: 'Salida Temporal',
@@ -69,8 +68,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
         });
     };
 
-    const handleCheckout = async (e: React.MouseEvent, id: number, visitorName: string) => {
-        e.stopPropagation();
+    const handleCheckout = async (id: number, visitorName: string) => {
         setConfirmDialog({
             isOpen: true,
             title: 'Confirmar Salida',
@@ -248,7 +246,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
                                     <div className="flex items-center gap-2">
                                         {/* Salida Temporal */}
                                         {canOperate && <Button
-                                            onClick={(e) => handleGoIntermittent(e, visit.id, visitorName)}
+                                            onClick={() => handleGoIntermittent(visit.id, visitorName)}
                                             disabled={isMarkingIntermittent || isCheckingOut}
                                             title="Salida temporal"
                                             className="group/ibtn relative px-2.5 py-2 rounded-lg border border-blue-500/30 text-blue-400 text-[11px] font-semibold hover:bg-blue-600/10 hover:border-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
@@ -263,7 +261,7 @@ const ActiveVisits: React.FC<ActiveVisitsProps> = ({ visits, onCheckout, loading
 
                                         {/* Salida Final */}
                                         {canOperate && <Button
-                                            onClick={(e) => handleCheckout(e, visit.id, visitorName)}
+                                            onClick={() => handleCheckout(visit.id, visitorName)}
                                             disabled={isCheckingOut || isMarkingIntermittent}
                                             className="group/btn relative px-3 py-2 rounded-lg bg-red-500/10 border border-red-400/40 text-red-400 text-[11px] font-semibold hover:bg-red-500/20 hover:border-red-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
                                         >

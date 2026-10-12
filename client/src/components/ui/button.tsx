@@ -1,7 +1,7 @@
 'use client';
 
 import { Button as HeroButton } from '@heroui/react';
-import type { ButtonHTMLAttributes, ComponentProps, MouseEvent } from 'react';
+import type { ButtonHTMLAttributes, ComponentProps } from 'react';
 import { forwardRef } from 'react';
 
 type HeroProps = ComponentProps<typeof HeroButton>;
@@ -10,7 +10,7 @@ type LegacySize = 'default' | 'sm' | 'lg' | 'icon';
 
 type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size' | 'value' | 'onClick' | 'onFocus' | 'onBlur'> & {
   value?: string;
-  onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
+  onClick?: HeroProps['onPress'];
   onFocus?: HeroProps['onFocus'];
   onBlur?: HeroProps['onBlur'];
   variant?: LegacyVariant;
@@ -35,7 +35,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       isIconOnly={size === 'icon'}
       isDisabled={disabled}
       fullWidth={fullWidth}
-      onPress={onClick ? event => onClick(event as unknown as MouseEvent<HTMLButtonElement>) : undefined}
+      onPress={onClick}
       className={className}
       {...props}
     />
