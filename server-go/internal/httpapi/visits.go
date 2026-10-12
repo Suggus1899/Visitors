@@ -96,6 +96,10 @@ func (a *App) checkIn(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "VALIDATION_ERROR", e.Error())
 		return
 	}
+	if strings.TrimSpace(b.CompanionName) != "" || strings.TrimSpace(b.CompanionCedula) != "" {
+		failure(w, 400, "INDIVIDUAL_REGISTRATION_REQUIRED", "Cada acompañante debe registrarse como visitante por separado")
+		return
+	}
 	if b.Status == "" {
 		b.Status = "active"
 	}

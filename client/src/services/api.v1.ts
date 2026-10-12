@@ -310,12 +310,10 @@ export const VisitService = {
         hostPerson?: string;
         notes?: string;
         status?: string;
-        companionName?: string;
-        companionCedula?: string;
         vehicleBrand?: string;
         vehicleModel?: string;
         vehiclePlate?: string;
-        action?: string;
+        action?: 'Carga' | 'Descarga' | 'Ninguna';
         department?: string;
         visitorData?: {
             firstName?: string;

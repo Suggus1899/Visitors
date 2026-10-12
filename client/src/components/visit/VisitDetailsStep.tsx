@@ -27,6 +27,7 @@ const DEPARTMENTS = [
 ];
 
 interface VisitDetailsStepProps {
+    visitAction: 'Carga' | 'Descarga' | 'Ninguna';
     formData: {
         target_department: string;
         host_person: string;
@@ -43,6 +44,7 @@ interface VisitDetailsStepProps {
     onPhotoRetake: () => void;
     onIdPhotoCapture: (img: string) => void;
     onIdPhotoRetake: () => void;
+    onVisitActionChange: (action: 'Carga' | 'Descarga' | 'Ninguna') => void;
     onPrev: () => void;
     onSaveStatus: (status: 'active' | 'waiting') => void;
     getInputClass: (valid: boolean | null) => string;
@@ -51,7 +53,8 @@ interface VisitDetailsStepProps {
 const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
     formData, loading, canSubmit,
     onFormDataChange, onPhotoCapture, onPhotoRetake,
-    onIdPhotoCapture, onIdPhotoRetake, onPrev, onSaveStatus, getInputClass
+    onIdPhotoCapture, onIdPhotoRetake, onPrev, onSaveStatus, getInputClass,
+    visitAction, onVisitActionChange
 }) => {
     const hasPhoto = formData.photo_url.length > 0;
     const hasIdPhoto = formData.id_photo_url.length > 0;
@@ -92,8 +95,26 @@ const VisitDetailsStep: React.FC<VisitDetailsStepProps> = ({
                 />
             </div>
 
-            {/* ── Purpose Dropdown ─────────────────────────────────────── */}
+            {/* ── Access activity ──────────────────────────────────────── */}
             <div>
+                <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
+                    Actividad de acceso
+                </label>
+                <select
+                    aria-label="Actividad de acceso"
+                    value={visitAction}
+                    onChange={(e) => onVisitActionChange(e.target.value as 'Carga' | 'Descarga' | 'Ninguna')}
+                    className={`${getInputClass(true)} w-full bg-[color:var(--surface-0)]`}
+                >
+                    <option value="Ninguna">Ninguna</option>
+                    <option value="Carga">Carga</option>
+                    <option value="Descarga">Descarga</option>
+                </select>
+                <p className="mt-1 text-xs text-[color:var(--text-3)]">Seleccione Descarga para el personal que descarga materia prima.</p>
+            </div>
+
+            <div>
+                {/* ── Purpose Dropdown ─────────────────────────────────── */}
                 <label className="block text-[11px] font-semibold text-[color:var(--text-2)] mb-2 uppercase tracking-[0.2em]">
                     Motivo de la Visita <span className="text-red-500">*</span>
                 </label>

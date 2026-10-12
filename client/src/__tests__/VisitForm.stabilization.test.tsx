@@ -33,6 +33,7 @@ async function editExistingVisitor() {
     fireEvent.change(screen.getByRole('combobox', { name: 'Área o departamento' }), { target: { value: 'Operaciones' } });
     fireEvent.change(screen.getByPlaceholderText(/Ing. Carlos Machado/), { target: { value: 'Responsable ficticio' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Motivo de la visita' }), { target: { value: 'Entrega' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Actividad de acceso' }), { target: { value: 'Descarga' } });
     fireEvent.click(screen.getByRole('checkbox'));
 }
 
@@ -63,9 +64,11 @@ describe('existing visitor registration and protected edits', () => {
         expect(fixtures.save).toHaveBeenCalledWith(expect.objectContaining({ cedula: 'V-12345678', data: expect.objectContaining({ editPassword: 'OnlyInMemory!18', job_title: 'Proveedor actualizado', phone: '+584121234567' }) }));
         expect(fixtures.save.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(VisitService.checkIn).mock.invocationCallOrder[0]);
         expect(VisitService.checkIn).toHaveBeenCalledWith(expect.objectContaining({ visitorData: expect.objectContaining({ phone: '+584121234567', photoBase64: undefined }) }));
-        fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
-        expect(screen.getByLabelText('Contraseña de edición')).toHaveValue('');
+        expect(VisitService.checkIn).toHaveBeenCalledWith(expect.objectContaining({ action: 'Descarga' }));
+        expect(vi.mocked(VisitService.checkIn).mock.calls[0][0]).not.toHaveProperty('companionName');
+        await waitFor(() => expect(screen.getByLabelText('Cédula')).toHaveValue(''));
+        expect(screen.getByLabelText('Nombres')).toHaveValue('');
+        expect(screen.getByLabelText('Apellidos')).toHaveValue('');
+        expect(screen.queryByLabelText('Contraseña de edición')).not.toBeInTheDocument();
     });
 });

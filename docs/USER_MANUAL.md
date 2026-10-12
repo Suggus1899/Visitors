@@ -83,18 +83,21 @@ Paso a paso:
 2. **Buscar visitante** por numero de cedula:
    - Si ya existe: los datos se cargan automaticamente (incluye fotos previas)
    - Si no existe: completar el formulario con los datos del visitante
-3. **Capturar fotos** (obligatorio):
+3. **Capturar fotos** (opcional):
    - Foto del rostro (usar camara web)
    - Foto del documento de identidad
 4. **Completar datos de la visita**:
    - Motivo de la visita
    - Persona a visitar
    - Departamento / Area (opcional)
-   - Acompanante (opcional)
+   - Actividad de acceso: Ninguna, Carga o Descarga. Seleccionar **Descarga** para el personal que descarga materia prima.
+   - Registrar a cada acompanante por separado para que tenga su propia identificacion, consentimiento y visita.
    - Vehiculo (opcional, solo si ingresa en auto)
    - Notas (opcional)
 5. **Aceptar consentimiento**: El visitante debe aceptar la politica de privacidad
 6. Hacer clic en **Registrar Ingreso**
+
+El formulario se limpia despues de cada registro, incluso si la visita queda en espera. Ingrese la cedula de cada acompanante y complete un registro individual.
 
 La visita queda en estado **En Espera** (waiting) pendiente de admission.
 

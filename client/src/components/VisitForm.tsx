@@ -15,7 +15,7 @@ import WizardProgress from './visit/WizardProgress';
 import VisitorLookupStep from './visit/VisitorLookupStep';
 import VisitorInfoStep, { COUNTRY_CODES } from './visit/VisitorInfoStep';
 import VisitDetailsStep from './visit/VisitDetailsStep';
-import VehicleInfoStep, { Companion } from './visit/VehicleInfoStep';
+import VehicleInfoStep from './visit/VehicleInfoStep';
 
 interface VisitFormProps {
     onVisitAdded: () => void;
@@ -44,8 +44,6 @@ const INITIAL_FORM_DATA = {
     host_person: '',
 
     // Pase de Entrada
-    has_companion: false,
-    companions: [{ name: '', cedula: '' }] as Companion[],
     has_vehicle: false,
     vehicle_brand: '',
     vehicle_model: '',
@@ -68,6 +66,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     const [cedulaError, setCedulaError] = useState('');
     const [showHistory, setShowHistory] = useState(false);
     const [phoneCode, setPhoneCode] = useState('+58');
+    const [visitAction, setVisitAction] = useState<'Carga' | 'Descarga' | 'Ninguna'>('Ninguna');
     const [formData, setFormData] = useState(INITIAL_FORM_DATA);
     const [loading, setLoading] = useState(false);
     const [companySuggestions, setCompanySuggestions] = useState<string[]>([]);
@@ -102,6 +101,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
         setCedula(numericValue);
         setOriginalVisitorData(null);
         setFormData(INITIAL_FORM_DATA);
+        setVisitAction('Ninguna');
         setValidation(INITIAL_VALIDATION);
         setEditPassword('');
         if (numericValue.length === 0) {
@@ -193,6 +193,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                         photo_url: lastVisit.photo_url || prev.photo_url,
                         id_photo_url: lastVisit.id_photo_url || prev.id_photo_url,
                     }));
+                    setVisitAction(lastVisit.action || 'Ninguna');
                     safeNotify.success('Visitante encontrado con datos de visita previa');
                 } else {
                     safeNotify.success('Visitante encontrado');
@@ -243,6 +244,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                     photo_url: lastVisit.photo_url || prev.photo_url,
                     id_photo_url: lastVisit.id_photo_url || prev.id_photo_url,
                 }));
+                setVisitAction(lastVisit.action || 'Ninguna');
                 
                 safeNotify.success('Datos de visita previa cargados');
             }
@@ -288,13 +290,6 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             const fullPhone = formData.phone ? (formData.phone.startsWith('+') ? formData.phone : `${phoneCode}${formData.phone}`) : '';
 
 
-            // Serialize companions list into the single-value backend fields
-            const activeCompanions = formData.has_companion
-                ? formData.companions.filter(c => c.name.trim().length > 0)
-                : [];
-            const companionName  = activeCompanions.map(c => c.name.trim()).join(', ') || undefined;
-            const companionCedula = activeCompanions.map(c => c.cedula.trim()).filter(Boolean).join(', ') || undefined;
-
             await VisitService.checkIn({
                 visitorCedula: `V-${cedula}`,
                 consent: {
@@ -309,8 +304,7 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                 hostPerson: formData.host_person,
                 notes: '',
                 status,
-                companionName,
-                companionCedula,
+                action: visitAction,
                 vehicleBrand: formData.has_vehicle ? formData.vehicle_brand : undefined,
                 vehicleModel: formData.has_vehicle ? formData.vehicle_model : undefined,
                 vehiclePlate: formData.has_vehicle ? formData.vehicle_plate : undefined,
@@ -318,26 +312,30 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
             });
             setEditPassword('');
             playSuccess();
-            
-            if (status === 'waiting') {
-                safeNotify.success('¡Visita puesta en espera! Se mantendrá en la lista de pendientes.');
-                // No reiniciar el formulario, solo notificar al padre y mantener datos
-                onVisitAdded();
-                // Volver al paso 1 pero mantener la cédula para continuar si es necesario
-                setCurrentStep(1);
-            } else {
-                safeNotify.success('¡Entrada registrada correctamente!');
-                onVisitAdded();
-                // Reiniciar completamente para nueva visita
-                setCedula('');
-                setCurrentStep(1);
-                setFormData(INITIAL_FORM_DATA);
-                setValidation(INITIAL_VALIDATION);
-            }
+            safeNotify.success(status === 'waiting'
+                ? '¡Visita puesta en espera! Se mantendrá en la lista de pendientes.'
+                : '¡Entrada registrada correctamente!');
+            lookupVersion.current++;
+            setCedula('');
+            setCedulaError('');
+            setCurrentStep(1);
+            setPhoneCode('+58');
+            setFormData(INITIAL_FORM_DATA);
+            setVisitAction('Ninguna');
+            setValidation(INITIAL_VALIDATION);
+            setOriginalVisitorData(null);
+            setHasVisitorDataChanged(false);
+            setEditPassword('');
+            setShowHistory(false);
+            setShowBlockedAlert(false);
+            setBlockedReason('');
+            setShowSuggestions(false);
             setLoading(false);
+            onVisitAdded();
         } catch (err: unknown) {
             const error = err as AxiosError<{ message?: string; error?: { message: string } }>;
             playError();
+            setEditPassword('');
             const errorData = error.response?.data;
             const backendMessage = errorData?.error?.message || errorData?.message || (err instanceof Error ? err.message : undefined);
             safeNotify.error(backendMessage || 'Error al registrar la visita. Intente nuevamente.');
@@ -351,10 +349,8 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
     const canProceedStep1 = validation.cedula === true && validation.first_name === true && validation.last_name === true;
     const canProceedStep2 = validation.company === true;
     
-    // Step 3 validation: if has_companion, every companion must have a name
     const canProceedStep3 =
-        (!formData.has_companion || formData.companions.every(c => c.name.trim().length > 2)) &&
-        (!formData.has_vehicle || (formData.vehicle_plate.length > 2 && formData.vehicle_brand.length > 2));
+        !formData.has_vehicle || (formData.vehicle_plate.length > 2 && formData.vehicle_brand.length > 2);
     
     // Step 4 (Department, Host & Consent) — photos are optional
     const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3
@@ -521,6 +517,8 @@ const VisitForm: React.FC<VisitFormProps> = ({ onVisitAdded }) => {
                         onPrev={() => setCurrentStep(s => Math.max(s - 1, 1))}
                         onSaveStatus={handleSubmit}
                         getInputClass={getInputClass}
+                        visitAction={visitAction}
+                        onVisitActionChange={setVisitAction}
                     />
                 )}
             </form>

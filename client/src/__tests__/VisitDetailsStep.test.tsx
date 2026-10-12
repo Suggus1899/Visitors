@@ -12,6 +12,7 @@ vi.mock('../components/PhotoCapture', () => ({
 }));
 
 const baseProps = {
+  visitAction: 'Ninguna' as const,
   formData: {
     target_department: '',
     host_person: '',
@@ -29,6 +30,7 @@ const baseProps = {
   onPhotoRetake: vi.fn(),
   onIdPhotoCapture: vi.fn(),
   onIdPhotoRetake: vi.fn(),
+  onVisitActionChange: vi.fn(),
   onSaveStatus: vi.fn(),
   onPrev: vi.fn(),
   getInputClass: (_v: boolean | null) => 'input-tech',
@@ -71,6 +73,13 @@ describe('VisitDetailsStep', () => {
     render(<VisitDetailsStep {...baseProps} onFormDataChange={onFormDataChange} />);
     fireEvent.change(screen.getByRole('combobox', { name: 'Motivo de la visita' }), { target: { value: 'Reunión' } });
     expect(onFormDataChange).toHaveBeenCalledWith('reason', 'Reunión');
+  });
+
+  it('classifies unloading activity on the visit', () => {
+    const onVisitActionChange = vi.fn();
+    render(<VisitDetailsStep {...baseProps} onVisitActionChange={onVisitActionChange} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Actividad de acceso' }), { target: { value: 'Descarga' } });
+    expect(onVisitActionChange).toHaveBeenCalledWith('Descarga');
   });
 
   it('allows optional photographs when photo_url is empty', () => {

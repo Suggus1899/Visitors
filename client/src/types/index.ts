@@ -29,6 +29,7 @@ export interface VisitorHistoryItem {
     status: string;
     targetDepartment?: string;
     hostPerson?: string;
+    action?: 'Carga' | 'Descarga' | 'Ninguna';
     // Vehicle data from previous visits
     vehicleBrand?: string;
     vehicleModel?: string;

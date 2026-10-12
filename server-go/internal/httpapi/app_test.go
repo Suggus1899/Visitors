@@ -97,6 +97,31 @@ func TestDecode(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckInRequiresEachCompanionToHaveAnIndividualRegistration(t *testing.T) {
+	for _, field := range []string{"companionName", "companionCedula"} {
+		t.Run(field, func(t *testing.T) {
+			body := `{"visitorCedula":"V-12345678","` + field + `":"Persona ficticia"}`
+			w := httptest.NewRecorder()
+			a := &App{}
+			a.checkIn(w, httptest.NewRequest("POST", "/api/v1/visits/checkin", strings.NewReader(body)))
+
+			var response struct {
+				Success bool `json:"success"`
+				Error   struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+				t.Fatal(err)
+			}
+			if w.Code != http.StatusBadRequest || response.Success || response.Error.Code != "INDIVIDUAL_REGISTRATION_REQUIRED" {
+				t.Fatalf("unexpected response: %d %#v", w.Code, response)
+			}
+		})
+	}
+}
+
 func TestCORS(t *testing.T) {
 	a := &App{}
 	w := httptest.NewRecorder()
