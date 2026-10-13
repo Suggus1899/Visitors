@@ -1,6 +1,30 @@
-# Validación operativa de laboratorio — 10 de octubre de 2026
+# Validación operativa de laboratorio
 
-LogMaster se preparó en `main` para Linux con contenedores. Los ensayos utilizaron bases, credenciales, correo y visitantes ficticios en runners independientes de GitHub Actions. No se instaló Docker en el equipo Windows ni se modificaron sus bases o respaldos anteriores. La retención de información personal permanece desactivada.
+LogMaster se preparó en `main` para Linux con contenedores. Los ensayos utilizaron bases, credenciales, correo y visitantes ficticios en runners independientes de GitHub Actions. No se instaló Docker en el equipo Windows ni se modificaron sus bases o respaldos anteriores. La retención de información personal permanece desactivada. Actualización: 13 de octubre de 2026.
+
+## Validación de Next.js y HeroUI — 12 de octubre de 2026
+
+La validación vigente corresponde al commit [45e37c5](https://github.com/Suggus1899/Visitors/commit/45e37c57f311a77a04ccfe73aed71a167190d122). La [CI](https://github.com/Suggus1899/Visitors/actions/runs/38282064141) aprobó Go con `-race`, `go vet`, compilación, bindings SQL y revisión de vulnerabilidades; en el cliente aprobó TypeScript, ESLint, las 140 pruebas en 22 archivos, compilación de Next.js y auditoría de dependencias.
+
+El workflow [Containers](https://github.com/Suggus1899/Visitors/actions/runs/38282064271) aprobó instalación vacía, persistencia, timers, adopción de una base ficticia y la carga pequeña. Playwright pasó 4 de 4 recorridos con API y PostgreSQL reales en contenedores: ciclo de acceso con cámara y consentimiento, recuperación de contraseña mediante Mailpit, permisos/SSE/IP y administración con descargas reales de PDF y Excel. El recorrido del ciclo detectó que el botón compartido convertía el `PressEvent` de HeroUI en un `MouseEvent`; al intentar detener la propagación, la función fallaba antes de enviar la admisión. El wrapper ahora reenvía el evento HeroUI sin convertirlo y el recorrido completo pasa.
+
+La prueba completa de esta revisión aprobó en el [workflow manual](https://github.com/Suggus1899/Visitors/actions/runs/38282782707). El runner Linux tuvo 4 vCPU AMD EPYC 9V74, 15,61 GiB de RAM, Docker 28.0.4, PostgreSQL 16 y Go 1.27.2. Generó los 100.000 perfiles y 1.000.000 de visitas ficticias en 66,28 segundos; ejecutó 120 segundos de calentamiento y 900 segundos de carga mixta con 50 sesiones.
+
+| Medición vigente | Resultado | Criterio |
+|---|---:|---:|
+| Solicitudes medidas | 57.123 | Carga mixta durante 900 s |
+| p95 de consultas habituales | 0,213 s | ≤ 1 s |
+| p95 de búsquedas | 0,843 s | ≤ 2 s |
+| p95 de operaciones | 0,063 s | ≤ 1 s |
+| Errores inesperados | 0 % | < 1 % |
+| Respaldo cifrado verificado | 83.562.141 bytes; 10,34 s | Exitoso |
+| Restauración desechable | 22,45 s | Exitosa; la fuente se conservó |
+
+El muestreo periódico de `docker stats` observó máximos de 71,89 MiB para la API y 302,90 MiB para PostgreSQL durante la carga. En respaldo/restauración observó 1.042,43 MiB para el proceso administrativo, 302,90 MiB para PostgreSQL fuente y 199,60 MiB para la base desechable. Son máximos de muestras cada 15 segundos durante carga y cada 2 segundos durante respaldo/restauración, no picos absolutos; los registros están en el artefacto `fictitious-load-results`. La sección de carga anterior conserva ensayos históricos; estos datos corresponden a la revisión actual.
+
+## Diagnóstico del proceso y evaluación de uso
+
+Los instrumentos para entrevista, observación y evaluación de LogMaster están preparados en [DOCX](instrumentos-diagnostico/Instrumentos_Diagnostico_Evaluacion_LogMaster.docx) y [PDF](instrumentos-diagnostico/Instrumentos_Diagnostico_Evaluacion_LogMaster.pdf). El levantamiento en Industrias de Alimentos El Trébol y las pruebas con sus operadores siguen pendientes: requieren observar el proceso real y contar con la participación de la empresa. No se usaron datos ni participantes reales en la validación técnica.
 
 ## Evidencia por etapa
 
@@ -62,8 +86,8 @@ El backend de aplicación no cambió entre dae5e51 y 34181c7: solo se corrigió 
 
 ## Comprobaciones locales y estructura final
 
-- Instalación `pnpm install --frozen-lockfile` aprobada con pnpm 12.4.2; dos proyectos en el workspace: raíz y cliente.
-- Tipos, lint y build del cliente aprobados; 146 pruebas en 21 archivos aprobadas.
+- Las métricas locales históricas de esta sección —incluidos los tamaños de bundle y 146 pruebas en 21 archivos— corresponden al cliente React/Vite anterior a Next.js. Para la validación vigente de Next.js/HeroUI, la CI del 12 de octubre aprobó tipos, lint, build y auditoría; localmente pasaron 140 pruebas en 22 archivos. Véase la sección vigente al inicio del documento.
+- Instalación histórica `pnpm install --frozen-lockfile` aprobada con pnpm 12.4.2; dos proyectos en el workspace: raíz y cliente.
 - `go vet ./...`, `go test ./...` y compilación Go aprobados localmente. Las pruebas de integración con PostgreSQL, `-race`, sqlc y govulncheck se ejecutan en CI Linux.
 - `pnpm audit --prod --audit-level moderate`: ninguna vulnerabilidad conocida después de retirar las dependencias exclusivas del backend Node.
 - Administración: fragmento de 17,55 kB minificado; estadísticas, calendario, respaldos y exportadores están separados. El fragmento inicial de 578,10 kB todavía produce aviso de tamaño, y el exportador Excel ocupa 940,82 kB; se descarga al exportar. No se ocultó ese aviso.
