@@ -18,11 +18,11 @@ func TestRouteInventory(t *testing.T) {
 	if e = json.Unmarshal(raw, &routes); e != nil {
 		t.Fatal(e)
 	}
-	if len(routes) != 54 {
+	if len(routes) != 55 {
 		t.Fatalf("unexpected route inventory: %d", len(routes))
 	}
 	seen := map[string]bool{}
-	public := map[string]bool{"/api/v1/auth/login": true, "/api/v1/auth/forgot-password": true, "/api/v1/auth/reset-password": true, "/api/v1/auth/refresh": true, "/api/v1/health": true}
+	public := map[string]bool{"/api/v1/auth/login": true, "/api/v1/auth/forgot-password": true, "/api/v1/auth/reset-password": true, "/api/v1/auth/refresh": true, "/api/v1/auth/logout": true, "/api/v1/health": true}
 	for _, route := range routes {
 		key := route.Method + " " + route.Path
 		if seen[key] {

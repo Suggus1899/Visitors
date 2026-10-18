@@ -102,6 +102,15 @@
     "stream": false
   },
   {
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "source": "server-go/internal/httpapi/auth.go",
+    "protected": false,
+    "middleware": [],
+    "binary": false,
+    "stream": false
+  },
+  {
     "method": "GET",
     "path": "/api/v1/auth/session",
     "source": "server-go/internal/httpapi/auth.go",

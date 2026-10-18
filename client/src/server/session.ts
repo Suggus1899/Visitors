@@ -1,16 +1,20 @@
 import 'server-only';
 
-import { cookies } from 'next/headers';
+import { cookies, headers as requestHeaders } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { accessCookie, type CurrentUser, goApiURL, refreshCookie } from './auth-cookies';
+import { accessCookie, type CurrentUser, goApiURL, refreshCookie, safeRequestId } from './auth-cookies';
+import { cache } from 'react';
 
-export async function readCurrentUser(): Promise<CurrentUser | null> {
+export const readCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const jar = await cookies();
   const token = jar.get(accessCookie)?.value;
   if (!token) return null;
   try {
+    const incomingHeaders = await requestHeaders();
+    const clientIP = incomingHeaders.get('x-real-ip');
+    const requestId = safeRequestId(incomingHeaders.get('x-request-id'));
     const response = await fetch(`${goApiURL()}/auth/session`, {
-      headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+      headers: { Authorization: `Bearer ${token}`, ...(clientIP ? { 'X-Forwarded-For': clientIP } : {}), ...(requestId ? { 'X-Request-ID': requestId } : {}) }, cache: 'no-store',
     });
     if (!response.ok) return null;
     const result = await response.json() as { data?: { user?: CurrentUser } };
@@ -18,7 +22,7 @@ export async function readCurrentUser(): Promise<CurrentUser | null> {
   } catch {
     return null;
   }
-}
+});
 
 export async function requireUser(path: string, roles?: CurrentUser['role'][]): Promise<CurrentUser> {
   const user = await readCurrentUser();

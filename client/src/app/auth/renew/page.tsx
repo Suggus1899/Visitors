@@ -1,11 +1,7 @@
 import { SessionRenewal } from '@/components/SessionRenewal';
+import { safeReturnTo } from './safe-return-to';
 
 export default async function RenewSessionPage({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) {
-  const requested = (await searchParams).returnTo || '/';
-  let returnTo = '/';
-  try {
-    const url = new URL(requested, 'https://logmaster.invalid');
-    if (url.origin === 'https://logmaster.invalid') returnTo = `${url.pathname}${url.search}`;
-  } catch { /* use the safe default */ }
+  const returnTo = safeReturnTo((await searchParams).returnTo);
   return <SessionRenewal returnTo={returnTo} />;
 }

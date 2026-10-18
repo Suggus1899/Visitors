@@ -20,14 +20,18 @@ import (
 )
 
 type Session struct {
-	ID           int32  `json:"id"`
-	Username     string `json:"username"`
-	Role         string `json:"role"`
-	TokenVersion int32  `json:"tokenVersion"`
-	MustChange   bool   `json:"-"`
+	ID                int32     `json:"id"`
+	Username          string    `json:"username"`
+	Role              string    `json:"role"`
+	TokenVersion      int32     `json:"tokenVersion"`
+	MustChange        bool      `json:"-"`
+	SessionStartedAt  time.Time `json:"sessionStartedAt,omitempty"`
+	AbsoluteExpiresAt time.Time `json:"absoluteExpiresAt,omitempty"`
 	jwt.RegisteredClaims
 }
 type sessionKey struct{}
+
+const absoluteSessionTTL = 7 * 24 * time.Hour
 
 func actor(r *http.Request) *Session { return r.Context().Value(sessionKey{}).(*Session) }
 func text(s string) pgtype.Text      { return pgtype.Text{String: s, Valid: true} }
@@ -43,12 +47,29 @@ func (a *App) audit(ctx context.Context, q *store.Queries, r *http.Request, s *S
 func (a *App) tokens(s *Session) (map[string]any, error) {
 	now := time.Now()
 	c := *s
-	c.RegisteredClaims = jwt.RegisteredClaims{IssuedAt: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(now.Add(a.Config.AccessTTL))}
+	if c.SessionStartedAt.IsZero() {
+		c.SessionStartedAt = now
+	}
+	if c.AbsoluteExpiresAt.IsZero() {
+		c.AbsoluteExpiresAt = c.SessionStartedAt.Add(absoluteSessionTTL)
+	}
+	if !now.Before(c.AbsoluteExpiresAt) || c.AbsoluteExpiresAt.Before(c.SessionStartedAt) {
+		return nil, errors.New("absolute session expired")
+	}
+	accessExpiry := now.Add(a.Config.AccessTTL)
+	if c.AbsoluteExpiresAt.Before(accessExpiry) {
+		accessExpiry = c.AbsoluteExpiresAt
+	}
+	refreshExpiry := now.Add(a.Config.RefreshTTL)
+	if c.AbsoluteExpiresAt.Before(refreshExpiry) {
+		refreshExpiry = c.AbsoluteExpiresAt
+	}
+	c.RegisteredClaims = jwt.RegisteredClaims{IssuedAt: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(accessExpiry)}
 	access, e := jwt.NewWithClaims(jwt.SigningMethodHS256, c).SignedString([]byte(a.Config.JWTSecret))
 	if e != nil {
 		return nil, e
 	}
-	c.ExpiresAt = jwt.NewNumericDate(now.Add(a.Config.RefreshTTL))
+	c.ExpiresAt = jwt.NewNumericDate(refreshExpiry)
 	refresh, e := jwt.NewWithClaims(jwt.SigningMethodHS256, c).SignedString([]byte(a.Config.RefreshSecret))
 	if e != nil {
 		return nil, e
@@ -64,6 +85,12 @@ func (a *App) validateToken(ctx context.Context, value string, refresh bool) (*S
 	t, e := jwt.ParseWithClaims(value, s, func(_ *jwt.Token) (any, error) { return []byte(secret), nil }, jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired())
 	if e != nil || !t.Valid || s.ID <= 0 {
 		return nil, errors.New("invalid session")
+	}
+	if refresh && (s.SessionStartedAt.IsZero() || s.AbsoluteExpiresAt.IsZero()) {
+		return nil, errors.New("legacy refresh session requires login")
+	}
+	if !s.AbsoluteExpiresAt.IsZero() && !time.Now().Before(s.AbsoluteExpiresAt) {
+		return nil, errors.New("absolute session expired")
 	}
 	u, e := a.Queries.FindUserByID(ctx, s.ID)
 	if e != nil || u.TokenVersion != s.TokenVersion {
@@ -111,9 +138,60 @@ func (a *App) mountAuth(router chi.Router) {
 	router.Post("/api/v1/auth/login", a.login)
 	router.Post("/api/v1/auth/forgot-password", a.forgotPassword)
 	router.Post("/api/v1/auth/reset-password", a.resetPassword)
+	router.Post("/api/v1/auth/logout", a.logout)
 	router.Post("/api/v1/auth/refresh", a.refresh)
 	router.With(a.authenticate).Get("/api/v1/auth/session", a.currentSession)
 	router.With(a.authenticate).Post("/api/v1/auth/change-password", a.changePassword)
+}
+
+func (a *App) logout(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		AccessToken  string `json:"accessToken"`
+		RefreshToken string `json:"refreshToken"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	if len(body.AccessToken) > 4096 || len(body.RefreshToken) > 4096 {
+		failure(w, 400, "VALIDATION_ERROR", "Token inválido")
+		return
+	}
+	var s *Session
+	var err error
+	if body.RefreshToken != "" {
+		s, err = a.validateToken(r.Context(), body.RefreshToken, true)
+	}
+	if s == nil && body.AccessToken != "" {
+		s, err = a.validateToken(r.Context(), body.AccessToken, false)
+	}
+	if s == nil || err != nil {
+		failure(w, 401, "UNAUTHORIZED", "Sesión inválida o revocada")
+		return
+	}
+	tx, err := a.Pool.Begin(r.Context())
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	tag, err := tx.Exec(r.Context(), `UPDATE "Users" SET "tokenVersion"="tokenVersion"+1,"updatedAt"=now() WHERE id=$1 AND "tokenVersion"=$2 AND "tokenVersion"<2147483647`, s.ID, s.TokenVersion)
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	if tag.RowsAffected() != 1 {
+		failure(w, 409, "SESSION_CHANGED", "La sesión cambió durante la operación")
+		return
+	}
+	q := a.Queries.WithTx(tx)
+	if err = a.audit(r.Context(), q, r, s, "LOGOUT", "User", strconv.Itoa(int(s.ID))); err == nil {
+		err = tx.Commit(r.Context())
+	}
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	success(w, map[string]bool{"revoked": true})
 }
 
 func (a *App) currentSession(w http.ResponseWriter, r *http.Request) {

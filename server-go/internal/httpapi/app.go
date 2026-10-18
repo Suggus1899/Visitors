@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +42,8 @@ type apiError struct {
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 }
+
+var requestIDPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 
 func success(w http.ResponseWriter, data any) {
 	successStatus(w, 200, data)
@@ -75,7 +78,11 @@ func decode(w http.ResponseWriter, r *http.Request, target any) bool {
 	return true
 }
 func (a *App) serverError(w http.ResponseWriter, e error) {
-	slog.Error("operation failed", "error_type", fmt.Sprintf("%T", e))
+	if requestID := w.Header().Get("X-Request-ID"); requestIDPattern.MatchString(requestID) {
+		slog.Error("operation failed", "request_id", requestID, "error_type", fmt.Sprintf("%T", e))
+	} else {
+		slog.Error("operation failed", "error_type", fmt.Sprintf("%T", e))
+	}
 	failure(w, 500, "SERVER_ERROR", "No se pudo completar la operación")
 }
 
@@ -173,8 +180,9 @@ func (a *App) limit(next http.Handler) http.Handler {
 			ttl = time.Minute
 		}
 		bucket := "api"
-		if strings.HasPrefix(r.URL.Path, "/api/v1/auth/") && r.URL.Path != "/api/v1/auth/refresh" {
-			max = 100
+		credentialRequest := r.URL.Path == "/api/v1/auth/login" || r.URL.Path == "/api/v1/auth/forgot-password" || r.URL.Path == "/api/v1/auth/reset-password"
+		if credentialRequest {
+			max = 500
 			ttl = 15 * time.Minute
 			bucket = "auth"
 		}
@@ -215,6 +223,9 @@ func (a *App) allowRequest(key string, max int, ttl time.Duration, now time.Time
 
 func (a *App) headers(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requestID := r.Header.Get("X-Request-ID"); requestIDPattern.MatchString(requestID) {
+			w.Header().Set("X-Request-ID", requestID)
+		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
@@ -283,7 +294,11 @@ func recoverPanic(next http.Handler) http.Handler {
 				if value == http.ErrAbortHandler {
 					panic(value)
 				}
-				slog.Error("request panic recovered")
+				if requestID := r.Header.Get("X-Request-ID"); requestIDPattern.MatchString(requestID) {
+					slog.Error("request panic recovered", "request_id", requestID)
+				} else {
+					slog.Error("request panic recovered")
+				}
 				panic(http.ErrAbortHandler)
 			}
 		}()

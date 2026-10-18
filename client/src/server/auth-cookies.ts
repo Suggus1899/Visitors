@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 
 export const accessCookie = '__Host-logmaster-access';
 export const refreshCookie = '__Host-logmaster-refresh';
+const requestIdPattern = /^[a-f0-9]{32}$/;
 
 export type CurrentUser = {
   id: number;
@@ -14,11 +15,17 @@ export type CurrentUser = {
 
 export const goApiURL = () => (process.env.GO_API_URL || 'http://127.0.0.1:3000').replace(/\/$/, '') + '/api/v1';
 
+export function safeRequestId(value: string | null): string | undefined {
+  return value && requestIdPattern.test(value) ? value : undefined;
+}
+
 export function clientRequestHeaders(request: Request, initial?: HeadersInit): Headers {
   const headers = new Headers(initial);
   const ip = request.headers.get('x-real-ip');
+  const requestId = safeRequestId(request.headers.get('x-request-id'));
   const userAgent = request.headers.get('user-agent');
   if (ip) headers.set('X-Forwarded-For', ip);
+  if (requestId) headers.set('X-Request-ID', requestId);
   if (userAgent) headers.set('User-Agent', userAgent);
   return headers;
 }
