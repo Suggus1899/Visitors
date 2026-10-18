@@ -244,3 +244,87 @@ func TestRecoveryIntegration(t *testing.T) {
 		t.Fatal("expired token accepted")
 	}
 }
+
+func TestLogoutRevokesAllSessionsIntegration(t *testing.T) {
+	a, h := integrationApp(t)
+	ids := make([]int32, 0, 2)
+	accessTokens := make([]string, 0, 2)
+	refreshTokens := make([]string, 0, 2)
+	for i := 0; i < 2; i++ {
+		id, username, password := fixtureUser(t, a, "operador", true)
+		ids = append(ids, id)
+		data := loginFixture(t, h, username, password)
+		access := data["accessToken"].(string)
+		accessTokens = append(accessTokens, access)
+		refresh := data["refreshToken"].(string)
+		refreshTokens = append(refreshTokens, refresh)
+		if i == 1 {
+			refresh = "expired-refresh-fixture"
+		}
+		body, _ := json.Marshal(map[string]string{"accessToken": access, "refreshToken": refresh})
+		status, response := request(t, h, "POST", "/api/v1/auth/logout", string(body), "")
+		if status != 200 || response["data"].(map[string]any)["revoked"] != true {
+			t.Fatalf("logout %d: %d %v", i, status, response)
+		}
+		if _, err := a.validateToken(context.Background(), access, false); err == nil {
+			t.Fatal("logout left access token valid")
+		}
+		if _, err := a.validateToken(context.Background(), refreshTokens[i], true); err == nil {
+			t.Fatal("logout left refresh token valid")
+		}
+	}
+	restarted, err := New(context.Background(), a.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Pool.Close()
+	for _, id := range ids {
+		var count int
+		if err = a.Pool.QueryRow(context.Background(), `SELECT count(*) FROM "ActivityLogs" WHERE "userId"=$1 AND action='LOGOUT'`, id).Scan(&count); err != nil || count != 1 {
+			t.Fatalf("logout audit for %d: %d %v", id, count, err)
+		}
+	}
+	for _, token := range accessTokens {
+		if _, err = restarted.validateToken(context.Background(), token, false); err == nil {
+			t.Fatal("access revocation did not survive restart")
+		}
+	}
+	for _, token := range refreshTokens {
+		if _, err = restarted.validateToken(context.Background(), token, true); err == nil {
+			t.Fatal("refresh revocation did not survive restart")
+		}
+	}
+}
+
+func TestLogoutAuditFailureRollsBackRevocationIntegration(t *testing.T) {
+	a, h := integrationApp(t)
+	id, username, password := fixtureUser(t, a, "operador", false)
+	data := loginFixture(t, h, username, password)
+	access := data["accessToken"].(string)
+	refresh := data["refreshToken"].(string)
+	ctx := context.Background()
+	_, err := a.Pool.Exec(ctx, `CREATE FUNCTION go_fixture_reject_logout_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='LOGOUT' THEN RAISE EXCEPTION 'injected logout audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER go_fixture_reject_logout_audit BEFORE INSERT ON "ActivityLogs" FOR EACH ROW EXECUTE FUNCTION go_fixture_reject_logout_audit()`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := a.Pool.Exec(ctx, `DROP TRIGGER IF EXISTS go_fixture_reject_logout_audit ON "ActivityLogs"; DROP FUNCTION IF EXISTS go_fixture_reject_logout_audit()`); err != nil {
+			t.Error(err)
+		}
+	})
+	body, _ := json.Marshal(map[string]string{"accessToken": access, "refreshToken": refresh})
+	status, _ := request(t, h, "POST", "/api/v1/auth/logout", string(body), "")
+	if status != 500 {
+		t.Fatalf("expected injected audit failure, got %d", status)
+	}
+	if _, err = a.validateToken(ctx, access, false); err != nil {
+		t.Fatal("failed logout revoked access session", err)
+	}
+	if _, err = a.validateToken(ctx, refresh, true); err != nil {
+		t.Fatal("failed logout revoked refresh session", err)
+	}
+	var count int
+	if err = a.Pool.QueryRow(ctx, `SELECT count(*) FROM "ActivityLogs" WHERE "userId"=$1 AND action='LOGOUT'`, id).Scan(&count); err != nil || count != 0 {
+		t.Fatal("failed logout left audit event", count, err)
+	}
+}

@@ -9,6 +9,18 @@ compose run --rm ops seed
 compose up -d --wait api web
 test "$(compose exec -T api awk '$2 == "/var/lib/postgresql/data" { print $3 }' /proc/mounts)" = tmpfs
 curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert .local/containers/tls.pem https://localhost:8443/api/v1/health
+visitor_probe='V-12345678'
+token_probe='reset_token_probe_36f1249d'
+probe_status=$(curl --silent --show-error --cacert .local/containers/tls.pem --output /dev/null --write-out '%{http_code}' "https://localhost:8443/api/v1/visitors/$visitor_probe/photo?token=$token_probe")
+test "$probe_status" = 401
+proxy_logs=$(compose logs --no-color --since=30s web)
+for sensitive_value in "$visitor_probe" "$token_probe"; do
+  if printf '%s' "$proxy_logs" | grep -Fq "$sensitive_value"; then
+    echo 'Proxy logs exposed a visitor identifier or query token.' >&2
+    exit 1
+  fi
+done
+printf '%s' "$proxy_logs" | grep -Eq 'request_id=[[:xdigit:]]{32}'
 before=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT count(*) FROM "Users"')
 compose up -d --force-recreate --wait postgres api frontend web
 after=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT count(*) FROM "Users"')

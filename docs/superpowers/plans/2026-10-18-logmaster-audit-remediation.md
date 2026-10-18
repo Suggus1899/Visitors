@@ -32,17 +32,17 @@
 
 ## Task 1: Patch and pin the validated toolchain
 
-- [ ] Update `client/package.json` and lockfile to the patched Next.js and matching ESLint config; recheck advisories before install.
-- [ ] Align repository runtime pins and CI with Node 22, pnpm 12.4.2, Go 1.27.2; retain existing project-specific tool setup.
-- [ ] Run frozen install, client types/lint/build/tests, Go `-race` suite and vet; record the clean-install result.
-- [ ] Commit the toolchain patch independently.
+- [x] Update `client/package.json` and lockfile to the patched Next.js and matching ESLint config; recheck advisories before install.
+- [x] Align repository runtime pins and CI with Node 22, pnpm 12.4.2, Go 1.27.2; retain existing project-specific tool setup.
+- [x] Run frozen install, client types/lint/build/tests, Go `-race` suite and vet; record the clean-install result.
+- [x] Commit the toolchain patch independently.
 
 ## Task 2: Repair SSR session quotas, logout, renewal and logs
 
 - [ ] Add failing tests for shared-IP 50-user access, invalid-cookie SSR requests, per-render session deduplication, logout token revocation, absolute seven-day expiry, internal-only `returnTo`, and redacted proxy logs.
-- [ ] Separate credential-abuse counting from session reads; preserve verified client IP through Next and only trust proxy-replaced forwarding headers.
-- [ ] Revoke the account `tokenVersion` atomically through Go logout; clear cookies and surface revocation failure. Preserve the session start time and seven-day absolute expiry in access and refresh JWTs.
-- [ ] Normalize/redact Nginx URLs and add safe request correlation without credentials, reset tokens, full IDs, or SQL values.
+- [x] Separate credential-abuse counting from session reads; preserve verified client IP through Next and only trust proxy-replaced forwarding headers.
+- [x] Revoke the account `tokenVersion` atomically through Go logout; clear cookies and surface revocation failure. Preserve the session start time and seven-day absolute expiry in access and refresh JWTs.
+- [x] Normalize/redact Nginx URLs and add safe request correlation without credentials, reset tokens, full IDs, or SQL values.
 - [ ] Run tests plus the relevant Next/Go integration and proxy-log checks; commit.
 
 ## Task 3: Replace raw identifier hashes with a protected identity index

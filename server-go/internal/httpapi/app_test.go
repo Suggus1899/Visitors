@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"github.com/Suggus1899/Visitors/server-go/contracts"
+	"github.com/Suggus1899/Visitors/server-go/internal/config"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 	"net/http/httptest"
@@ -27,6 +28,44 @@ func TestClientIP(t *testing.T) {
 	request.Header.Set("X-Forwarded-For", "spoofed, 203.0.113.89")
 	if a.ClientIP(request) != "203.0.113.89" {
 		t.Fatal("wrong end of proxy chain trusted")
+	}
+}
+
+func TestRequestIDOnlyPropagatesSafeValues(t *testing.T) {
+	for _, test := range []struct {
+		input, expected string
+	}{{strings.Repeat("a", 32), strings.Repeat("a", 32)}, {"spoofed\nrequest", ""}} {
+		a := &App{}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.Header.Set("X-Request-ID", test.input)
+		a.headers(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})).ServeHTTP(w, r)
+		if actual := w.Header().Get("X-Request-ID"); actual != test.expected {
+			t.Fatalf("request id %q propagated as %q", test.input, actual)
+		}
+	}
+}
+
+func TestSessionChecksDoNotConsumeCredentialRateLimit(t *testing.T) {
+	a := &App{Config: config.Config{RateMaxRequests: 100, RateWindowMS: 60000}}
+	h := a.limit(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	for user := 0; user < 50; user++ {
+		for check := 0; check < 2; check++ {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/api/v1/auth/session", nil)
+			r.RemoteAddr = "127.0.0.1:41000"
+			h.ServeHTTP(w, r)
+			if w.Code != http.StatusNoContent {
+				t.Fatalf("session check for user %d was rate limited: %d", user+1, w.Code)
+			}
+		}
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
+	r.RemoteAddr = "127.0.0.1:41000"
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("credential request was rate limited by session checks: %d", w.Code)
 	}
 }
 
