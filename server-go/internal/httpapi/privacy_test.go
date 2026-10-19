@@ -15,7 +15,7 @@ func TestPrivacyCancellationIntegration(t *testing.T) {
 	userID, name, password := fixtureUser(t, a, "admin", false)
 	token := loginFixture(t, h, name, password)["accessToken"].(string)
 	cedula := "V-98989101"
-	hash := security.Hash(cedula)
+	hash := security.IdentityHash(a.Config.EncryptionKey, cedula)
 	id := createVisit(t, a, h, cedula, "waiting", token)
 	ctx := context.Background()
 	v, e := a.Queries.FindVisitor(ctx, hash)

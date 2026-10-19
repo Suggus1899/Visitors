@@ -18,7 +18,7 @@ func TestProtectedSearchAndCalendarIntegration(t *testing.T) {
 	ctx := context.Background()
 	cedula := "V-98989701"
 	visitID := createVisit(t, a, h, cedula, "active", token)
-	visitor, e := a.Queries.FindVisitor(ctx, security.Hash(cedula))
+	visitor, e := a.Queries.FindVisitor(ctx, security.IdentityHash(a.Config.EncryptionKey, cedula))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -47,9 +47,9 @@
 
 ## Task 3: Replace raw identifier hashes with a protected identity index
 
-- [ ] Add tests for HMAC identity separation from random-token hashing, uniqueness/linkage, anonymization, wrong key, duplicate legacy rows, and rollback.
-- [ ] Add an idempotent, maintenance-only migration that maps old visitor hashes to HMAC identities across visitors, visits, privacy requests, and references.
-- [ ] Convert in batches under a transaction/maintenance gate; mark readiness only after full integrity verification. Preserve old backups through staged restore-and-migrate.
+- [x] Add tests for HMAC identity separation from random-token hashing, uniqueness/linkage, anonymization, wrong key, duplicate legacy rows, and rollback.
+- [x] Add an idempotent, maintenance-only migration that maps old visitor hashes to HMAC identities across visitors, visits, privacy requests, and references.
+- [x] Convert in batches under a transaction/maintenance gate; mark readiness only after full integrity verification. Preserve old backups through staged restore-and-migrate.
 - [ ] Refuse application startup on incomplete or wrong-key preparation; run isolated PostgreSQL migration/adoption/rehearsal tests; commit.
 
 ## Task 4: Add privacy workflows and waiting-visit cancellation

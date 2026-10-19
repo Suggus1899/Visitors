@@ -86,11 +86,12 @@ func (a *App) arcoCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback(r.Context())
-	if _, e = tx.Exec(r.Context(), `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, security.Hash(cedula)); e != nil {
+	identity := security.IdentityHash(a.Config.EncryptionKey, cedula)
+	if _, e = tx.Exec(r.Context(), `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, identity); e != nil {
 		a.serverError(w, e)
 		return
 	}
-	rows, e := tx.Query(r.Context(), `INSERT INTO "ArcoRequests"("requestType","subjectCedulaHash","subjectCedulaEncrypted","requestedByName","requestedByUserId","contactEmail",reason,"requestPayload",status,"createdAt","updatedAt") VALUES($1,$2,$3,$4,$5,NULLIF($6,''),NULLIF($7,''),$8,'pending',now(),now()) RETURNING *`, b.RequestType, security.Hash(cedula), encrypted, strings.TrimSpace(b.RequestedByName), actor(r).ID, b.ContactEmail, b.Reason, payload)
+	rows, e := tx.Query(r.Context(), `INSERT INTO "ArcoRequests"("requestType","subjectCedulaHash","subjectCedulaEncrypted","requestedByName","requestedByUserId","contactEmail",reason,"requestPayload",status,"createdAt","updatedAt") VALUES($1,$2,$3,$4,$5,NULLIF($6,''),NULLIF($7,''),$8,'pending',now(),now()) RETURNING *`, b.RequestType, identity, encrypted, strings.TrimSpace(b.RequestedByName), actor(r).ID, b.ContactEmail, b.Reason, payload)
 	if e != nil {
 		a.serverError(w, e)
 		return
@@ -129,7 +130,7 @@ func (a *App) arcoList(w http.ResponseWriter, r *http.Request) {
 	}
 	var hash string
 	if normalized, e := normalizeCedula(search); e == nil {
-		hash = security.Hash(normalized)
+		hash = security.IdentityHash(a.Config.EncryptionKey, normalized)
 	}
 	where := ` WHERE ($1='' OR status::text=$1) AND ($2='' OR "requestType"::text=$2) AND ($3='' OR "requestedByName" ILIKE '%'||$3||'%' OR "contactEmail" ILIKE '%'||$3||'%' OR reason ILIKE '%'||$3||'%' OR "subjectCedulaHash"=$4)`
 	var total int
@@ -246,7 +247,7 @@ func (a *App) subjectAccess(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 	q := a.Queries.WithTx(tx)
-	v, e := q.LockVisitor(r.Context(), security.Hash(cedula))
+	v, e := q.LockVisitor(r.Context(), security.IdentityHash(a.Config.EncryptionKey, cedula))
 	if e != nil {
 		a.visitorError(w, e)
 		return
@@ -284,7 +285,7 @@ func (a *App) subjectCancel(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "VALIDATION_ERROR", e.Error())
 		return
 	}
-	hash := security.Hash(cedula)
+	hash := security.IdentityHash(a.Config.EncryptionKey, cedula)
 	reference, e := security.RandomToken()
 	if e != nil {
 		a.serverError(w, e)

@@ -126,7 +126,7 @@ func generate(c config.Config, people, total int) error {
 		for j := range count {
 			id := start + j + 1
 			cedula := fmt.Sprintf("V-%08d", 40000000+id)
-			ids[id-1] = security.Hash(cedula)
+			ids[id-1] = security.IdentityHash(c.EncryptionKey, cedula)
 			first, e := security.Encrypt(c.EncryptionKey, names[id%len(names)])
 			if e != nil {
 				return e
@@ -179,6 +179,9 @@ func generate(c config.Config, people, total int) error {
 		}
 	}
 	if _, e = pg.Exec(ctx, `SELECT setval('"Visitors_id_seq"',(SELECT max(id) FROM "Visitors"));SELECT setval('"Visits_id_seq"',(SELECT max(id) FROM "Visits"));ANALYZE "Visitors";ANALYZE "Visits"`); e != nil {
+		return e
+	}
+	if e = db.RebuildIdentity(ctx, sqlDB, c.EncryptionKey, false); e != nil {
 		return e
 	}
 	if e = db.RebuildSearch(ctx, sqlDB, c.EncryptionKey, true); e != nil {

@@ -70,5 +70,5 @@ func rehearse(ctx context.Context, c config.Config) (err error) {
 	if e = db.Preflight(ctx, restored, c.EncryptionKey); e != nil {
 		return e
 	}
-	return db.Check(ctx, restored)
+	return db.Check(ctx, restored, c.EncryptionKey)
 }
