@@ -5,9 +5,21 @@ compose config --quiet
 compose build
 compose up -d --wait postgres mailpit
 compose run --rm ops migrate
+docker compose -f compose.yaml -f deploy/compose.admin.yaml --profile test run --rm ops ops roles --runtime-password-file /run/secrets/runtime_db_password --backup-password-file /run/secrets/backup_db_password --apply --confirm-target postgres:5432/logmaster_pilot
 compose run --rm ops seed
+roles=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc "SELECT count(*) FROM pg_roles WHERE rolname IN ('logmaster_runtime','logmaster_backup') AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole")
+test "$roles" = 2
+compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -U logmaster_pilot -d logmaster_pilot -c 'SET ROLE logmaster_runtime; SELECT count(*) FROM "Users"' >/dev/null
+if compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -U logmaster_pilot -d logmaster_pilot -c 'SET ROLE logmaster_backup; UPDATE "Users" SET username=username WHERE false' >/dev/null 2>&1; then
+  echo 'Backup account unexpectedly has write privileges.' >&2
+  exit 1
+fi
 compose up -d --wait api web
 test "$(compose exec -T api awk '$2 == "/var/lib/postgresql/data" { print $3 }' /proc/mounts)" = tmpfs
+if compose exec -T api awk '$2 == "/var/lib/logmaster/passwords" { found=1 } END { exit !found }' /proc/mounts; then
+  echo 'API unexpectedly has the private password volume.' >&2
+  exit 1
+fi
 curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert .local/containers/tls.pem https://localhost:8443/api/v1/health
 visitor_probe='V-12345678'
 token_probe='reset_token_probe_36f1249d'
@@ -29,7 +41,7 @@ test "$after" -ge 1
 curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert .local/containers/tls.pem https://localhost:8443/api/v1/health
 echo 'Container recreation preserved the fictitious database.'
 compose up -d --wait postgres-restore
-compose run --rm ops backup-daily
+compose run --rm backup backup-daily
 compose run --rm ops rehearse
 compose run --rm ops backup-status
 compose stop web frontend api
@@ -52,6 +64,7 @@ if ! test "$version_after" -gt "$version_before"; then
   exit 1
 fi
 compose run --rm ops check
+compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -U logmaster_pilot -d logmaster_pilot -c 'SET ROLE logmaster_runtime; SELECT count(*) FROM "Users"' >/dev/null
 compose up -d --wait api frontend web
 systemd-analyze calendar '*-*-* 01:00:00 America/Caracas'
 systemd-analyze calendar 'Sun *-*-* 03:00:00 America/Caracas'

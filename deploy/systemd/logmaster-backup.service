@@ -7,5 +7,5 @@ After=logmaster.service
 Type=oneshot
 WorkingDirectory=/opt/logmaster
 Environment=LOGMASTER_CONFIG_DIR=/opt/logmaster/config
-ExecStart=/usr/bin/docker compose run --rm ops backup-daily
-TimeoutStartSec=1800
+ExecStart=/usr/bin/docker compose --profile ops run --rm backup backup-daily
+TimeoutStartSec=10800

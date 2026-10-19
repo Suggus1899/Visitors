@@ -14,11 +14,20 @@ docker compose run --rm ops seed
 docker compose --profile test up -d --wait api web
 ```
 
-Este procedimiento es un laboratorio vacío, accesible en https://localhost:8443. `configure.sh` se niega a sobrescribir `app.env`; genera credenciales independientes, staging y certificado de localhost de dos días. No crea Visitors-local ni instala Docker. El perfil test captura correo sin entregarlo al exterior. `deploy/compose.test.yaml` habilita diagnósticos exclusivamente en 127.0.0.1.
+Este procedimiento es un laboratorio vacío, accesible en https://localhost:8443. `configure.sh` se niega a sobrescribir `app.env`; genera credenciales independientes para mantenimiento, API y respaldo, staging y certificado de localhost de dos días. El inicio de un volumen PostgreSQL vacío crea los roles `logmaster_runtime` (lectura y escritura de datos), `logmaster_backup` (lectura) y `logmaster_pilot` (mantenimiento). La API no monta el volumen de contraseñas de respaldo; `ops` y `backup` sí. No crea Visitors-local ni instala Docker. El perfil test captura correo sin entregarlo al exterior. `deploy/compose.test.yaml` habilita diagnósticos exclusivamente en 127.0.0.1.
 
 Antes de uso empresarial: sustituir `tls.pem`/`tls.key` por certificado confiable del hostname, establecer APP_URL/CORS_ORIGINS con ese origen HTTPS y NODE_ENV=production. Configurar SMTP_HOST/PORT/USER/PASSWORD/EMAIL_FROM y SMTP_TLS_MODE=starttls o implicit; local se rechaza en producción. No utilizar el perfil test ni exponer Mailpit. Ajustar LOGMASTER_BIND, puerto y firewall tras configurar red/certificado. Al modificar LOGMASTER_SUBNET o LOGMASTER_PROXY_IP, asignar esta última a la dirección fija del servicio Next.js y actualizar TRUSTED_PROXY_CIDRS con esa misma dirección; Nginx reemplaza los encabezados recibidos del navegador y Next.js reenvía solo la IP recibida como `X-Real-IP`.
 
 Las variables Compose se guardan en `.env` privado o entorno del servicio. LOGMASTER_CONFIG_DIR debe coincidir en shell y systemd. DOTENV_CONFIG_PATH selecciona el secreto `/run/secrets/app_env`. La API solo comprueba esquema e índice al arrancar. Mantener RETENTION_ENABLED=false hasta aprobar política empresarial.
+
+Para un volumen existente, `init-roles.sh` no vuelve a ejecutarse. Conservar un respaldo verificable y una copia privada de la configuración; detener `web`, `frontend`, `api` y los timers. Mantener el `app.env` anterior mientras se preparan `maintenance.env` (credenciales actuales de mantenimiento), `runtime.db.password` y `backup.db.password` (48 caracteres hexadecimales aleatorios cada uno) y `backup.env` (misma configuración privada, pero `DB_USER=logmaster_backup` y su contraseña). Preparar aparte el nuevo `app.env` con `DB_USER=logmaster_runtime` y su contraseña. Con la aplicación detenida y los archivos nuevos disponibles para Compose, ejecutar:
+
+```sh
+docker compose -f compose.yaml -f deploy/compose.admin.yaml run --rm ops ops roles --runtime-password-file /run/secrets/runtime_db_password --backup-password-file /run/secrets/backup_db_password
+docker compose -f compose.yaml -f deploy/compose.admin.yaml run --rm ops ops roles --runtime-password-file /run/secrets/runtime_db_password --backup-password-file /run/secrets/backup_db_password --apply --confirm-target postgres:5432/logmaster_pilot
+```
+
+Solo tras comprobar los roles y permisos, sustituir `app.env` por el archivo preparado y reiniciar los servicios. La orden es idempotente y concede privilegios sobre las tablas existentes y futuras; rechaza roles con membresías heredadas inesperadas. Guardar la configuración anterior para reversión controlada y no imprimir contraseñas en consola. El CLI exige que no haya otros clientes de la base durante `--apply`.
 
 ## Base operativa nueva
 
@@ -78,7 +87,7 @@ Verificar nuevo acceso, auditoría BACKUP_RESTORE_COMPLETED, búsquedas/conteos 
 ## Respaldos y supervisión
 
 ```sh
-docker compose run --rm ops backup-daily
+docker compose run --rm backup backup-daily
 docker compose run --rm ops backup-status
 docker compose run --rm ops backup-monitor
 docker compose up -d --wait postgres-restore
@@ -88,7 +97,7 @@ docker compose stop postgres-restore
 
 La exclusión mutua serializa CLI/API. Se verifica la nueva copia antes de podar; se conservan 30 pares automáticos completos y exitosos, y se preservan manuales/incompletos. Archivo y metadatos son una unidad; los errores de E/S no se presentan como éxito. Las contraseñas se cifran en almacenamiento separado. Estado: fecha, duración, tamaño, último resultado y última fecha exitosa, sin contraseñas.
 
-Archivo comprimido/cifrado máximo 500 MiB, manifiesto 1 MiB, SQL temporal 4 GiB; tareas administrativas 30 minutos. El cifrado consume memoria: dimensionar RAM y espacio temporal con el ensayo grande y margen para verificar copias. Exceso o falta de espacio deben fallar explícitamente; se eliminan temporales al terminar. Un proceso interrumpido puede dejar `.backup.lock`: comprobar que no haya operación activa antes de retirarlo.
+Las copias nuevas usan formato versionado 2 con cifrado autenticado por flujo y contraseña aleatoria propia; las copias anteriores con scrypt/gzip/AES-GCM siguen siendo legibles. Límite nuevo: 20 GiB de archivo y 80 GiB de SQL renderizado; formato anterior: 500 MiB. El manifiesto admite 1 MiB. El volumen `work` de mantenimiento debe tener espacio para el archivo descifrado y el SQL temporal; la API no lo monta. En Linux, los temporales con datos quedan desvinculados mientras están abiertos y se liberan al cerrar el proceso; un fallo de espacio produce error explícito. Las tareas de mantenimiento admiten hasta tres horas. Antes de retirar un posible `.backup.lock`, comprobar que no exista una operación activa; revisar también el espacio de `work` y el volumen de respaldos. El ensayo de gran tamaño sigue pendiente de ejecución en el laboratorio Linux.
 
 Para inicio automático, respaldo 01:00 diario y ensayo domingo 03:00 Caracas:
 

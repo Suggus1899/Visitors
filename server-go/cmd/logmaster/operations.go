@@ -20,7 +20,7 @@ import (
 
 func operations(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: logmaster ops preflight|adopt|migrate|bootstrap-root|restore [--apply --confirm-target host:port/database]")
+		return errors.New("usage: logmaster ops preflight|adopt|migrate|roles|bootstrap-root|restore [--apply --confirm-target host:port/database]")
 	}
 	command := args[0]
 	flags := flag.NewFlagSet("ops "+command, flag.ContinueOnError)
@@ -31,6 +31,8 @@ func operations(args []string) error {
 	email := flags.String("email", "", "root email")
 	archive := flags.String("archive", "", "backup filename, never a filesystem path")
 	stageFile := flags.String("staging-env", "", "independent disposable staging environment")
+	runtimePasswordFile := flags.String("runtime-password-file", "", "private runtime database password file")
+	backupPasswordFile := flags.String("backup-password-file", "", "private backup database password file")
 	if e := flags.Parse(args[1:]); e != nil {
 		return e
 	}
@@ -38,7 +40,7 @@ func operations(args []string) error {
 		return errors.New("unexpected arguments")
 	}
 	switch command {
-	case "preflight", "adopt", "migrate", "bootstrap-root", "restore":
+	case "preflight", "adopt", "migrate", "roles", "bootstrap-root", "restore":
 	default:
 		return errors.New("unknown maintenance command")
 	}
@@ -55,7 +57,7 @@ func operations(args []string) error {
 		return e
 	}
 	defer database.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Hour)
 	defer cancel()
 	if e = database.PingContext(ctx); e != nil {
 		return errors.New("database connection failed")
@@ -79,7 +81,11 @@ func operations(args []string) error {
 		if e != nil {
 			return e
 		}
-		if _, e = (backup.Service{Config: c}).Prepare(*archive, string(raw)); e != nil {
+		prepared, prepareErr := (backup.Service{Config: c}).PrepareFile(*archive, string(raw))
+		if prepareErr != nil {
+			return prepareErr
+		}
+		if e = prepared.Close(); e != nil {
 			return e
 		}
 	}
@@ -96,6 +102,20 @@ func operations(args []string) error {
 			return e
 		}
 	}
+	var runtimeDBPassword, backupDBPassword []byte
+	if command == "roles" {
+		runtimeDBPassword, e = readPassword(*runtimePasswordFile)
+		if e != nil {
+			return e
+		}
+		backupDBPassword, e = readPassword(*backupPasswordFile)
+		if e != nil {
+			return e
+		}
+		if !rolePasswordPattern.Match(runtimeDBPassword) || !rolePasswordPattern.Match(backupDBPassword) {
+			return errors.New("database role passwords must be 48 lowercase hexadecimal characters")
+		}
+	}
 	if !*apply || command == "preflight" {
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"command": command, "target": target, "dryRun": true, "validated": true})
 	}
@@ -109,6 +129,8 @@ func operations(args []string) error {
 	switch command {
 	case "adopt":
 		e = db.Adopt(ctx, database)
+	case "roles":
+		e = provisionRoles(ctx, database, c.Database, string(runtimeDBPassword), string(backupDBPassword))
 	case "migrate":
 		e = db.Migrate(ctx, database)
 		if e == nil {
@@ -128,17 +150,17 @@ func operations(args []string) error {
 		if e != nil {
 			return e
 		}
-		var data []byte
-		data, e = (backup.Service{Config: c}).Prepare(*archive, string(raw))
+		data, e := (backup.Service{Config: c}).PrepareFile(*archive, string(raw))
 		if e != nil {
 			return e
 		}
+		defer data.Close()
 		var stage config.Config
 		stage, e = stagingConfig(c, *stageFile)
 		if e != nil {
 			return e
 		}
-		if e = backup.RestoreAs(ctx, stage, data, "", true); e != nil {
+		if e = (backup.Service{Config: c}).RestorePrepared(ctx, stage, data, "", true); e != nil {
 			return e
 		}
 		var staged *sql.DB
@@ -184,11 +206,13 @@ func operations(args []string) error {
 		}
 		name := prepared.FilePath[strings.LastIndexAny(prepared.FilePath, "/\\")+1:]
 		defer service.Remove(name)
-		data, e = service.Prepare(name, prepared.RestorePassword)
+		updated, prepareErr := service.PrepareFile(name, prepared.RestorePassword)
+		e = prepareErr
 		if e != nil {
 			return e
 		}
-		e = backup.RestoreAs(ctx, c, data, *username, true)
+		defer updated.Close()
+		e = service.RestorePrepared(ctx, c, updated, *username, true)
 	}
 	if e != nil {
 		return e

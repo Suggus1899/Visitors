@@ -7,7 +7,6 @@ x-api: &api
   secrets: [app_env]
   volumes:
     - backups:/var/lib/logmaster/backups
-    - passwords:/var/lib/logmaster/passwords
   networks: [backend]
   read_only: true
   tmpfs: ['/tmp:uid=10001,gid=10001,mode=1700', '/var/lib/postgresql/data:uid=10001,gid=10001,mode=1700']
@@ -23,8 +22,10 @@ services:
       POSTGRES_DB: logmaster_pilot
       POSTGRES_USER: logmaster_pilot
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-    secrets: [db_password]
-    volumes: [postgres:/var/lib/postgresql/data]
+    secrets: [db_password, runtime_db_password, backup_db_password]
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./deploy/postgres/init-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
     networks: [backend]
     restart: unless-stopped
     healthcheck:
@@ -89,10 +90,19 @@ services:
   ops:
     <<: *api
     profiles: [ops]
-    secrets: [app_env, staging_env]
-    environment: {LOGMASTER_STAGING_ENV: /run/secrets/staging_env}
+    secrets: [maintenance_env, staging_env]
+    environment: {DOTENV_CONFIG_PATH: /run/secrets/maintenance_env, LOGMASTER_STAGING_ENV: /run/secrets/staging_env, TMPDIR: /var/lib/logmaster/work}
+    volumes: [backups:/var/lib/logmaster/backups, passwords:/var/lib/logmaster/passwords, work:/var/lib/logmaster/work]
     depends_on: {postgres: {condition: service_healthy}}
     command: [check]
+  backup:
+    <<: *api
+    profiles: [ops]
+    secrets: [backup_env]
+    environment: {DOTENV_CONFIG_PATH: /run/secrets/backup_env, TMPDIR: /var/lib/logmaster/work}
+    volumes: [backups:/var/lib/logmaster/backups, passwords:/var/lib/logmaster/passwords, work:/var/lib/logmaster/work]
+    depends_on: {postgres: {condition: service_healthy}}
+    command: [backup-daily]
   postgres-restore:
     image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
     profiles: [ops]
@@ -116,11 +126,16 @@ volumes:
   postgres:
   backups:
   passwords:
+  work:
   restore:
 secrets:
   app_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/app.env'}
   frontend_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/frontend.env'}
   db_password: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/db.password'}
+  runtime_db_password: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/runtime.db.password'}
+  backup_db_password: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/backup.db.password'}
+  maintenance_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/maintenance.env'}
+  backup_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/backup.env'}
   tls_cert: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/tls.pem'}
   tls_key: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/tls.key'}
   staging_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/staging.env'}

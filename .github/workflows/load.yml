@@ -31,7 +31,7 @@ jobs:
           backup_monitor=$!
           trap 'kill "$backup_monitor" || true' EXIT
           docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait postgres-restore
-          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops backup-daily | tee .local/results/backup.json
+          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm backup backup-daily | tee .local/results/backup.json
           docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops rehearse
           docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops backup-status | tee .local/results/status.json
       - uses: actions/upload-artifact@v4

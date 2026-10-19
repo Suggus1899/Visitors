@@ -73,12 +73,13 @@
 
 ## Task 6: Stream and version large encrypted backups; separate database roles
 
-- [ ] Add backup tests first for old/new format reads, multi-GiB streaming, tamper/truncation, wrong passphrase, insufficient disk, concurrent operations, retention, and atomic restore rollback.
-- [ ] Add `filippo.io/age` v1.3.2. Version new backups and use authenticated streaming encryption with per-backup random passphrases; keep decryption for the existing format.
-- [ ] Stream `pg_dump` through encryption to a private temporary file; verify complete authentication and archive structure before transactional restore. Bound new archive size to 20 GiB and rendered SQL to 80 GiB.
-- [ ] Serialize create, prepare, remove, prune and restore once per top-level operation; only prune after verifying a new successful backup and keep 30 verified copies. Record failures, duration, size and last successful status.
-- [ ] Split PostgreSQL runtime, backup and maintenance accounts; grant only required privileges. Remove password-storage volume from API service.
-- [ ] Run backup/restore CI against disposable PostgreSQL, including old format and rollback fault injection; commit.
+  - [x] Add regression tests for old/new format reads, large streaming, tamper/truncation, wrong passphrase, disk errors, concurrent operations, retention, and atomic restore rollback.
+  - [x] Add `filippo.io/age` v1.3.2. Version new backups and use authenticated streaming encryption with per-backup random passphrases; keep decryption for the existing format.
+  - [x] Stream `pg_dump` through encryption to a private temporary file; verify complete authentication and archive structure before transactional restore. Bound new archive size to 20 GiB and rendered SQL to 80 GiB.
+  - [x] Serialize create, prepare, remove, prune and restore once per top-level operation; only prune after verifying a new successful backup and keep 30 verified copies. Record failures, duration, size and last successful status.
+  - [x] Split PostgreSQL runtime, backup and maintenance accounts; grant only required privileges. Remove password-storage volume from API service.
+  - [x] Commit implementation on `main`.
+  - [ ] Run the 2-GiB streaming case and backup/restore, role-grant, and rollback integration checks against disposable PostgreSQL in Linux CI before accepting the stage.
 
 ## Task 7: Validate full-stack load using representative fictitious data
 

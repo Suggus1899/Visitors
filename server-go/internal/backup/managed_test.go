@@ -1,6 +1,8 @@
 package backup
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -20,6 +22,15 @@ func TestSharedBackupLock(t *testing.T) {
 	}
 	if _, e = service.lock(); e == nil {
 		t.Fatal("concurrent backup admitted")
+	}
+	if _, e = service.PrepareFile("backup-fixture.dump.enc", "password"); e == nil {
+		t.Fatal("concurrent preparation admitted")
+	}
+	if e = service.Remove("backup-fixture.dump.enc"); e == nil {
+		t.Fatal("concurrent removal admitted")
+	}
+	if e = service.RestorePrepared(context.Background(), config.Config{}, bytes.NewReader([]byte("PGDMP")), "", false); e == nil {
+		t.Fatal("concurrent restoration admitted")
 	}
 	unlock()
 	again, e := service.lock()

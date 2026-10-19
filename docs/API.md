@@ -20,7 +20,7 @@ Las rutas protegidas de Go reciben `Authorization: Bearer <accessToken>`. El nav
 - Recuperación responde genéricamente, nunca devuelve el token. Mailpit recibe el enlace `APP_URL/#/reset-password?token=...`; el token se guarda como hash, vence en 15 minutos y admite un uso.
 - SSE `/events/visits`: Go recibe Bearer en la cabecera y rechaza `?token=...`; comprueba restricción, versión y vencimiento durante la conexión. El navegador abre el flujo por el mismo origen y usa la cookie HttpOnly; Next.js reenvía la credencial y el cliente renueva y reconecta a través del BFF.
 - Fechas sin hora se interpretan en `America/Caracas`. El final de un rango de días incluye todo el último día. Búsqueda y filtros preceden a la paginación; CSV exporta todos los resultados filtrados y neutraliza fórmulas.
-- Respaldos: nombre contenido, contraseña y metadatos obligatorios. Restaurar fuera de `logmaster_restore_test` devuelve `409 RESTORE_TARGET_NOT_ALLOWED`. Tras restaurar, las sesiones anteriores dejan de ser válidas.
+- Respaldos: nombre contenido, contraseña y metadatos obligatorios. En producción, `POST /backups` devuelve `409 BACKUP_REQUIRES_MAINTENANCE`; la copia programada usa el rol de lectura y el CLI. Restaurar fuera de `logmaster_restore_test` devuelve `409 RESTORE_TARGET_NOT_ALLOWED` antes de preparar el archivo. Tras restaurar, las sesiones anteriores dejan de ser válidas.
 
 Códigos generales: 400 validación, 401 sesión/contraseña inválida, 403 permiso o cambio obligatorio, 404 recurso, 409 conflicto de estado, 413 cuerpo mayor de 5 MB, 429 límite, 500 operación fallida y 503 conexión de base no disponible.
 

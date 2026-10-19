@@ -28,6 +28,10 @@ func (a *App) listBackups(w http.ResponseWriter, r *http.Request) {
 	success(w, files)
 }
 func (a *App) createBackup(w http.ResponseWriter, r *http.Request) {
+	if !a.Config.LocalDevelopment() {
+		failure(w, 409, "BACKUP_REQUIRES_MAINTENANCE", "Crea respaldos desde el comando de mantenimiento")
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
 	service := backup.Service{Config: a.Config}
@@ -57,8 +61,13 @@ func (a *App) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "MISSING_PASSWORD", "Contraseña de restauración requerida")
 		return
 	}
+	if !a.Config.LocalTest() || a.Config.Database != "logmaster_restore_test" {
+		failure(w, 409, "RESTORE_TARGET_NOT_ALLOWED", "La validación de restauraciones requiere logmaster_restore_test")
+		return
+	}
 	name := chi.URLParam(r, "filename")
-	data, e := (backup.Service{Config: a.Config}).Prepare(name, body.RestorePassword)
+	service := backup.Service{Config: a.Config}
+	data, e := service.PrepareFile(name, body.RestorePassword)
 	if e != nil {
 		switch {
 		case errors.Is(e, backup.ErrName):
@@ -74,10 +83,7 @@ func (a *App) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if !a.Config.LocalTest() || a.Config.Database != "logmaster_restore_test" {
-		failure(w, 409, "RESTORE_TARGET_NOT_ALLOWED", "La validación de restauraciones requiere logmaster_restore_test")
-		return
-	}
+	defer data.Close()
 	if e = a.audit(r.Context(), a.Queries, r, actor(r), "BACKUP_RESTORE_REQUESTED", "Backup", name); e != nil {
 		a.serverError(w, e)
 		return
@@ -85,7 +91,7 @@ func (a *App) restoreBackup(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
 	root := actor(r).Username
-	if e = backup.RestoreAs(ctx, a.Config, data, root, false); e != nil {
+	if e = service.RestorePrepared(ctx, a.Config, data, root, false); e != nil {
 		a.serverError(w, e)
 		return
 	}

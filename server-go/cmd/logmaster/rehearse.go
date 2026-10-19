@@ -55,11 +55,12 @@ func rehearse(ctx context.Context, c config.Config) (err error) {
 	if e != nil {
 		return e
 	}
-	data, e := service.Prepare(archive, password)
+	data, e := service.PrepareFile(archive, password)
 	if e != nil {
 		return e
 	}
-	if e = backup.RestoreAs(ctx, stage, data, "", true); e != nil {
+	defer data.Close()
+	if e = service.RestorePrepared(ctx, stage, data, "", true); e != nil {
 		return e
 	}
 	restored, e := db.Open(stage)
