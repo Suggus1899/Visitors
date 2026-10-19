@@ -239,11 +239,13 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
 
   if (!isOpen || !visit) return null;
 
-  const statusLabel = visit.status === 'active' ? 'Activa' : visit.status === 'waiting' ? 'En Espera' : 'Completada';
+  const statusLabel = visit.status === 'active' ? 'Activa' : visit.status === 'waiting' ? 'En Espera' : visit.status === 'intermittent' ? 'Salida temporal' : visit.status === 'cancelled' ? 'Cancelada' : 'Completada';
   const statusColor = visit.status === 'active'
     ? 'text-[color:var(--status-success)] bg-[color:var(--status-success)]/10 border-[color:var(--status-success)]/30'
     : visit.status === 'waiting'
     ? 'text-[color:var(--status-warning)] bg-[color:var(--status-warning)]/10 border-[color:var(--status-warning)]/30'
+    : visit.status === 'cancelled'
+    ? 'text-red-400 bg-red-400/10 border-red-400/30'
     : 'text-[color:var(--text-3)] bg-[color:var(--surface-3)] border-[color:var(--border-1)]';
 
   return (
@@ -284,6 +286,7 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
             <InfoRow label="Visitante" value={`${sanitizedFirstName} ${sanitizedLastName}`.trim() || '—'} />
             <InfoRow label="Documento" value={sanitizedCedula} />
             <InfoRow label="Estado" value={statusLabel} />
+            {visit.status === 'cancelled' && <InfoRow label="Motivo de cancelación" value={visit.cancellation_reason || '—'} />}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[minmax(250px,320px)_1fr] gap-6">

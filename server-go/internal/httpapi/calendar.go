@@ -9,7 +9,7 @@ func (a *App) calendar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	status := r.URL.Query().Get("status")
-	if status != "" && status != "active" && status != "completed" && status != "waiting" && status != "intermittent" {
+	if status != "" && status != "active" && status != "completed" && status != "waiting" && status != "intermittent" && status != "cancelled" {
 		failure(w, 400, "VALIDATION_ERROR", "Estado inválido")
 		return
 	}

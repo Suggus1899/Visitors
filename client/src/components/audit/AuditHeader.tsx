@@ -55,6 +55,7 @@ const AuditHeader = ({
                     <LayoutDashboard size={16} />
                     <span className="hidden sm:inline text-xs">Dashboard</span>
                 </Button>
+                <Button onClick={() => router.push('/privacy')} className="btn-ghost border border-[color:var(--border-1)] px-3 py-2 text-xs">Privacidad</Button>
                 <ThemeToggle />
                 <div className="flex items-center gap-2 mr-4 bg-[color:var(--surface-2)] rounded-lg px-3 py-2 border border-[color:var(--border-1)]">
                     <span className="text-xs text-[color:var(--text-3)] font-medium">Auto-refresh</span>

@@ -33,6 +33,10 @@ func TestPrivacyCancellationIntegration(t *testing.T) {
 		}
 	})
 	endpoint := "/api/v1/privacy/subjects/" + cedula
+	verificationBody := `{"identityVerified":true,"verificationMethod":"Documento original"}`
+	if s, result := request(t, h, "DELETE", endpoint, `{"identityVerified":false,"verificationMethod":"Documento original"}`, token); s != 400 || result["error"].(map[string]any)["code"] != "IDENTITY_VERIFICATION_REQUIRED" {
+		t.Fatal("cancellation without identity verification was accepted", s, result)
+	}
 	for _, state := range []string{"waiting", "active", "intermittent"} {
 		if state == "active" {
 			if s, _ := request(t, h, "POST", fmt.Sprintf("/api/v1/visits/%d/admit", id), "", token); s != 200 {
@@ -44,7 +48,7 @@ func TestPrivacyCancellationIntegration(t *testing.T) {
 				t.Fatal(s)
 			}
 		}
-		s, result := request(t, h, "DELETE", endpoint, "", token)
+		s, result := request(t, h, "DELETE", endpoint, verificationBody, token)
 		if s != 409 || result["error"].(map[string]any)["code"] != "OPEN_VISIT_EXISTS" {
 			t.Fatal(state, s, result)
 		}
@@ -53,6 +57,10 @@ func TestPrivacyCancellationIntegration(t *testing.T) {
 		if s, _ := request(t, h, "POST", fmt.Sprintf("/api/v1/visits/%d/%s", id, operation), "", token); s != 200 {
 			t.Fatal(s)
 		}
+	}
+	cancelledID := createVisit(t, a, h, cedula, "waiting", token)
+	if s, result := request(t, h, "POST", fmt.Sprintf("/api/v1/visits/%d/cancel", cancelledID), `{"reason":"El anfitrión suspendió la visita"}`, token); s != 200 {
+		t.Fatal("waiting visit cancellation failed", s, result)
 	}
 	png := "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte{137, 80, 78, 71})
 	// Stored binary is checked directly after cancellation; image validation is covered separately.
@@ -79,7 +87,7 @@ func TestPrivacyCancellationIntegration(t *testing.T) {
 			t.Error(e)
 		}
 	})
-	if s, _ := request(t, h, "DELETE", endpoint, "", token); s != 500 {
+	if s, _ := request(t, h, "DELETE", endpoint, verificationBody, token); s != 500 {
 		t.Fatal("fault did not roll back", s)
 	}
 	before, e := a.Queries.FindVisitor(ctx, hash)
@@ -89,7 +97,7 @@ func TestPrivacyCancellationIntegration(t *testing.T) {
 	if _, e = a.Pool.Exec(ctx, `DROP TRIGGER go_fixture_cancel_audit ON "ActivityLogs";DROP FUNCTION go_fixture_cancel_audit()`); e != nil {
 		t.Fatal(e)
 	}
-	if s, result := request(t, h, "DELETE", endpoint, "", token); s != 200 {
+	if s, result := request(t, h, "DELETE", endpoint, verificationBody, token); s != 200 {
 		t.Fatal(s, result)
 	}
 	after, e := a.Queries.FindVisitorByID(ctx, v.ID)
@@ -103,6 +111,14 @@ func TestPrivacyCancellationIntegration(t *testing.T) {
 	visit, e := a.Queries.FindVisit(ctx, id)
 	if e != nil || !visit.CheckOutTime.Valid || visit.Status.EnumVisitsStatus != "completed" || visit.Notes.Valid || visit.PersonToVisit != "Anonimizado" {
 		t.Fatal("events lost or personal text retained", e)
+	}
+	cancelledVisit, e := a.Queries.FindVisit(ctx, cancelledID)
+	if e != nil || cancelledVisit.Status.EnumVisitsStatus != "cancelled" || cancelledVisit.CancellationReason.Valid {
+		t.Fatal("cancelled event retained personal data", e)
+	}
+	var verificationDetails string
+	if e = a.Pool.QueryRow(ctx, `SELECT details FROM "ActivityLogs" WHERE action='ARCO_CANCELLATION_EXECUTED' AND "entityId"=$1`, after.Cedula).Scan(&verificationDetails); e != nil || verificationDetails != "Verificación de identidad: Documento original" {
+		t.Fatal("identity verification was not recorded in audit", verificationDetails, e)
 	}
 	dto, e := a.visitDTO(httptest.NewRequest("GET", "/", nil), visit)
 	if e != nil || dto["visitorCedula"] != nil || dto["visitorName"] != "Anonimizado" {

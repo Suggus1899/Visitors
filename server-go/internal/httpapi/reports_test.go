@@ -31,6 +31,21 @@ func TestReportCaracasAggregation(t *testing.T) {
 		t.Fatal("invalid month accepted")
 	}
 }
+
+func TestReportExcludesCancelledVisitsFromAdmissionAndDuration(t *testing.T) {
+	entry, _ := time.Parse(time.RFC3339, "2026-10-05T10:00:00Z")
+	completedExit := entry.Add(30 * time.Minute)
+	cancelledExit := entry.Add(24 * time.Hour)
+	visits := []reportVisit{
+		{Count: 1, Status: "completed", CheckInTime: pgtype.Timestamptz{Time: entry, Valid: true}, CheckOutTime: pgtype.Timestamptz{Time: completedExit, Valid: true}},
+		{Count: 1, Status: "cancelled", Minutes: 1440, CheckInTime: pgtype.Timestamptz{Time: entry, Valid: true}, CheckOutTime: pgtype.Timestamptz{Time: cancelledExit, Valid: true}},
+	}
+	result := aggregateReport(visits, entry, entry.AddDate(0, 0, 1), true)
+	summary := result["summary"].(map[string]any)
+	if summary["totalVisits"] != 2 || summary["completedVisits"] != 1 || summary["averageDuration"] != float64(30) || summary["completionRate"] != float64(100) {
+		t.Fatalf("cancelled visits must remain traceable but not count as admissions or duration: %#v", summary)
+	}
+}
 func TestQueriesAndReportsIntegration(t *testing.T) {
 	a, h := integrationApp(t)
 	_, name, pw := fixtureUser(t, a, "operador", false)

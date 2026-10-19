@@ -122,6 +122,14 @@ export const OperationsView = () => {
                 </Button>
 
                 <div className="flex items-center gap-2">
+                    {(user?.role === 'operador' || user?.role === 'admin' || user?.role === 'root') && (
+                        <Button
+                            onClick={() => router.push('/privacy')}
+                            className="bg-transparent border border-[color:var(--border-1)] text-[color:var(--text-2)] hover:text-[color:var(--text-1)] px-3 py-2 rounded-md text-xs font-semibold tracking-wider uppercase transition-colors h-9"
+                        >
+                            Privacidad
+                        </Button>
+                    )}
                     {(user?.role === 'admin' || user?.role === 'root') && (
                         <Button
                             data-tour="admin-btn"

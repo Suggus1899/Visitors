@@ -18,7 +18,7 @@ func TestRouteInventory(t *testing.T) {
 	if e = json.Unmarshal(raw, &routes); e != nil {
 		t.Fatal(e)
 	}
-	if len(routes) != 55 {
+	if len(routes) != 58 {
 		t.Fatalf("unexpected route inventory: %d", len(routes))
 	}
 	seen := map[string]bool{}

@@ -70,7 +70,7 @@ func (a *App) visitFilter(r *http.Request) (sqlFilter, error) {
 		f.add("v.check_in_time<?", *end)
 	}
 	if status := q.Get("status"); status != "" {
-		if status != "active" && status != "waiting" && status != "intermittent" && status != "completed" {
+		if status != "active" && status != "waiting" && status != "intermittent" && status != "completed" && status != "cancelled" {
 			return f, fmt.Errorf("estado inválido")
 		}
 		f.add("v.status=?::\"enum_Visits_status\"", status)

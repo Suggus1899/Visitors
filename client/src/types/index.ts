@@ -66,7 +66,8 @@ export interface Visit {
     check_in_time?: string;
     check_out?: string;
     check_out_time?: string;
-    status: 'waiting' | 'active' | 'intermittent' | 'completed';
+    status: 'waiting' | 'active' | 'intermittent' | 'completed' | 'cancelled';
+    cancellation_reason?: string | null;
     personToVisit?: string;
     person_to_visit?: string;
     notes?: string;

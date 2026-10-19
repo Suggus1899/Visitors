@@ -36,12 +36,19 @@ const absoluteSessionTTL = 7 * 24 * time.Hour
 func actor(r *http.Request) *Session { return r.Context().Value(sessionKey{}).(*Session) }
 func text(s string) pgtype.Text      { return pgtype.Text{String: s, Valid: true} }
 func (a *App) audit(ctx context.Context, q *store.Queries, r *http.Request, s *Session, action, entity, id string) error {
+	return a.auditWithDetails(ctx, q, r, s, action, entity, id, "")
+}
+func (a *App) auditWithDetails(ctx context.Context, q *store.Queries, r *http.Request, s *Session, action, entity, id, details string) error {
 	agentRunes := []rune(r.UserAgent())
 	if len(agentRunes) > 500 {
 		agentRunes = agentRunes[:500]
 	}
 	agent := string(agentRunes)
-	return q.WriteAudit(ctx, store.WriteAuditParams{UserId: s.ID, Username: s.Username, Action: action, Entity: entity, EntityId: id, IpAddress: text(a.ClientIP(r)), UserAgent: text(agent), Role: text(s.Role), Method: text(r.Method), Path: text(r.URL.Path)})
+	params := store.WriteAuditParams{UserId: s.ID, Username: s.Username, Action: action, Entity: entity, EntityId: id, IpAddress: text(a.ClientIP(r)), UserAgent: text(agent), Role: text(s.Role), Method: text(r.Method), Path: text(r.URL.Path)}
+	if details != "" {
+		params.Details = text(details)
+	}
+	return q.WriteAudit(ctx, params)
 }
 
 func (a *App) tokens(s *Session) (map[string]any, error) {

@@ -58,6 +58,15 @@ export const useAdmitVisitorMutation = () => {
     });
 };
 
+export const useCancelWaitingVisitMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, reason }: { id: number; reason: string }) => VisitService.cancelWaitingVisit(id, reason),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: visitQueryKeys.all }),
+    });
+};
+
 export const useIntermittentVisitsQuery = (options?: QueryOptions) => {
     return useQuery({
         queryKey: visitQueryKeys.intermittent(),

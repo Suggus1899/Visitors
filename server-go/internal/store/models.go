@@ -280,6 +280,7 @@ const (
 	EnumVisitsStatusActive       EnumVisitsStatus = "active"
 	EnumVisitsStatusIntermittent EnumVisitsStatus = "intermittent"
 	EnumVisitsStatusCompleted    EnumVisitsStatus = "completed"
+	EnumVisitsStatusCancelled    EnumVisitsStatus = "cancelled"
 )
 
 func (e *EnumVisitsStatus) Scan(src interface{}) error {
@@ -425,6 +426,7 @@ type Visit struct {
 	ConsentPolicyVersion pgtype.Text          `json:"consent_policy_version"`
 	ConsentAcceptedAt    pgtype.Timestamptz   `json:"consent_accepted_at"`
 	ConsentRecordedBy    pgtype.Int4          `json:"consent_recorded_by"`
+	CancellationReason   pgtype.Text          `json:"cancellation_reason"`
 }
 
 type VisitPurpose struct {

@@ -54,11 +54,12 @@
 
 ## Task 4: Add privacy workflows and waiting-visit cancellation
 
-- [ ] Add Go and client tests for role permissions, required reason, audit atomicity, new visit after cancellation, privacy requests, edit-password enforcement, and anonymization.
-- [ ] Add a `cancelled` terminal visit status and `POST /api/v1/visits/:id/cancel`; permit only `waiting` transitions, require a reason, actor, timestamp, and audit event in the same transaction.
-- [ ] Update SQL migrations, generated SQL/models, filters, statistics, calendar, exports and DTOs. Exclude cancelled visits from admission/duration counts.
-- [ ] Build the privacy screens over the existing ARCO API and current role matrix. Require identity-verification procedure before cancellation, preserve auditor read-only access, and hide writes for demo.
-- [ ] Run all affected Go, client, PostgreSQL and browser tests; commit.
+- [x] Add Go and client tests for role permissions, required reason, audit atomicity, new visit after cancellation, privacy requests, edit-password enforcement, and anonymization.
+- [x] Add a `cancelled` terminal visit status and `POST /api/v1/visits/:id/cancel`; permit only `waiting` transitions, require a reason, actor, timestamp, and audit event in the same transaction.
+- [x] Update SQL migrations, generated SQL/models, filters, statistics, calendar, exports and DTOs. Exclude cancelled visits from admission/duration counts.
+- [x] Build the privacy screens over the existing ARCO API and current role matrix. Require identity-verification procedure before cancellation, preserve auditor read-only access, and hide writes for demo.
+- [x] Run local Go/client tests, typecheck, lint, production build and commit the implementation.
+- [ ] Run PostgreSQL-backed integration tests and the browser journey against the Compose/Linux lab before accepting the stage.
 
 ## Task 5: Make sorting, exports, calendar and controls consistent
 
