@@ -87,6 +87,138 @@ func TestVisitLifecycleIntegration(t *testing.T) {
 		}
 	})
 }
+
+func TestCancelWaitingVisitIntegration(t *testing.T) {
+	a, h := integrationApp(t)
+	userID, username, password := fixtureUser(t, a, "operador", false)
+	operator := loginFixture(t, h, username, password)["accessToken"].(string)
+	cedula := "V-98989077"
+	id := createVisit(t, a, h, cedula, "waiting", operator)
+	path := fmt.Sprintf("/api/v1/visits/%d/cancel", id)
+	if status, _ := request(t, h, "POST", path, `{}`, operator); status != 400 {
+		t.Fatalf("missing cancellation reason accepted: %d", status)
+	}
+	if status, _ := request(t, h, "POST", path, `{"reason":"  "}`, operator); status != 400 {
+		t.Fatalf("blank cancellation reason accepted: %d", status)
+	}
+	if status, _ := request(t, h, "POST", path, `{"reason":"`+strings.Repeat("x", 1001)+`"}`, operator); status != 400 {
+		t.Fatalf("oversized cancellation reason accepted: %d", status)
+	}
+	if status, _ := request(t, h, "POST", path, `{"reason":"Solicitud cancelada"}`, ""); status != 401 {
+		t.Fatalf("unauthenticated cancellation accepted: %d", status)
+	}
+	for _, role := range []string{"auditor", "demo"} {
+		_, name, pw := fixtureUser(t, a, role, false)
+		token := loginFixture(t, h, name, pw)["accessToken"].(string)
+		if status, _ := request(t, h, "POST", path, `{"reason":"Solicitud cancelada"}`, token); status != 403 {
+			t.Fatalf("%s was allowed to cancel: %d", role, status)
+		}
+	}
+	ctx := context.Background()
+	_, err := a.Pool.Exec(ctx, `CREATE FUNCTION go_fixture_reject_visit_cancel_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='VISIT_CANCELLED' THEN RAISE EXCEPTION 'injected visit cancel audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER go_fixture_reject_visit_cancel_audit BEFORE INSERT ON "ActivityLogs" FOR EACH ROW EXECUTE FUNCTION go_fixture_reject_visit_cancel_audit()`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := a.Pool.Exec(ctx, `DROP TRIGGER IF EXISTS go_fixture_reject_visit_cancel_audit ON "ActivityLogs"; DROP FUNCTION IF EXISTS go_fixture_reject_visit_cancel_audit()`); err != nil {
+			t.Error(err)
+		}
+	})
+	if status, _ := request(t, h, "POST", path, `{"reason":"Error de auditoría"}`, operator); status != 500 {
+		t.Fatalf("audit failure did not fail cancellation: %d", status)
+	}
+	visit, err := a.Queries.FindVisit(ctx, id)
+	if err != nil || visit.Status.EnumVisitsStatus != "waiting" {
+		t.Fatalf("audit failure committed cancellation: %v %v", visit.Status, err)
+	}
+	if _, err = a.Pool.Exec(ctx, `DROP TRIGGER go_fixture_reject_visit_cancel_audit ON "ActivityLogs"; DROP FUNCTION go_fixture_reject_visit_cancel_audit()`); err != nil {
+		t.Fatal(err)
+	}
+	if status, result := request(t, h, "POST", path, `{"reason":"El anfitrión suspendió la visita"}`, operator); status != 200 {
+		t.Fatalf("cancel failed: %d %v", status, result)
+	} else {
+		data := result["data"].(map[string]any)
+		if data["status"] != "cancelled" || data["cancellationReason"] != "El anfitrión suspendió la visita" {
+			t.Fatalf("cancellation response missing state/reason: %#v", data)
+		}
+	}
+	var actorID int32
+	var created time.Time
+	if err = a.Pool.QueryRow(ctx, `SELECT "userId","createdAt" FROM "ActivityLogs" WHERE action='VISIT_CANCELLED' AND "entityId"=$1`, fmt.Sprint(id)).Scan(&actorID, &created); err != nil || actorID != userID || created.IsZero() {
+		t.Fatalf("cancellation audit missing actor/time: actor=%d at=%v err=%v", actorID, created, err)
+	}
+	for _, operation := range []string{"admit", "cancel"} {
+		body := ""
+		if operation == "cancel" {
+			body = `{"reason":"Reintento"}`
+		}
+		if status, _ := request(t, h, "POST", fmt.Sprintf("/api/v1/visits/%d/%s", id, operation), body, operator); status != 409 {
+			t.Fatalf("cancelled visit allowed %s: %d", operation, status)
+		}
+	}
+	newID := createVisit(t, a, h, cedula, "active", operator)
+	if newID == id {
+		t.Fatal("new visit reused the cancelled event")
+	}
+
+	adminID, adminName, adminPassword := fixtureUser(t, a, "admin", false)
+	admin := loginFixture(t, h, adminName, adminPassword)["accessToken"].(string)
+	adminVisit := createVisit(t, a, h, "V-98989078", "waiting", admin)
+	if status, _ := request(t, h, "POST", fmt.Sprintf("/api/v1/visits/%d/cancel", adminVisit), `{"reason":"A solicitud de recepción"}`, admin); status != 200 {
+		t.Fatalf("admin cancellation denied: %d", status)
+	}
+	rootID, rootName, rootPassword := fixtureUser(t, a, "root", false)
+	root := loginFixture(t, h, rootName, rootPassword)["accessToken"].(string)
+	rootVisit := createVisit(t, a, h, "V-98989079", "waiting", root)
+	if status, _ := request(t, h, "POST", fmt.Sprintf("/api/v1/visits/%d/cancel", rootVisit), `{"reason":"A solicitud de recepción"}`, root); status != 200 {
+		t.Fatalf("root cancellation denied: %d", status)
+	}
+	var adminAudit, rootAudit int
+	if err = a.Pool.QueryRow(ctx, `SELECT count(*) FROM "ActivityLogs" WHERE "userId"=$1 AND action='VISIT_CANCELLED'`, adminID).Scan(&adminAudit); err != nil || adminAudit != 1 {
+		t.Fatalf("admin audit missing: %d %v", adminAudit, err)
+	}
+	if err = a.Pool.QueryRow(ctx, `SELECT count(*) FROM "ActivityLogs" WHERE "userId"=$1 AND action='VISIT_CANCELLED'`, rootID).Scan(&rootAudit); err != nil || rootAudit != 1 {
+		t.Fatalf("root audit missing: %d %v", rootAudit, err)
+	}
+
+	raceID := createVisit(t, a, h, "V-98989080", "waiting", operator)
+	racePath := fmt.Sprintf("/api/v1/visits/%d/", raceID)
+	start := make(chan struct{})
+	results := make(chan int, 2)
+	var wg sync.WaitGroup
+	for _, operation := range []struct{ path, body string }{{"admit", ""}, {"cancel", `{"reason":"Carril cerrado"}`}} {
+		wg.Add(1)
+		go func(path, body string) {
+			defer wg.Done()
+			<-start
+			req := httptest.NewRequest("POST", racePath+path, strings.NewReader(body))
+			req.Header.Set("Authorization", "Bearer "+operator)
+			response := httptest.NewRecorder()
+			h.ServeHTTP(response, req)
+			results <- response.Code
+		}(operation.path, operation.body)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	succeeded, conflicted := 0, 0
+	for status := range results {
+		if status == 200 {
+			succeeded++
+		} else if status == 409 {
+			conflicted++
+		} else {
+			t.Fatalf("unexpected concurrent transition status: %d", status)
+		}
+	}
+	if succeeded != 1 || conflicted != 1 {
+		t.Fatalf("cancel/admit race did not serialize: succeeded=%d conflicts=%d", succeeded, conflicted)
+	}
+	raceVisit, err := a.Queries.FindVisit(ctx, raceID)
+	if err != nil || raceVisit.Status.EnumVisitsStatus != "active" && raceVisit.Status.EnumVisitsStatus != "cancelled" {
+		t.Fatalf("invalid state after cancel/admit race: %v %v", raceVisit.Status, err)
+	}
+}
 func TestConcurrentExitIntegration(t *testing.T) {
 	a, h := integrationApp(t)
 	_, username, password := fixtureUser(t, a, "operador", false)

@@ -121,6 +121,7 @@ const AdminDashboard = () => {
                 <Button onClick={() => router.push('/')} className="bg-[color:var(--accent-1)] hover:bg-[color:var(--accent-0)] text-[#081116] px-3 py-1.5 rounded-md text-xs font-semibold tracking-[0.18em] uppercase flex items-center transition-colors">
                     <Home size={16} className="mr-1" /> Operaciones
                 </Button>
+                <Button onClick={() => router.push('/privacy')} className="btn-ghost border border-[color:var(--border-1)] px-3 py-1.5 text-xs uppercase">Privacidad</Button>
             </Header>
 
             <Suspense fallback={<p role="status">Cargando panel…</p>}><main className="container mx-auto px-4 py-8 relative z-10">

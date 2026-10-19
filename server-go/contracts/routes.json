@@ -473,6 +473,33 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/visits/calendar",
+    "source": "server-go/internal/httpapi/calendar.go",
+    "protected": true,
+    "middleware": ["authenticate"],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/visits/cancelled",
+    "source": "server-go/internal/httpapi/visits.go",
+    "protected": true,
+    "middleware": ["authenticate"],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/visits/:id/cancel",
+    "source": "server-go/internal/httpapi/visits.go",
+    "protected": true,
+    "middleware": ["authenticate", "roles(operador,admin,root)"],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/visitors/companies",
     "source": "server/src/routes/visitor-clean.routes.ts",
     "protected": true,

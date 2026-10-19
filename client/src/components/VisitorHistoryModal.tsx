@@ -29,6 +29,7 @@ const statusConfig = {
     waiting:      { label: 'En Espera',    color: 'text-yellow-400',               bg: 'bg-yellow-400/10',               border: 'border-yellow-400/40',               dot: 'bg-yellow-400' },
     intermittent: { label: 'Intermitente', color: 'text-amber-400',                bg: 'bg-amber-400/10',                border: 'border-amber-400/40',                dot: 'bg-amber-400' },
     completed:    { label: 'Completada',   color: 'text-[color:var(--text-3)]',    bg: 'bg-[color:var(--surface-2)]',    border: 'border-[color:var(--border-1)]',     dot: 'bg-[color:var(--text-3)]' },
+    cancelled:    { label: 'Cancelada',    color: 'text-red-400',                  bg: 'bg-red-400/10',                   border: 'border-red-400/40',                  dot: 'bg-red-400' },
 };
 
 const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
@@ -69,6 +70,7 @@ const VisitorHistoryModal: React.FC<VisitorHistoryModalProps> = ({
     const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
     const getDuration = (visit: Visit): string | null => {
+        if (visit.status === 'cancelled') return null;
         const entry = visit.entry_time || visit.check_in_time || visit.check_in;
         const exit  = visit.exit_time  || visit.check_out_time || visit.check_out;
         if (!entry || !exit) return null;

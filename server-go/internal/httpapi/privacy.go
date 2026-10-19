@@ -280,6 +280,18 @@ func (a *App) subjectAccess(w http.ResponseWriter, r *http.Request) {
 	success(w, map[string]any{"visitor": profile, "visits": items})
 }
 func (a *App) subjectCancel(w http.ResponseWriter, r *http.Request) {
+	var verification struct {
+		IdentityVerified   bool   `json:"identityVerified"`
+		VerificationMethod string `json:"verificationMethod"`
+	}
+	if !decode(w, r, &verification) {
+		return
+	}
+	verification.VerificationMethod = strings.TrimSpace(verification.VerificationMethod)
+	if !verification.IdentityVerified || !validText(verification.VerificationMethod, 100, true) || len([]rune(verification.VerificationMethod)) < 3 {
+		failure(w, 400, "IDENTITY_VERIFICATION_REQUIRED", "Confirma la verificación de identidad e indica el procedimiento aplicado")
+		return
+	}
 	cedula, e := normalizeCedula(chi.URLParam(r, "cedula"))
 	if e != nil {
 		failure(w, 400, "VALIDATION_ERROR", e.Error())
@@ -320,7 +332,7 @@ func (a *App) subjectCancel(w http.ResponseWriter, r *http.Request) {
 	ids := []int32{}
 	entityIDs := []string{}
 	for _, visit := range visits {
-		if visit.Status.EnumVisitsStatus != "completed" {
+		if visit.Status.EnumVisitsStatus != "completed" && visit.Status.EnumVisitsStatus != "cancelled" {
 			failure(w, 409, "OPEN_VISIT_EXISTS", "Cierre las visitas abiertas antes de cancelar los datos")
 			return
 		}
@@ -334,7 +346,7 @@ func (a *App) subjectCancel(w http.ResponseWriter, r *http.Request) {
 		{`UPDATE "VisitorEditHistories" SET "oldValue"=NULL,"newValue"=NULL WHERE "visitorId"=$1 OR "visitId"=ANY($2)`, []any{v.ID, ids}},
 		{`UPDATE "IntermittentLogs" SET notes=NULL,"updatedAt"=now() WHERE visit_id=ANY($1)`, []any{ids}},
 		{`UPDATE "ActivityLogs" SET "entityId"=$1,details='Datos anonimizados',path=NULL,"ipAddress"=NULL,"userAgent"=NULL WHERE (entity='Visitor' AND "entityId"=ANY($2)) OR (entity='Visit' AND "entityId"=ANY($3)) OR (entity='ArcoRequest' AND "entityId" IN (SELECT id::text FROM "ArcoRequests" WHERE "subjectCedulaHash"=$4)) OR path LIKE '%'||$5||'%' OR details LIKE '%'||$5||'%'`, []any{reference, []string{cedula, hash, fmt.Sprint(v.ID)}, entityIDs, hash, cedula}},
-		{`UPDATE "Visits" SET visitor_id=$1,visitor_cedula=$2,purpose='Anonimizado',person_to_visit='Anonimizado',notes=NULL,companion_name=NULL,companion_cedula=NULL,vehicle_brand=NULL,vehicle_model=NULL,vehicle_plate=NULL,host_person=NULL,target_department=NULL,department=NULL,area=NULL,"updatedAt"=now() WHERE visitor_id=$1 OR visitor_cedula=$3`, []any{v.ID, reference, hash}},
+		{`UPDATE "Visits" SET visitor_id=$1,visitor_cedula=$2,purpose='Anonimizado',person_to_visit='Anonimizado',notes=NULL,cancellation_reason=NULL,companion_name=NULL,companion_cedula=NULL,vehicle_brand=NULL,vehicle_model=NULL,vehicle_plate=NULL,host_person=NULL,target_department=NULL,department=NULL,area=NULL,"updatedAt"=now() WHERE visitor_id=$1 OR visitor_cedula=$3`, []any{v.ID, reference, hash}},
 		{`UPDATE "ArcoRequests" SET "subjectCedulaHash"=$2,"subjectCedulaEncrypted"=NULL,"requestedByName"='Anonimizado',"contactEmail"=NULL,reason=NULL,"requestPayload"=NULL,"resolutionNotes"=NULL,"updatedAt"=now() WHERE "subjectCedulaHash"=$1`, []any{hash, reference}},
 		{`UPDATE "Visitors" SET cedula=$2,encrypted_cedula=NULL,"anonymizedAt"=now(),first_name='Anonimizado',last_name='',company='Anonimizado',job_title=NULL,email=NULL,phone=NULL,photo_data=NULL,id_photo_data=NULL,photo_url=NULL,id_photo_url=NULL,observations=NULL,"isBlocked"=false,"updatedAt"=now() WHERE id=$1`, []any{v.ID, reference}},
 		{`INSERT INTO "ArcoRequests"("requestType","subjectCedulaHash","requestedByName","requestedByUserId",status,"resolvedAt","createdAt","updatedAt") VALUES('cancellation',$1,'Anonimizado',$2,'completed',now(),now(),now())`, []any{reference, actor(r).ID}},
@@ -353,7 +365,7 @@ func (a *App) subjectCancel(w http.ResponseWriter, r *http.Request) {
 	auditURL := *r.URL
 	auditRequest.URL = &auditURL
 	auditRequest.URL.Path = "/api/v1/privacy/subjects/" + reference
-	if e = a.audit(r.Context(), q, auditRequest, actor(r), "ARCO_CANCELLATION_EXECUTED", "Visitor", reference); e == nil {
+	if e = a.auditWithDetails(r.Context(), q, auditRequest, actor(r), "ARCO_CANCELLATION_EXECUTED", "Visitor", reference, "Verificación de identidad: "+verification.VerificationMethod); e == nil {
 		e = tx.Commit(r.Context())
 	}
 	if e != nil {

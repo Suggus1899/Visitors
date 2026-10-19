@@ -78,7 +78,7 @@ func reasonGroups(counts map[string]int, total, limit int) []map[string]any {
 	return items
 }
 func aggregateReport(visits []reportVisit, start, end time.Time, monthly bool) map[string]any {
-	completed, active := 0, 0
+	completed, active, cancelled := 0, 0, 0
 	minutes := float64(0)
 	unique := map[string]bool{}
 	reasons := map[string]int{}
@@ -105,7 +105,11 @@ func aggregateReport(visits []reportVisit, start, end time.Time, monthly bool) m
 		if v.Status == "active" {
 			active += count
 		}
-		unique[v.VisitorCedula] = true
+		if v.Status == "cancelled" {
+			cancelled += count
+		} else {
+			unique[v.VisitorCedula] = true
+		}
 		purpose := v.Purpose
 		if purpose == "" {
 			purpose = "Sin especificar"
@@ -160,7 +164,7 @@ func aggregateReport(visits []reportVisit, start, end time.Time, monthly bool) m
 	}
 	n := reportCount(visits)
 	divisor := math.Max(1, math.Ceil(end.Sub(start).Hours()/24))
-	summary := map[string]any{"totalVisits": n, "completedVisits": completed, "activeVisits": active, "avgVisitsPerDay": math.Round(float64(n)/divisor*10) / 10}
+	summary := map[string]any{"totalVisits": n, "completedVisits": completed, "activeVisits": active, "cancelledVisits": cancelled, "avgVisitsPerDay": math.Round(float64(n)/divisor*10) / 10}
 	period := map[string]any{"start": start.UTC().Format(time.RFC3339Nano), "end": end.UTC().Format(time.RFC3339Nano)}
 	if monthly {
 		period = map[string]any{"month": int(start.Month()) - 1, "monthName": monthNames[int(start.Month())-1], "year": start.Year()}
@@ -168,8 +172,9 @@ func aggregateReport(visits []reportVisit, start, end time.Time, monthly bool) m
 		if completed > 0 {
 			duration = math.Round(minutes / float64(completed))
 		}
-		if n > 0 {
-			rate = math.Round(float64(completed) * 100 / float64(n))
+		admissionCandidates := n - cancelled
+		if admissionCandidates > 0 {
+			rate = math.Round(float64(completed) * 100 / float64(admissionCandidates))
 		}
 		summary["uniqueVisitors"] = len(unique)
 		summary["averageDuration"] = duration
@@ -178,7 +183,7 @@ func aggregateReport(visits []reportVisit, start, end time.Time, monthly bool) m
 	result := map[string]any{"period": period, "summary": summary, "byReason": reasonGroups(reasons, n, 0), "byDayOfWeek": weekdays, "byWeek": byWeek}
 	if !monthly {
 		result["recentActivity"] = daily
-		result["byStatus"] = map[string]int{"active": active, "completed": completed}
+		result["byStatus"] = map[string]int{"active": active, "completed": completed, "cancelled": cancelled}
 	}
 	return result
 }
@@ -237,7 +242,7 @@ func (a *App) monthlyReport(w http.ResponseWriter, r *http.Request) {
 	}
 	result := aggregateReport(visits, start, end, true)
 	var unique int
-	if e = a.Pool.QueryRow(r.Context(), `SELECT count(DISTINCT visitor_cedula) FROM "Visits" WHERE check_in_time>=$1 AND check_in_time<$2`, start, end).Scan(&unique); e != nil {
+	if e = a.Pool.QueryRow(r.Context(), `SELECT count(DISTINCT visitor_cedula) FROM "Visits" WHERE check_in_time>=$1 AND check_in_time<$2 AND status<>'cancelled'`, start, end).Scan(&unique); e != nil {
 		a.serverError(w, e)
 		return
 	}

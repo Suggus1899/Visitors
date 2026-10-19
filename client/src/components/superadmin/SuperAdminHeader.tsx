@@ -2,6 +2,7 @@ import { Button } from '../ui/button';
 import Shield from 'lucide-react/dist/esm/icons/shield';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
 import type { User } from '../../types';
+import { useRouter } from 'next/navigation';
 
 interface SuperAdminHeaderProps {
   user: User | null;
@@ -9,6 +10,7 @@ interface SuperAdminHeaderProps {
 }
 
 const SuperAdminHeader = ({ user, handleLogout }: SuperAdminHeaderProps) => {
+  const router = useRouter();
   return (
     <header className="bg-[color:var(--surface-1)] border-b border-[color:var(--border-1)] p-4">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -23,6 +25,7 @@ const SuperAdminHeader = ({ user, handleLogout }: SuperAdminHeaderProps) => {
           <span className="text-sm text-[color:var(--text-2)]">
             {user?.username} ({user?.role})
           </span>
+          <Button onClick={() => router.push('/privacy')} className="btn-ghost border border-[color:var(--border-1)] px-3 py-1.5 text-xs">Privacidad</Button>
           <Button onClick={handleLogout} className="btn-ghost flex items-center gap-2">
             <LogOut className="w-4 h-4" />
             Salir

@@ -144,6 +144,7 @@ interface VisitDTO {
     exitTime?: string;
     checkOutTime?: string;
     status?: string;
+    cancellationReason?: string | null;
     personToVisit?: string;
     targetDepartment?: string;
     hostPerson?: string;
@@ -186,7 +187,8 @@ const adaptVisit = (v: VisitDTO): Visit => {
         exit_time: v.exitTime,
         check_out: v.checkOutTime,
         check_out_time: v.checkOutTime,
-        status: (v.status ? v.status.toLowerCase() : 'active') as 'waiting' | 'active' | 'intermittent' | 'completed',
+        status: (v.status ? v.status.toLowerCase() : 'active') as Visit['status'],
+        cancellation_reason: v.cancellationReason,
         personToVisit: v.personToVisit,
         person_to_visit: v.personToVisit,
         target_department: v.targetDepartment,
@@ -336,6 +338,11 @@ export const VisitService = {
 
     admitVisitor: async (id: number) => {
         const response = await api.post(`/visits/${id}/admit`);
+        return unwrapResponse(response.data);
+    },
+
+    cancelWaitingVisit: async (id: number, reason: string) => {
+        const response = await api.post(`/visits/${id}/cancel`, { reason });
         return unwrapResponse(response.data);
     },
 

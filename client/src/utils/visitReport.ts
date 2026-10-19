@@ -1,7 +1,7 @@
 import type { Visit } from '../types';
 import type { SortField, SortDirection } from '../components/admin/VisitsTable';
 export const VISIT_STATUS_LABELS: Record<Visit['status'], string> = {
-    waiting: 'En espera', active: 'Activa', intermittent: 'Salida temporal', completed: 'Completada',
+    waiting: 'En espera', active: 'Activa', intermittent: 'Salida temporal', completed: 'Completada', cancelled: 'Cancelada',
 };
 
 export function visitReportRow(visit: Visit) {
@@ -15,7 +15,7 @@ export function visitReportRow(visit: Visit) {
         department: anonymous ? '' : visit.target_department || visit.department || '',
         host: anonymous ? '' : visit.host_person || visit.person_to_visit || visit.personToVisit || '',
         arrival: visit.arrival_time || visit.check_in || visit.check_in_time,
-        entry: visit.entry_time || (visit.status === 'waiting' ? undefined : visit.check_in || visit.check_in_time),
+        entry: visit.entry_time || (visit.status === 'waiting' || visit.status === 'cancelled' ? undefined : visit.check_in || visit.check_in_time),
         exit: visit.exit_time || visit.check_out || visit.check_out_time,
         status: VISIT_STATUS_LABELS[visit.status],
     };

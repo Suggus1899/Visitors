@@ -124,7 +124,7 @@ func (q *Queries) FindUserByID(ctx context.Context, id int32) (FindUserByIDRow, 
 }
 
 const findVisit = `-- name: FindVisit :one
-SELECT id, visitor_cedula, purpose, person_to_visit, check_in_time, check_out_time, status, notes, companion_name, companion_cedula, vehicle_brand, vehicle_model, vehicle_plate, area, action, department, "createdAt", "updatedAt", visitor_id, arrival_time, entry_time, exit_time, target_department, host_person, consent_policy_version, consent_accepted_at, consent_recorded_by FROM "Visits" WHERE id=$1
+SELECT id, visitor_cedula, purpose, person_to_visit, check_in_time, check_out_time, status, notes, companion_name, companion_cedula, vehicle_brand, vehicle_model, vehicle_plate, area, action, department, "createdAt", "updatedAt", visitor_id, arrival_time, entry_time, exit_time, target_department, host_person, consent_policy_version, consent_accepted_at, consent_recorded_by, cancellation_reason FROM "Visits" WHERE id=$1
 `
 
 func (q *Queries) FindVisit(ctx context.Context, id int32) (Visit, error) {
@@ -158,6 +158,7 @@ func (q *Queries) FindVisit(ctx context.Context, id int32) (Visit, error) {
 		&i.ConsentPolicyVersion,
 		&i.ConsentAcceptedAt,
 		&i.ConsentRecordedBy,
+		&i.CancellationReason,
 	)
 	return i, err
 }
@@ -298,7 +299,7 @@ func (q *Queries) LockUser(ctx context.Context, username string) (LockUserRow, e
 }
 
 const lockVisit = `-- name: LockVisit :one
-SELECT id, visitor_cedula, purpose, person_to_visit, check_in_time, check_out_time, status, notes, companion_name, companion_cedula, vehicle_brand, vehicle_model, vehicle_plate, area, action, department, "createdAt", "updatedAt", visitor_id, arrival_time, entry_time, exit_time, target_department, host_person, consent_policy_version, consent_accepted_at, consent_recorded_by FROM "Visits" WHERE id=$1 FOR UPDATE
+SELECT id, visitor_cedula, purpose, person_to_visit, check_in_time, check_out_time, status, notes, companion_name, companion_cedula, vehicle_brand, vehicle_model, vehicle_plate, area, action, department, "createdAt", "updatedAt", visitor_id, arrival_time, entry_time, exit_time, target_department, host_person, consent_policy_version, consent_accepted_at, consent_recorded_by, cancellation_reason FROM "Visits" WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) LockVisit(ctx context.Context, id int32) (Visit, error) {
@@ -332,6 +333,7 @@ func (q *Queries) LockVisit(ctx context.Context, id int32) (Visit, error) {
 		&i.ConsentPolicyVersion,
 		&i.ConsentAcceptedAt,
 		&i.ConsentRecordedBy,
+		&i.CancellationReason,
 	)
 	return i, err
 }

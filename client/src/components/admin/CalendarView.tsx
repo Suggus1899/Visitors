@@ -30,7 +30,7 @@ interface CalendarViewProps {
 }
 
 const CalendarView = ({ fetchVisits }: CalendarViewProps) => {
-    const [calendarFilter, setCalendarFilter] = useState<'all' | 'active' | 'completed'>('all');
+    const [calendarFilter, setCalendarFilter] = useState<'all' | 'active' | 'completed' | 'cancelled'>('all');
     const [selectedEvent, setSelectedEvent] = useState<Visit | null>(null);
     const [showEventModal, setShowEventModal] = useState(false);
     const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -85,7 +85,7 @@ const CalendarView = ({ fetchVisits }: CalendarViewProps) => {
             const title = 'Calendario de visitas';
             const generatedAt = new Date();
             const doc = createReportPDF(title, [['Período', `${format(range.start, 'dd/MM/yyyy')} al ${format(range.end, 'dd/MM/yyyy')}`],
-                ['Estado', calendarFilter === 'all' ? 'Todos' : calendarFilter === 'active' ? 'Activas' : 'Completadas'], ['Registros', String(calendarEvents.length)]]);
+                ['Estado', calendarFilter === 'all' ? 'Todos' : calendarFilter === 'active' ? 'Activas' : calendarFilter === 'cancelled' ? 'Canceladas' : 'Completadas'], ['Registros', String(calendarEvents.length)]]);
             const rows = [...calendarEvents].sort((a, b) => a.start.getTime() - b.start.getTime()).map(event => {
                 const row = visitReportRow(event.resource!);
                 return [row.name, row.cedula || '—', row.reason, formatReportDate(row.arrival), formatReportDate(row.entry), formatReportDate(row.exit), row.status];
@@ -126,7 +126,7 @@ const CalendarView = ({ fetchVisits }: CalendarViewProps) => {
                 <div className="flex flex-wrap items-center gap-3">
                     <span className="text-sm font-medium text-[color:var(--text-3)]">Filtrar visitas:</span>
                     <div className="flex bg-[color:var(--surface-1)] rounded-lg p-1 border border-[color:var(--border-1)]">
-                        {[{ value: 'all', label: 'Todas' }, { value: 'active', label: 'Activas' }, { value: 'completed', label: 'Finalizadas' }].map(opt => (
+                        {[{ value: 'all', label: 'Todas' }, { value: 'active', label: 'Activas' }, { value: 'completed', label: 'Finalizadas' }, { value: 'cancelled', label: 'Canceladas' }].map(opt => (
                             <Button key={opt.value} onClick={() => setCalendarFilter(opt.value as typeof calendarFilter)}
                                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${calendarFilter === opt.value ? 'bg-[color:var(--surface-2)] text-[color:var(--accent-0)] shadow-sm border border-[color:var(--border-1)]' : 'text-[color:var(--text-3)] hover:text-[color:var(--text-1)]'}`}>
                                 {opt.label}

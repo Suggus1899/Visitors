@@ -113,6 +113,7 @@ const VisitsTable: React.FC<VisitsTableProps> = ({
                         <option value="active">Activos</option>
                         <option value="intermittent">Salida temporal</option>
                         <option value="completed">Completados</option>
+                        <option value="cancelled">Cancelados</option>
                     </select>
                     <Input aria-label="Fecha inicial de visitas" type="date" className="input-tech text-sm" value={filters.startDate} onChange={e => onFilterChange('startDate', e.target.value)} />
                     <Input aria-label="Fecha final de visitas" type="date" className="input-tech text-sm" value={filters.endDate} onChange={e => onFilterChange('endDate', e.target.value)} />

@@ -68,9 +68,9 @@ describe('real PDF and Excel exports', () => {
     expect(workbook.getWorksheet('Visitas')!.getCell('H2').value).toBeInstanceOf(Date);
   });
 
-  it('prints all four states and sorts lifecycle dates without mutating the source', () => {
-    expect(['waiting', 'active', 'intermittent', 'completed'].map(status => visitReportRow(visit(1, { status: status as Visit['status'] })).status))
-      .toEqual(['En espera', 'Activa', 'Salida temporal', 'Completada']);
+  it('prints all five states and sorts lifecycle dates without mutating the source', () => {
+    expect(['waiting', 'active', 'intermittent', 'completed', 'cancelled'].map(status => visitReportRow(visit(1, { status: status as Visit['status'] })).status))
+      .toEqual(['En espera', 'Activa', 'Salida temporal', 'Completada', 'Cancelada']);
     const records = [visit(1, { entry_time: '2026-10-09T12:00:00Z' }), visit(2, { entry_time: '2026-10-08T12:00:00Z' })];
     expect(sortReportVisits(records, 'entry_time', 'asc').map(v => v.id)).toEqual([2, 1]);
     expect(records.map(v => v.id)).toEqual([1, 2]);

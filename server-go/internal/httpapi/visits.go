@@ -72,13 +72,14 @@ func (a *App) mountVisits(router chi.Router) {
 	router.Group(func(r chi.Router) {
 		r.Use(a.authenticate)
 		r.Get("/api/v1/visits", a.filteredVisits)
-		for _, status := range []string{"active", "waiting", "intermittent"} {
+		for _, status := range []string{"active", "waiting", "intermittent", "cancelled"} {
 			status := status
 			r.Get("/api/v1/visits/"+status, func(w http.ResponseWriter, r *http.Request) { a.statusVisits(w, r, status) })
 		}
 		r.Group(func(r chi.Router) {
 			r.Use(roles("operador", "admin", "root"))
 			r.Post("/api/v1/visits/checkin", a.checkIn)
+			r.Post("/api/v1/visits/{id}/cancel", func(w http.ResponseWriter, r *http.Request) { a.transition(w, r, "cancel") })
 			for path, operation := range map[string]string{"admit": "admit", "checkout": "checkout", "intermittent": "exit", "intermittent-exit": "exit", "reactivate": "reentry", "intermittent-reentry": "reentry"} {
 				operation := operation
 				r.Post("/api/v1/visits/{id}/"+path, func(w http.ResponseWriter, r *http.Request) { a.transition(w, r, operation) })
@@ -224,9 +225,14 @@ func (a *App) transition(w http.ResponseWriter, r *http.Request, operation strin
 		return
 	}
 	var b struct {
-		Notes *string `json:"notes"`
+		Notes  *string `json:"notes"`
+		Reason string  `json:"reason"`
 	}
 	if r.ContentLength != 0 && !decode(w, r, &b) {
+		return
+	}
+	if operation == "cancel" && !validText(b.Reason, 1000, true) {
+		failure(w, 400, "VALIDATION_ERROR", "Indica el motivo de cancelación")
 		return
 	}
 	if b.Notes != nil && !validText(*b.Notes, 1000, false) {
@@ -259,6 +265,10 @@ func (a *App) transition(w http.ResponseWriter, r *http.Request, operation strin
 		expected = "intermittent"
 		target = "active"
 		action = "VISIT_REENTRY"
+	case "cancel":
+		expected = "waiting"
+		target = "cancelled"
+		action = "VISIT_CANCELLED"
 	}
 	if string(visit.Status.EnumVisitsStatus) != expected || visit.CheckOutTime.Valid {
 		failure(w, 409, "INVALID_VISIT_STATE", "La visita cambió o no permite esta operación")
@@ -285,6 +295,8 @@ func (a *App) transition(w http.ResponseWriter, r *http.Request, operation strin
 		_, e = tx.Exec(r.Context(), `UPDATE "Visits" SET status=$2,entry_time=$3,check_in_time=$3,"updatedAt"=$3 WHERE id=$1`, id, target, now)
 	case "checkout":
 		_, e = tx.Exec(r.Context(), `UPDATE "Visits" SET status=$2,check_out_time=$3,exit_time=$3,notes=COALESCE($4,notes),"updatedAt"=$3 WHERE id=$1`, id, target, now, b.Notes)
+	case "cancel":
+		_, e = tx.Exec(r.Context(), `UPDATE "Visits" SET status=$2,cancellation_reason=$3,"updatedAt"=$4 WHERE id=$1`, id, target, b.Reason, now)
 	default:
 		_, e = tx.Exec(r.Context(), `UPDATE "Visits" SET status=$2,"updatedAt"=$3 WHERE id=$1`, id, target, now)
 	}
@@ -298,7 +310,7 @@ func (a *App) transition(w http.ResponseWriter, r *http.Request, operation strin
 		a.visitError(w, e)
 		return
 	}
-	eventType := map[string]string{"admit": "visit:admitted", "checkout": "visit:checked-out", "exit": "visit:intermittent-exit", "reentry": "visit:intermittent-reentry"}[operation]
+	eventType := map[string]string{"admit": "visit:admitted", "checkout": "visit:checked-out", "exit": "visit:intermittent-exit", "reentry": "visit:intermittent-reentry", "cancel": "visit:cancelled"}[operation]
 	a.publish(eventType, id)
 	visit, e = a.Queries.FindVisit(r.Context(), id)
 	if e != nil {
@@ -321,7 +333,11 @@ func (a *App) visitDTO(r *http.Request, v store.Visit) (map[string]any, error) {
 	return items[0], nil
 }
 func (a *App) visitData(r *http.Request, v store.Visit, person store.Visitor, found bool) (map[string]any, error) {
-	data := map[string]any{"id": v.ID, "purpose": v.Purpose, "personToVisit": v.PersonToVisit, "status": v.Status.EnumVisitsStatus, "notes": v.Notes, "checkInTime": v.CheckInTime, "checkOutTime": v.CheckOutTime, "arrivalTime": v.ArrivalTime, "entryTime": v.EntryTime, "exitTime": v.ExitTime, "targetDepartment": v.TargetDepartment, "hostPerson": v.HostPerson, "companionName": v.CompanionName, "companionCedula": v.CompanionCedula, "vehicleBrand": v.VehicleBrand, "vehicleModel": v.VehicleModel, "vehiclePlate": v.VehiclePlate, "area": v.Area, "action": v.Action.EnumVisitsAction, "department": v.Department}
+	var cancellationReason any
+	if v.CancellationReason.Valid {
+		cancellationReason = v.CancellationReason.String
+	}
+	data := map[string]any{"id": v.ID, "purpose": v.Purpose, "personToVisit": v.PersonToVisit, "status": v.Status.EnumVisitsStatus, "notes": v.Notes, "cancellationReason": cancellationReason, "checkInTime": v.CheckInTime, "checkOutTime": v.CheckOutTime, "arrivalTime": v.ArrivalTime, "entryTime": v.EntryTime, "exitTime": v.ExitTime, "targetDepartment": v.TargetDepartment, "hostPerson": v.HostPerson, "companionName": v.CompanionName, "companionCedula": v.CompanionCedula, "vehicleBrand": v.VehicleBrand, "vehicleModel": v.VehicleModel, "vehiclePlate": v.VehiclePlate, "area": v.Area, "action": v.Action.EnumVisitsAction, "department": v.Department}
 	if !found || person.AnonymizedAt.Valid {
 		data["visitorCedula"] = nil
 		data["visitorName"] = "Anonimizado"

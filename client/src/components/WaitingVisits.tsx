@@ -8,10 +8,13 @@ import Clock from 'lucide-react/dist/esm/icons/clock';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import Timer from 'lucide-react/dist/esm/icons/timer';
+import X from 'lucide-react/dist/esm/icons/x';
 import { VisitorDetailsModal } from './visit/VisitorDetailsModal';
 import { sanitizeInput } from '../utils/sanitizer';
-import { useAdmitVisitorMutation, useWaitingVisitsQuery, useInvalidateVisitQueries } from '../hooks/useVisitQueries';
+import { useAdmitVisitorMutation, useCancelWaitingVisitMutation, useWaitingVisitsQuery, useInvalidateVisitQueries } from '../hooks/useVisitQueries';
 import { VisitService } from '../services/api.v1';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { Textarea } from './ui/textarea';
 
 function formatElapsed(ms: number): string {
     const totalSec = Math.floor(ms / 1000);
@@ -33,9 +36,13 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
     const canOperate = ['operador', 'admin', 'root'].includes(user?.role || '');
     const [admittingId, setAdmittingId] = useState<number | null>(null);
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+    const [cancelVisit, setCancelVisit] = useState<Visit | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancellingId, setCancellingId] = useState<number | null>(null);
     const [now, setNow] = useState(Date.now());
     const invalidateVisitQueries = useInvalidateVisitQueries();
     const admitMutation = useAdmitVisitorMutation();
+    const cancelMutation = useCancelWaitingVisitMutation();
 
     useEffect(() => {
         const id = setInterval(() => setNow(Date.now()), 1000);
@@ -65,6 +72,23 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
             toast.error('Error al admitir al visitante');
         } finally {
             setAdmittingId(null);
+        }
+    };
+
+    const handleCancel = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!cancelVisit || !cancelReason.trim()) return;
+        try {
+            setCancellingId(cancelVisit.id);
+            await cancelMutation.mutateAsync({ id: cancelVisit.id, reason: cancelReason.trim() });
+            toast.success('Visita cancelada');
+            setCancelVisit(null);
+            setCancelReason('');
+        } catch (error) {
+            const message = (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message;
+            toast.error(message || 'No se pudo cancelar la visita');
+        } finally {
+            setCancellingId(null);
         }
     };
 
@@ -111,7 +135,7 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                     return (
                         <div
                             key={visit.id}
-                            onClick={() => setSelectedVisit(visit)}
+                            onClick={event => { if ((event.target as HTMLElement).closest('button')) return; setSelectedVisit(visit); }}
                             className="panel-tech p-5 rounded-xl border border-[color:var(--border-1)] bg-[color:var(--surface-1)] flex flex-col relative overflow-hidden group hover:border-[color:var(--status-warning)] transition-colors cursor-pointer hover:shadow-md"
                         >
                             <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-[color:var(--status-warning)]/20 to-transparent -z-10" />
@@ -150,20 +174,26 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                                     </span>
                                 </div>
 
-                                {canOperate && <Button
-                                    onClick={() => handleAdmit(visit.id)}
-                                    disabled={admittingId === visit.id}
-                                    className="w-full btn-tech !bg-[color:var(--status-success)]/10 !text-[color:var(--status-success)] !border-[color:var(--status-success)]/50 hover:!bg-[color:var(--status-success)]/20 flex justify-center items-center gap-2 z-10 relative"
-                                >
-                                    {admittingId === visit.id ? (
-                                        <div className="animate-spin w-4 h-4 border-2 border-[color:var(--status-success)] border-t-transparent rounded-full" />
-                                    ) : (
-                                        <>
-                                            <CheckCircle size={18} />
-                                            ADMITIR ENTRADA
-                                        </>
-                                    )}
-                                </Button>}
+                                {canOperate && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <Button
+                                        onClick={() => { void handleAdmit(visit.id); }}
+                                        disabled={admittingId === visit.id || cancellingId === visit.id}
+                                        className="w-full btn-tech !bg-[color:var(--status-success)]/10 !text-[color:var(--status-success)] !border-[color:var(--status-success)]/50 hover:!bg-[color:var(--status-success)]/20 flex justify-center items-center gap-2 z-10 relative"
+                                    >
+                                        {admittingId === visit.id ? (
+                                            <div className="animate-spin w-4 h-4 border-2 border-[color:var(--status-success)] border-t-transparent rounded-full" />
+                                        ) : (
+                                            <><CheckCircle size={18} />ADMITIR ENTRADA</>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        onClick={() => { setCancelVisit(visit); setCancelReason(''); }}
+                                        disabled={admittingId === visit.id || cancellingId === visit.id}
+                                        className="w-full border border-red-400/50 text-red-300 hover:bg-red-400/10 flex justify-center items-center gap-2 z-10 relative"
+                                    >
+                                        <X size={16} /> CANCELAR VISITA
+                                    </Button>
+                                </div>}
                             </div>
                         </div>
                     );
@@ -176,6 +206,22 @@ const WaitingVisits: React.FC<WaitingVisitsProps> = ({ onVisitAdmitted, fallback
                 onClose={() => setSelectedVisit(null)}
                 onVisitorUpdated={invalidateVisitQueries}
             />
+            <Dialog open={!!cancelVisit} onOpenChange={open => { if (!open) { setCancelVisit(null); setCancelReason(''); } }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Cancelar visita en espera</DialogTitle>
+                        <DialogDescription>Indica el motivo. La operación se registrará en la auditoría y no contará como admisión.</DialogDescription>
+                    </DialogHeader>
+                    <form className="mt-5 space-y-4" onSubmit={handleCancel}>
+                        <label htmlFor="waiting-visit-cancel-reason" className="block text-sm font-medium">Motivo de cancelación</label>
+                        <Textarea id="waiting-visit-cancel-reason" aria-label="Motivo de cancelación" value={cancelReason} onChange={event => setCancelReason(event.target.value)} maxLength={1000} required rows={4} />
+                        <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => setCancelVisit(null)} disabled={cancellingId !== null}>Volver</Button>
+                            <Button type="submit" disabled={!cancelReason.trim() || cancellingId !== null} className="border border-red-400 bg-red-500/10 text-red-200">{cancellingId !== null ? 'Cancelando…' : 'Confirmar cancelación'}</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
