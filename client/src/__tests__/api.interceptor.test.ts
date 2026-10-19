@@ -29,6 +29,7 @@ vi.mock('../services/AuthService', () => ({
 vi.mock('axios', () => ({
   default: {
     create: vi.fn((config: Record<string, unknown>) => { Object.assign(axiosConfig, config); return mockInstance; }),
+    isAxiosError: (error: unknown) => Boolean(error && typeof error === 'object' && 'isAxiosError' in error),
   },
 }));
 
@@ -69,6 +70,36 @@ describe('api.v1 interceptors', () => {
     const controller = new AbortController(); controller.abort();
     await expect(VisitService.getAllVisits({}, { signal: controller.signal })).rejects.toThrow('cancelada');
     expect(mockInstance.get).not.toHaveBeenCalled();
+  });
+
+  it('requests a bounded export with global sorting and Caracas date boundaries', async () => {
+    mockInstance.get.mockResolvedValueOnce({ data: { success: true, data: { total: 1, visits: [
+      { id: 7, visitorCedula: 'V-00123456', purpose: 'Entrega', checkInTime: '2026-10-08T12:00:00Z', arrivalTime: '2026-10-08T12:00:00Z',
+        status: 'completed', visitorName: 'Visitante Ficticio', visitorCompany: 'Empresa ficticia' },
+    ] } } });
+    const result = await VisitService.getExportVisits({ startDate: '2026-10-08', endDate: '2026-10-08', company: 'ficticia' },
+      { format: 'pdf', sortField: 'company', sortDirection: 'asc' });
+    expect(result.total).toBe(1);
+    expect(result.visits[0]?.Visitor?.company).toBe('Empresa ficticia');
+    expect(mockInstance.get).toHaveBeenCalledOnce();
+    const [url, options] = mockInstance.get.mock.calls[0];
+    const params = new URLSearchParams(String(url).split('?')[1]);
+    expect(String(url).startsWith('/visits/export?')).toBe(true);
+    expect(params.get('format')).toBe('pdf');
+    expect(params.get('sortField')).toBe('company');
+    expect(params.get('sortDirection')).toBe('asc');
+    expect(params.get('startDate')).toBe('2026-10-08T00:00:00.000-04:00');
+    expect(params.get('endDate')).toBe('2026-10-08T23:59:59.999-04:00');
+    expect(options.signal).toBeUndefined();
+  });
+
+  it('surfaces the server export-size limit and rejects incomplete export payloads', async () => {
+    mockInstance.get.mockRejectedValueOnce({ isAxiosError: true, response: { data: { error: { message: 'El formato admite hasta 2.000 visitas.' } } } });
+    await expect(VisitService.getExportVisits({}, { format: 'pdf', sortField: 'status', sortDirection: 'asc' }))
+      .rejects.toThrow('El formato admite hasta 2.000 visitas.');
+    mockInstance.get.mockResolvedValueOnce({ data: { success: true, data: { total: 2, visits: [] } } });
+    await expect(VisitService.getExportVisits({}, { format: 'xlsx', sortField: 'status', sortDirection: 'asc' }))
+      .rejects.toThrow('Los registros cambiaron durante la exportación.');
   });
 
   it.each([

@@ -148,7 +148,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                     type="button"
                     onClick={handleRetake}
                     className="absolute bottom-4 right-4 bg-[color:var(--surface-2)] text-[color:var(--text-1)] p-2 rounded-full shadow-lg hover:bg-[color:var(--surface-1)] transition-colors"
-                    title="Retomar Foto"
+                    aria-label="Retomar foto"
                 >
                     <RefreshCcw size={20} />
                 </Button>
@@ -186,8 +186,10 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                 )}
 
                 {/* Camera trigger */}
-                <div
-                    className="h-40 bg-[color:var(--surface-2)] border-2 border-dashed border-[color:var(--border-1)] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[color:var(--accent-0)] transition-all group"
+                <Button
+                    type="button"
+                    aria-label="Usar cámara"
+                    className="w-full h-40 p-0 bg-[color:var(--surface-2)] border-2 border-dashed border-[color:var(--border-1)] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[color:var(--accent-0)] transition-all group"
                     onClick={startCamera}
                 >
                     <div className="bg-[color:var(--surface-1)] p-3 rounded-full shadow-sm mb-2 group-hover:shadow-md transition-shadow">
@@ -199,7 +201,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                             {cameras[0].label}
                         </span>
                     )}
-                </div>
+                </Button>
 
                 {/* File upload alternative */}
                 <input
@@ -261,6 +263,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                     type="button"
                     onClick={stopCamera}
                     className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-1 hover:bg-opacity-75 z-20"
+                    aria-label="Cerrar cámara"
                 >
                     <X size={20} />
                 </Button>
@@ -295,7 +298,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
                     onClick={handleCapture}
                     disabled={countdown !== null}
                     className="flex items-center px-4 py-2 border border-[color:var(--accent-0)] text-[color:var(--accent-0)] rounded-full hover:bg-[color:var(--surface-2)] transition-colors disabled:opacity-50"
-                    title="Captura instantánea"
+                    aria-label="Captura instantánea"
                 >
                     <ImageIcon size={18} />
                 </Button>
