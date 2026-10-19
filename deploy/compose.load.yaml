@@ -20,3 +20,5 @@ services:
     logging: {driver: json-file, options: {max-size: 10m, max-file: '3'}}
 secrets:
   app_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/load.env'}
+  maintenance_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/load.env'}
+  backup_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/load-backup.env'}

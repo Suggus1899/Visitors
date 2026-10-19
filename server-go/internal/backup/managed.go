@@ -57,11 +57,6 @@ func (s Service) Managed(ctx context.Context) (status Status, err error) {
 	if filepath.Clean(os.Getenv("BACKUP_PASSWORD_PATH")) == filepath.Clean(s.Config.BackupPath) {
 		return status, errors.New("password storage must be separate from backups")
 	}
-	unlock, e := s.lock()
-	if e != nil {
-		return status, e
-	}
-	defer unlock()
 	defer func() {
 		status.DurationSeconds = time.Since(started).Seconds()
 		status.Successful = err == nil
@@ -69,12 +64,21 @@ func (s Service) Managed(ctx context.Context) (status Status, err error) {
 			err = e
 		}
 	}()
+	unlock, e := s.lock()
+	if e != nil {
+		return status, e
+	}
+	defer unlock()
 	result, e := s.create(ctx)
 	if e != nil {
 		return status, e
 	}
 	name := filepath.Base(result.FilePath)
-	if _, e = s.Prepare(name, result.RestorePassword); e != nil {
+	verified, e := s.prepareFile(name, result.RestorePassword)
+	if e != nil {
+		return status, e
+	}
+	if e = verified.Close(); e != nil {
 		return status, e
 	}
 	encrypted, e := security.EncryptBackup(s.key(), []byte(result.RestorePassword))
@@ -131,13 +135,17 @@ func (s Service) prune(private *os.Root, keep int) error {
 		if e != nil {
 			return e
 		}
-		if _, e = s.Prepare(file.Name, password); e != nil {
+		verified, verifyErr := s.prepareFile(file.Name, password)
+		if verifyErr != nil {
+			return verifyErr
+		}
+		if e = verified.Close(); e != nil {
 			return e
 		}
 		complete = append(complete, file)
 	}
 	for _, file := range complete[min(keep, len(complete)):] {
-		if e = s.Remove(file.Name); e != nil {
+		if e = s.remove(file.Name); e != nil {
 			return e
 		}
 		if e = private.Remove(file.Name + ".password.enc"); e != nil {

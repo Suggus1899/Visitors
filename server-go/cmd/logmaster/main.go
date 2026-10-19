@@ -38,7 +38,7 @@ func run() error {
 		return e
 	}
 	defer database.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Hour)
 	defer cancel()
 	if e = database.PingContext(ctx); e != nil {
 		return errors.New("database connection failed")

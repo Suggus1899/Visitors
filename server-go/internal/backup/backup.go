@@ -3,10 +3,7 @@ package backup
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/Suggus1899/Visitors/server-go/internal/config"
@@ -17,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -26,8 +24,6 @@ var ErrPassword = errors.New("invalid restore password")
 var ErrMetadata = errors.New("required backup metadata missing or invalid")
 var ErrName = errors.New("invalid backup name")
 var ErrTarget = errors.New("restore restricted to isolated logmaster_restore_test")
-
-const maxSize = 500 * 1024 * 1024
 
 var namePattern = regexp.MustCompile(`^backup-[A-Za-z0-9_-]+\.dump(?:\.enc)?$`)
 
@@ -39,6 +35,7 @@ type File struct {
 	Path      string    `json:"path"`
 }
 type Metadata struct {
+	Version      int       `json:"version,omitempty"`
 	CreatedAt    time.Time `json:"createdAt"`
 	PasswordHash string    `json:"passwordHash"`
 	OriginalName string    `json:"originalName"`
@@ -106,11 +103,6 @@ func (s Service) Create(ctx context.Context) (Result, error) {
 	return s.create(ctx)
 }
 func (s Service) create(ctx context.Context) (Result, error) {
-	root, e := s.root()
-	if e != nil {
-		return Result{}, e
-	}
-	defer root.Close()
 	random, e := security.RandomToken()
 	if e != nil {
 		return Result{}, e
@@ -121,65 +113,18 @@ func (s Service) create(ctx context.Context) (Result, error) {
 		return Result{}, e
 	}
 	password = "trebol-" + password[:32]
-	temp, e := os.CreateTemp("", "logmaster-dump-*.dump")
-	if e != nil {
-		return Result{}, e
-	}
-	defer os.Remove(temp.Name())
-	defer temp.Close()
-	cmd := command(ctx, s.Config, "pg_dump", "-h", s.Config.Host, "-p", s.Config.Port, "-U", s.Config.User, "-d", s.Config.Database, "--format=custom", "--no-password")
-	output := &cappedWriter{writer: temp, remaining: maxSize}
-	cmd.Stdout = output
-	if e = cmd.Run(); e != nil {
-		if output.err != nil {
-			return Result{}, fmt.Errorf("backup write failed: %w", output.err)
+	e = s.writeVersioned(name, password, func(output io.Writer) error {
+		cmd := command(ctx, s.Config, "pg_dump", "-h", s.Config.Host, "-p", s.Config.Port, "-U", s.Config.User, "-d", s.Config.Database, "--format=custom", "--no-password")
+		cmd.Stdout = output
+		if err := cmd.Run(); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("pg_dump failed: %w", err)
 		}
-		if ctx.Err() != nil {
-			return Result{}, ctx.Err()
-		}
-		return Result{}, errors.New("pg_dump failed")
-	}
-	if _, e = temp.Seek(0, io.SeekStart); e != nil {
-		return Result{}, e
-	}
-	plain, e := io.ReadAll(io.LimitReader(temp, maxSize+1))
+		return nil
+	})
 	if e != nil {
-		return Result{}, e
-	}
-	if len(plain) > maxSize || !strings.HasPrefix(string(plain[:min(5, len(plain))]), "PGDMP") {
-		return Result{}, errors.New("invalid PostgreSQL archive")
-	}
-	encrypted, e := security.EncryptBackup(s.key(), plain)
-	if e != nil {
-		return Result{}, e
-	}
-	if len(encrypted) > maxSize {
-		return Result{}, errors.New("encrypted backup exceeds size limit")
-	}
-	digest := sha256.Sum256(encrypted)
-	metadata := Metadata{CreatedAt: time.Now().UTC(), PasswordHash: security.Hash(password), OriginalName: name, Engine: "postgresql", Digest: hex.EncodeToString(digest[:])}
-	encoded, e := json.Marshal(metadata)
-	if e != nil {
-		return Result{}, e
-	}
-	file, e := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if e != nil {
-		return Result{}, e
-	}
-	_, e = file.Write(encrypted)
-	if e == nil {
-		e = file.Sync()
-	}
-	closeError := file.Close()
-	if e == nil {
-		e = closeError
-	}
-	if e != nil {
-		root.Remove(name)
-		return Result{}, e
-	}
-	if e = root.WriteFile(metaName(name), encoded, 0600); e != nil {
-		root.Remove(name)
 		return Result{}, e
 	}
 	return Result{FilePath: filepath.Join(s.Config.BackupPath, name), RestorePassword: password}, nil
@@ -214,6 +159,14 @@ func (s Service) List() ([]File, error) {
 	return files, nil
 }
 func (s Service) Remove(name string) error {
+	unlock, e := s.lock()
+	if e != nil {
+		return e
+	}
+	defer unlock()
+	return s.remove(name)
+}
+func (s Service) remove(name string) error {
 	if !namePattern.MatchString(name) {
 		return ErrName
 	}
@@ -228,57 +181,17 @@ func (s Service) Remove(name string) error {
 	return root.Remove(metaName(name))
 }
 func (s Service) Prepare(name, password string) ([]byte, error) {
-	if !namePattern.MatchString(name) {
-		return nil, ErrName
+	prepared, err := s.PrepareFile(name, password)
+	if err != nil {
+		return nil, err
 	}
-	root, e := s.root()
-	if e != nil {
-		return nil, e
+	defer prepared.Close()
+	data, err := io.ReadAll(io.LimitReader(prepared, maxLegacySize+1))
+	if err != nil {
+		return nil, err
 	}
-	defer root.Close()
-	file, e := root.Open(metaName(name))
-	if e != nil {
-		return nil, ErrMetadata
-	}
-	metadataBytes, e := io.ReadAll(io.LimitReader(file, 65537))
-	file.Close()
-	if e != nil || len(metadataBytes) > 65536 {
-		return nil, ErrMetadata
-	}
-	var meta Metadata
-	if json.Unmarshal(metadataBytes, &meta) != nil || meta.OriginalName != name || meta.Engine != "postgresql" || len(meta.PasswordHash) != 64 {
-		return nil, ErrMetadata
-	}
-	actual := security.Hash(password)
-	if subtle.ConstantTimeCompare([]byte(actual), []byte(meta.PasswordHash)) != 1 {
-		return nil, ErrPassword
-	}
-	archive, e := root.Open(name)
-	if e != nil {
-		return nil, e
-	}
-	defer archive.Close()
-	data, e := io.ReadAll(io.LimitReader(archive, maxSize+1))
-	if e != nil {
-		return nil, e
-	}
-	if len(data) > maxSize {
-		return nil, errors.New("archive exceeds size limit")
-	}
-	if meta.Digest != "" {
-		h := sha256.Sum256(data)
-		if hex.EncodeToString(h[:]) != meta.Digest {
-			return nil, errors.New("archive integrity check failed")
-		}
-	}
-	if strings.HasSuffix(name, ".enc") {
-		data, e = security.DecryptBackup(s.key(), data)
-		if e != nil {
-			return nil, e
-		}
-	}
-	if len(data) < 5 || string(data[:5]) != "PGDMP" {
-		return nil, errors.New("invalid PostgreSQL archive")
+	if int64(len(data)) > maxLegacySize {
+		return nil, errors.New("in-memory preparation limit exceeded; use PrepareFile")
 	}
 	return data, nil
 }
@@ -288,6 +201,27 @@ func Restore(ctx context.Context, target config.Config, data []byte) error {
 
 // Operational callers must confirm the destination and stop the application before calling.
 func RestoreAs(ctx context.Context, target config.Config, data []byte, root string, operational bool) error {
+	return restoreReader(ctx, target, bytes.NewReader(data), int64(len(data)), root, operational)
+}
+
+func RestorePrepared(ctx context.Context, target config.Config, data io.ReadSeeker, root string, operational bool) error {
+	size, err := data.Seek(0, io.SeekEnd)
+	if err != nil {
+		return err
+	}
+	return restoreReader(ctx, target, data, size, root, operational)
+}
+
+func (s Service) RestorePrepared(ctx context.Context, target config.Config, data io.ReadSeeker, root string, operational bool) error {
+	unlock, err := s.lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return RestorePrepared(ctx, target, data, root, operational)
+}
+
+func restoreReader(ctx context.Context, target config.Config, data io.ReadSeeker, size int64, root string, operational bool) error {
 	if !operational && (!target.LocalTest() || target.Database != "logmaster_restore_test") {
 		return ErrTarget
 	}
@@ -324,12 +258,22 @@ func RestoreAs(ctx context.Context, target config.Config, data []byte, root stri
 	if highest >= 2147483646 {
 		return errors.New("session version exhausted")
 	}
-	if len(data) < 5 || len(data) > maxSize || string(data[:5]) != "PGDMP" {
+	if size < 5 || size > maxArchiveSize {
 		return errors.New("invalid PostgreSQL archive")
+	}
+	if _, e = data.Seek(0, io.SeekStart); e != nil {
+		return e
+	}
+	var header [5]byte
+	if _, e = io.ReadFull(data, header[:]); e != nil || string(header[:]) != "PGDMP" {
+		return errors.New("invalid PostgreSQL archive")
+	}
+	if _, e = data.Seek(0, io.SeekStart); e != nil {
+		return e
 	}
 	var manifest bytes.Buffer
 	list := command(ctx, target, "pg_restore", "--list")
-	list.Stdin = bytes.NewReader(data)
+	list.Stdin = data
 	list.Stdout = &cappedWriter{writer: &manifest, remaining: 1024 * 1024}
 	if e := list.Run(); e != nil {
 		return errors.New("invalid PostgreSQL archive manifest")
@@ -351,10 +295,18 @@ func RestoreAs(ctx context.Context, target config.Config, data []byte, root stri
 		return e
 	}
 	defer func() { file.Close(); os.Remove(file.Name()) }()
+	if runtime.GOOS == "linux" {
+		if e = os.Remove(file.Name()); e != nil {
+			return e
+		}
+	}
 	render := command(ctx, target, "pg_restore", "--no-owner", "--no-acl", "--use-list", selection.Name(), "--file=-")
-	render.Stdin = bytes.NewReader(data)
+	if _, e = data.Seek(0, io.SeekStart); e != nil {
+		return e
+	}
+	render.Stdin = data
 	// Compressed archives can expand substantially; fail before filling the temporary filesystem.
-	output := &cappedWriter{writer: file, remaining: 4 * 1024 * 1024 * 1024}
+	output := &cappedWriter{writer: file, remaining: maxSQLSize}
 	render.Stdout = output
 	if e = render.Run(); e != nil {
 		if output.err != nil {
@@ -364,6 +316,9 @@ func RestoreAs(ctx context.Context, target config.Config, data []byte, root stri
 			return ctx.Err()
 		}
 		return errors.New("archive SQL preparation failed")
+	}
+	if e = os.Remove(selection.Name()); e != nil {
+		return e
 	}
 	if _, e = file.Seek(0, io.SeekStart); e != nil {
 		return e
@@ -384,6 +339,20 @@ BEGIN
  SELECT id,username,role INTO actor_id,actor_name,actor_role FROM "Users" WHERE %s AND (%s='' OR username=%s) ORDER BY id LIMIT 1;
  IF actor_id IS NULL THEN RAISE EXCEPTION 'root actor absent after restore'; END IF;
  IF EXISTS(SELECT 1 FROM "Users" WHERE "tokenVersion">=2147483646) THEN RAISE EXCEPTION 'session version exhausted'; END IF;
+ IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='logmaster_runtime') THEN
+  EXECUTE 'GRANT USAGE ON SCHEMA public TO logmaster_runtime';
+  EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO logmaster_runtime';
+  EXECUTE 'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO logmaster_runtime';
+  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO logmaster_runtime';
+  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO logmaster_runtime';
+ END IF;
+ IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='logmaster_backup') THEN
+  EXECUTE 'GRANT USAGE ON SCHEMA public TO logmaster_backup';
+  EXECUTE 'GRANT SELECT ON ALL TABLES IN SCHEMA public TO logmaster_backup';
+  EXECUTE 'GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO logmaster_backup';
+  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO logmaster_backup';
+  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO logmaster_backup';
+ END IF;
  UPDATE "Users" SET "tokenVersion"=GREATEST("tokenVersion",%d)+1,"updatedAt"=now();
  INSERT INTO "ActivityLogs"("userId",username,action,entity,"entityId",role,status,"createdAt") VALUES(actor_id,actor_name,'BACKUP_RESTORE_COMPLETED','Backup','maintenance',actor_role,'success',now());
 END; $restore_finalize$;
