@@ -229,6 +229,14 @@ const adaptVisitor = (visitor: Visitor & { firstName?: string; lastName?: string
 const reportDateBoundary = (value: string, end: boolean) => /^\d{4}-\d{2}-\d{2}$/.test(value)
     ? value + (end ? 'T23:59:59.999-04:00' : 'T00:00:00.000-04:00') : value;
 
+const visitFilterParams = (filters: object) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') params.set(key, key === 'startDate' || key === 'endDate' ? reportDateBoundary(String(value), key === 'endDate') : String(value));
+    });
+    return params;
+};
+
 export const VisitService = {
     // Visits
     getActiveVisits: async () => {
@@ -238,16 +246,7 @@ export const VisitService = {
     },
 
     getVisits: async (filters: Record<string, string | number | boolean | undefined>, signal?: AbortSignal) => {
-        // Filter out undefined values
-        const cleanFilters: Record<string, string> = {};
-        Object.entries(filters).forEach(([key, val]) => {
-            if (val !== undefined && val !== '') {
-                // Date inputs describe the whole selected day in Venezuela.
-                cleanFilters[key] = key === 'startDate' || key === 'endDate' ? reportDateBoundary(String(val), key === 'endDate') : String(val);
-            }
-        });
-
-        const params = new URLSearchParams(cleanFilters).toString();
+        const params = visitFilterParams(filters).toString();
         const response = await api.get(`/visits?${params}`, { signal });
         const result = unwrapResponse<{ visits: VisitDTO[]; total: number }>(response.data);
         const metaTotal = response.data?.meta?.total;
@@ -256,6 +255,29 @@ export const VisitService = {
             visits: Array.isArray(result.visits) ? result.visits.map(adaptVisit) : [],
             total: (metaTotal ?? result.total ?? 0)
         };
+    },
+
+    getExportVisits: async (filters: object, options: {
+        format: 'pdf' | 'xlsx'; sortField: string; sortDirection: 'asc' | 'desc'; signal?: AbortSignal;
+    }): Promise<{ visits: Visit[]; total: number }> => {
+        const params = visitFilterParams(filters);
+        params.set('format', options.format);
+        params.set('sortField', options.sortField);
+        params.set('sortDirection', options.sortDirection);
+        const response = await api.get(`/visits/export?${params}`, { signal: options.signal }).catch((error: unknown) => {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.error?.message;
+                if (typeof message === 'string') throw new Error(message);
+            }
+            throw error;
+        });
+        const result = unwrapResponse<{ visits: VisitDTO[]; total: number }>(response.data);
+        const visits = Array.isArray(result.visits) ? result.visits : [];
+        const maximum = options.format === 'pdf' ? 2000 : 20000;
+        if (!Number.isInteger(result.total) || result.total !== visits.length || result.total > maximum) {
+            throw new Error('Los registros cambiaron durante la exportación. Vuelve a intentarlo.');
+        }
+        return { visits: visits.map(adaptVisit), total: result.total };
     },
 
     getAllVisits: async (filters: Record<string, string | number | boolean | undefined> = {}, options: { maxRecords?: number; signal?: AbortSignal } = {}): Promise<Visit[]> => {

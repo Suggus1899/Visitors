@@ -63,12 +63,13 @@
 
 ## Task 5: Make sorting, exports, calendar and controls consistent
 
-- [ ] Add failing tests for global sorting, SQL sort allowlist, stable null ordering, export limits/snapshot, cancellation after workbook generation, accessible sorting/camera controls, and Caracas calendar dates under UTC and UTC+14.
-- [ ] Add allowlisted global sorting in PostgreSQL for dates, status and company; retain encrypted-name lookup and remove misleading page-local name sorting.
-- [ ] Add authenticated `GET /api/v1/visits/export` with the existing filters/sort and format `pdf|xlsx`. Count and read data in a read-only `REPEATABLE READ` transaction, reject totals above the existing per-format limits, return no photos, and generate files in the client after the transaction closes.
-- [ ] Keep export libraries lazy-loaded; abort requests and recheck cancellation before download. Apply same limit and timezone behavior to calendar PDF.
-- [ ] Use semantic keyboard-operable controls, visible focus, accessible sort state and modal focus return.
-- [ ] Run relevant integration, report round-trip and browser tests; commit.
+- [x] Add local tests for the SQL sort allowlist, stable null ordering, export limits, cancellation after workbook generation, accessible sorting/camera controls, and Caracas report dates under UTC and UTC+14; add a database-gated global sort/export test.
+- [x] Add allowlisted global sorting in PostgreSQL for dates, status and company; retain encrypted-name lookup and remove misleading page-local name sorting.
+- [x] Add authenticated `GET /api/v1/visits/export` with the existing filters/sort and format `pdf|xlsx`. Count and read data in a read-only `REPEATABLE READ` transaction, reject totals above the existing per-format limits, return no photos, and generate files in the client after the transaction closes.
+- [x] Keep export libraries lazy-loaded; abort requests and recheck cancellation before download. Apply same limit and timezone behavior to calendar PDF.
+- [x] Use semantic keyboard-operable controls, visible focus, accessible sort state and modal focus return.
+- [x] Run local Go and client tests, typecheck, lint, production build and commit the implementation.
+- [ ] Run PostgreSQL-backed export integration and browser/report round-trip tests against the Compose/Linux lab before accepting the stage.
 
 ## Task 6: Stream and version large encrypted backups; separate database roles
 

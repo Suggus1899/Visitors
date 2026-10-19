@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from './ui/button';
-import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { VisitService } from '../services/api.v1';
 import Home from 'lucide-react/dist/esm/icons/home';
 import Activity from 'lucide-react/dist/esm/icons/activity';
@@ -22,7 +22,6 @@ const CalendarView = lazy(() => import('./admin/CalendarView'));
 import AdminStatsCards from './admin/AdminStatsCards';
 import VisitsTable, { ITEMS_PER_PAGE } from './admin/VisitsTable';
 import type { SortField, SortDirection, Filters } from './admin/VisitsTable';
-import { sortReportVisits } from '../utils/visitReport';
 
 
 interface DashboardStats { totalVisits: number; activeVisits: number; visitsPerDay: { date: string; count: number }[]; }
@@ -39,7 +38,7 @@ const AdminDashboard = () => {
     const [totalVisitsCount, setTotalVisitsCount] = useState(0);
     const [activeTab, setActiveTab] = useState<'reports' | 'backups' | 'activity' | 'calendar'>('reports');
     const [currentPage, setCurrentPage] = useState(1);
-    const [sortField, setSortField] = useState<SortField>('check_in');
+    const [sortField, setSortField] = useState<SortField>('arrival_time');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
     const [filters, setFilters] = useState<Filters>({ status: '', startDate: '', endDate: '', search: '', company: '' });
     const [alertsSummary, setAlertsSummary] = useState<AlertSummary>({ total: 0, warnings: 0, critical: 0 });
@@ -67,7 +66,7 @@ const AdminDashboard = () => {
     const fetchVisits = useCallback(async () => {
         const version = ++visitRequest.current;
         try {
-            const params: { page: number; limit: number; status?: string; search?: string; startDate?: string; endDate?: string; company?: string } = { page: currentPage, limit: ITEMS_PER_PAGE };
+            const params: { page: number; limit: number; status?: string; search?: string; startDate?: string; endDate?: string; company?: string; sortField: SortField; sortDirection: SortDirection } = { page: currentPage, limit: ITEMS_PER_PAGE, sortField, sortDirection };
             if (filters.status) params.status = filters.status;
             if (filters.search.trim() && [...filters.search.trim()].length < 3) return;
             if (filters.search) params.search = filters.search;
@@ -80,7 +79,7 @@ const AdminDashboard = () => {
             setTotalVisitsCount(data.total);
             setLoadErrors(prev => ({ ...prev, visits: '' }));
         } catch { if (version === visitRequest.current) setLoadErrors(prev => ({ ...prev, visits: 'No se pudieron cargar las visitas. Vuelve a intentarlo.' })); }
-    }, [filters, currentPage]);
+    }, [filters, currentPage, sortField, sortDirection]);
 
     useEffect(() => { fetchStats(); fetchAlerts(); }, [fetchStats, fetchAlerts]);
     useEffect(() => { const timer = setTimeout(fetchVisits, 300); return () => clearTimeout(timer); }, [fetchVisits]);
@@ -92,9 +91,9 @@ const AdminDashboard = () => {
     const handleSort = (field: SortField) => {
         if (sortField === field) setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
         else { setSortField(field); setSortDirection('asc'); }
+        setCurrentPage(1);
     };
 
-    const sortedVisits = useMemo(() => sortReportVisits(visits, sortField, sortDirection), [visits, sortField, sortDirection]);
     const totalPages = Math.ceil(totalVisitsCount / ITEMS_PER_PAGE);
 
     const tabs = [
@@ -144,7 +143,6 @@ const AdminDashboard = () => {
                         <StatisticsPanel />
                         <VisitsTable
                             visits={visits}
-                            sortedVisits={sortedVisits}
                             totalVisitsCount={totalVisitsCount}
                             currentPage={currentPage}
                             totalPages={totalPages}

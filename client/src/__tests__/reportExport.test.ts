@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import type { Visit } from '../types';
 import type { Chart } from 'chart.js';
-import { buildVisitsPDF, buildVisitsWorkbook, sortReportVisits, visitReportRow } from '../utils/visitExport';
+import { buildVisitsPDF, buildVisitsWorkbook, visitReportRow } from '../utils/visitExport';
 import { excelReportDate, formatReportDate, reportFileDate } from '../utils/reportExport';
 import { downloadMonthlyPDF, downloadChartPDF } from '../components/statistics/pdfExport';
 import * as reportExport from '../utils/reportExport';
@@ -68,11 +68,10 @@ describe('real PDF and Excel exports', () => {
     expect(workbook.getWorksheet('Visitas')!.getCell('H2').value).toBeInstanceOf(Date);
   });
 
-  it('prints all five states and sorts lifecycle dates without mutating the source', () => {
+  it('prints all five states and leaves the source visits unchanged', () => {
     expect(['waiting', 'active', 'intermittent', 'completed', 'cancelled'].map(status => visitReportRow(visit(1, { status: status as Visit['status'] })).status))
       .toEqual(['En espera', 'Activa', 'Salida temporal', 'Completada', 'Cancelada']);
     const records = [visit(1, { entry_time: '2026-10-09T12:00:00Z' }), visit(2, { entry_time: '2026-10-08T12:00:00Z' })];
-    expect(sortReportVisits(records, 'entry_time', 'asc').map(v => v.id)).toEqual([2, 1]);
     expect(records.map(v => v.id)).toEqual([1, 2]);
     expect(visitReportRow(visit(3, { status: 'waiting', entry_time: undefined, check_in: '2026-10-08T12:00:00Z' })).entry).toBeUndefined();
   });
@@ -83,6 +82,23 @@ describe('real PDF and Excel exports', () => {
     expect(formatReportDate('invalid')).toBe('—');
     expect(excelReportDate('invalid')).toBeNull();
     expect(excelReportDate(null)).toBeNull();
+  });
+
+  it('keeps export dates tied to Caracas across UTC and UTC+14 runtimes', () => {
+    const instant = new Date('2026-10-07T12:30:00Z');
+    const previousTimeZone = process.env.TZ;
+    try {
+      process.env.TZ = 'UTC';
+      expect(instant.toLocaleDateString('en-US')).toBe('10/7/2026');
+      const utcDate = [reportFileDate(instant), excelReportDate(instant.toISOString())?.toISOString()];
+      process.env.TZ = 'Pacific/Kiritimati';
+      expect(instant.toLocaleDateString('en-US')).toBe('10/8/2026');
+      expect([reportFileDate(instant), excelReportDate(instant.toISOString())?.toISOString()]).toEqual(utcDate);
+      expect(utcDate).toEqual(['2026-10-07', '2026-10-07T08:30:00.000Z']);
+    } finally {
+      if (previousTimeZone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousTimeZone;
+    }
   });
 
   it('keeps the selected monthly period and all reasons across pages even without a chart', async () => {

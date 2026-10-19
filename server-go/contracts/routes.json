@@ -482,6 +482,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/visits/export",
+    "source": "server-go/internal/httpapi/queries.go",
+    "protected": true,
+    "middleware": ["authenticate"],
+    "binary": false,
+    "stream": false
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/visits/cancelled",
     "source": "server-go/internal/httpapi/visits.go",
     "protected": true,

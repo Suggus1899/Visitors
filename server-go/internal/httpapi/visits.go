@@ -71,6 +71,7 @@ func (a *App) mountVisits(router chi.Router) {
 	router.With(a.authenticate).Get("/api/v1/visits/calendar", a.calendar)
 	router.Group(func(r chi.Router) {
 		r.Use(a.authenticate)
+		r.Get("/api/v1/visits/export", a.exportVisits)
 		r.Get("/api/v1/visits", a.filteredVisits)
 		for _, status := range []string{"active", "waiting", "intermittent", "cancelled"} {
 			status := status
@@ -333,6 +334,10 @@ func (a *App) visitDTO(r *http.Request, v store.Visit) (map[string]any, error) {
 	return items[0], nil
 }
 func (a *App) visitData(r *http.Request, v store.Visit, person store.Visitor, found bool) (map[string]any, error) {
+	return a.visitDataWith(r, v, person, found, a.Queries)
+}
+
+func (a *App) visitDataWith(r *http.Request, v store.Visit, person store.Visitor, found bool, queries *store.Queries) (map[string]any, error) {
 	var cancellationReason any
 	if v.CancellationReason.Valid {
 		cancellationReason = v.CancellationReason.String
@@ -370,7 +375,7 @@ func (a *App) visitData(r *http.Request, v store.Visit, person store.Visitor, fo
 	}
 	data["durationMinutes"] = duration
 	if v.Status.EnumVisitsStatus == "intermittent" {
-		logs, e := a.Queries.VisitLogs(r.Context(), v.ID)
+		logs, e := queries.VisitLogs(r.Context(), v.ID)
 		if e != nil {
 			return nil, e
 		}
