@@ -32,7 +32,7 @@ func integrationApp(t *testing.T) (*App, http.Handler) {
 		t.Fatal(e)
 	}
 	defer sqlDB.Close()
-	if e = db.Check(context.Background(), sqlDB); e != nil {
+	if e = db.Check(context.Background(), sqlDB, c.EncryptionKey); e != nil {
 		t.Fatal(e)
 	}
 	a, e := New(context.Background(), c)

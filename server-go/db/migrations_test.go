@@ -36,8 +36,16 @@ func TestMigrationIntegration(t *testing.T) {
 		if e := RebuildSearch(ctx, database, c.EncryptionKey, false); e != nil {
 			t.Fatal(e)
 		}
-		if e := Check(ctx, database); e != nil {
+		if e := RebuildIdentity(ctx, database, c.EncryptionKey, false); e != nil {
 			t.Fatal(e)
+		}
+		if e := Check(ctx, database, c.EncryptionKey); e != nil {
+			t.Fatal(e)
+		}
+		wrongKey := append([]byte(nil), c.EncryptionKey...)
+		wrongKey[0] ^= 0xff
+		if e := Check(ctx, database, wrongKey); e == nil {
+			t.Fatal("check accepted a different index key")
 		}
 	})
 	t.Run("adopt matching schema idempotently", func(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/Suggus1899/Visitors/server-go/internal/config"
 	"github.com/Suggus1899/Visitors/server-go/internal/search"
+	"github.com/Suggus1899/Visitors/server-go/internal/security"
 	"github.com/Suggus1899/Visitors/server-go/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -110,6 +111,10 @@ func New(ctx context.Context, c config.Config) (*App, error) {
 	if e = pool.QueryRow(ctx, `SELECT fingerprint FROM "SearchIndexState" WHERE id=true AND ready=true`).Scan(&fingerprint); e != nil || fingerprint != search.Fingerprint(c.EncryptionKey) {
 		pool.Close()
 		return nil, errors.New("protected search index not prepared for this key")
+	}
+	if e = pool.QueryRow(ctx, `SELECT fingerprint FROM "IdentityIndexState" WHERE id=true AND ready=true`).Scan(&fingerprint); e != nil || fingerprint != security.IdentityFingerprint(c.EncryptionKey) {
+		pool.Close()
+		return nil, errors.New("protected identity index not prepared for this key")
 	}
 	a := &App{Config: c, Pool: pool, Queries: store.New(pool), limits: map[string]window{}, events: map[chan visitEvent]struct{}{}, stopped: make(chan struct{})}
 	for _, entry := range strings.Split(os.Getenv("TRUSTED_PROXY_CIDRS"), ",") {

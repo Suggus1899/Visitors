@@ -42,7 +42,7 @@ func TestAuditFailureRollsBackIntegration(t *testing.T) {
 		if status != 500 {
 			t.Fatal(status)
 		}
-		v, e := a.Queries.FindVisitor(ctx, security.Hash("V-98989004"))
+		v, e := a.Queries.FindVisitor(ctx, security.IdentityHash(a.Config.EncryptionKey, "V-98989004"))
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -62,7 +62,7 @@ func TestAuditFailureRollsBackIntegration(t *testing.T) {
 			t.Fatal(status)
 		}
 		var count int
-		e := a.Pool.QueryRow(ctx, `SELECT count(*) FROM "Visitors" WHERE cedula=$1`, security.Hash("V-98989005")).Scan(&count)
+		e := a.Pool.QueryRow(ctx, `SELECT count(*) FROM "Visitors" WHERE cedula=$1`, security.IdentityHash(a.Config.EncryptionKey, "V-98989005")).Scan(&count)
 		if e != nil || count != 0 {
 			t.Fatal("orphan profile after failed visit")
 		}
@@ -80,7 +80,7 @@ func TestLongPurposeIntegration(t *testing.T) {
 	if status != 201 {
 		t.Fatal("schema rejects validated purpose", status, result)
 	}
-	hash := security.Hash("V-98989006")
+	hash := security.IdentityHash(a.Config.EncryptionKey, "V-98989006")
 	t.Cleanup(func() {
 		a.Pool.Exec(context.Background(), `DELETE FROM "Visits" WHERE visitor_cedula=$1`, hash)
 		a.Pool.Exec(context.Background(), `DELETE FROM "Visitors" WHERE cedula=$1`, hash)

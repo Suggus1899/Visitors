@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"github.com/Suggus1899/Visitors/server-go/contracts"
 	"github.com/Suggus1899/Visitors/server-go/internal/config"
+	"github.com/Suggus1899/Visitors/server-go/internal/search"
+	"github.com/Suggus1899/Visitors/server-go/internal/security"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"strconv"
@@ -32,7 +34,7 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	}
 	return goose.UpContext(ctx, db, "migrations")
 }
-func Check(ctx context.Context, db *sql.DB) error {
+func Check(ctx context.Context, db *sql.DB, key []byte) error {
 	var version int
 	if e := db.QueryRowContext(ctx, `SELECT version_id FROM goose_db_version WHERE is_applied ORDER BY id DESC LIMIT 1`).Scan(&version); e != nil {
 		return errors.New("Go migration baseline missing; run explicit adopt or migrate command")
@@ -43,6 +45,14 @@ func Check(ctx context.Context, db *sql.DB) error {
 	var ready bool
 	if e := db.QueryRowContext(ctx, `SELECT ready FROM "SearchIndexState" WHERE id=true`).Scan(&ready); e != nil || !ready {
 		return errors.New("protected search index preparation required")
+	}
+	var searchFingerprint string
+	if e := db.QueryRowContext(ctx, `SELECT fingerprint FROM "SearchIndexState" WHERE id=true`).Scan(&searchFingerprint); e != nil || searchFingerprint != search.Fingerprint(key) {
+		return errors.New("protected search index not prepared for this key")
+	}
+	var identityFingerprint string
+	if e := db.QueryRowContext(ctx, `SELECT fingerprint FROM "IdentityIndexState" WHERE id=true AND ready=true`).Scan(&identityFingerprint); e != nil || identityFingerprint != security.IdentityFingerprint(key) {
+		return errors.New("protected identity index not prepared for this key")
 	}
 	return nil
 }

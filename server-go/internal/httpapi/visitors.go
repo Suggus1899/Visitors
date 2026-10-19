@@ -26,12 +26,9 @@ import (
 var cedulaPattern = regexp.MustCompile(`^[VEJPG]-?\d{6,9}$`)
 
 func normalizeCedula(value string) (string, error) {
-	s := strings.ToUpper(strings.Join(strings.Fields(value), ""))
+	s := security.NormalizeIdentity(value)
 	if !cedulaPattern.MatchString(s) {
 		return "", errors.New("cédula inválida")
-	}
-	if s[1] != '-' {
-		s = s[:1] + "-" + s[1:]
 	}
 	return s, nil
 }
@@ -110,7 +107,7 @@ func (a *App) getVisitor(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "VALIDATION_ERROR", e.Error())
 		return
 	}
-	v, e := a.Queries.FindVisitor(r.Context(), security.Hash(cedula))
+	v, e := a.Queries.FindVisitor(r.Context(), security.IdentityHash(a.Config.EncryptionKey, cedula))
 	if e != nil {
 		a.visitorError(w, e)
 		return
@@ -237,7 +234,7 @@ func (a *App) getPhoto(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, "VALIDATION_ERROR", e.Error())
 		return
 	}
-	v, e := a.Queries.FindVisitor(r.Context(), security.Hash(cedula))
+	v, e := a.Queries.FindVisitor(r.Context(), security.IdentityHash(a.Config.EncryptionKey, cedula))
 	if e != nil {
 		a.visitorError(w, e)
 		return
@@ -312,7 +309,7 @@ func (a *App) editVisitor(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 	q := a.Queries.WithTx(tx)
-	v, e := q.LockVisitor(r.Context(), security.Hash(cedula))
+	v, e := q.LockVisitor(r.Context(), security.IdentityHash(a.Config.EncryptionKey, cedula))
 	if e != nil {
 		a.visitorError(w, e)
 		return
@@ -469,7 +466,7 @@ func (a *App) editHistory(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, "VALIDATION_ERROR", e.Error())
 			return
 		}
-		v, e := a.Queries.FindVisitor(r.Context(), security.Hash(normalized))
+		v, e := a.Queries.FindVisitor(r.Context(), security.IdentityHash(a.Config.EncryptionKey, normalized))
 		if e != nil {
 			a.visitorError(w, e)
 			return

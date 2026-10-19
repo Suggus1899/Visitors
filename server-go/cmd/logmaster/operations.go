@@ -115,6 +115,9 @@ func operations(args []string) error {
 			e = db.EncryptHistory(ctx, database, c.EncryptionKey)
 		}
 		if e == nil {
+			e = db.RebuildIdentity(ctx, database, c.EncryptionKey, false)
+		}
+		if e == nil {
 			e = db.RebuildSearch(ctx, database, c.EncryptionKey, false)
 		}
 	case "bootstrap-root":
@@ -162,10 +165,13 @@ func operations(args []string) error {
 		if e = db.EncryptHistory(ctx, staged, c.EncryptionKey); e != nil {
 			return e
 		}
+		if e = db.RebuildIdentity(ctx, staged, c.EncryptionKey, false); e != nil {
+			return e
+		}
 		if e = db.RebuildSearch(ctx, staged, c.EncryptionKey, false); e != nil {
 			return e
 		}
-		if e = db.Check(ctx, staged); e != nil {
+		if e = db.Check(ctx, staged, c.EncryptionKey); e != nil {
 			return e
 		}
 		// Re-archive the validated current schema; never apply an unchecked legacy snapshot.

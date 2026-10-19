@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -16,6 +17,24 @@ import (
 )
 
 func Hash(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
+func identityKey(key []byte) []byte {
+	h := hmac.New(sha256.New, key)
+	h.Write([]byte("logmaster/visitor-identity/v1"))
+	return h.Sum(nil)
+}
+func IdentityHash(key []byte, value string) string {
+	h := hmac.New(sha256.New, identityKey(key))
+	h.Write([]byte(value))
+	return hex.EncodeToString(h.Sum(nil))
+}
+func IdentityFingerprint(key []byte) string { return IdentityHash(key, "index-key-check") }
+func NormalizeIdentity(value string) string {
+	s := strings.ToUpper(strings.Join(strings.Fields(value), ""))
+	if len(s) > 1 && s[1] != '-' {
+		s = s[:1] + "-" + s[1:]
+	}
+	return s
+}
 func RandomToken() (string, error) {
 	b := make([]byte, 32)
 	if _, e := rand.Read(b); e != nil {

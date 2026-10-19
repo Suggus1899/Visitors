@@ -127,7 +127,7 @@ func (a *App) checkIn(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 	q := a.Queries.WithTx(tx)
-	hash := security.Hash(cedula)
+	hash := security.IdentityHash(a.Config.EncryptionKey, cedula)
 	if _, e = tx.Exec(r.Context(), `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, hash); e != nil {
 		a.serverError(w, e)
 		return

@@ -45,7 +45,7 @@ func run() error {
 	}
 	switch os.Args[1] {
 	case "serve":
-		if e = db.Check(ctx, database); e != nil {
+		if e = db.Check(ctx, database, c.EncryptionKey); e != nil {
 			return e
 		}
 		app, e := httpapi.New(ctx, c)
@@ -76,7 +76,7 @@ func run() error {
 			return server.Shutdown(shutdown)
 		}
 	case "check":
-		e = db.Check(ctx, database)
+		e = db.Check(ctx, database, c.EncryptionKey)
 	case "adopt":
 		if !c.LocalDevelopment() {
 			return errors.New("adoption is restricted to isolated local databases")
@@ -94,10 +94,13 @@ func run() error {
 			e = db.EncryptHistory(ctx, database, c.EncryptionKey)
 		}
 		if e == nil {
+			e = db.RebuildIdentity(ctx, database, c.EncryptionKey, false)
+		}
+		if e == nil {
 			e = db.RebuildSearch(ctx, database, c.EncryptionKey, false)
 		}
 	case "seed":
-		if e = db.Check(ctx, database); e != nil {
+		if e = db.Check(ctx, database, c.EncryptionKey); e != nil {
 			return e
 		}
 		app, e := httpapi.New(ctx, c)

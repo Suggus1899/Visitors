@@ -34,15 +34,16 @@ func createVisit(t *testing.T, a *App, h http.Handler, cedula, status, token str
 	}
 	id := int32(response["data"].(map[string]any)["id"].(float64))
 	t.Cleanup(func() {
-		_, e := a.Pool.Exec(context.Background(), `DELETE FROM "VisitorEditHistories" WHERE "visitorId" IN (SELECT id FROM "Visitors" WHERE cedula=$1)`, security.Hash(cedula))
+		hash := security.IdentityHash(a.Config.EncryptionKey, cedula)
+		_, e := a.Pool.Exec(context.Background(), `DELETE FROM "VisitorEditHistories" WHERE "visitorId" IN (SELECT id FROM "Visitors" WHERE cedula=$1)`, hash)
 		if e != nil {
 			t.Error(e)
 		}
-		_, e = a.Pool.Exec(context.Background(), `DELETE FROM "Visits" WHERE visitor_cedula=$1`, security.Hash(cedula))
+		_, e = a.Pool.Exec(context.Background(), `DELETE FROM "Visits" WHERE visitor_cedula=$1`, hash)
 		if e != nil {
 			t.Error(e)
 		}
-		_, e = a.Pool.Exec(context.Background(), `DELETE FROM "Visitors" WHERE cedula=$1`, security.Hash(cedula))
+		_, e = a.Pool.Exec(context.Background(), `DELETE FROM "Visitors" WHERE cedula=$1`, hash)
 		if e != nil {
 			t.Error(e)
 		}

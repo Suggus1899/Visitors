@@ -174,7 +174,7 @@ func TestRetentionIntegration(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, cedula := range []string{"V-98989301", "V-98989302"} {
-		if _, e := a.Pool.Exec(ctx, `UPDATE "Visitors" SET "createdAt"=$2,"updatedAt"=$2 WHERE cedula=$1`, security.Hash(cedula), old); e != nil {
+		if _, e := a.Pool.Exec(ctx, `UPDATE "Visitors" SET "createdAt"=$2,"updatedAt"=$2 WHERE cedula=$1`, security.IdentityHash(a.Config.EncryptionKey, cedula), old); e != nil {
 			t.Fatal(e)
 		}
 	}

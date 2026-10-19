@@ -86,7 +86,7 @@ func (a *App) visitFilter(r *http.Request) (sqlFilter, error) {
 		if e != nil {
 			return f, e
 		}
-		f.add("v.visitor_cedula=?", security.Hash(value))
+		f.add("v.visitor_cedula=?", security.IdentityHash(a.Config.EncryptionKey, value))
 	}
 	if search := q.Get("search"); search != "" {
 		if len(search) > 500 {
