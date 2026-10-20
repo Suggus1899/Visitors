@@ -150,9 +150,9 @@ func operations(args []string) error {
 		if e != nil {
 			return e
 		}
-		data, e := (backup.Service{Config: c}).PrepareFile(*archive, string(raw))
-		if e != nil {
-			return e
+		data, prepareErr := (backup.Service{Config: c}).PrepareFile(*archive, string(raw))
+		if prepareErr != nil {
+			return prepareErr
 		}
 		defer data.Close()
 		var stage config.Config
