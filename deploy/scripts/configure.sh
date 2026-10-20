@@ -51,7 +51,7 @@ cat > "$directory/frontend.env" <<EOF
 APP_URL=$app_url
 GO_API_URL=http://api:3000
 EOF
-openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' -keyout "$directory/tls.key" -out "$directory/tls.pem" >/dev/null 2>&1
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,DNS:web,IP:127.0.0.1' -keyout "$directory/tls.key" -out "$directory/tls.pem" >/dev/null 2>&1
 write_variant() {
   input=$1 output=$2 user=$3 db_name=$4 db_password=$5 host=$6 node_env=$7
   while IFS= read -r line || [ -n "$line" ]; do

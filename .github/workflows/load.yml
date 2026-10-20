@@ -3,40 +3,83 @@ on: {workflow_dispatch: {}}
 permissions: {contents: read}
 jobs:
   laboratory:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, logmaster-load]
     timeout-minutes: 60
     defaults: {run: {shell: bash}}
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare isolated secrets and record hardware
+      - name: Check capacity and allocate unique laboratory resources
         run: |
-          sh deploy/scripts/configure.sh
-          mkdir -p .local/results
-          { lscpu; free -m; df -h; docker version; } > .local/results/hardware.txt
-      - name: Build and generate 100000 visitors and 1000000 visits
+          cpus=$(nproc)
+          memory_kib=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)
+          docker_root=$(docker info --format '{{.DockerRootDir}}')
+          workspace_free=$(df -PB1 "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
+          docker_free=$(df -PB1 "$docker_root" | awk 'NR==2 {print $4}')
+          required_disk=549755813888
+          if [ "$cpus" -lt 4 ] || [ "$memory_kib" -lt 16777216 ] || [ "$workspace_free" -lt "$required_disk" ] || [ "$docker_free" -lt "$required_disk" ]; then
+            echo "Insufficient lab capacity: cpus=$cpus memory_kib=$memory_kib workspace_free=$workspace_free docker_free=$docker_free" >&2
+            exit 1
+          fi
+          config_dir="$RUNNER_TEMP/logmaster-config-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          results_dir="$RUNNER_TEMP/logmaster-results-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "LOGMASTER_CONFIG_DIR=$config_dir" >> "$GITHUB_ENV"
+          echo "LOGMASTER_RESULTS=$results_dir" >> "$GITHUB_ENV"
+          echo "COMPOSE_PROJECT_NAME=logmaster-load-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+          mkdir -p "$results_dir"
+          { lscpu; free -m; df -h "$RUNNER_TEMP"; df -h "$docker_root"; docker version; docker info; } > "$results_dir/hardware.txt"
+      - name: Prepare isolated fictitious configuration
+        run: sh deploy/scripts/configure.sh
+      - uses: pnpm/action-setup@v4
+        with: {version: 12.4.2}
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: pnpm}
+      - name: Install browser test tooling
         run: |
-          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load build api
-          docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait postgres
-          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab generate | tee .local/results/generation.json
-          docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait api
-      - name: Two minutes warmup and fifteen minutes of mixed load
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Build the complete HTTPS application and generate 100000 visitors and 1000000 visits
         run: |
-          (while true; do date -u; docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}} {{.BlockIO}}'; sleep 15; done) > .local/results/resources.txt &
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load --profile test build api frontend web
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load --profile test up -d --wait postgres mailpit api frontend web
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab generate --open-visits 5000 | tee "$LOGMASTER_RESULTS/generation.json"
+      - name: Two minutes warmup and fifteen minutes of full-stack load plus five browsers
+        run: |
+          (while true; do date -u; docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}} {{.BlockIO}}'; sleep 15; done) > "$LOGMASTER_RESULTS/resources.txt" &
           monitor=$!
-          trap 'kill "$monitor" || true' EXIT
-          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab load --warmup 2m --duration 15m | tee .local/results/load.json
+          browser_pid=
+          cleanup() {
+            kill "$monitor" 2>/dev/null || true
+            if [ -n "$browser_pid" ]; then kill "$browser_pid" 2>/dev/null || true; fi
+          }
+          trap cleanup EXIT
+          LOGMASTER_BROWSER_LOAD=true pnpm exec playwright test tests/browser/load.spec.ts --workers=1 > "$LOGMASTER_RESULTS/browser.log" 2>&1 &
+          browser_pid=$!
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab load --url https://web:8443 --warmup 2m --duration 15m | tee "$LOGMASTER_RESULTS/load.json"
+          wait "$browser_pid"
       - name: Verify large backup and isolated restoration
         run: |
-          (while true; do date -u; docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}} {{.BlockIO}}'; sleep 2; done) > .local/results/backup-resources.txt &
+          (while true; do date -u; docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}} {{.BlockIO}}'; sleep 2; done) > "$LOGMASTER_RESULTS/backup-resources.txt" &
           backup_monitor=$!
           trap 'kill "$backup_monitor" || true' EXIT
           docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait postgres-restore
-          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm backup backup-daily | tee .local/results/backup.json
+          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm backup backup-daily | tee "$LOGMASTER_RESULTS/backup.json"
           docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops rehearse
-          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops backup-status | tee .local/results/status.json
+          docker compose -f compose.yaml -f deploy/compose.load.yaml run --rm ops backup-status | tee "$LOGMASTER_RESULTS/status.json"
       - uses: actions/upload-artifact@v4
         if: always()
-        with: {name: fictitious-load-results, path: .local/results}
+        with:
+          name: fictitious-load-results
+          path: ${{ env.LOGMASTER_RESULTS }}
       - name: Dispose only this runner's laboratory volumes
         if: always()
-        run: docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load --profile ops down -v
+        run: |
+          expected_project="logmaster-load-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if [ "${COMPOSE_PROJECT_NAME:-}" = "$expected_project" ]; then
+            docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load --profile ops --profile test down --volumes --remove-orphans
+          fi
+      - name: Remove this run's private configuration
+        if: always()
+        run: |
+          case "${LOGMASTER_CONFIG_DIR:-}" in
+            "$RUNNER_TEMP"/logmaster-config-*) rm -rf -- "$LOGMASTER_CONFIG_DIR" ;;
+          esac
