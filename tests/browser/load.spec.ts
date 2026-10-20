@@ -10,8 +10,8 @@ function loadPassword() {
   return variables.LAB_PASSWORD;
 }
 
-async function visit(browser: Browser, index: number, password: string) {
-  const context = await browser.newContext({ permissions: ['camera'] });
+async function visit(browser: Browser, index: number, password: string, baseURL: string | undefined) {
+  const context = await browser.newContext({ baseURL, ignoreHTTPSErrors: true, permissions: ['camera'] });
   const page = await context.newPage();
   try {
     await page.goto('/login');
@@ -46,10 +46,10 @@ async function visit(browser: Browser, index: number, password: string) {
   }
 }
 
-test('five simultaneous browser sessions use HTTPS, BFF cookies and visit registration', async ({ browser }) => {
+test('five simultaneous browser sessions use HTTPS, BFF cookies and visit registration', async ({ browser, baseURL }) => {
   test.setTimeout(5 * 60 * 1000);
   const password = loadPassword();
-  const results = await Promise.allSettled(Array.from({ length: 5 }, (_, index) => visit(browser, index, password)));
+  const results = await Promise.allSettled(Array.from({ length: 5 }, (_, index) => visit(browser, index, password, baseURL)));
   const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
   expect(failures.map(result => String(result.reason))).toEqual([]);
 });

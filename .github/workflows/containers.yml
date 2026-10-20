@@ -46,7 +46,7 @@ jobs:
         run: docker compose --profile test logs --tail 25 api frontend web
       - name: Remove only this job's disposable volumes
         if: always()
-        run: docker compose --profile test down --volumes
+        run: docker compose --profile test --profile ops down --volumes --remove-orphans
   small-load:
     runs-on: ubuntu-latest
     timeout-minutes: 20
