@@ -11,6 +11,7 @@ sh deploy/scripts/configure.sh
 docker compose --profile test build
 docker compose --profile test up -d --wait postgres mailpit
 docker compose run --rm ops migrate
+docker compose -f compose.yaml -f deploy/compose.admin.yaml run --rm ops ops roles --runtime-password-file /run/secrets/runtime_db_password --backup-password-file /run/secrets/backup_db_password --apply --confirm-target postgres:5432/logmaster_pilot
 docker compose run --rm ops seed
 docker compose --profile test up -d --wait api web
 ```

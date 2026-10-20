@@ -2,7 +2,7 @@
 
 > **Estado: borrador de trabajo, sin aprobación.** Este documento no declara que LogMaster esté listo para producción. Las decisiones marcadas como pendientes requieren a la institución.
 
-## 1. Alcance de la publicación
+## 1. Alcance de la publicación original
 
 La publicación en `origin/main` es una serie de 8 commits sobre el `origin/main` anterior, más un commit final con este documento:
 
@@ -19,7 +19,7 @@ La publicación en `origin/main` es una serie de 8 commits sobre el `origin/main
 
 Fuera de la publicación: `docs/propuestas-grado/` (material académico local, sin rastrear).
 
-La copia principal de trabajo (remoto `local`) tiene commits y cambios locales sin publicar que no forman parte de esta serie. No se modificó.
+La referencia al remoto `local` describía la copia de trabajo usada al preparar este documento. El 20 de octubre se integró esa publicación en la copia principal mediante merge, sin reescribir el historial. El estado de validación actualizado se registra en [OPERATIONAL_VALIDATION](OPERATIONAL_VALIDATION.md); las comprobaciones de la sección 3 se conservan como evidencia de la publicación original.
 
 ## 2. Fases
 
@@ -29,9 +29,9 @@ La copia principal de trabajo (remoto `local`) tiene commits y cambios locales s
 | 2 | Privacidad y conservación | P0 | Decisiones pendientes | Plazos de visitantes, fotos, auditoría y respaldos. Decidir sobre el índice HMAC de trigramas. `RETENTION_ENABLED=false` hasta decidir. |
 | 3 | Infraestructura | P0 | Bloqueada | Servidor, hostname, certificado confiable, firewall, IP fija y SMTP. |
 | 4 | Migración y recuperación | P0 si hay base | Bloqueada | Confirmar si existe una base a migrar. Si existe: backup verificado y copia separada. |
-| 5 | Validación del candidato | P0 | Parcial | Go, cliente y build pasan (sección 3). Faltan Playwright E2E, Compose y Nginx con TLS. |
+| 5 | Validación del candidato | P0 | Laboratorio integrado aprobado | CI y Containers de `94107f2` aprueban el 20 de octubre: PostgreSQL, Go, cliente, Compose/TLS y cuatro recorridos Playwright. Véase la evidencia actualizada; no equivale a aceptación empresarial. |
 | 6 | Piloto y go/no-go | P0 | Pendiente | Usar la plantilla de la sección 5. |
-| 7 | Rendimiento y documentación | P1 | Parcial | Medición de bundle hecha antes de la serie (sección 4). Falta corregir referencias obsoletas. |
+| 7 | Rendimiento y documentación | P1 | Parcial | Guía Linux y evidencia actualizadas. Carga completa y flujo de respaldo de 2 GiB pendientes del runner dedicado; las métricas anteriores son históricas. |
 | 8 | Operación continua | P1 | Pendiente | Asignar responsables de respaldos, claves, actualizaciones e incidentes. |
 
 ## 3. Validación técnica

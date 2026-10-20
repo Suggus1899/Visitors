@@ -19,6 +19,7 @@
 - The user selected global database sorting for dates, status, and company; logout revokes all account sessions; privacy UI and waiting-visit cancellation are in scope.
 - PDF limit is 2,000 visits; Excel limit is 20,000. Keep identity/name search protected and avoid plaintext search indexes.
 - Do not install Docker on this Windows host; run container acceptance in Linux CI/lab.
+- On 2026-10-20 the user explicitly authorized committing/pushing the readiness work and running CI/Containers now. Keep full laboratory load and its 2-GiB case pending the dedicated Linux runner. Evidence: `docs/OPERATIONAL_VALIDATION.md`.
 
 ## Review Focus
 
@@ -43,14 +44,14 @@
 - [x] Separate credential-abuse counting from session reads; preserve verified client IP through Next and only trust proxy-replaced forwarding headers.
 - [x] Revoke the account `tokenVersion` atomically through Go logout; clear cookies and surface revocation failure. Preserve the session start time and seven-day absolute expiry in access and refresh JWTs.
 - [x] Normalize/redact Nginx URLs and add safe request correlation without credentials, reset tokens, full IDs, or SQL values.
-- [ ] Run tests plus the relevant Next/Go integration and proxy-log checks; commit.
+- [x] Run tests plus the relevant Next/Go integration and proxy-log checks; commit.
 
 ## Task 3: Replace raw identifier hashes with a protected identity index
 
 - [x] Add tests for HMAC identity separation from random-token hashing, uniqueness/linkage, anonymization, wrong key, duplicate legacy rows, and rollback.
 - [x] Add an idempotent, maintenance-only migration that maps old visitor hashes to HMAC identities across visitors, visits, privacy requests, and references.
 - [x] Convert in batches under a transaction/maintenance gate; mark readiness only after full integrity verification. Preserve old backups through staged restore-and-migrate.
-- [ ] Refuse application startup on incomplete or wrong-key preparation; run isolated PostgreSQL migration/adoption/rehearsal tests; commit.
+- [x] Refuse application startup on incomplete or wrong-key preparation; run isolated PostgreSQL migration/adoption/rehearsal tests; commit.
 
 ## Task 4: Add privacy workflows and waiting-visit cancellation
 
@@ -59,7 +60,7 @@
 - [x] Update SQL migrations, generated SQL/models, filters, statistics, calendar, exports and DTOs. Exclude cancelled visits from admission/duration counts.
 - [x] Build the privacy screens over the existing ARCO API and current role matrix. Require identity-verification procedure before cancellation, preserve auditor read-only access, and hide writes for demo.
 - [x] Run local Go/client tests, typecheck, lint, production build and commit the implementation.
-- [ ] Run PostgreSQL-backed integration tests and the browser journey against the Compose/Linux lab before accepting the stage.
+- [x] Run PostgreSQL-backed integration tests and the browser journey against the Compose/Linux lab before accepting the stage.
 
 ## Task 5: Make sorting, exports, calendar and controls consistent
 
@@ -69,7 +70,7 @@
 - [x] Keep export libraries lazy-loaded; abort requests and recheck cancellation before download. Apply same limit and timezone behavior to calendar PDF.
 - [x] Use semantic keyboard-operable controls, visible focus, accessible sort state and modal focus return.
 - [x] Run local Go and client tests, typecheck, lint, production build and commit the implementation.
-- [ ] Run PostgreSQL-backed export integration and browser/report round-trip tests against the Compose/Linux lab before accepting the stage.
+- [x] Run PostgreSQL-backed export integration and browser/report round-trip tests against the Compose/Linux lab before accepting the stage.
 
 ## Task 6: Stream and version large encrypted backups; separate database roles
 
@@ -79,7 +80,8 @@
   - [x] Serialize create, prepare, remove, prune and restore once per top-level operation; only prune after verifying a new successful backup and keep 30 verified copies. Record failures, duration, size and last successful status.
   - [x] Split PostgreSQL runtime, backup and maintenance accounts; grant only required privileges. Remove password-storage volume from API service.
   - [x] Commit implementation on `main`.
-  - [ ] Run the 2-GiB streaming case and backup/restore, role-grant, and rollback integration checks against disposable PostgreSQL in Linux CI before accepting the stage.
+  - [x] Run backup/restore, role-grant and rollback integration checks against disposable PostgreSQL in Linux CI. Fix CLI error propagation and assert rejected restore leaves source session versions unchanged.
+  - [ ] Run the 2-GiB streaming case on the dedicated Linux runner before accepting capacity for the stage.
 
 ## Task 7: Validate full-stack load using representative fictitious data
 
@@ -88,7 +90,7 @@
 - [x] Add a 50-session HTTP workload through TLS/Nginx/Next/BFF/cookies/renewal plus five concurrent browser journeys; warm for 2 minutes and measure for 15 minutes.
 - [ ] Run manually in Linux CI/lab only after confirming at least 4 vCPU, 16 GiB RAM and 512 GiB disk. Fail before data creation when resources are insufficient.
 - [ ] Record p95 by operation (ordinary ≤1s, search ≤2s) and unexpected errors (<1%). Keep API-only results separate; paginate operational open lists if the 5,000-open case misses targets.
-- [ ] Commit harness and workflow after its reproducible run.
+- [x] Commit harness and workflow under the user's 2026-10-20 publication instruction; full-run acceptance remains pending.
 
 ## Task 8: Close documentation and operational readiness
 
@@ -96,7 +98,8 @@
 - [x] Document install, upgrade, rollback, backup/restore, stale-lock recovery, key custody, alerts and cancellation-after-backup review. Set provisional lab targets RPO 24 hours / RTO 2 hours, explicitly awaiting business approval.
 - [x] Record remaining enterprise prerequisites: server/hostname/trusted TLS, firewall, external SMTP, retention policy, operating owners and operator acceptance.
 - [x] Prepare the Linux validation runbook, dedicated backup command, separate load runtime credentials, prepare-before-start ordering, HMAC adoption assertion and explicit manual 2-GiB test gate. Acceptance still requires their Linux/Compose execution.
-- [ ] Run clean Compose install, browser journeys, backup/restore rehearsal, restart/persistence checks and the complete verification matrix; update operational evidence and commit.
+- [x] Run clean Compose install, four browser journeys, backup/restore rehearsal, restart/persistence checks and regular CI; record Linux evidence and publish on main.
+- [ ] Complete the large-capacity verification matrix, including full-stack load and the 2-GiB stream, before accepting all stages.
 
 ## Interfaces and acceptance
 

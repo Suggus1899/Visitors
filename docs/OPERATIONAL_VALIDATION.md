@@ -2,7 +2,23 @@
 
 LogMaster se prepara en `main` para Linux con contenedores. Los ensayos utilizan bases, credenciales, correo y visitantes ficticios; no se instaló Docker en el equipo Windows ni se modificaron sus bases o respaldos anteriores. La retención de información personal permanece desactivada.
 
-**Alcance de la evidencia:** las métricas y workflows aprobados que siguen corresponden a commits anteriores, en particular a `45e37c5` del 12 de octubre de 2026. `main` avanzó después con las tareas 1–6 de remediación y el arnés de carga actualizado; esa versión todavía no tiene aceptación completa de Compose/PostgreSQL. Las pruebas locales del 19 de octubre pasan, pero no sustituyen la ejecución en un runner Linux con recursos suficientes. No se deben presentar las métricas históricas como validación del estado actual.
+**Alcance de la evidencia:** la integración de la remediación se verificó en Linux sobre `94107f2` el 20 de octubre de 2026. La carga completa del arnés actualizado y la prueba de flujo de 2 GiB siguen pendientes del runner dedicado. Las métricas de rendimiento del 12 de octubre y anteriores se conservan como evidencia histórica y no aceptan el rendimiento del estado actual.
+
+## Integración de la remediación — 20 de octubre de 2026
+
+Referencia evaluada: [94107f2](https://github.com/Suggus1899/Visitors/commit/94107f244fb50b8a99d13756ef5288aed8b450ab).
+
+| Comprobación | Evidencia y alcance |
+|---|---|
+| [CI](https://github.com/Suggus1899/Visitors/actions/runs/39499158253) | Cliente y backend aprobados: instalación congelada, tipos, lint, 166 pruebas del cliente en 29 archivos, build de Next.js, auditoría de dependencias, migraciones en PostgreSQL 16 ficticio, Mailpit, Go con `-race -p 1`, vet, build, sqlc y govulncheck. |
+| [Containers](https://github.com/Suggus1899/Visitors/actions/runs/39499158174) | Instalación vacía, cuentas y privilegios separados, HTTPS, logs sin identificadores de prueba, persistencia tras recreación, respaldo cifrado, restauración, revocación de sesiones, timers adelantados y adopción del esquema anterior ficticio. Incluye cuatro recorridos de navegador y una carga pequeña de 100 visitantes/1.000 visitas únicamente sobre la API. |
+| Restauración rechazada | El CLI devuelve error ante un root inexistente y el smoke verifica que no cambie `tokenVersion` en la fuente. La restauración válida posterior y las migraciones repetidas también aprueban. Las pruebas Go cubren la reversión ante fallos de revocación/auditoría. |
+| Navegador | Cámara HTTPS, fotografías autenticadas, consentimiento, espera/admisión/salida temporal/reingreso/cierre, recuperación Mailpit, roles, SSE, rechazo de IP falsificada y descarga real de PDF/Excel. El quinto caso, carga de cinco navegadores, queda omitido deliberadamente fuera del laboratorio completo. |
+| Carga completa y archivo de 2 GiB | No ejecutados en este bloque. Mantener abiertas la aceptación de escala, latencias y recursos del arnés actual. |
+
+La primera ejecución detectó una variable de error sombreada en el CLI de restauración: una operación rechazada podía imprimir éxito. Se corrigió su propagación y se reforzó el smoke. CI también detectó dos avisos altos en `follow-redirects` 1.16.0; el lockfile se actualizó exclusivamente a 1.16.1 y la auditoría posterior aprobó. El recorrido de cámara se actualizó para localizar el botón por su nombre accesible. La limpieza de Containers incluye los servicios del perfil `ops`.
+
+El cierre de esta revisión añade al comando `local:prepare` y al ejemplo del README la misma concesión de roles ya comprobada por Containers, después de migrar y antes de iniciar la API. Los workflows de su commit de cierre vuelven a ejecutar las comprobaciones; consultar el historial de Actions para esa referencia final. No se ejecutaron migraciones, semillas ni restauraciones sobre las bases anteriores del equipo Windows.
 
 ## Verificación local del trabajo actual — 19 de octubre de 2026
 
@@ -17,15 +33,15 @@ La preparación posterior corrige `pnpm backup` para usar la cuenta de respaldo,
 
 En este bloque pasaron `go test -race ./internal/config ./cmd/lab -count=1`, la suite de configuración compilada para Linux y ejecutada en WSL, el tipado estricto de ambos archivos de navegador y su configuración, y el análisis de siete YAML junto con la sintaxis Bash/sh de workflows y despliegue. Estas comprobaciones no sustituyen ejecutar Compose, la adopción SQL ni los recorridos reales. El lockfile permanece sin cambios.
 
-## Validación de Next.js y HeroUI — 12 de octubre de 2026
+## Evidencia histórica de Next.js y HeroUI — 12 de octubre de 2026
 
-La validación vigente corresponde al commit [45e37c5](https://github.com/Suggus1899/Visitors/commit/45e37c57f311a77a04ccfe73aed71a167190d122). La [CI](https://github.com/Suggus1899/Visitors/actions/runs/38282064141) aprobó Go con `-race`, `go vet`, compilación, bindings SQL y revisión de vulnerabilidades; en el cliente aprobó TypeScript, ESLint, las 140 pruebas en 22 archivos, compilación de Next.js y auditoría de dependencias.
+La validación histórica corresponde al commit [45e37c5](https://github.com/Suggus1899/Visitors/commit/45e37c57f311a77a04ccfe73aed71a167190d122). La [CI](https://github.com/Suggus1899/Visitors/actions/runs/38282064141) aprobó Go con `-race`, `go vet`, compilación, bindings SQL y revisión de vulnerabilidades; en el cliente aprobó TypeScript, ESLint, las 140 pruebas en 22 archivos, compilación de Next.js y auditoría de dependencias.
 
 El workflow [Containers](https://github.com/Suggus1899/Visitors/actions/runs/38282064271) aprobó instalación vacía, persistencia, timers, adopción de una base ficticia y la carga pequeña. Playwright pasó 4 de 4 recorridos con API y PostgreSQL reales en contenedores: ciclo de acceso con cámara y consentimiento, recuperación de contraseña mediante Mailpit, permisos/SSE/IP y administración con descargas reales de PDF y Excel. El recorrido del ciclo detectó que el botón compartido convertía el `PressEvent` de HeroUI en un `MouseEvent`; al intentar detener la propagación, la función fallaba antes de enviar la admisión. El wrapper ahora reenvía el evento HeroUI sin convertirlo y el recorrido completo pasa.
 
 La prueba completa de esta revisión aprobó en el [workflow manual](https://github.com/Suggus1899/Visitors/actions/runs/38282782707). El runner Linux tuvo 4 vCPU AMD EPYC 9V74, 15,61 GiB de RAM, Docker 28.0.4, PostgreSQL 16 y Go 1.27.2. Generó los 100.000 perfiles y 1.000.000 de visitas ficticias en 66,28 segundos; ejecutó 120 segundos de calentamiento y 900 segundos de carga mixta con 50 sesiones.
 
-| Medición vigente | Resultado | Criterio |
+| Medición del 12 de octubre | Resultado | Criterio |
 |---|---:|---:|
 | Solicitudes medidas | 57.123 | Carga mixta durante 900 s |
 | p95 de consultas habituales | 0,213 s | ≤ 1 s |
@@ -35,7 +51,7 @@ La prueba completa de esta revisión aprobó en el [workflow manual](https://git
 | Respaldo cifrado verificado | 83.562.141 bytes; 10,34 s | Exitoso |
 | Restauración desechable | 22,45 s | Exitosa; la fuente se conservó |
 
-El muestreo periódico de `docker stats` observó máximos de 71,89 MiB para la API y 302,90 MiB para PostgreSQL durante la carga. En respaldo/restauración observó 1.042,43 MiB para el proceso administrativo, 302,90 MiB para PostgreSQL fuente y 199,60 MiB para la base desechable. Son máximos de muestras cada 15 segundos durante carga y cada 2 segundos durante respaldo/restauración, no picos absolutos; los registros están en el artefacto `fictitious-load-results`. La sección de carga anterior conserva ensayos históricos; estos datos corresponden a la revisión actual.
+El muestreo periódico de `docker stats` observó máximos de 71,89 MiB para la API y 302,90 MiB para PostgreSQL durante la carga. En respaldo/restauración observó 1.042,43 MiB para el proceso administrativo, 302,90 MiB para PostgreSQL fuente y 199,60 MiB para la base desechable. Son máximos de muestras cada 15 segundos durante carga y cada 2 segundos durante respaldo/restauración, no picos absolutos; los registros estaban en el artefacto `fictitious-load-results`. Estos datos corresponden exclusivamente a la revisión del 12 de octubre y no validan el arnés ni el formato de respaldos actuales.
 
 ## Diagnóstico del proceso y evaluación de uso
 
@@ -50,7 +66,7 @@ Los instrumentos para entrevista, observación y evaluación de LogMaster están
 | 3. Mantenimiento | Simulación sin mutación, destino confirmado, adopción del esquema Node ficticio y primer root; migración repetida; restauración de staging antes de aplicar y revocación/auditoría en una transacción |
 | 4. Consultas | Trigramas HMAC, reconstrucción reanudable y verificación exacta; agregaciones SQL y calendario diario con detalle paginado; búsqueda corta rechazada e índice eliminado al cancelar |
 | 5. Cliente y exportación | Pestañas y bibliotecas diferidas; límites PDF 2.000/Excel 20.000 antes de recopilar, cancelación y detección de totales/IDs inconsistentes; PDF y Excel descargados desde el navegador real |
-| 6. Respaldos | La evidencia histórica de timers y retención corresponde al formato anterior. La implementación actual añade cifrado de flujo, límites de 20/80 GiB y roles separados; pruebas Go locales pasan, pero el caso de flujo de 2 GiB y la integración/restore contra PostgreSQL siguen pendientes en Linux. |
+| 6. Respaldos | La revisión del 20 de octubre verifica cifrado de flujo, roles separados, respaldo/restauración, timers y rollback con PostgreSQL ficticio. La prueba de flujo de 2 GiB y el ensayo a escala permanecen pendientes del runner dedicado. |
 | 7. Rendimiento y retiro | La carga histórica de 100.000 visitantes/1.000.000 de visitas se ejecutó antes de las tareas actuales. El nuevo arnés añade imágenes ficticias, 5.000 visitas abiertas y 50 sesiones vía TLS/Nginx/Next/BFF; los recorridos de navegador y el ensayo grande requieren el runner etiquetado `logmaster-load` y aún no se ejecutaron. |
 
 El recorrido de navegador anterior al retiro, [Containers del commit d040e64](https://github.com/Suggus1899/Visitors/actions/runs/38069769820), aprobó cuatro pruebas: operación completa con cámara/consentimiento/transiciones, restablecimiento mediante Mailpit y uso único, permisos/SSE/IP y carga diferida con descargas reales. La [CI del mismo commit](https://github.com/Suggus1899/Visitors/actions/runs/38069769795) comprobó también el backend Node antes de retirarlo.
@@ -59,7 +75,7 @@ Después del retiro, [CI de 4581a57](https://github.com/Suggus1899/Visitors/acti
 
 Los cuatro scripts necesarios se reubicaron en `deploy/scripts/`, por preferencia del usuario, junto a Compose, Nginx y systemd. [CI de 34181c7](https://github.com/Suggus1899/Visitors/actions/runs/38071327928) y [Containers de 34181c7](https://github.com/Suggus1899/Visitors/actions/runs/38071327979) volvieron a aprobar las comprobaciones con sus referencias actualizadas. Las imágenes vigentes también están disponibles como artefacto de ese ensayo.
 
-Las pruebas Go con PostgreSQL real de la evidencia histórica comprueban permisos, sesión revocada incluso después de crear otra instancia, búsqueda protegida y equivalencia de estadísticas. También comprueban rollback de edición/auditoría, cancelación y registro independiente, archivo dañado, clave incorrecta, esquema incompatible y fallos inducidos durante la revocación y auditoría de restauración. El ensayo CLI adopta una baseline ficticia sin tabla Goose y conserva su visita antes de crear el primer root. Para los cambios de las tareas 1–6 aún se requiere repetir esta matriz contra una base descartable desde Compose/Linux.
+Las pruebas Go con PostgreSQL real comprueban permisos, sesión revocada incluso después de crear otra instancia, búsqueda protegida y equivalencia de estadísticas. También comprueban rollback de edición/auditoría, cancelación y registro independiente, archivo dañado, clave incorrecta, esquema incompatible y fallos inducidos durante la revocación y auditoría de restauración. El ensayo CLI adopta una baseline ficticia sin tabla Goose y conserva su visita antes de crear el primer root. Esta matriz se repitió para la remediación en los workflows del 20 de octubre; no reemplaza el ensayo de carga completo.
 
 ## Carga completa aprobada antes del retiro
 
@@ -103,7 +119,7 @@ El backend de aplicación no cambió entre dae5e51 y 34181c7: solo se corrigió 
 
 - Las métricas locales históricas de esta sección —incluidos los tamaños de bundle y 146 pruebas en 21 archivos— corresponden al cliente React/Vite anterior a Next.js. Para la validación vigente de Next.js/HeroUI, la CI del 12 de octubre aprobó tipos, lint, build y auditoría; localmente pasaron 140 pruebas en 22 archivos. Véase la sección vigente al inicio del documento.
 - Instalación histórica `pnpm install --frozen-lockfile` aprobada con pnpm 12.4.2; dos proyectos en el workspace: raíz y cliente.
-- En la revisión actual, `go test -race -p 1 ./... -count=1` pasó localmente con `LOGMASTER_DB_TEST=false`; por eso no cubre PostgreSQL. `go vet ./cmd/lab` y `go build ./cmd/lab` también pasaron. La integración PostgreSQL, sqlc y govulncheck siguen requiriendo Linux CI.
+- Las pruebas locales con `LOGMASTER_DB_TEST=false` no cubren PostgreSQL. La integración PostgreSQL, sqlc y govulncheck se verificaron posteriormente en Linux CI el 20 de octubre; véase el registro al inicio.
 - `pnpm audit --prod --audit-level moderate`: ninguna vulnerabilidad conocida después de retirar las dependencias exclusivas del backend Node.
 - Administración: fragmento de 17,55 kB minificado; estadísticas, calendario, respaldos y exportadores están separados. El fragmento inicial de 578,10 kB todavía produce aviso de tamaño, y el exportador Excel ocupa 940,82 kB; se descarga al exportar. No se ocultó ese aviso.
 - El código anterior está en `backup/node-before-retirement-2026-10-10` (d040e64), publicada en el remoto. Las ramas de respaldo anteriores y los dos stashes permanecen conservados.
