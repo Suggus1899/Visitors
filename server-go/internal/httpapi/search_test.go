@@ -77,7 +77,7 @@ func TestProtectedSearchAndCalendarIntegration(t *testing.T) {
 	if count("Áyala exclusiva") != 1 {
 		t.Fatal("backfill lost search")
 	}
-	if status, response = request(t, h, "DELETE", "/api/v1/privacy/subjects/"+cedula, "", token); status != 200 {
+	if status, response = request(t, h, "DELETE", "/api/v1/privacy/subjects/"+cedula, `{"identityVerified":true,"verificationMethod":"Documento original"}`, token); status != 200 {
 		t.Fatal(status, response)
 	}
 	var remaining int

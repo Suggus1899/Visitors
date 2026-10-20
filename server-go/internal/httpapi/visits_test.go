@@ -144,7 +144,7 @@ func TestCancelWaitingVisitIntegration(t *testing.T) {
 	}
 	var actorID int32
 	var created time.Time
-	if err = a.Pool.QueryRow(ctx, `SELECT "userId","createdAt" FROM "ActivityLogs" WHERE action='VISIT_CANCELLED' AND entityId=$1`, fmt.Sprint(id)).Scan(&actorID, &created); err != nil || actorID != userID || created.IsZero() {
+	if err = a.Pool.QueryRow(ctx, `SELECT "userId","createdAt" FROM "ActivityLogs" WHERE action='VISIT_CANCELLED' AND "entityId"=$1`, fmt.Sprint(id)).Scan(&actorID, &created); err != nil || actorID != userID || created.IsZero() {
 		t.Fatalf("cancellation audit missing actor/time: actor=%d at=%v err=%v", actorID, created, err)
 	}
 	for _, operation := range []string{"admit", "cancel"} {

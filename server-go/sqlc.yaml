@@ -5,7 +5,7 @@ sql:
     schema:
       - db/schema.sql
       - db/migrations/00002_visit_integrity.sql
-      - db/migrations/00005_cancelled_waiting_visits.sql
+      - db/migrations/00006_cancelled_waiting_visits.sql
     gen:
       go:
         package: store
