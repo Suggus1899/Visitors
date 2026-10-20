@@ -78,7 +78,7 @@ test('HTTPS camera, authenticated photographs, consent and complete operational 
   await page.getByRole('checkbox').check();
   await page.getByText('Usar Cámara', { exact: true }).first().click();
   await expect.poll(() => page.locator('video').evaluate((video: HTMLVideoElement) => video.readyState)).toBeGreaterThan(1);
-  await page.getByTitle('Captura instantánea').click();
+  await page.getByRole('button', { name: 'Captura instantánea', exact: true }).click();
   await expect(page.locator('img[src^="data:image/"]')).toBeVisible();
   const created = page.waitForResponse(response => response.url().endsWith('/visits/checkin') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'PONER EN ESPERA' }).click();
