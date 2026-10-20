@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './tests/browser', workers: 1, retries: 0, timeout: 90_000,
   reporter: [['list']],
   use: {
-    baseURL: 'https://localhost:8443', ignoreHTTPSErrors: true,
+    baseURL: process.env.LOGMASTER_APP_URL || 'https://localhost:8443', ignoreHTTPSErrors: true,
     actionTimeout: 15_000, navigationTimeout: 15_000,
     permissions: ['camera'], trace: 'off',
     launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },

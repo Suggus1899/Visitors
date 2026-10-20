@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+config_dir=${LOGMASTER_CONFIG_DIR:-.local/containers}
 compose() { docker compose --profile test "$@"; }
 compose config --quiet
 compose build
@@ -20,10 +21,10 @@ if compose exec -T api awk '$2 == "/var/lib/logmaster/passwords" { found=1 } END
   echo 'API unexpectedly has the private password volume.' >&2
   exit 1
 fi
-curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert .local/containers/tls.pem https://localhost:8443/api/v1/health
+curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert "$config_dir/tls.pem" https://localhost:8443/api/v1/health
 visitor_probe='V-12345678'
 token_probe='reset_token_probe_36f1249d'
-probe_status=$(curl --silent --show-error --cacert .local/containers/tls.pem --output /dev/null --write-out '%{http_code}' "https://localhost:8443/api/v1/visitors/$visitor_probe/photo?token=$token_probe")
+probe_status=$(curl --silent --show-error --cacert "$config_dir/tls.pem" --output /dev/null --write-out '%{http_code}' "https://localhost:8443/api/v1/visitors/$visitor_probe/photo?token=$token_probe")
 test "$probe_status" = 401
 proxy_logs=$(compose logs --no-color --since=30s web)
 for sensitive_value in "$visitor_probe" "$token_probe"; do
@@ -38,7 +39,7 @@ compose up -d --force-recreate --wait postgres api frontend web
 after=$(compose exec -T postgres psql -U logmaster_pilot -d logmaster_pilot -Atc 'SELECT count(*) FROM "Users"')
 test "$before" = "$after"
 test "$after" -ge 1
-curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert .local/containers/tls.pem https://localhost:8443/api/v1/health
+curl --fail --silent --show-error --retry 5 --retry-all-errors --cacert "$config_dir/tls.pem" https://localhost:8443/api/v1/health
 echo 'Container recreation preserved the fictitious database.'
 compose up -d --wait postgres-restore
 compose run --rm backup backup-daily

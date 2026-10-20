@@ -51,7 +51,7 @@ cat > "$directory/frontend.env" <<EOF
 APP_URL=$app_url
 GO_API_URL=http://api:3000
 EOF
-openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' -keyout "$directory/tls.key" -out "$directory/tls.pem" >/dev/null 2>&1
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,DNS:web,IP:127.0.0.1' -keyout "$directory/tls.key" -out "$directory/tls.pem" >/dev/null 2>&1
 write_variant() {
   input=$1 output=$2 user=$3 db_name=$4 db_password=$5 host=$6 node_env=$7
   while IFS= read -r line || [ -n "$line" ]; do
@@ -71,6 +71,7 @@ write_variant "$directory/maintenance.env" "$directory/staging.env" logmaster_re
 sed -n 's/^SEED_ROOT_PASSWORD=//p' "$directory/app.env" > "$directory/maintenance.password"
 write_variant "$directory/maintenance.env" "$directory/load.env" logmaster_load_test logmaster_load_test "$password" postgres test
 printf 'LAB_PASSWORD=Fixture!%s\n' "$(openssl rand -hex 12)" >> "$directory/load.env"
+write_variant "$directory/load.env" "$directory/load-runtime.env" logmaster_runtime logmaster_load_test "$runtime_password" postgres test
 write_variant "$directory/load.env" "$directory/load-backup.env" logmaster_backup logmaster_load_test "$backup_db_password" postgres test
 # Compose file secrets are bind-mounted; the dedicated container users need read access.
 chmod 644 "$directory"/*

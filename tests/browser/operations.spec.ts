@@ -2,7 +2,7 @@ import { test, expect, request as playwrightRequest, type Page } from '@playwrig
 import { readFileSync } from 'node:fs';
 
 let fixture: Record<string, string>;
-test.beforeAll(() => { fixture = Object.fromEntries(readFileSync('.local/containers/app.env', 'utf8').split(/\r?\n/).filter(line => line.includes('=')).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)])); });
+test.beforeAll(() => { fixture = Object.fromEntries(readFileSync(`${process.env.LOGMASTER_CONFIG_DIR || '.local/containers'}/app.env`, 'utf8').split(/\r?\n/).filter(line => line.includes('=')).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)])); });
 const changedPassword = 'Ficticio!Changed123';
 
 async function signIn(page: Page, username: string, password: string, readyLabel = 'Cédula') {

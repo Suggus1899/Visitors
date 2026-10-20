@@ -53,12 +53,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sh deploy/scripts/configure.sh
-      - name: Small concurrent laboratory regression
+      - name: Small API-only concurrent laboratory regression
         run: |
           docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load build api
           docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait postgres
           docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab generate --visitors 100 --visits 1000
           docker compose -f compose.yaml -f deploy/compose.load.yaml up -d --wait api
-          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab load --warmup 5s --duration 30s
+          docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load run --rm lab load --url http://api:3000 --warmup 5s --duration 30s
       - if: always()
         run: docker compose -f compose.yaml -f deploy/compose.load.yaml --profile load down -v

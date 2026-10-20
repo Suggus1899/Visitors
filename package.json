@@ -14,7 +14,7 @@
     "build:server": "cd server-go && go build -trimpath -o ../dist/ ./cmd/logmaster",
     "build:client": "pnpm --dir client run build",
     "build": "pnpm run build:client && pnpm run build:server",
-    "backup": "docker compose run --rm ops backup-daily",
+    "backup": "docker compose run --rm backup backup-daily",
     "backup:monitor": "docker compose run --rm ops backup-monitor",
     "local:setup": "sh deploy/scripts/configure.sh",
     "local:prepare": "docker compose --profile test build && docker compose --profile test up -d --wait postgres mailpit && docker compose run --rm ops migrate && docker compose run --rm ops seed",

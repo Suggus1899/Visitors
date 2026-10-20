@@ -17,5 +17,5 @@ stage adopt --apply --confirm-target postgres-restore:5432/logmaster_restore_tes
 stage migrate --apply --confirm-target postgres-restore:5432/logmaster_restore_test
 compose -f compose.yaml -f deploy/compose.admin.yaml run --rm -e DOTENV_CONFIG_PATH=/run/secrets/staging_env ops ops bootstrap-root --email root@example.test --password-file /run/secrets/maintenance_password --apply --confirm-target postgres-restore:5432/logmaster_restore_test
 compose run --rm -e DOTENV_CONFIG_PATH=/run/secrets/staging_env ops check
-preserved=$(compose exec -T postgres-restore psql -U logmaster_restore_test -d logmaster_restore_test -Atc "SELECT count(*) FROM \"Visits\" WHERE visitor_cedula='$identifier' AND status='completed'")
+preserved=$(compose exec -T postgres-restore psql -U logmaster_restore_test -d logmaster_restore_test -Atc "SELECT count(*) FROM \"Visits\" visit JOIN \"Visitors\" visitor ON visitor.cedula=visit.visitor_cedula WHERE visitor.encrypted_cedula='V-66778899' AND visitor.cedula<>'$identifier' AND visit.status='completed'")
 test "$preserved" = 1

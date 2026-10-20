@@ -1,6 +1,21 @@
 # Validación operativa de laboratorio
 
-LogMaster se preparó en `main` para Linux con contenedores. Los ensayos utilizaron bases, credenciales, correo y visitantes ficticios en runners independientes de GitHub Actions. No se instaló Docker en el equipo Windows ni se modificaron sus bases o respaldos anteriores. La retención de información personal permanece desactivada. Actualización: 13 de octubre de 2026.
+LogMaster se prepara en `main` para Linux con contenedores. Los ensayos utilizan bases, credenciales, correo y visitantes ficticios; no se instaló Docker en el equipo Windows ni se modificaron sus bases o respaldos anteriores. La retención de información personal permanece desactivada.
+
+**Alcance de la evidencia:** las métricas y workflows aprobados que siguen corresponden a commits anteriores, en particular a `45e37c5` del 12 de octubre de 2026. `main` avanzó después con las tareas 1–6 de remediación y el arnés de carga actualizado; esa versión todavía no tiene aceptación completa de Compose/PostgreSQL. Las pruebas locales del 19 de octubre pasan, pero no sustituyen la ejecución en un runner Linux con recursos suficientes. No se deben presentar las métricas históricas como validación del estado actual.
+
+## Verificación local del trabajo actual — 19 de octubre de 2026
+
+- `LOGMASTER_DB_TEST=false go test -race -p 1 ./... -count=1`, `go vet ./cmd/lab` y `go build ./cmd/lab`: aprobados.
+- `pnpm test:client`: 29 archivos y 166 pruebas aprobados; `pnpm --dir client exec tsc --noEmit` y el tipado de `tests/browser/load.spec.ts`/`playwright.config.ts`: aprobados.
+- `pnpm exec playwright test tests/browser/load.spec.ts`: omitido correctamente fuera del modo de laboratorio; Chromium y la aplicación no se ejecutaron en este equipo.
+- Los YAML del workflow/Compose se analizaron y `configure.sh` creó un certificado temporal con SAN `localhost`, `web` y `127.0.0.1`. No se generaron datos de carga ni se conectó a PostgreSQL.
+
+La capacidad disponible localmente no permite aceptar la etapa: este host no tiene Docker ni Podman. La etapa 7 exige runner Linux con ≥4 vCPU, ≥16 GiB de RAM y ≥512 GiB libres tanto en workspace como en Docker. La instancia debe ejecutar el workflow manual `Full laboratory load` con las etiquetas `self-hosted, linux, x64, logmaster-load`.
+
+La preparación posterior corrige `pnpm backup` para usar la cuenta de respaldo, separa la cuenta runtime del laboratorio de carga, inicia la API después de generar el esquema/datos y actualiza la comprobación de adopción para identidades HMAC. La prueba nueva de credenciales falló por ausencia de `load-runtime.env` y pasó después de corregirlo, ejecutada como binario Linux en WSL con archivos temporales ficticios. Esta prueba no utiliza Docker ni PostgreSQL. El workflow manual habilita explícitamente el caso de flujo de 2 GiB, todavía pendiente de ejecución. La secuencia y evidencia exigidas están en [LINUX_VALIDATION](LINUX_VALIDATION.md).
+
+En este bloque pasaron `go test -race ./internal/config ./cmd/lab -count=1`, la suite de configuración compilada para Linux y ejecutada en WSL, el tipado estricto de ambos archivos de navegador y su configuración, y el análisis de siete YAML junto con la sintaxis Bash/sh de workflows y despliegue. Estas comprobaciones no sustituyen ejecutar Compose, la adopción SQL ni los recorridos reales. El lockfile permanece sin cambios.
 
 ## Validación de Next.js y HeroUI — 12 de octubre de 2026
 
@@ -35,8 +50,8 @@ Los instrumentos para entrevista, observación y evaluación de LogMaster están
 | 3. Mantenimiento | Simulación sin mutación, destino confirmado, adopción del esquema Node ficticio y primer root; migración repetida; restauración de staging antes de aplicar y revocación/auditoría en una transacción |
 | 4. Consultas | Trigramas HMAC, reconstrucción reanudable y verificación exacta; agregaciones SQL y calendario diario con detalle paginado; búsqueda corta rechazada e índice eliminado al cancelar |
 | 5. Cliente y exportación | Pestañas y bibliotecas diferidas; límites PDF 2.000/Excel 20.000 antes de recopilar, cancelación y detección de totales/IDs inconsistentes; PDF y Excel descargados desde el navegador real |
-| 6. Respaldos | Timers systemd adelantados en CI, conservación de 30 pares completos verificada, contraseñas cifradas separadas, exclusión mutua, estado/último éxito, límites de tamaño y errores de disco explícitos |
-| 7. Rendimiento y retiro | 100.000 visitantes, 1.000.000 de visitas y 50 sesiones; compatibilidad AES, bcrypt, JWT, archivos Node y esquema en fixtures Go; backend Node retirado después de aprobar el laboratorio |
+| 6. Respaldos | La evidencia histórica de timers y retención corresponde al formato anterior. La implementación actual añade cifrado de flujo, límites de 20/80 GiB y roles separados; pruebas Go locales pasan, pero el caso de flujo de 2 GiB y la integración/restore contra PostgreSQL siguen pendientes en Linux. |
+| 7. Rendimiento y retiro | La carga histórica de 100.000 visitantes/1.000.000 de visitas se ejecutó antes de las tareas actuales. El nuevo arnés añade imágenes ficticias, 5.000 visitas abiertas y 50 sesiones vía TLS/Nginx/Next/BFF; los recorridos de navegador y el ensayo grande requieren el runner etiquetado `logmaster-load` y aún no se ejecutaron. |
 
 El recorrido de navegador anterior al retiro, [Containers del commit d040e64](https://github.com/Suggus1899/Visitors/actions/runs/38069769820), aprobó cuatro pruebas: operación completa con cámara/consentimiento/transiciones, restablecimiento mediante Mailpit y uso único, permisos/SSE/IP y carga diferida con descargas reales. La [CI del mismo commit](https://github.com/Suggus1899/Visitors/actions/runs/38069769795) comprobó también el backend Node antes de retirarlo.
 
@@ -44,7 +59,7 @@ Después del retiro, [CI de 4581a57](https://github.com/Suggus1899/Visitors/acti
 
 Los cuatro scripts necesarios se reubicaron en `deploy/scripts/`, por preferencia del usuario, junto a Compose, Nginx y systemd. [CI de 34181c7](https://github.com/Suggus1899/Visitors/actions/runs/38071327928) y [Containers de 34181c7](https://github.com/Suggus1899/Visitors/actions/runs/38071327979) volvieron a aprobar las comprobaciones con sus referencias actualizadas. Las imágenes vigentes también están disponibles como artefacto de ese ensayo.
 
-Las pruebas Go con PostgreSQL real comprueban permisos, sesión revocada incluso después de crear otra instancia, búsqueda protegida y equivalencia de estadísticas. También comprueban rollback de edición/auditoría, cancelación y registro independiente, archivo dañado, clave incorrecta, esquema incompatible y fallos inducidos durante la revocación y auditoría de restauración. El ensayo CLI adopta una baseline ficticia sin tabla Goose y conserva su visita antes de crear el primer root.
+Las pruebas Go con PostgreSQL real de la evidencia histórica comprueban permisos, sesión revocada incluso después de crear otra instancia, búsqueda protegida y equivalencia de estadísticas. También comprueban rollback de edición/auditoría, cancelación y registro independiente, archivo dañado, clave incorrecta, esquema incompatible y fallos inducidos durante la revocación y auditoría de restauración. El ensayo CLI adopta una baseline ficticia sin tabla Goose y conserva su visita antes de crear el primer root. Para los cambios de las tareas 1–6 aún se requiere repetir esta matriz contra una base descartable desde Compose/Linux.
 
 ## Carga completa aprobada antes del retiro
 
@@ -88,7 +103,7 @@ El backend de aplicación no cambió entre dae5e51 y 34181c7: solo se corrigió 
 
 - Las métricas locales históricas de esta sección —incluidos los tamaños de bundle y 146 pruebas en 21 archivos— corresponden al cliente React/Vite anterior a Next.js. Para la validación vigente de Next.js/HeroUI, la CI del 12 de octubre aprobó tipos, lint, build y auditoría; localmente pasaron 140 pruebas en 22 archivos. Véase la sección vigente al inicio del documento.
 - Instalación histórica `pnpm install --frozen-lockfile` aprobada con pnpm 12.4.2; dos proyectos en el workspace: raíz y cliente.
-- `go vet ./...`, `go test ./...` y compilación Go aprobados localmente. Las pruebas de integración con PostgreSQL, `-race`, sqlc y govulncheck se ejecutan en CI Linux.
+- En la revisión actual, `go test -race -p 1 ./... -count=1` pasó localmente con `LOGMASTER_DB_TEST=false`; por eso no cubre PostgreSQL. `go vet ./cmd/lab` y `go build ./cmd/lab` también pasaron. La integración PostgreSQL, sqlc y govulncheck siguen requiriendo Linux CI.
 - `pnpm audit --prod --audit-level moderate`: ninguna vulnerabilidad conocida después de retirar las dependencias exclusivas del backend Node.
 - Administración: fragmento de 17,55 kB minificado; estadísticas, calendario, respaldos y exportadores están separados. El fragmento inicial de 578,10 kB todavía produce aviso de tamaño, y el exportador Excel ocupa 940,82 kB; se descarga al exportar. No se ocultó ese aviso.
 - El código anterior está en `backup/node-before-retirement-2026-10-10` (d040e64), publicada en el remoto. Las ramas de respaldo anteriores y los dos stashes permanecen conservados.

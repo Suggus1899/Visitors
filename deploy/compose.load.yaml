@@ -12,13 +12,13 @@ services:
     profiles: [load]
     entrypoint: [logmaster-lab]
     command: [generate]
-    secrets: [app_env]
-    environment: {DOTENV_CONFIG_PATH: /run/secrets/app_env, LOGMASTER_LOAD_TEST: 'true'}
+    secrets: [maintenance_env, tls_cert]
+    environment: {DOTENV_CONFIG_PATH: /run/secrets/maintenance_env, LOGMASTER_LOAD_TEST: 'true', LAB_TLS_CA_FILE: /run/secrets/tls_cert, LAB_APP_ORIGIN: 'https://localhost:8443'}
     networks: [backend]
     tmpfs: ['/var/lib/postgresql/data:uid=10001,gid=10001,mode=1700']
     depends_on: {postgres: {condition: service_healthy}}
     logging: {driver: json-file, options: {max-size: 10m, max-file: '3'}}
 secrets:
-  app_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/load.env'}
+  app_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/load-runtime.env'}
   maintenance_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/load.env'}
   backup_env: {file: '${LOGMASTER_CONFIG_DIR:-./.local/containers}/load-backup.env'}
