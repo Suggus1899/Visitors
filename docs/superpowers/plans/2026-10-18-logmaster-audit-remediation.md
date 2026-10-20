@@ -83,18 +83,18 @@
 
 ## Task 7: Validate full-stack load using representative fictitious data
 
-- [ ] Extend deterministic fixtures to 100,000 visitors, 1,000,000 visits, anonymized/cancelled records, frequent names and 75/5,000 open-visit scenarios.
-- [ ] Generate non-identifying images at representative sizes: 10% profiles with 128–256 KiB photos and 5% with 256–512 KiB documents.
-- [ ] Add a 50-session HTTP workload through TLS/Nginx/Next/BFF/cookies/renewal plus five concurrent browser journeys; warm for 2 minutes and measure for 15 minutes.
+- [x] Extend deterministic fixtures to 100,000 visitors, 1,000,000 visits, anonymized/cancelled records, frequent names and 75/5,000 open-visit scenarios.
+- [x] Generate non-identifying images at representative sizes: 10% profiles with 128–256 KiB photos and 5% with 256–512 KiB documents.
+- [x] Add a 50-session HTTP workload through TLS/Nginx/Next/BFF/cookies/renewal plus five concurrent browser journeys; warm for 2 minutes and measure for 15 minutes.
 - [ ] Run manually in Linux CI/lab only after confirming at least 4 vCPU, 16 GiB RAM and 512 GiB disk. Fail before data creation when resources are insufficient.
 - [ ] Record p95 by operation (ordinary ≤1s, search ≤2s) and unexpected errors (<1%). Keep API-only results separate; paginate operational open lists if the 5,000-open case misses targets.
 - [ ] Commit harness and workflow after its reproducible run.
 
 ## Task 8: Close documentation and operational readiness
 
-- [ ] Correct current manuals/API docs for password and image limits, roles, privacy screens, cancellation, Next recovery route, export limits and backup formats; preserve historical migration notes as historical.
-- [ ] Document install, upgrade, rollback, backup/restore, stale-lock recovery, key custody, alerts and cancellation-after-backup review. Set provisional lab targets RPO 24 hours / RTO 2 hours, explicitly awaiting business approval.
-- [ ] Record remaining enterprise prerequisites: server/hostname/trusted TLS, firewall, external SMTP, retention policy, operating owners and operator acceptance.
+- [x] Correct current manuals/API docs for password and image limits, roles, privacy screens, cancellation, Next recovery route, export limits and backup formats; preserve historical migration notes as historical.
+- [x] Document install, upgrade, rollback, backup/restore, stale-lock recovery, key custody, alerts and cancellation-after-backup review. Set provisional lab targets RPO 24 hours / RTO 2 hours, explicitly awaiting business approval.
+- [x] Record remaining enterprise prerequisites: server/hostname/trusted TLS, firewall, external SMTP, retention policy, operating owners and operator acceptance.
 - [ ] Run clean Compose install, browser journeys, backup/restore rehearsal, restart/persistence checks and the complete verification matrix; update operational evidence and commit.
 
 ## Interfaces and acceptance

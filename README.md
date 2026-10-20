@@ -36,7 +36,7 @@ CI ejecuta PostgreSQL/Mailpit independientes, Go con `-race`, sqlc, govulncheck,
 
 Para desarrollo de la interfaz, `pnpm --dir client dev` inicia Next.js con HTTPS local en `https://localhost:5173`. El BFF necesita la API Go accesible en `http://127.0.0.1:3000`; Compose es el entorno recomendado para el recorrido integrado. `pnpm --dir client run build` genera la salida standalone que utiliza la imagen de frontend.
 
-El workflow manual **Full laboratory load** genera 100.000 visitantes y 1.000.000 de visitas ficticios, abre 50 sesiones, calienta dos minutos y mide quince. Publica hardware, recursos, latencias y respaldo/restauración. Un objetivo incumplido hace fallar el job.
+El workflow manual **Full laboratory load** genera 100.000 visitantes y 1.000.000 de visitas ficticios, abre 50 sesiones, calienta dos minutos y mide quince. Requiere un runner propio con etiquetas `self-hosted, linux, x64, logmaster-load`, al menos 4 vCPU, 16 GiB de RAM y 512 GiB libres tanto en el workspace como en Docker. Publica hardware, recursos, latencias y respaldo/restauración. Un objetivo incumplido hace fallar el job. Los resultados completos publicados corresponden a commits anteriores; la carga extendida actual debe ejecutarse en ese runner antes de aceptar la etapa.
 
 ## Contratos y mantenimiento
 

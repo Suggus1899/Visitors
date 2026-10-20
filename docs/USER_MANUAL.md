@@ -1,6 +1,6 @@
-# Manual de Usuario — LogMaster (Sistema de Gestion de Visitantes)
+# Manual de Usuario — LogMaster (Sistema de Gestión de Visitantes)
 
-Version 1.0 — 2026
+Versión de la interfaz web Next.js/Go — 2026
 
 ---
 
@@ -47,10 +47,10 @@ Si es la primera vez que inicia sesion, el sistema solicitara cambiar la contras
 
 ### 2.3 Recuperacion de Contrasena
 
-1. En la pantalla de login, hacer clic en **Olvide mi contrasena**
+1. En la pantalla de inicio de sesión, hacer clic en **Olvidé mi contraseña**
 2. Ingresar el nombre de usuario
-3. Si el correo SMTP esta configurado: recibira un enlace en su correo electronico
-4. Si el correo NO esta configurado: contactar al usuario Root para resetear la contrasena
+3. El sistema muestra una confirmación genérica. Si la cuenta tiene un correo registrado y el servicio de correo está configurado, recibirá allí un enlace.
+4. El enlace abre `/reset-password?token=...`, vence en 15 minutos y solo puede usarse una vez. Si no llega, contacte a Root; la respuesta de la pantalla no indica si el usuario existe ni si tiene correo.
 
 ### 2.4 Cierre de Sesion
 
@@ -63,11 +63,11 @@ Si es la primera vez que inicia sesion, el sistema solicitara cambiar la contras
 
 | Rol | Descripcion | Acceso |
 |---|---|---|
-| **root** | Acceso total: operaciones, admin, auditoria, dashboard SuperAdmin (ruta `/root`) | Todo: gestion de usuarios, configuracion del sistema, todos los reportes |
-| **admin** | Gestion completa: respaldos, reportes, auditoria | Todo excepto crear/modificar/eliminar usuarios |
-| **operador** | Operacion diaria: registro de visitantes, check-in/check-out | Visitas, Visitantes, Reportes basicos |
-| **auditor** | Solo lectura: consulta de logs, reportes, solicitudes ARCO | Auditoria, Reportes, ARCO (sin modificar) |
-| **demo** | Operaciones con auto-tour guiado | Visitas, Visitantes, Reportes basicos (con tour guiado) |
+| **root** | Operación y administración completa; dashboard `/root` | Todas las funciones, incluidas cuentas, restablecimientos, auditoría y respaldos |
+| **admin** | Operación y administración, sin gestión de cuentas | Registrar y administrar visitas, editar perfiles con contraseña adicional, bloquear, gestionar privacidad y respaldos |
+| **operador** | Operación diaria | Registrar y mover visitas; consultar visitantes; editar perfiles con contraseña adicional. No puede bloquear, cancelar datos ni administrar respaldos/cuentas |
+| **auditor** | Consulta | Consultar visitas, visitantes, informes, auditoría y solicitudes ARCO; no modifica datos operativos ni estados de solicitudes |
+| **demo** | Consulta y recorrido demostrativo | Sin escrituras operativas en el servidor |
 
 ---
 
@@ -75,7 +75,7 @@ Si es la primera vez que inicia sesion, el sistema solicitara cambiar la contras
 
 ### 4.1 Registrar un Nuevo Ingreso (Check-in)
 
-**Acceso**: Operador, Admin
+**Acceso**: Operador, Admin o Root
 
 Paso a paso:
 
@@ -95,15 +95,15 @@ Paso a paso:
    - Vehiculo (opcional, solo si ingresa en auto)
    - Notas (opcional)
 5. **Aceptar consentimiento**: El visitante debe aceptar la politica de privacidad
-6. Hacer clic en **Registrar Ingreso**
+6. Elegir **Poner en espera** para que otra persona admita la visita después, o **Registrar entrada** si el acceso se autoriza de inmediato.
 
 El formulario se limpia despues de cada registro, incluso si la visita queda en espera. Ingrese la cedula de cada acompanante y complete un registro individual.
 
-La visita queda en estado **En Espera** (waiting) pendiente de admission.
+El estado inicial depende de la acción elegida: **En Espera** (waiting) queda pendiente de admisión; **Activa** (active) registra el ingreso inmediato.
 
 ### 4.2 Admitir Visita en Espera
 
-**Acceso**: Operador, Admin
+**Acceso**: Operador, Admin o Root
 
 1. En el menu lateral, hacer clic en **Visitas en Espera**
 2. Localizar la visita por nombre o cedula
@@ -112,7 +112,7 @@ La visita queda en estado **En Espera** (waiting) pendiente de admission.
 
 ### 4.3 Registrar Salida (Check-out)
 
-**Acceso**: Operador, Admin
+**Acceso**: Operador, Admin o Root
 
 1. En el menu lateral, hacer clic en **Visitas Activas**
 2. Localizar la visita
@@ -124,7 +124,7 @@ La visita pasa a estado **Completada**.
 
 ### 4.4 Salida Temporal y Reingreso (Intermittente)
 
-**Acceso**: Operador, Admin
+**Acceso**: Operador, Admin o Root
 
 Cuando un visitante sale temporalmente y regresara:
 
@@ -136,11 +136,12 @@ El sistema registra automaticamente los horarios de salida y reingreso.
 
 ### 4.5 Listado de Visitas
 
-**Acceso**: Operador, Admin
+**Acceso**: Operador, Admin o Root
 
 - **Activas**: Visitantes actualmente en las instalaciones
 - **En Espera**: Visitantes registrados esperando ser admitidos
 - **Intermittentes**: Visitantes en salida temporal
+- **Canceladas**: Solicitudes de ingreso canceladas antes de la admisión
 - **Historial**: Todas las visitas con filtros por fecha, estado, visitante
 
 ---
@@ -149,7 +150,7 @@ El sistema registra automaticamente los horarios de salida y reingreso.
 
 ### 5.1 Buscar Visitante
 
-**Acceso**: Operador, Admin, Auditor
+**Acceso**: Operador, Admin, Auditor o Root
 
 1. En el menu lateral, hacer clic en **Visitantes**
 2. Ingresar numero de cedula en el buscador
@@ -159,9 +160,11 @@ El sistema registra automaticamente los horarios de salida y reingreso.
    - Fotografia del documento
    - Historial de visitas
 
+La búsqueda por texto requiere al menos tres caracteres. Las fotografías solo se sirven dentro de una sesión autenticada; no comparta enlaces a ellas.
+
 ### 5.2 Editar Datos del Visitante
 
-**Acceso**: Admin o Root
+**Acceso**: Operador, Admin o Root. Cada guardado requiere la contraseña de edición adicional; editar un perfil existente no ocurre automáticamente al registrar otra visita.
 
 1. Buscar al visitante por cedula
 2. Hacer clic en **Editar**
@@ -170,7 +173,7 @@ El sistema registra automaticamente los horarios de salida y reingreso.
 
 ### 5.3 Bloquear Visitante
 
-**Acceso**: Admin
+**Acceso**: Admin o Root. Cada cambio requiere la contraseña de edición adicional.
 
 1. Buscar al visitante
 2. Hacer clic en **Bloquear**
@@ -182,7 +185,7 @@ El sistema registra automaticamente los horarios de salida y reingreso.
 
 ### 6.1 Estadisticas Generales
 
-**Acceso**: Operador, Admin, Auditor
+**Acceso**: Operador, Admin, Auditor o Root
 
 1. En el menu lateral, hacer clic en **Reportes**
 2. Seleccionar **Estadisticas**
@@ -205,7 +208,7 @@ El sistema registra automaticamente los horarios de salida y reingreso.
 
 ### 6.3 Alertas de Check-out Omitido
 
-**Acceso**: Admin, Auditor
+**Acceso**: Admin, Auditor o Root
 
 1. En **Reportes**, seleccionar **Alertas**
 2. El sistema muestra visitas donde no se registro la salida
@@ -224,6 +227,7 @@ Los reportes pueden exportarse a:
 - **Excel**: Ideal para analisis en hojas de calculo
 
 Hacer clic en el boton **Exportar** y seleccionar el formato deseado.
+Para exportar visitas, filtra el listado antes de descargar: PDF admite hasta 2.000 visitas y Excel hasta 20.000. Si el total excede el límite, reduce el rango o los filtros; el sistema no descarga un archivo incompleto. El PDF del calendario tiene el mismo límite de 2.000 visitas.
 
 ---
 
@@ -231,7 +235,7 @@ Hacer clic en el boton **Exportar** y seleccionar el formato deseado.
 
 ### 7.1 Consultar Logs de Actividad
 
-**Acceso**: Auditor, Admin
+**Acceso**: Auditor, Admin o Root
 
 1. En el menu lateral, hacer clic en **Auditoria**
 2. Aplicar filtros:
@@ -276,7 +280,7 @@ Hacer clic en el boton **Exportar** y seleccionar el formato deseado.
 
 ### 8.1 Crear Solicitud ARCO
 
-**Acceso**: Operador, Admin (solicitante), Auditor (gestion)
+**Acceso**: Operador, Admin o Root pueden registrar solicitudes. Admin, Root y Auditor pueden consultarlas; solo Admin o Root pueden cambiar su estado.
 
 Derechos ARCO: Acceso, Rectificacion, Cancelacion, Oposicion.
 
@@ -290,13 +294,12 @@ Derechos ARCO: Acceso, Rectificacion, Cancelacion, Oposicion.
    - Motivo de la solicitud
 4. Hacer clic en **Enviar**
 
-### 8.2 Gestionar Solicitudes (Auditor/Admin)
+### 8.2 Consultar y gestionar solicitudes
 
 1. En **Privacidad**, seleccionar **Solicitudes ARCO**
 2. Ver listado de solicitudes con filtros por estado
 3. Hacer clic en una solicitud para ver detalle
-4. Cambiar estado: **En Proceso** / **Completada** / **Rechazada**
-5. Agregar notas de resolucion
+4. Admin o Root pueden cambiar el estado y agregar notas de resolución. Auditor tiene acceso de consulta únicamente.
 
 ### 8.3 Acceso a Datos del Titular
 
@@ -314,13 +317,14 @@ Derechos ARCO: Acceso, Rectificacion, Cancelacion, Oposicion.
 
 ### 8.5 Cancelacion (Anonimizacion)
 
-**Acceso**: Admin
+**Acceso**: Admin o Root. Debe verificarse la identidad del solicitante y el perfil no puede tener visitas en espera, activas o con salida temporal.
 
 1. Buscar al titular por cedula
 2. Hacer clic en **Cancelar Datos**
-3. Confirmar la operacion
-4. El sistema anonimiza los datos personales y elimina las fotos
-5. Las visitas historicas se conservan sin datos personales
+3. Confirmar la identidad y la operación
+4. Si hay una visita abierta, cierre primero la visita: la cancelación responde con un conflicto y no borra datos.
+5. El sistema anonimiza el perfil, elimina sus fotografías y valores personales del historial de cambios; conserva eventos y visitas anonimizados.
+6. Los respaldos creados antes de la cancelación pueden seguir conteniendo esos datos. Revise cancelaciones posteriores a la fecha del respaldo antes de restaurarlo.
 
 ---
 
@@ -330,10 +334,10 @@ Derechos ARCO: Acceso, Rectificacion, Cancelacion, Oposicion.
 
 ### 9.1 Crear Respaldo
 
-1. En el menu lateral, hacer clic en **Respaldos**
-2. Hacer clic en **Crear Respaldo**
-3. El sistema genera un archivo cifrado `.dump.enc` y sus metadatos con las tablas y datos de PostgreSQL. Conservar la contraseña por separado; las claves y la configuración privada requieren custodia independiente.
-4. El respaldo aparece en el listado con fecha y hora
+1. En el menú lateral, hacer clic en **Respaldos** para consultar las copias disponibles.
+2. En el entorno de ensayo puede usarse **Crear respaldo** para generar un archivo cifrado `.dump.enc` y sus metadatos.
+3. En una instalación operativa, crear copias mediante el CLI de mantenimiento y el timer diario, no desde la interfaz.
+4. Conservar la contraseña por separado; las claves y la configuración privada requieren custodia independiente.
 
 ### 9.2 Listar Respaldos
 
@@ -358,7 +362,8 @@ Un respaldo puede contener datos personales cancelados después de su creación.
 2. Hacer clic en **Crear Usuario**
 3. Completar:
    - Nombre de usuario
-   - Contrasena (debe cumplir la politica de seguridad)
+   - Correo electrónico (obligatorio para cuentas operativas; demo puede omitirlo)
+   - Contraseña inicial (mínimo 12 caracteres, mayúscula, minúscula, número y símbolo; máximo 72 bytes UTF-8)
    - Rol (Root / Admin / Operador / Auditor / Demo)
 4. Hacer clic en **Crear**
 
@@ -377,8 +382,8 @@ Un respaldo puede contener datos personales cancelados después de su creación.
 ### 10.4 Resetear Contrasena
 
 1. Hacer clic en **Resetear Contrasena**
-2. Ingresar la nueva contrasena
-3. El usuario debera cambiarla en el proximo inicio de sesion
+2. Ingresar una contraseña que cumpla la política de seguridad
+3. El usuario deberá cambiarla en el próximo inicio de sesión; las sesiones anteriores quedan invalidadas.
 
 ---
 
@@ -392,6 +397,7 @@ El sistema actualiza automaticamente las pantallas cuando ocurren cambios:
 - Salida temporal: aparece en "intermitentes"
 
 No es necesario recargar la pagina manualmente.
+Al cerrar sesión se invalidan las sesiones de la cuenta; los demás dispositivos deberán volver a iniciar sesión.
 
 ---
 
@@ -408,9 +414,9 @@ No es necesario recargar la pagina manualmente.
 
 ### Para el Admin
 
-- **Cambiar contrasenas periodicamente**: Cada 90 dias recomendado
-- **Revisar alertas diariamente**: Especialmente check-outs omitidos
-- **Respaldos frecuentes**: Al menos 1 vez por semana
+- **Proteger las credenciales**: usar una contraseña única y pedir un restablecimiento a Root ante una posible exposición
+- **Revisar la supervisión diariamente**: especialmente salud, espacio y resultado del respaldo
+- **Verificar el ensayo semanal**: confirmar que la restauración desechable terminó correctamente
 - **Monitorear la auditoria**: Revisar actividad sospechosa
 - **Actualizar datos de visitantes**: Mantener la informacion al dia
 
@@ -436,13 +442,13 @@ No es necesario recargar la pagina manualmente.
 2. Esperar 15 minutos si la cuenta se bloqueo
 3. Contactar al usuario Root para resetear la contrasena
 
-### 13.2 "Debe cambiar su contrasena" (403)
+### 13.2 «Debe cambiar su contraseña» (403)
 
 **Que significa:** La politica de seguridad exige un cambio de contrasena.
 **Que hacer:**
-1. Ir a Configuracion > Cambiar Contrasena
+1. Ir a **Cambiar contraseña**
 2. Ingresar contrasena actual y nueva
-3. La nueva contrasena debe tener: 8+ caracteres, mayuscula, minuscula, numero, simbolo
+3. La nueva contraseña debe tener al menos 12 caracteres, mayúscula, minúscula, número y símbolo; máximo 72 bytes UTF-8.
 
 ### 13.3 "No tiene permisos" (403)
 
@@ -480,13 +486,13 @@ No es necesario recargar la pagina manualmente.
 ### 13.7 Error al subir fotos
 
 **Causas posibles:**
-- Archivo demasiado grande (max 10MB)
-- Formato no soportado (usar JPG o PNG)
+- La solicitud completa supera 5 MiB; las fotos viajan codificadas en base64 y comparten ese límite con el resto del formulario.
+- Formato o contenido no válido; se admiten imágenes decodificables con dimensiones de hasta 16 millones de píxeles y tamaño binario de hasta 5 MiB por imagen.
 - Problema de conexion
 
 **Solucion:**
-1. Reducir el tamano de la foto
-2. Usar formato JPG
+1. Reducir el tamaño de la foto para que la solicitud completa quepa en 5 MiB
+2. Usar una imagen válida y legible por el navegador
 3. Reintentar la operacion
 
 ---
@@ -518,4 +524,4 @@ Si encuentra un error o necesita ayuda:
 3. **Consultar**: `docs/` para documentacion detallada
 
 ---
-*Documento generado: 2026 — LogMaster v1.0*
+*Actualizado el 19 de octubre de 2026 — LogMaster con Next.js y backend Go.*

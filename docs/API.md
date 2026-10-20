@@ -1,6 +1,6 @@
 # API de LogMaster con Go
 
-Base en Compose `https://localhost:8443/api/v1`. Se conservan las 53 rutas anteriores y se añaden `GET /auth/session` para validar la sesión del BFF y el calendario agregado (55 rutas en total). El inventario `server-go/contracts/routes.json` se compara con el router real y comprueba solicitudes sin sesión.
+Base en Compose `https://localhost:8443/api/v1`. El inventario vigente contiene 59 rutas; `server-go/contracts/routes.json` se compara con el router real y comprueba solicitudes sin sesión.
 
 Las respuestas JSON mantienen `{ success: true, data: ... }` o `{ success: false, error: { code, message } }`, con metadatos de paginación según la ruta. Fotos, CSV y eventos son respuestas binarias/textuales. No hay publicación de fotografías en un directorio estático ni Swagger servido por el backend Go.
 
@@ -16,17 +16,17 @@ Las rutas protegidas de Go reciben `Authorization: Bearer <accessToken>`. El nav
 - Registro exige consentimiento con `accepted`, `policyVersion` y `acceptedAt`; sus columnas son independientes de `notes`. Espera → activa ↔ intermitente → completada aplica tiempos y bloqueos en el servidor.
 - `POST /visits/checkin` acepta `action` como `Carga`, `Descarga` o `Ninguna` (predeterminado). Para registrar acompañantes, crear una visita por persona con su propio consentimiento; `companionName` y `companionCedula` no aceptan valores nuevos y devuelven `400 INDIVIDUAL_REGISTRATION_REQUIRED`. Los campos históricos siguen disponibles en consultas.
 - Cancelación con visita abierta: `409 OPEN_VISIT_EXISTS`. Después del cierre elimina perfil identificativo, fotografías y valores personales relacionados dentro de una transacción. Los registros históricos devuelven cédula pública `null` y nombre «Anonimizado».
-- Usuarios: campo `email`; correo requerido en cuentas operativas nuevas. Solo root administra cuentas. Nuevas contraseñas: 12 caracteres, complejidad y máximo 72 bytes UTF-8; el restablecimiento administrativo deja cambio obligatorio y revoca sesiones.
-- Recuperación responde genéricamente, nunca devuelve el token. Mailpit recibe el enlace `APP_URL/#/reset-password?token=...`; el token se guarda como hash, vence en 15 minutos y admite un uso.
+- Usuarios: campo `email`; correo requerido en cuentas nuevas salvo demo. Solo root administra cuentas. Nuevas contraseñas: mínimo 12 caracteres, mayúscula, minúscula, número y símbolo; máximo 72 bytes UTF-8. El restablecimiento administrativo deja cambio obligatorio y revoca sesiones.
+- Recuperación responde genéricamente, nunca devuelve el token. El enlace usa `APP_URL/reset-password?token=...`; Mailpit lo captura en laboratorio. El token se guarda como hash, vence en 15 minutos y admite un uso.
 - SSE `/events/visits`: Go recibe Bearer en la cabecera y rechaza `?token=...`; comprueba restricción, versión y vencimiento durante la conexión. El navegador abre el flujo por el mismo origen y usa la cookie HttpOnly; Next.js reenvía la credencial y el cliente renueva y reconecta a través del BFF.
 - Fechas sin hora se interpretan en `America/Caracas`. El final de un rango de días incluye todo el último día. Búsqueda y filtros preceden a la paginación; CSV exporta todos los resultados filtrados y neutraliza fórmulas.
 - Respaldos: nombre contenido, contraseña y metadatos obligatorios. En producción, `POST /backups` devuelve `409 BACKUP_REQUIRES_MAINTENANCE`; la copia programada usa el rol de lectura y el CLI. Restaurar fuera de `logmaster_restore_test` devuelve `409 RESTORE_TARGET_NOT_ALLOWED` antes de preparar el archivo. Tras restaurar, las sesiones anteriores dejan de ser válidas.
 
-Códigos generales: 400 validación, 401 sesión/contraseña inválida, 403 permiso o cambio obligatorio, 404 recurso, 409 conflicto de estado, 413 cuerpo mayor de 5 MB, 429 límite, 500 operación fallida y 503 conexión de base no disponible.
+Códigos generales: 400 validación, 401 sesión/contraseña inválida, 403 permiso o cambio obligatorio, 404 recurso, 409 conflicto de estado, 413 cuerpo mayor de 5 MiB (5.242.880 bytes), 429 límite, 500 operación fallida y 503 conexión de base no disponible. El límite aplica a toda la solicitud JSON, incluidas las imágenes codificadas en base64; cada imagen también se valida por formato, decodificación, dimensiones (hasta 16 millones de píxeles) y tamaño binario (hasta 5 MiB).
 
 Los filtros generales `search` exigen al menos tres caracteres tras normalización; entradas menores devuelven `400 SEARCH_TOO_SHORT`. La consulta directa por cédula permanece. La búsqueda conserva distinción de acentos y usa candidatos del índice protegido.
 
-`GET /api/v1/visits/calendar?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&status=...` devuelve `{ success: true, data: { days: [{ date, count }] } }`, con días Caracas y rango máximo de 62 días. Usa los permisos de consulta existentes. El detalle sigue paginado por `/visits`. PDF/Excel del cliente rechazan totales mayores de 2.000/20.000, incluyendo PDF de calendario; no hay generación masiva en el servidor.
+`GET /api/v1/visits/calendar?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&status=...` devuelve `{ success: true, data: { days: [{ date, count }] } }`, con días Caracas y rango máximo de 62 días. Usa los permisos de consulta existentes. El detalle sigue paginado por `/visits`. `GET /api/v1/visits/export` devuelve una instantánea JSON filtrada y ordenada; el cliente genera los archivos y rechaza PDF por encima de 2.000 visitas o XLSX por encima de 20.000, incluido el PDF de calendario. No se truncan resultados ni se generan archivos masivos en el servidor.
 
 El CLI de mantenimiento mantiene simulación por defecto y confirmación explícita; no añade rutas públicas. Véase [OPERATIONS](OPERATIONS.md).
 
@@ -44,6 +44,7 @@ El CLI de mantenimiento mantiene simulación por defecto y confirmación explíc
 | POST | /api/v1/auth/forgot-password | Pública |
 | POST | /api/v1/auth/reset-password | Pública |
 | POST | /api/v1/auth/refresh | Pública |
+| POST | /api/v1/auth/logout | Obligatoria |
 | GET | /api/v1/auth/session | Obligatoria |
 | POST | /api/v1/auth/change-password | Obligatoria |
 | POST | /api/v1/backups | Obligatoria |
@@ -80,6 +81,9 @@ El CLI de mantenimiento mantiene simulación por defecto y confirmación explíc
 | POST | /api/v1/visits/:id/intermittent-reentry | Obligatoria |
 | GET | /api/v1/visits | Obligatoria |
 | GET | /api/v1/visits/calendar | Obligatoria |
+| GET | /api/v1/visits/export | Obligatoria |
+| GET | /api/v1/visits/cancelled | Obligatoria |
+| POST | /api/v1/visits/:id/cancel | Obligatoria |
 | GET | /api/v1/visitors/companies | Obligatoria |
 | GET | /api/v1/visitors | Obligatoria |
 | GET | /api/v1/visitors/:cedula | Obligatoria |

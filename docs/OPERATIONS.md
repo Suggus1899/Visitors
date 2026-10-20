@@ -14,7 +14,7 @@ docker compose run --rm ops seed
 docker compose --profile test up -d --wait api web
 ```
 
-Este procedimiento es un laboratorio vacío, accesible en https://localhost:8443. `configure.sh` se niega a sobrescribir `app.env`; genera credenciales independientes para mantenimiento, API y respaldo, staging y certificado de localhost de dos días. El inicio de un volumen PostgreSQL vacío crea los roles `logmaster_runtime` (lectura y escritura de datos), `logmaster_backup` (lectura) y `logmaster_pilot` (mantenimiento). La API no monta el volumen de contraseñas de respaldo; `ops` y `backup` sí. No crea Visitors-local ni instala Docker. El perfil test captura correo sin entregarlo al exterior. `deploy/compose.test.yaml` habilita diagnósticos exclusivamente en 127.0.0.1.
+Este procedimiento es un laboratorio vacío, accesible en https://localhost:8443. `configure.sh` se niega a sobrescribir `app.env`; genera credenciales independientes para mantenimiento, API y respaldo, staging y certificado temporal de dos días para `localhost`, `web` y `127.0.0.1`. El inicio de un volumen PostgreSQL vacío crea los roles `logmaster_runtime` (lectura y escritura de datos), `logmaster_backup` (lectura) y `logmaster_pilot` (mantenimiento). La API no monta el volumen de contraseñas de respaldo; `ops` y `backup` sí. No crea Visitors-local ni instala Docker. El perfil test captura correo sin entregarlo al exterior. `deploy/compose.test.yaml` habilita diagnósticos exclusivamente en 127.0.0.1.
 
 Antes de uso empresarial: sustituir `tls.pem`/`tls.key` por certificado confiable del hostname, establecer APP_URL/CORS_ORIGINS con ese origen HTTPS y NODE_ENV=production. Configurar SMTP_HOST/PORT/USER/PASSWORD/EMAIL_FROM y SMTP_TLS_MODE=starttls o implicit; local se rechaza en producción. No utilizar el perfil test ni exponer Mailpit. Ajustar LOGMASTER_BIND, puerto y firewall tras configurar red/certificado. Al modificar LOGMASTER_SUBNET o LOGMASTER_PROXY_IP, asignar esta última a la dirección fija del servicio Next.js y actualizar TRUSTED_PROXY_CIDRS con esa misma dirección; Nginx reemplaza los encabezados recibidos del navegador y Next.js reenvía solo la IP recibida como `X-Real-IP`.
 
@@ -58,6 +58,24 @@ No ejecutar seed en bases operativas. Root debe cambiar la contraseña al entrar
 5. Ejecutar check, contrastar conteos y probar roles, fotos, consentimiento, transiciones, búsquedas, informes y recuperación. Respaldar/restaurar la copia y ensayar reversión antes de autorizar un cambio operativo.
 
 `backup/main-before-go-2026-10-09` conserva el estado previo a Go. El registro histórico documenta compatibilidad y lectura cruzada Node/Go. Revertir mediante un respaldo previo sobre una copia validada, con sus claves y versión correspondiente; no utilizar migraciones descendentes que borren consentimiento/historial.
+
+## Actualización y reversión de la aplicación
+
+1. Programar mantenimiento, avisar a los usuarios y crear un respaldo completo que aparezca como exitoso en `backup-status`. Conservar también la versión de imagen y la configuración privada actuales.
+2. Descargar o construir la versión aprobada. Detener `web`, `frontend` y `api`, dejando PostgreSQL activo. Ejecutar primero la simulación de migración y confirmar que el destino corresponde al host/base esperados:
+
+   ```sh
+   docker compose stop web frontend api
+   docker compose -f compose.yaml -f deploy/compose.admin.yaml run --rm ops ops migrate
+   docker compose -f compose.yaml -f deploy/compose.admin.yaml run --rm ops ops migrate --apply --confirm-target postgres:5432/logmaster_pilot
+   docker compose run --rm ops check
+   docker compose up -d --wait api frontend web
+   ```
+
+3. Comprobar salud, acceso, consulta, registro de prueba acordado, auditoría y logs antes de reabrir el sistema. No usar datos reales en un ensayo.
+4. Si la nueva imagen falla sin cambios incompatibles de esquema, detener los servicios y volver a la imagen anterior solo si esa versión admite el esquema ya migrado. Si el esquema o los datos deben revertirse, no ejecutes migraciones descendentes: restaura el respaldo en staging, valida cuentas/conteos y claves, y luego usa el procedimiento **Restauración operativa** de esta guía con confirmación explícita. Mantén el sistema detenido hasta verificar el resultado.
+
+La aplicación no incluye rollback automático de esquema. Si falla una migración, `psql` la revierte dentro de su transacción; conserva la base detenida, revisa `journalctl` y no reinicies con una versión no compatible.
 
 ## Restauración operativa
 
@@ -119,5 +137,9 @@ El ensayo semanal usa otro PostgreSQL, rol y volumen. CI adelanta timers y compr
 ## Evidencia y aceptación institucional
 
 CI comprueba lock congelado, tipos/lint/build, Go con carreras, SQL generado, vulnerabilidades alcanzables, PostgreSQL, permisos/revocación, cifrado/cancelación, rollback, navegador HTTPS, Mailpit/SSE, persistencia y timers. El workflow manual genera 100.000 perfiles/1.000.000 visitas/50 sesiones, calienta dos minutos y mide quince. Publica recursos/hardware; objetivos p95 habitual/operación ≤1 s, búsqueda ≤2 s y errores inesperados <1 %.
+
+La carga completa vigente requiere un runner Linux propio con las etiquetas `self-hosted, linux, x64, logmaster-load`, al menos 4 vCPU, 16 GiB de RAM y 512 GiB disponibles tanto en el workspace como en Docker. El workflow manual comprueba la capacidad antes de crear datos y usa volúmenes con nombre de proyecto único. Hasta que ese runner complete la ejecución, los objetivos y el escenario actualizado de 5.000 visitas abiertas son criterios pendientes, no resultados aceptados.
+
+Los objetivos provisionales de recuperación para el laboratorio son RPO de 24 horas y RTO de 2 horas. No están aprobados por la empresa; los responsables institucionales deben definirlos antes de uso operativo. Actualmente el seguimiento se realiza revisando timers, `backup-status`, healthchecks, espacio y journal de systemd; no hay notificación externa de alertas configurada.
 
 Quedan condiciones institucionales independientes: servidor/capacidad, hostname/certificado, puestos/cámaras, SMTP real, responsables de claves/copias, política de conservación y aceptación de operadores. Las pruebas ficticias no constituyen aceptación empresarial.

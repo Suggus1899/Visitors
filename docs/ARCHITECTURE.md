@@ -26,7 +26,7 @@ Los rangos se calculan en America/Caracas, con TIMESTAMPTZ. Las listas se pagina
 
 Administración carga gráficos, estadísticas, calendario y respaldos al abrir sus pestañas; ExcelJS/jsPDF se importan al exportar. Se comprueba el total antes de recopilar páginas: PDF 2.000, Excel 20.000. La recopilación admite cancelación y detecta cambios en los datos.
 
-Compose utiliza imágenes con versiones/digests, usuarios dedicados, secretos de archivo y volúmenes separados. Solo publica HTTPS; el override de ensayo liga diagnósticos a loopback. Nginx limita solicitudes a 5 MB y desactiva buffering SSE. Systemd programa respaldo diario y restauración semanal desechable. Véase [OPERATIONS](OPERATIONS.md).
+Compose utiliza imágenes con versiones/digests, usuarios dedicados, secretos de archivo y volúmenes separados. Solo publica HTTPS; el override de ensayo liga diagnósticos a loopback. La API limita el cuerpo JSON total a 5 MiB; Nginx aplica el límite correspondiente y desactiva buffering SSE. Systemd programa respaldo diario y restauración semanal desechable. Véase [OPERATIONS](OPERATIONS.md).
 
 El cliente usa HeroUI 3 con Tailwind CSS 4; la estructura, las rutas y la protección de sesión se resuelven mediante App Router. El navegador nunca recibe access ni refresh tokens: las rutas BFF convierten cookies seguras en credenciales para Go y entregan JSON, fotografías y eventos SSE bajo el mismo origen.
 
