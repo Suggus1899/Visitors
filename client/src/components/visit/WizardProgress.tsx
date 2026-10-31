@@ -16,7 +16,7 @@ interface WizardProgressProps {
 }
 
 const WizardProgress: React.FC<WizardProgressProps> = ({ currentStep }) => {
-    const progressPercent = ((currentStep - 1) / 2) * 100;
+    const progressPercent = Math.max(0, Math.min(100, ((currentStep - 1) / (STEPS.length - 1)) * 100));
 
     return (
         <div className="mb-6">

@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Suggus1899/Visitors/server-go/internal/security"
+	"github.com/Suggus1899/Visitors/server-go/internal/store"
+	"github.com/jackc/pgx/v5/pgtype"
 	"testing"
+	"time"
 )
 
 func TestUserAdministrationIntegration(t *testing.T) {
@@ -64,12 +67,27 @@ func TestUserAdministrationIntegration(t *testing.T) {
 	t.Run("root contact update does not require changing its protected role", func(t *testing.T) {
 		id, _, _ := fixtureUser(t, a, "root", false)
 		path := fmt.Sprintf("/api/v1/superadmin/users/%d", id)
+		user, err := a.Queries.FindUserByID(context.Background(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = a.Pool.Exec(context.Background(), `UPDATE "Users" SET "resetToken"='old-reset-hash',"resetTokenExpiry"=now()+interval '15 minutes' WHERE id=$1`, id); err != nil {
+			t.Fatal(err)
+		}
 		if status, response := request(t, h, "PUT", path, `{"email":"root-contact@example.test"}`, rootToken); status != 200 {
 			t.Fatal(status, response)
 		}
 		var role, email string
-		if e := a.Pool.QueryRow(context.Background(), `SELECT role::text,email FROM "Users" WHERE id=$1`, id).Scan(&role, &email); e != nil || role != "root" || email != "root-contact@example.test" {
-			t.Fatal("root contact or role changed incorrectly", role, email, e)
+		var resetToken *string
+		var version int32
+		if err := a.Pool.QueryRow(context.Background(), `SELECT role::text,email,"resetToken","tokenVersion" FROM "Users" WHERE id=$1`, id).Scan(&role, &email, &resetToken, &version); err != nil || role != "root" || email != "root-contact@example.test" || resetToken != nil {
+			t.Fatal("contact update did not invalidate old recovery links", role, email, resetToken, err)
+		}
+		if _, err := a.Queries.SaveResetToken(context.Background(), store.SaveResetTokenParams{ID: id, Email: user.Email, TokenVersion: user.TokenVersion, ResetToken: text("late-old-token"), ResetTokenExpiry: pgtype.Timestamptz{Time: time.Now().Add(15 * time.Minute), Valid: true}}); err != nil {
+			t.Fatal(err)
+		}
+		if err := a.Pool.QueryRow(context.Background(), `SELECT "resetToken" FROM "Users" WHERE id=$1`, id).Scan(&resetToken); err != nil || resetToken != nil {
+			t.Fatal("stale recovery request reinstated a token after the email change", resetToken, err)
 		}
 		if status, _ := request(t, h, "PUT", path, `{"role":"operador"}`, rootToken); status != 403 {
 			t.Fatal("root role is not protected", status)

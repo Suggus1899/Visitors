@@ -430,9 +430,14 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		hash := security.Hash(token)
-		e = a.Queries.SaveResetToken(r.Context(), store.SaveResetTokenParams{ID: u.ID, ResetToken: text(hash), ResetTokenExpiry: pgtype.Timestamptz{Time: time.Now().Add(15 * time.Minute), Valid: true}})
+		saved, saveErr := a.Queries.SaveResetToken(r.Context(), store.SaveResetTokenParams{ID: u.ID, ResetToken: text(hash), ResetTokenExpiry: pgtype.Timestamptz{Time: time.Now().Add(15 * time.Minute), Valid: true}, Email: u.Email, TokenVersion: u.TokenVersion})
+		e = saveErr
 		if e != nil {
 			a.serverError(w, e)
+			return
+		}
+		if saved == 0 {
+			success(w, map[string]string{"message": "Si la cuenta existe y tiene correo, recibirás instrucciones de recuperación."})
 			return
 		}
 		if e = sendResetEmail(r.Context(), u.Email.String, token); e != nil {

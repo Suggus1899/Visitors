@@ -1,4 +1,4 @@
-import { AuthenticatedImage } from './AuthenticatedImage';
+import { VisitorPhoto } from './VisitorPhoto';
 import { Button } from './ui/button';
 import { useAuth } from '../hooks/useAuth';
 import React, { useState, useEffect } from 'react';
@@ -124,14 +124,11 @@ const IntermittentVisits: React.FC<IntermittentVisitsProps> = ({ visits, onReact
                                 {/* Photo */}
                                 <div className="relative flex-shrink-0">
                                     {photoUrl ? (
-                                        <AuthenticatedImage
+                                        <VisitorPhoto
                                             src={photoUrl}
                                             alt={visitorName}
+                                            name={visitorName}
                                             className="w-14 h-14 rounded-2xl object-cover shadow-sm bg-[color:var(--surface-0)] border border-blue-500/30 group-hover:scale-105 transition-transform duration-500"
-                                            onError={(e) => {
-                                                (e.target as HTMLImageElement).src =
-                                                    'https://ui-avatars.com/api/?background=1b232a&color=e5edf5&name=' + encodeURIComponent(visitorName);
-                                            }}
                                         />
                                     ) : (
                                         <div className="w-14 h-14 rounded-2xl bg-[color:var(--surface-2)] flex items-center justify-center text-[color:var(--text-2)] font-bold text-xl shadow-inner border border-blue-500/30">

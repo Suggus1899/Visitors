@@ -6,7 +6,7 @@
 
 **Architecture:** Keep Next.js App Router, React, HeroUI, Go/Chi, sqlc, PostgreSQL 16, and the existing Compose/Nginx deployment. Fix shared security boundaries first, then schema and workflows, followed by backup capacity, load validation, and operating documentation.
 
-**Tech Stack:** Next.js 16.4.1 minimum patch floor (recheck same-line security patches), React 19, Go 1.27.2, PostgreSQL 16, age v1.3.2, Vitest, Go tests, PostgreSQL integration tests, and Playwright.
+**Tech Stack:** Next.js 16.4.3, React 19.3.1, HeroUI 3.2.7, Go 1.27.3, PostgreSQL 16, age v1.3.2, Vitest 4.1.12, Go tests, PostgreSQL integration tests, and Playwright.
 
 **Spec:** Security scan `fc0636c5-db4d-4876-a934-391d1a6c1a33` and `auditoria-integral-2026-10-18.md` generated from commit `5ea6877`.
 
@@ -33,8 +33,8 @@
 
 ## Task 1: Patch and pin the validated toolchain
 
-- [x] Update `client/package.json` and lockfile to the patched Next.js and matching ESLint config; recheck advisories before install.
-- [x] Align repository runtime pins and CI with Node 22, pnpm 12.4.2, Go 1.27.2; retain existing project-specific tool setup.
+- [x] Update `client/package.json` and lockfile to Next.js 16.4.3 and its matching ESLint config; recheck advisories before install.
+- [x] Align repository runtime pins and CI with Node 22, pnpm 12.4.2, Go 1.27.3; retain existing project-specific tool setup.
 - [x] Run frozen install, client types/lint/build/tests, Go `-race` suite and vet; record the clean-install result.
 - [x] Commit the toolchain patch independently.
 
@@ -100,6 +100,16 @@
 - [x] Prepare the Linux validation runbook, dedicated backup command, separate load runtime credentials, prepare-before-start ordering, HMAC adoption assertion and explicit manual 2-GiB test gate. Acceptance still requires their Linux/Compose execution.
 - [x] Run clean Compose install, four browser journeys, backup/restore rehearsal, restart/persistence checks and regular CI; record Linux evidence and publish on main.
 - [ ] Complete the large-capacity verification matrix, including full-stack load and the 2-GiB stream, before accepting all stages.
+
+## Task 9: Security and consistency follow-up — 2026-10-31
+
+- [x] Guard reset-token writes with the email and account-version snapshot; clear pending reset tokens when root updates an account; add a stale-write regression test.
+- [x] Replace the external avatar service with a local initial so visitor names are not sent to a third party; keep the fallback responsive to a changed photo source.
+- [x] Restore auditor lookup by cédula and paginate privacy requests; reject oversized photo files before reading them; correct four-step progress; ignore stale edit-history responses; report database-test cleanup failures; stop the frontend service in systemd.
+- [x] Upgrade Go and the compatible Go modules, Next.js, React, HeroUI and compatible frontend packages. Pin patched DOMPurify, follow-redirects, minimatch and Vitest; retain Vite 7/Vitest 4 compatibility.
+- [x] Run frozen pnpm installation, full pnpm audit, frontend typecheck/lint/tests, Go tests, vet, builds and vulnerability checks locally where the Windows environment supports them.
+- [ ] Push the reviewed change on `main` and verify GitHub Actions CI and Containers.
+- [ ] Leave database integration, race detector, Compose/browser acceptance, 2-GiB backup and full Linux load for the Linux workflow.
 
 ## Interfaces and acceptance
 

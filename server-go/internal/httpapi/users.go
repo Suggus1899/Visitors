@@ -167,7 +167,7 @@ func (a *App) updateUser(w http.ResponseWriter, r *http.Request) {
 			email = text(*value)
 		}
 	}
-	_, e = tx.Exec(r.Context(), `UPDATE "Users" SET username=$2,email=$3,role=$4,"tokenVersion"="tokenVersion"+1,"updatedAt"=now() WHERE id=$1`, id, username, email, role)
+	_, e = tx.Exec(r.Context(), `UPDATE "Users" SET username=$2,email=$3,role=$4,"tokenVersion"="tokenVersion"+1,"resetToken"=null,"resetTokenExpiry"=null,"updatedAt"=now() WHERE id=$1`, id, username, email, role)
 	if e == nil {
 		e = a.audit(r.Context(), a.Queries.WithTx(tx), r, actor(r), "SUPERADMIN_UPDATE_USER", "User", strconv.Itoa(int(id)))
 	}

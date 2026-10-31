@@ -23,12 +23,22 @@ describe('privacy role matrix', () => {
         render(<PrivacyDashboard />);
         expect(await screen.findByText('Persona ficticia')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Consultar información e historial' })).toBeInTheDocument();
+        expect(screen.getByLabelText('Cédula de la persona')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Registrar solicitud' })).not.toBeInTheDocument();
         expect(screen.queryByText('Rectificar datos del visitante')).not.toBeInTheDocument();
         expect(screen.queryByText('Cancelar datos personales')).not.toBeInTheDocument();
         expect(screen.queryByRole('combobox', { name: /Estado de solicitud/ })).not.toBeInTheDocument();
         expect(fixture.patch).not.toHaveBeenCalled();
         expect(fixture.delete).not.toHaveBeenCalled();
+    });
+
+    it('paginates privacy requests using the server total', async () => {
+        fixture.get.mockResolvedValue({ data: { data: { requests: [{ id: 8, requestType: 'access', subjectCedula: 'V-00000001', requestedByName: 'Persona ficticia', status: 'pending', createdAt: '2026-10-01T12:00:00Z' }], pagination: { page: 1, pages: 2 } } } });
+        render(<PrivacyDashboard />);
+        await screen.findByText('Persona ficticia');
+        await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+        await waitFor(() => expect(fixture.get).toHaveBeenLastCalledWith('/privacy/arco-requests?page=2&limit=20'));
+        expect(await screen.findByText('Página 2 de 2')).toBeInTheDocument();
     });
 
     it('does not load or expose privacy writes for demo sessions', () => {

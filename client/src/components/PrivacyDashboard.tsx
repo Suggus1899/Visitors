@@ -36,6 +36,8 @@ export default function PrivacyDashboard() {
     const canRectify = role === 'operador' || role === 'admin' || role === 'root';
     const canManage = role === 'admin' || role === 'root';
     const [requests, setRequests] = useState<ArcoRequest[]>([]);
+    const [requestPage, setRequestPage] = useState(1);
+    const [requestPages, setRequestPages] = useState(1);
     const [cedula, setCedula] = useState('');
     const [requestedByName, setRequestedByName] = useState('');
     const [contactEmail, setContactEmail] = useState('');
@@ -53,13 +55,14 @@ export default function PrivacyDashboard() {
     const loadRequests = useCallback(async () => {
         if (!canRead) return;
         try {
-            const response = await api.get('/privacy/arco-requests?page=1&limit=100');
+            const response = await api.get(`/privacy/arco-requests?page=${requestPage}&limit=20`);
             setRequests(response.data.data.requests || []);
+            setRequestPages(Math.max(1, response.data.data.pagination?.pages || 1));
             setError('');
         } catch {
             setError('No se pudieron cargar las solicitudes de privacidad.');
         }
-    }, [canRead]);
+    }, [canRead, requestPage]);
 
     useEffect(() => { void loadRequests(); }, [loadRequests]);
 
@@ -151,6 +154,7 @@ export default function PrivacyDashboard() {
 
                 {(canRead || canRectify || canManage) && <section className="panel-tech space-y-4 rounded-xl p-5" aria-labelledby="subject-actions-title">
                     <div><h2 id="subject-actions-title" className="text-lg font-semibold">Gestión de información personal</h2><p className="text-sm text-[color:var(--text-3)]">Las acciones dependen del rol y se validan también en el servidor.</p></div>
+                    {!canCreate && <label className="block max-w-sm space-y-1 text-sm">Cédula de la persona<input className="input-tech w-full" value={cedula} onChange={event => { setCedula(event.target.value); setProfile(null); setVerificationConfirmed(false); }} required /></label>}
                     {(canRead || canManage) && <div className="flex flex-wrap gap-3"><Button onClick={() => void lookupSubject()} disabled={busy || !cedula.trim()} className="btn-ghost border border-[color:var(--border-1)] px-4 py-2">Consultar información e historial</Button></div>}
                     {profile && <div className="space-y-3 rounded-lg border border-[color:var(--border-1)] bg-[color:var(--surface-1)] p-4">
                         <h3 className="font-semibold">{profile.visitor.firstName} {profile.visitor.lastName} · {profile.visitor.company}</h3>
@@ -181,6 +185,11 @@ export default function PrivacyDashboard() {
                 {canRead && <section className="panel-tech rounded-xl p-5" aria-labelledby="arco-list-title">
                     <div className="mb-4 flex items-center justify-between gap-3"><h2 id="arco-list-title" className="text-lg font-semibold">Solicitudes recibidas</h2><Button onClick={() => void loadRequests()} disabled={busy} className="btn-ghost border border-[color:var(--border-1)] px-3 py-1.5">Actualizar</Button></div>
                     {requests.length === 0 ? <p className="text-sm text-[color:var(--text-3)]">No hay solicitudes para mostrar.</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr><th className="p-2">Tipo</th><th className="p-2">Persona</th><th className="p-2">Solicitante</th><th className="p-2">Fecha</th><th className="p-2">Estado</th></tr></thead><tbody>{requests.map(item => <tr key={item.id} className="border-t border-[color:var(--border-1)]"><td className="p-2">{item.requestType}</td><td className="p-2">{item.subjectCedula || 'Anonimizado'}</td><td className="p-2">{item.requestedByName}</td><td className="p-2">{new Date(item.createdAt).toLocaleDateString('es-VE')}</td><td className="p-2">{canManage ? <select aria-label={`Estado de solicitud ${item.id}`} className="input-tech" value={item.status} disabled={busy} onChange={event => void updateStatus(item, event.target.value as ArcoRequest['status'])}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select> : statusLabels[item.status]}</td></tr>)}</tbody></table></div>}
+                    {requestPages > 1 && <nav aria-label="Páginas de solicitudes ARCO" className="flex items-center justify-center gap-4 pt-3">
+                        <Button onClick={() => setRequestPage(page => Math.max(1, page - 1))} disabled={requestPage === 1 || busy} className="btn-ghost border border-[color:var(--border-1)] px-3 py-1.5">Anterior</Button>
+                        <span aria-live="polite" className="text-sm text-[color:var(--text-3)]">Página {requestPage} de {requestPages}</span>
+                        <Button onClick={() => setRequestPage(page => Math.min(requestPages, page + 1))} disabled={requestPage === requestPages || busy} className="btn-ghost border border-[color:var(--border-1)] px-3 py-1.5">Siguiente</Button>
+                    </nav>}
                 </section>}
             </div>
         </main>

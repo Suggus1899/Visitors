@@ -13,8 +13,8 @@ UPDATE "Users" SET "loginAttempts"=0,"lockedUntil"=null,"updatedAt"=now() WHERE 
 -- name: LoginFailed :exec
 UPDATE "Users" SET "loginAttempts"=$2,"lockedUntil"=$3,"updatedAt"=now() WHERE id=$1;
 
--- name: SaveResetToken :exec
-UPDATE "Users" SET "resetToken"=$2,"resetTokenExpiry"=$3,"updatedAt"=now() WHERE id=$1;
+-- name: SaveResetToken :execrows
+UPDATE "Users" SET "resetToken"=$2,"resetTokenExpiry"=$3,"updatedAt"=now() WHERE id=$1 AND email=$4 AND "tokenVersion"=$5;
 
 -- name: ConsumeResetToken :one
 UPDATE "Users" SET password=$2,"resetToken"=null,"resetTokenExpiry"=null,"mustChangePassword"=false,"passwordChangedAt"=now(),"tokenVersion"="tokenVersion"+1,"loginAttempts"=0,"lockedUntil"=null,"updatedAt"=now() WHERE "resetToken"=$1 AND "resetTokenExpiry">now() RETURNING id,username,role::text AS role;

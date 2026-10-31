@@ -26,7 +26,11 @@ func TestProtectedIdentityMigrationIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	t.Cleanup(func() {
+		if err := database.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	if err = Migrate(ctx, database); err != nil {
@@ -54,9 +58,15 @@ func TestProtectedIdentityMigrationIntegration(t *testing.T) {
 		}
 	}
 	t.Cleanup(func() {
-		_, _ = database.ExecContext(context.Background(), `DELETE FROM "ArcoRequests" WHERE id=ANY($1)`, []int64{arcoID, anonymousArcoID, rollbackArcoID})
-		_, _ = database.ExecContext(context.Background(), `DELETE FROM "Visits" WHERE visitor_id=$1 OR visitor_id=$2 OR visitor_id=$3`, visitorID, anonymousID, rollbackVisitorID)
-		_, _ = database.ExecContext(context.Background(), `DELETE FROM "Visitors" WHERE id=$1 OR id=$2 OR id=$3`, visitorID, anonymousID, rollbackVisitorID)
+		if _, err := database.ExecContext(context.Background(), `DELETE FROM "ArcoRequests" WHERE id=ANY($1)`, []int64{arcoID, anonymousArcoID, rollbackArcoID}); err != nil {
+			t.Error(err)
+		}
+		if _, err := database.ExecContext(context.Background(), `DELETE FROM "Visits" WHERE visitor_id=$1 OR visitor_id=$2 OR visitor_id=$3`, visitorID, anonymousID, rollbackVisitorID); err != nil {
+			t.Error(err)
+		}
+		if _, err := database.ExecContext(context.Background(), `DELETE FROM "Visitors" WHERE id=$1 OR id=$2 OR id=$3`, visitorID, anonymousID, rollbackVisitorID); err != nil {
+			t.Error(err)
+		}
 	})
 	for _, item := range []struct {
 		visitorID int64

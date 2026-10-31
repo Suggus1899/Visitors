@@ -117,6 +117,11 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ onCapture, onRetake, initia
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('La imagen excede el límite máximo de 5MB.');
+                e.currentTarget.value = '';
+                return;
+            }
             const reader = new FileReader();
             reader.onloadend = () => {
                 const result = reader.result as string;

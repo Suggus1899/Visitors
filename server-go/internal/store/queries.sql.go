@@ -392,19 +392,30 @@ func (q *Queries) LoginSucceeded(ctx context.Context, id int32) error {
 	return err
 }
 
-const saveResetToken = `-- name: SaveResetToken :exec
-UPDATE "Users" SET "resetToken"=$2,"resetTokenExpiry"=$3,"updatedAt"=now() WHERE id=$1
+const saveResetToken = `-- name: SaveResetToken :execrows
+UPDATE "Users" SET "resetToken"=$2,"resetTokenExpiry"=$3,"updatedAt"=now() WHERE id=$1 AND email=$4 AND "tokenVersion"=$5
 `
 
 type SaveResetTokenParams struct {
 	ID               int32              `json:"id"`
 	ResetToken       pgtype.Text        `json:"resetToken"`
 	ResetTokenExpiry pgtype.Timestamptz `json:"resetTokenExpiry"`
+	Email            pgtype.Text        `json:"email"`
+	TokenVersion     int32              `json:"tokenVersion"`
 }
 
-func (q *Queries) SaveResetToken(ctx context.Context, arg SaveResetTokenParams) error {
-	_, err := q.db.Exec(ctx, saveResetToken, arg.ID, arg.ResetToken, arg.ResetTokenExpiry)
-	return err
+func (q *Queries) SaveResetToken(ctx context.Context, arg SaveResetTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, saveResetToken,
+		arg.ID,
+		arg.ResetToken,
+		arg.ResetTokenExpiry,
+		arg.Email,
+		arg.TokenVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const visitLogs = `-- name: VisitLogs :many

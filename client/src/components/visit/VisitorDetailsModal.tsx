@@ -112,18 +112,17 @@ export function VisitorDetailsModal({ visit, isOpen, onClose, onVisitorUpdated }
 
   // Load edit history when modal opens
   useEffect(() => {
-    if (isOpen && visit) {
-      // If we have a real visitId, use it; otherwise fetch by cedula (visitor profile view)
-      if (visit.id && visit.id > 0) {
-        VisitService.getEditHistory(visit.id)
-          .then(setEditHistory)
-          .catch(() => setEditHistory([]));
-      } else if (visit.visitor_cedula) {
-        VisitService.getEditHistoryByCedula(visit.visitor_cedula)
-          .then(setEditHistory)
-          .catch(() => setEditHistory([]));
-      }
-    }
+    setEditHistory([]);
+    if (!isOpen || !visit) return;
+    let current = true;
+    const load = visit.id && visit.id > 0
+      ? VisitService.getEditHistory(visit.id)
+      : visit.visitor_cedula
+        ? VisitService.getEditHistoryByCedula(visit.visitor_cedula)
+        : Promise.resolve([]);
+    load.then(history => { if (current) setEditHistory(history); })
+      .catch(() => { if (current) setEditHistory([]); });
+    return () => { current = false; };
   }, [isOpen, visit]);
 
   // Hooks must be called unconditionally before any early return

@@ -4,6 +4,24 @@ LogMaster se prepara en `main` para Linux con contenedores. Los ensayos utilizan
 
 **Alcance de la evidencia:** la integración de la remediación se verificó en Linux sobre `94107f2` el 20 de octubre de 2026. La carga completa del arnés actualizado y la prueba de flujo de 2 GiB siguen pendientes del runner dedicado. Las métricas de rendimiento del 12 de octubre y anteriores se conservan como evidencia histórica y no aceptan el rendimiento del estado actual.
 
+## Verificación local de correcciones y dependencias — 31 de octubre de 2026
+
+La revisión se hizo sobre `main` partiendo de `17b90fa`; los cambios están preparados para el commit posterior de esta misma rama. El lockfile se instaló con `pnpm install --frozen-lockfile`. Se actualizaron las dependencias compatibles sin mover Vite 7 ni Vitest 4 fuera de sus versiones fijadas por el proyecto.
+
+| Comprobación | Resultado y límites |
+|---|---|
+| Cliente: tipos, lint y build de Next.js 16.4.3 | Aprobados |
+| Cliente: Vitest 4.1.12 | 30 archivos, 171 pruebas aprobadas |
+| `pnpm audit --audit-level moderate` | No encontró vulnerabilidades conocidas en el árbol auditado |
+| Go 1.27.3: pruebas con `LOGMASTER_DB_TEST=false`, `go vet ./...`, build de `logmaster`/`lab`, `go mod verify` | Aprobados; las pruebas locales no conectaron a PostgreSQL |
+| `sqlc generate` | Reproducible; no cambió el diff de bindings revisados |
+| `govulncheck ./...` | 0 vulnerabilidades alcanzables; el módulo `golang.org/x/crypto` contiene un aviso no alcanzado para `openpgp`, que LogMaster no importa |
+| PostgreSQL, `-race`, Compose/Containers y Playwright | No ejecutados localmente: CGO está desactivado y este equipo no tiene Docker. Se verificarán en GitHub Actions tras publicar el commit |
+
+Se corrigió la carrera del guardado de tokens de recuperación después de una edición de cuenta, se retiró el envío externo del nombre como avatar de respaldo, se completó la búsqueda/paginación de privacidad y se atendieron fallos del formulario, progreso, historial, limpieza de pruebas y parada systemd. La aceptación de carga completa y el flujo de respaldo de 2 GiB siguen sujetos al runner Linux `logmaster-load`.
+
+Las versiones mayores que aparecen como disponibles en `pnpm outdated` quedan para una actualización coordinada: Vite 8/Vitest 5, TypeScript 7, jsdom 30 y `@vitejs/plugin-react` 6 cambian la línea de herramientas fijada. ESLint 9.39.5 está marcado como no soportado por npm y la versión usada de `eslint-plugin-react` solo declara compatibilidad hasta ESLint 9; su migración debe actualizar el plugin compatible en conjunto.
+
 ## Integración de la remediación — 20 de octubre de 2026
 
 Referencia evaluada: [94107f2](https://github.com/Suggus1899/Visitors/commit/94107f244fb50b8a99d13756ef5288aed8b450ab).
