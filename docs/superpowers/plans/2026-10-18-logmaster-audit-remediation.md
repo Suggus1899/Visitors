@@ -108,8 +108,8 @@
 - [x] Restore auditor lookup by cédula and paginate privacy requests; reject oversized photo files before reading them; correct four-step progress; ignore stale edit-history responses; report database-test cleanup failures; stop the frontend service in systemd.
 - [x] Upgrade Go and the compatible Go modules, Next.js, React, HeroUI and compatible frontend packages. Pin patched DOMPurify, follow-redirects, minimatch and Vitest; retain Vite 7/Vitest 4 compatibility.
 - [x] Run frozen pnpm installation, full pnpm audit, frontend typecheck/lint/tests, Go tests, vet, builds and vulnerability checks locally where the Windows environment supports them.
-- [ ] Push the reviewed change on `main` and verify GitHub Actions CI and Containers.
-- [ ] Leave database integration, race detector, Compose/browser acceptance, 2-GiB backup and full Linux load for the Linux workflow.
+- [x] Push the reviewed change on `main`; CI (run `41172665445`) and Containers (run `41172665444`) passed, including PostgreSQL integration, the race detector, Compose/browser acceptance, and the small API load regression.
+- [ ] Run the dedicated full Linux load and 2-GiB backup verification before accepting the large-capacity stage.
 
 ## Interfaces and acceptance
 

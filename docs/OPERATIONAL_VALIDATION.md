@@ -2,11 +2,11 @@
 
 LogMaster se prepara en `main` para Linux con contenedores. Los ensayos utilizan bases, credenciales, correo y visitantes ficticios; no se instaló Docker en el equipo Windows ni se modificaron sus bases o respaldos anteriores. La retención de información personal permanece desactivada.
 
-**Alcance de la evidencia:** la integración de la remediación se verificó en Linux sobre `94107f2` el 20 de octubre de 2026. La carga completa del arnés actualizado y la prueba de flujo de 2 GiB siguen pendientes del runner dedicado. Las métricas de rendimiento del 12 de octubre y anteriores se conservan como evidencia histórica y no aceptan el rendimiento del estado actual.
+**Alcance de la evidencia:** la integración de la remediación se verificó en Linux sobre `94107f2` el 20 de octubre de 2026. El commit `79952e4` también pasó CI y Containers el 31 de octubre de 2026. La carga completa del arnés actualizado y la prueba de flujo de 2 GiB siguen pendientes del runner dedicado. Las métricas de rendimiento del 12 de octubre y anteriores se conservan como evidencia histórica y no aceptan el rendimiento del estado actual.
 
 ## Verificación local de correcciones y dependencias — 31 de octubre de 2026
 
-La revisión se hizo sobre `main` partiendo de `17b90fa`; los cambios están preparados para el commit posterior de esta misma rama. El lockfile se instaló con `pnpm install --frozen-lockfile`. Se actualizaron las dependencias compatibles sin mover Vite 7 ni Vitest 4 fuera de sus versiones fijadas por el proyecto.
+La revisión se hizo sobre `main` partiendo de `17b90fa`; los cambios se publicaron en `79952e4`. El lockfile se instaló con `pnpm install --frozen-lockfile`. Se actualizaron las dependencias compatibles sin mover Vite 7 ni Vitest 4 fuera de sus versiones fijadas por el proyecto.
 
 | Comprobación | Resultado y límites |
 |---|---|
@@ -16,7 +16,9 @@ La revisión se hizo sobre `main` partiendo de `17b90fa`; los cambios están pre
 | Go 1.27.3: pruebas con `LOGMASTER_DB_TEST=false`, `go vet ./...`, build de `logmaster`/`lab`, `go mod verify` | Aprobados; las pruebas locales no conectaron a PostgreSQL |
 | `sqlc generate` | Reproducible; no cambió el diff de bindings revisados |
 | `govulncheck ./...` | 0 vulnerabilidades alcanzables; el módulo `golang.org/x/crypto` contiene un aviso no alcanzado para `openpgp`, que LogMaster no importa |
-| PostgreSQL, `-race`, Compose/Containers y Playwright | No ejecutados localmente: CGO está desactivado y este equipo no tiene Docker. Se verificarán en GitHub Actions tras publicar el commit |
+| [CI de GitHub Actions](https://github.com/Suggus1899/Visitors/actions/runs/41172665445) | Aprobado: cliente, PostgreSQL ficticio, migraciones, pruebas Go con `-race`, vet, compilación, sqlc y revisión de vulnerabilidades alcanzables |
+| [Containers de GitHub Actions](https://github.com/Suggus1899/Visitors/actions/runs/41172665444) | Aprobado: instalación, HTTPS, persistencia, timers, adopción de esquema anterior, recorrido Playwright, generación de imágenes y regresión pequeña de carga API |
+| Ejecución local de PostgreSQL, `-race`, Compose/Containers y Playwright | No realizada en Windows: CGO está desactivado y este equipo no tiene Docker. Las ejecuciones de CI/Containers anteriores cubren esas comprobaciones en Linux |
 
 Se corrigió la carrera del guardado de tokens de recuperación después de una edición de cuenta, se retiró el envío externo del nombre como avatar de respaldo, se completó la búsqueda/paginación de privacidad y se atendieron fallos del formulario, progreso, historial, limpieza de pruebas y parada systemd. La aceptación de carga completa y el flujo de respaldo de 2 GiB siguen sujetos al runner Linux `logmaster-load`.
 
