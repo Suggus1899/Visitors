@@ -1,0 +1,12 @@
+[package]
+name = "logmaster-store"
+version = "0.1.0"
+edition = "2021"
+description = "Acceso a datos de LogMaster: SQLite embebido en modo WAL y migraciones"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+anyhow.workspace = true
+rusqlite.workspace = true
+rusqlite_migration.workspace = true
+tracing.workspace = true

@@ -1,0 +1,84 @@
+//! Acceso a la base embebida de LogMaster (SQLite en modo WAL).
+//!
+//! Reglas tomadas del documento de migracion (secciones 2.1 y 11.1):
+//! - `journal_mode = WAL`: lecturas concurrentes con una escritura a la vez.
+//! - `foreign_keys = ON` en cada conexion: en SQLite vienen apagadas por
+//!   defecto y olvidarlas es el error clasico de esta migracion.
+//! - `busy_timeout` de 5 s: las escrituras cortas esperan su turno en vez
+//!   de fallar con SQLITE_BUSY.
+//! - Una unica conexion compartida con Mutex: el destino es un solo
+//!   proceso con un solo escritor, asi que no hace falta un pool.
+
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use anyhow::{Context, Result};
+use rusqlite::Connection;
+
+pub mod migrations;
+
+/// Base SQLite abierta. Clonable: todos los clones comparten la conexion.
+#[derive(Clone)]
+pub struct Store {
+    conn: Arc<Mutex<Connection>>,
+    path: PathBuf,
+}
+
+impl Store {
+    /// Abre (o crea) el archivo de base y deja los pragmas del diseno.
+    /// Crea la carpeta padre si no existe.
+    pub fn open(path: &Path) -> Result<Self> {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)
+                    .with_context(|| format!("crear carpeta de datos {}", parent.display()))?;
+            }
+        }
+        let conn =
+            Connection::open(path).with_context(|| format!("abrir base {}", path.display()))?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "foreign_keys", "ON")?;
+        conn.busy_timeout(Duration::from_millis(5000))?;
+        tracing::debug!(path = %path.display(), "base SQLite abierta (WAL, FK ON)");
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+            path: path.to_path_buf(),
+        })
+    }
+
+    /// Ruta del archivo de base.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Aplica las migraciones pendientes, de forma transaccional.
+    pub fn migrate(&self) -> Result<()> {
+        let mut conn = self.conn.lock().expect("lock de la base");
+        migrations::apply(&mut conn)
+    }
+
+    /// Comprueba que la base responde (`SELECT 1`).
+    pub fn ping(&self) -> Result<()> {
+        let conn = self.conn.lock().expect("lock de la base");
+        let value: i64 = conn.query_row("SELECT 1", [], |row| row.get(0))?;
+        anyhow::ensure!(value == 1, "SELECT 1 devolvio un valor inesperado");
+        Ok(())
+    }
+
+    /// `PRAGMA integrity_check`: debe devolver `ok`.
+    pub fn integrity_check(&self) -> Result<String> {
+        let conn = self.conn.lock().expect("lock de la base");
+        let value: String = conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+        Ok(value)
+    }
+
+    /// Verificacion completa para `check` y para el arranque: responde y
+    /// es integra. Si algo falla, el proceso no debe abrir el puerto.
+    pub fn verify(&self) -> Result<()> {
+        self.ping()?;
+        let integrity = self.integrity_check()?;
+        anyhow::ensure!(integrity == "ok", "integridad de la base: {integrity}");
+        Ok(())
+    }
+}
