@@ -1,0 +1,24 @@
+[package]
+name = "logmaster"
+version = "0.1.0"
+edition = "2021"
+description = "LogMaster: control de visitantes en un solo ejecutable (Rust)"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "logmaster"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+logmaster-store = { path = "../store" }
+
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.7"
