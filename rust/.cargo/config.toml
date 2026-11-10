@@ -1,0 +1,5 @@
+# Enlazar la STL de MSVC de forma estatica (/MT) para que el .exe no
+# dependa del redistribuible de Visual C++ en el equipo destino.
+# Ver documento de migracion, seccion 17.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
