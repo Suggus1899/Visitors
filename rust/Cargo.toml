@@ -3,9 +3,14 @@ members = ["crates/app", "crates/store"]
 resolver = "2"
 
 [workspace.dependencies]
+aes = "0.8"
+aes-gcm = "0.10"
 anyhow = "1"
 axum = { version = "0.8", features = ["multipart"] }
+chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
+hex = "0.4"
+postgres = { version = "0.19", features = ["with-chrono-0_4"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 rusqlite_migration = "1"
 serde = { version = "1", features = ["derive"] }

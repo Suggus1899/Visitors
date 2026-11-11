@@ -14,9 +14,17 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use rusqlite::Connection;
+use rusqlite::{Connection, TransactionBehavior};
 
+pub mod crypto;
+pub mod error;
 pub mod migrations;
+pub mod models;
+pub mod preflight;
+pub mod repos;
+
+/// Versión esperada del esquema (número de migraciones definidas).
+pub const SCHEMA_VERSION: usize = migrations::MIGRATION_COUNT;
 
 /// Base SQLite abierta. Clonable: todos los clones comparten la conexion.
 #[derive(Clone)]
@@ -56,6 +64,47 @@ impl Store {
     pub fn migrate(&self) -> Result<()> {
         let mut conn = self.conn.lock().expect("lock de la base");
         migrations::apply(&mut conn)
+    }
+
+    /// Versión de esquema aplicada. `rusqlite_migration` 1.x la guarda
+    /// en `PRAGMA user_version`, no en una tabla propia.
+    pub fn schema_version(&self) -> Result<usize> {
+        let conn = self.conn.lock().expect("lock de la base");
+        let version = migrations::migrations().current_version(&conn)?;
+        Ok(usize::from(&version))
+    }
+
+    /// Ejecuta un cierre con la conexión, para lecturas.
+    pub fn read<T, F>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&Connection) -> Result<T>,
+    {
+        let conn = self.conn.lock().expect("lock de la base");
+        f(&conn)
+    }
+
+    /// Ejecuta un cierre dentro de una transacción inmediata: la
+    /// escritura toma el candado al empezar, así que la lectura del
+    /// estado, la mutación y la auditoría son atómicas —es el
+    /// equivalente en SQLite al `FOR UPDATE` + transacción de Go—.
+    /// Si el cierre devuelve error, la transacción se revierte.
+    pub fn tx_immediate<T, F>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&rusqlite::Transaction<'_>) -> Result<T>,
+    {
+        let mut conn = self.conn.lock().expect("lock de la base");
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let result = f(&tx);
+        match result {
+            Ok(value) => {
+                tx.commit()?;
+                Ok(value)
+            }
+            Err(e) => {
+                let _ = tx.rollback();
+                Err(e)
+            }
+        }
     }
 
     /// Comprueba que la base responde (`SELECT 1`).
