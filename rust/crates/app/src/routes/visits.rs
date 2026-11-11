@@ -220,7 +220,6 @@ async fn check_in(
     }
     let accepted_text = format_instant(accepted.expect("consentimiento ya validado"));
     let now_text = now_text();
-    let key = state.encryption_key;
     let meta = audit_meta(
         &headers,
         remote.0,
