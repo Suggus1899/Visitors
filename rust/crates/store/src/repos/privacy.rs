@@ -70,11 +70,7 @@ pub fn find_request_by_id(conn: &Connection, id: i64) -> StoreResult<ArcoRequest
 }
 
 /// Solicitudes más recientes, con paginación.
-pub fn list_requests(
-    conn: &Connection,
-    limit: i64,
-    offset: i64,
-) -> StoreResult<Vec<ArcoRequest>> {
+pub fn list_requests(conn: &Connection, limit: i64, offset: i64) -> StoreResult<Vec<ArcoRequest>> {
     let sql = format!(
         "SELECT {REQUEST_COLUMNS} FROM \"ArcoRequests\" \
          ORDER BY \"createdAt\" DESC, id DESC LIMIT ?1 OFFSET ?2"
@@ -117,6 +113,7 @@ pub fn update_request_status(
 /// `cedula_hash` (el HMAC de la columna `cedula`) y `reference` (el
 /// identificador anónimo aleatorio que sustituye a la identidad).
 /// Con visitas abiertas devuelve `OPEN_VISIT_EXISTS`.
+#[allow(clippy::too_many_arguments)] // los 8 parámetros son la operación de Go, sin abreviar
 pub fn cancel_subject(
     tx: &Transaction,
     visitor_id: i64,
@@ -154,8 +151,7 @@ pub fn cancel_subject(
             "UPDATE \"VisitorEditHistories\" SET \"oldValue\" = NULL, \"newValue\" = NULL \
              WHERE \"visitorId\" = ?1 OR \"visitId\" IN ({placeholders})"
         );
-        let mut p: Vec<rusqlite::types::Value> =
-            vec![rusqlite::types::Value::Integer(visitor_id)];
+        let mut p: Vec<rusqlite::types::Value> = vec![rusqlite::types::Value::Integer(visitor_id)];
         p.extend(ids.iter().map(|id| rusqlite::types::Value::Integer(*id)));
         tx.execute(&sql, rusqlite::params_from_iter(p.iter()))?;
 
@@ -297,9 +293,7 @@ pub fn cancel_subject(
 
 /// `?, ?, ...` para un `IN` con `n` valores.
 fn placeholders(n: usize) -> String {
-    std::iter::repeat_n("?", n)
-        .collect::<Vec<_>>()
-        .join(", ")
+    std::iter::repeat_n("?", n).collect::<Vec<_>>().join(", ")
 }
 
 #[cfg(test)]
@@ -409,8 +403,8 @@ mod tests {
         let request = find_request_by_id(&conn, id).unwrap();
         assert_eq!(request.status, "pending");
         let tx = conn.transaction().unwrap();
-        let rows = update_request_status(&tx, id, "completed", Some("Entregado"), Some(NOW), NOW)
-            .unwrap();
+        let rows =
+            update_request_status(&tx, id, "completed", Some("Entregado"), Some(NOW), NOW).unwrap();
         assert_eq!(rows, 1);
         tx.commit().unwrap();
         assert_eq!(find_request_by_id(&conn, id).unwrap().status, "completed");
@@ -548,7 +542,10 @@ mod tests {
         .unwrap_err();
         assert!(matches!(
             err,
-            StoreError::Conflict { code: "OPEN_VISIT_EXISTS", .. }
+            StoreError::Conflict {
+                code: "OPEN_VISIT_EXISTS",
+                ..
+            }
         ));
         tx.rollback().unwrap();
     }

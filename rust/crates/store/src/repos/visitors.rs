@@ -41,10 +41,9 @@ pub fn find_by_id(conn: &Connection, id: i64) -> StoreResult<Visitor> {
     let sql = format!("SELECT {VISITOR_COLUMNS} FROM \"Visitors\" WHERE id = ?1");
     conn.query_row(&sql, params![id], row_to_visitor)
         .map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => StoreError::not_found(
-                "VISITOR_NOT_FOUND",
-                format!("visitante {id} no existe"),
-            ),
+            rusqlite::Error::QueryReturnedNoRows => {
+                StoreError::not_found("VISITOR_NOT_FOUND", format!("visitante {id} no existe"))
+            }
             other => other.into(),
         })
 }
@@ -265,7 +264,10 @@ mod tests {
         assert_eq!(find_by_id(&conn, id).unwrap().cedula, "aabbcc");
         assert!(matches!(
             find_by_cedula(&conn, "sin-existir"),
-            Err(StoreError::NotFound { code: "VISITOR_NOT_FOUND", .. })
+            Err(StoreError::NotFound {
+                code: "VISITOR_NOT_FOUND",
+                ..
+            })
         ));
     }
 

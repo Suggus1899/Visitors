@@ -446,8 +446,15 @@ mod tests {
         assert_eq!(visit.entry_time.as_deref(), Some(LATER));
         assert_eq!(visit.check_in_time.as_deref(), Some(LATER));
 
-        let visit = do_transition(&mut conn, visit.id, Transition::Exit, Some("Almuerzo"), None, LATER)
-            .unwrap();
+        let visit = do_transition(
+            &mut conn,
+            visit.id,
+            Transition::Exit,
+            Some("Almuerzo"),
+            None,
+            LATER,
+        )
+        .unwrap();
         assert_eq!(visit.status.as_deref(), Some("intermittent"));
         let logs = visit_logs(&conn, visit.id).unwrap();
         assert_eq!(logs.len(), 1);
@@ -462,9 +469,15 @@ mod tests {
         assert_eq!(logs[0].re_entry.as_deref(), Some(LATER));
         assert_eq!(logs[0].reentered_by.as_deref(), Some("root"));
 
-        let visit =
-            do_transition(&mut conn, visit.id, Transition::Checkout, Some("Salió"), None, LATER)
-                .unwrap();
+        let visit = do_transition(
+            &mut conn,
+            visit.id,
+            Transition::Checkout,
+            Some("Salió"),
+            None,
+            LATER,
+        )
+        .unwrap();
         assert_eq!(visit.status.as_deref(), Some("completed"));
         assert_eq!(visit.check_out_time.as_deref(), Some(LATER));
         assert_eq!(visit.exit_time.as_deref(), Some(LATER));
@@ -498,11 +511,21 @@ mod tests {
         assert_eq!(visit.cancellation_reason.as_deref(), Some("No vino"));
 
         // Cancelar de nuevo ya no es válido.
-        let err = do_transition(&mut conn, visit.id, Transition::Cancel, None, Some("Otra"), LATER)
-            .unwrap_err();
+        let err = do_transition(
+            &mut conn,
+            visit.id,
+            Transition::Cancel,
+            None,
+            Some("Otra"),
+            LATER,
+        )
+        .unwrap_err();
         assert!(matches!(
             err,
-            StoreError::Conflict { code: "INVALID_VISIT_STATE", .. }
+            StoreError::Conflict {
+                code: "INVALID_VISIT_STATE",
+                ..
+            }
         ));
     }
 
@@ -513,24 +536,33 @@ mod tests {
         let visit = checkin(&mut conn, visitor_id, "hash-a", "waiting");
         // Admitir dos veces.
         do_transition(&mut conn, visit, Transition::Admit, None, None, LATER).unwrap();
-        let err = do_transition(&mut conn, visit, Transition::Admit, None, None, LATER).unwrap_err();
+        let err =
+            do_transition(&mut conn, visit, Transition::Admit, None, None, LATER).unwrap_err();
         assert!(matches!(
             err,
-            StoreError::Conflict { code: "INVALID_VISIT_STATE", .. }
+            StoreError::Conflict {
+                code: "INVALID_VISIT_STATE",
+                ..
+            }
         ));
         // Reingresar sin haber salido.
         let err =
             do_transition(&mut conn, visit, Transition::Reentry, None, None, LATER).unwrap_err();
         assert!(matches!(
             err,
-            StoreError::Conflict { code: "INVALID_VISIT_STATE", .. }
+            StoreError::Conflict {
+                code: "INVALID_VISIT_STATE",
+                ..
+            }
         ));
         // Visita inexistente.
-        let err =
-            do_transition(&mut conn, 9999, Transition::Admit, None, None, LATER).unwrap_err();
+        let err = do_transition(&mut conn, 9999, Transition::Admit, None, None, LATER).unwrap_err();
         assert!(matches!(
             err,
-            StoreError::NotFound { code: "VISIT_NOT_FOUND", .. }
+            StoreError::NotFound {
+                code: "VISIT_NOT_FOUND",
+                ..
+            }
         ));
     }
 
@@ -574,7 +606,10 @@ mod tests {
         .unwrap_err();
         assert!(matches!(
             err,
-            StoreError::Conflict { code: "OPEN_VISIT_EXISTS", .. }
+            StoreError::Conflict {
+                code: "OPEN_VISIT_EXISTS",
+                ..
+            }
         ));
         tx.rollback().unwrap();
     }

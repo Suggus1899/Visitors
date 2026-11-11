@@ -46,13 +46,11 @@ pub fn find_by_id(conn: &Connection, id: i64) -> StoreResult<User> {
 
 /// `ListUsers`: todas las cuentas por id.
 pub fn list_all(conn: &Connection) -> StoreResult<Vec<User>> {
-    let sql = format!(
-        "SELECT id, username, email, role, \"mustChangePassword\", \"loginAttempts\", \"lockedUntil\" \
-         FROM \"Users\" ORDER BY id"
-    );
+    let sql = "SELECT id, username, email, role, \"mustChangePassword\", \"loginAttempts\", \"lockedUntil\" \
+         FROM \"Users\" ORDER BY id";
     // La lista del panel root no necesita todos los campos: se
     // reutiliza `User` con los sensibles vacíos.
-    let mut stmt = conn.prepare(&sql)?;
+    let mut stmt = conn.prepare(sql)?;
     let rows = stmt.query_map([], |row| {
         Ok(User {
             id: row.get(0)?,
@@ -163,10 +161,9 @@ pub fn consume_reset_token(
     );
     tx.query_row(&sql, params![token, new_password_hash, now], row_to_user)
         .map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => StoreError::not_found(
-                "USER_NOT_FOUND",
-                "token de recuperación inválido o vencido",
-            ),
+            rusqlite::Error::QueryReturnedNoRows => {
+                StoreError::not_found("USER_NOT_FOUND", "token de recuperación inválido o vencido")
+            }
             other => other.into(),
         })
 }
@@ -242,7 +239,10 @@ mod tests {
         assert_eq!(find_by_id(&conn, id).unwrap().username, "root");
         assert!(matches!(
             find_by_username(&conn, "nadie"),
-            Err(StoreError::NotFound { code: "USER_NOT_FOUND", .. })
+            Err(StoreError::NotFound {
+                code: "USER_NOT_FOUND",
+                ..
+            })
         ));
     }
 
@@ -288,7 +288,10 @@ mod tests {
         let err = consume_reset_token(&tx, "tok123", "$2a$12$otro", NOW).unwrap_err();
         assert!(matches!(
             err,
-            StoreError::NotFound { code: "USER_NOT_FOUND", .. }
+            StoreError::NotFound {
+                code: "USER_NOT_FOUND",
+                ..
+            }
         ));
         tx.rollback().unwrap();
     }

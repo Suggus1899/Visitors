@@ -66,8 +66,7 @@ pub fn check_sqlite(
     let mut checks = Vec::new();
 
     // Integridad del archivo.
-    let integrity: String =
-        conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+    let integrity: String = conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
     checks.push(Check {
         name: "integrity",
         passed: integrity == "ok",

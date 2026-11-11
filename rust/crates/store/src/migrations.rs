@@ -393,7 +393,9 @@ mod tests {
             )
             .unwrap_err();
         // SQLite nombra las columnas en el error, no el índice.
-        assert!(err.to_string().contains("UNIQUE constraint failed: Visits.visitor_cedula"));
+        assert!(err
+            .to_string()
+            .contains("UNIQUE constraint failed: Visits.visitor_cedula"));
         tx.rollback().unwrap();
     }
 
@@ -453,7 +455,9 @@ mod tests {
             )
             .unwrap_err();
         // SQLite nombra las columnas en el error, no el índice.
-        assert!(err.to_string().contains("UNIQUE constraint failed: IntermittentLogs.visit_id"));
+        assert!(err
+            .to_string()
+            .contains("UNIQUE constraint failed: IntermittentLogs.visit_id"));
         tx.rollback().unwrap();
     }
 
@@ -487,13 +491,17 @@ mod tests {
         conn.execute("DELETE FROM \"Visits\" WHERE id = 1", [])
             .unwrap();
         let logs: i64 = conn
-            .query_row("SELECT count(*) FROM \"IntermittentLogs\"", [], |r| r.get(0))
+            .query_row("SELECT count(*) FROM \"IntermittentLogs\"", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(logs, 0);
         conn.execute("DELETE FROM \"Visitors\" WHERE id = 1", [])
             .unwrap();
         let tokens: i64 = conn
-            .query_row("SELECT count(*) FROM \"VisitorSearchTokens\"", [], |r| r.get(0))
+            .query_row("SELECT count(*) FROM \"VisitorSearchTokens\"", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(tokens, 0);
     }

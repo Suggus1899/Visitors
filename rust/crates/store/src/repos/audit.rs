@@ -68,8 +68,10 @@ pub fn list_recent(conn: &Connection, limit: i64) -> StoreResult<Vec<ActivityLog
 
 /// Número total de entradas.
 pub fn count(conn: &Connection) -> StoreResult<i64> {
-    conn.query_row("SELECT count(*) FROM \"ActivityLogs\"", [], |row| row.get(0))
-        .map_err(Into::into)
+    conn.query_row("SELECT count(*) FROM \"ActivityLogs\"", [], |row| {
+        row.get(0)
+    })
+    .map_err(Into::into)
 }
 
 #[cfg(test)]

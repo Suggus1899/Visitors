@@ -64,8 +64,7 @@ pub fn decrypt(key: &[u8; 32], text: &str) -> Result<String, CryptoError> {
     if tag.len() != 16 {
         return Err(CryptoError("invalid authentication tag"));
     }
-    let cipher = Aes256Gcm16::new_from_slice(key)
-        .map_err(|_| CryptoError("invalid key length"))?;
+    let cipher = Aes256Gcm16::new_from_slice(key).map_err(|_| CryptoError("invalid key length"))?;
     let mut ciphertext = data;
     ciphertext.extend_from_slice(&tag);
     let plain = cipher
@@ -93,8 +92,8 @@ pub fn load_key_from_env() -> Result<[u8; 32], String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aes_gcm::aead::{Aead, OsRng};
     use aes_gcm::aead::rand_core::RngCore;
+    use aes_gcm::aead::{Aead, OsRng};
 
     /// Cifrado espejo de `security.Encrypt` de Go, solo para pruebas:
     /// nonce aleatorio de 16 bytes, `Seal` y formato `ENC:hex:hex:hex`.

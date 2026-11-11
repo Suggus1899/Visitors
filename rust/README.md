@@ -15,7 +15,7 @@ Documento de referencia: `workspace/your_files/migracion-rust-logmaster/migracio
 | --- | --- | --- |
 | 0 · Base | Corte congelado + fixtures exportados (`rust/fixtures/`) | ✅ esta rama |
 | 1 · Esqueleto | Workspace, binario `logmaster` con Axum, `serve`/`check`/`migrate`, servicio de Windows mínimo, SQLite + migraciones base | ✅ esta rama |
-| 2 · Datos | Esquema SQLite de las 6 migraciones, repositorios, `convert` desde PostgreSQL y preflight | Pendiente |
+| 2 · Datos | Esquema SQLite de las 6 migraciones, repositorios, `convert` desde PostgreSQL y preflight | ✅ esta rama |
 | 3 · Cripto y sesión | AES-GCM/HMAC/bcrypt compatibles, JWT, cookies, roles como extractores | Pendiente |
 | 4 · API por familias | auth, visits, visitors, privacy, audit, reports, superadmin, backups, SSE | Pendiente |
 | 5 · Frontend | Leptos: login y operación primero; luego admin, auditoría, privacidad y root | Pendiente |
@@ -77,7 +77,55 @@ logmaster.exe check            # version de esquema, integridad y ping de la bas
 logmaster.exe migrate          # aplica migraciones pendientes
 logmaster.exe service install  # instala el servicio de Windows (admin)
 logmaster.exe service start | stop | restart | uninstall
+logmaster.exe convert --from-postgres <cadena> --to <sqlite>
+logmaster.exe preflight --from-postgres <cadena> | --db <sqlite>
 ```
+
+## Fase 2 · Datos: esquema, repositorios, convert y preflight
+
+- **Migraciones rusqlite 2–7** = Goose 00001–00006: las 12 tablas de
+  dominio (`Users`, `Visitors`, `Visits`, `IntermittentLogs`,
+  `VisitorEditHistories`, `ActivityLogs`, `ArcoRequests`, `Departments`,
+  `VisitPurposes`, `VisitorSearchTokens`, `SearchIndexState`,
+  `IdentityIndexState`). `TIMESTAMPTZ` → `TEXT` ISO 8601 UTC canónico,
+  `BYTEA` → `BLOB`, `BOOLEAN` → `INTEGER` 0/1, enums → `TEXT` con
+  `CHECK`. Índices parciales únicos: una visita abierta por identidad
+  y un intervalo abierto por visita. Desviaciones documentadas en
+  `crates/store/src/migrations.rs` (el `CHECK` de `status` ya incluye
+  `'cancelled'` desde la migración 2; `SequelizeMeta` y
+  `goose_db_version` no se crean).
+- **Repositorios** (`crates/store/src/repos/`): usuarios, visitantes,
+  visitas con su máquina de estados, bitácora, ARCO con cancelación
+  completa, catálogos y tokens de búsqueda. Las operaciones que agrupan
+  mutación + auditoría corren en transacción inmediata del llamador
+  (`Store::tx_immediate`), el equivalente a `FOR UPDATE` + transacción
+  de Go. Errores de dominio con códigos (`OPEN_VISIT_EXISTS`,
+  `INVALID_VISIT_STATE`, `VISIT_NOT_FOUND`, `VISITOR_BLOCKED`, ...).
+- **`convert`** (`crates/app/src/convert.rs`): copia tabla por tabla en
+  orden de dependencias, dentro de una sola transacción, con
+  verificación de conteos origen/destino y preflight del destino. El
+  destino no debe existir y se borra el parcial si algo falla. Las
+  columnas enum de PostgreSQL se leen con `::text`. El `id` de
+  `SearchIndexState`/`IdentityIndexState` es `BOOLEAN` en PostgreSQL y
+  `INTEGER` 1 en SQLite. Conexión **sin TLS**: ejecutar en el mismo host
+  que PostgreSQL o en su red de confianza.
+- **`preflight`**: mismas comprobaciones que Go antes de adoptar una
+  copia (descifrado de identidades, visitas abiertas duplicadas,
+  relaciones rotas, intervalos duplicados, tokens de 32 bytes, estados
+  de índice) más la integridad de SQLite. La clave sale de
+  `ENCRYPTION_KEY` (o `PII_ENCRYPTION_KEY`), 32 bytes en hex; sin ella
+  el descifrado queda `omitida`, no fallido.
+
+Verificado en Linux (2026-11-11): `cargo test --workspace`
+(38 tests del store + 1 del app) y e2e real contra PostgreSQL 16 local
+con datos ficticios (2 usuarios, 3 visitantes —uno anonimizado—, 5
+visitas, 2 intervalos, 1 historial, 4 registros de auditoría, 2 ARCO,
+3 tokens): `preflight` del origen, `convert` con conteos idénticos y
+`preflight` del destino, todo en verde; también se comprobó que un
+origen con visita abierta duplicada y una clave incorrecta cancelan la
+conversión sin dejar parciales. El `cargo check --target
+x86_64-pc-windows-msvc` de la fase 1 sigue pendiente de re-verificar
+tras estos cambios (solo check, no enlazado).
 
 Por defecto escucha en `127.0.0.1:8443` (HTTP plano en el esqueleto) y usa
 la base `data/logmaster.db` junto al directorio de trabajo, o
@@ -95,12 +143,11 @@ siguientes (documento, secciones 14.4 y 15).
 
 ## Qué NO hace todavía este esqueleto
 
-- No hay tablas de dominio: la migración 00001 solo crea la tabla de
-  metadatos `app_meta`. Las tablas Users, Visitors, Visits,
-  IntermittentLogs, etc. se traducen en la fase 2 desde las migraciones
-  Goose 00001–00006.
 - No hay autenticación, sesión ni roles (fase 3), ni rutas de dominio
-  (fase 4), ni frontend Leptos (fase 5).
+  (fase 4), ni frontend Leptos (fase 5). Las tablas de dominio ya
+  existen (fase 2) y los repositorios están listos para usarlas; el
+  cifrado completo, HMAC, bcrypt y JWT llegan con la fase 3 (el
+  descifrado mínimo de `preflight` no los sustituye).
 - `service install` registra el servicio con arranque automático
   retrasado y el binario con `service run` como punto de entrada del SCM.
   Las acciones de recuperación (reinicio a los 5 s en el 1.º y 2.º fallo)

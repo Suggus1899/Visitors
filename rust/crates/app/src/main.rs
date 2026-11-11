@@ -12,14 +12,23 @@
 //! logmaster.exe migrate          # aplica migraciones pendientes
 //! logmaster.exe service install  # instala el servicio de Windows
 //! logmaster.exe service start | stop | restart | uninstall
+//! logmaster.exe convert --from-postgres <cadena> --to <sqlite>
+//! logmaster.exe preflight --from-postgres <cadena> | --db <sqlite>
 //! ```
+//!
+//! `convert` y `preflight` son operaciones síncronas de una sola vez
+//! (el cliente de PostgreSQL es síncrono): corren en un hilo de
+//! bloqueo para no detener el runtime de Tokio.
 
 mod config;
+mod convert;
 mod error;
 mod http;
 mod service;
 
-use anyhow::Result;
+use std::path::PathBuf;
+
+use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
 use logmaster_store::Store;
 
@@ -47,6 +56,25 @@ enum Command {
         #[command(subcommand)]
         action: service::ServiceAction,
     },
+    /// Copia los datos de PostgreSQL a una base SQLite nueva.
+    Convert {
+        /// Cadena de conexión a PostgreSQL (sin TLS: mismo host o red
+        /// de confianza; ver `convert.rs`).
+        #[arg(long)]
+        from_postgres: String,
+        /// Ruta del SQLite de destino (no debe existir).
+        #[arg(long)]
+        to: PathBuf,
+    },
+    /// Comprueba una base antes (origen) o después (destino) de convertir.
+    Preflight {
+        /// Cadena de conexión a PostgreSQL de origen.
+        #[arg(long)]
+        from_postgres: Option<String>,
+        /// Ruta del SQLite ya convertido.
+        #[arg(long)]
+        db: Option<PathBuf>,
+    },
 }
 
 #[tokio::main]
@@ -60,6 +88,37 @@ async fn main() -> Result<()> {
         Some(Command::Service { action }) => service::run_action(action),
         Some(Command::Check) => check().await,
         Some(Command::Migrate) => migrate().await,
+        Some(Command::Convert { from_postgres, to }) => {
+            let report =
+                tokio::task::spawn_blocking(move || convert::run_convert(&from_postgres, &to))
+                    .await??;
+            report.print();
+            Ok(())
+        }
+        Some(Command::Preflight { from_postgres, db }) => match (from_postgres, db) {
+            (Some(connstr), None) => {
+                let report =
+                    tokio::task::spawn_blocking(move || convert::run_preflight_postgres(&connstr))
+                        .await??;
+                convert::print_report(&report);
+                if report.all_passed() {
+                    Ok(())
+                } else {
+                    bail!("preflight del origen con fallos")
+                }
+            }
+            (None, Some(path)) => {
+                let report =
+                    tokio::task::spawn_blocking(move || convert::preflight_sqlite(&path)).await??;
+                convert::print_report(&report);
+                if report.all_passed() {
+                    Ok(())
+                } else {
+                    bail!("preflight del destino con fallos")
+                }
+            }
+            _ => bail!("preflight necesita exactamente una de --from-postgres o --db"),
+        },
         Some(Command::Serve) | None => serve().await,
     }
 }

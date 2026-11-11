@@ -20,11 +20,7 @@ use crate::models::{IdentityIndexState, SearchIndexState, VisitorSearchToken};
 
 /// Sustituye los tokens de un visitante por los dados. `INSERT OR
 /// IGNORE` reproduce el `ON CONFLICT DO NOTHING` de Go.
-pub fn replace_tokens(
-    tx: &Transaction,
-    visitor_id: i64,
-    tokens: &[Vec<u8>],
-) -> StoreResult<()> {
+pub fn replace_tokens(tx: &Transaction, visitor_id: i64, tokens: &[Vec<u8>]) -> StoreResult<()> {
     tx.execute(
         "DELETE FROM \"VisitorSearchTokens\" WHERE visitor_id = ?1",
         params![visitor_id],
@@ -52,9 +48,8 @@ pub fn tokens_for_visitor(
     conn: &Connection,
     visitor_id: i64,
 ) -> StoreResult<Vec<VisitorSearchToken>> {
-    let mut stmt = conn.prepare(
-        "SELECT visitor_id, token FROM \"VisitorSearchTokens\" WHERE visitor_id = ?1",
-    )?;
+    let mut stmt = conn
+        .prepare("SELECT visitor_id, token FROM \"VisitorSearchTokens\" WHERE visitor_id = ?1")?;
     let rows = stmt.query_map(params![visitor_id], |row| VisitorSearchToken::try_from(row))?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
@@ -115,11 +110,7 @@ pub fn get_identity_state(conn: &Connection) -> StoreResult<IdentityIndexState> 
 }
 
 /// Guarda el estado del índice de identidad.
-pub fn set_identity_state(
-    tx: &Transaction,
-    fingerprint: &str,
-    ready: bool,
-) -> StoreResult<()> {
+pub fn set_identity_state(tx: &Transaction, fingerprint: &str, ready: bool) -> StoreResult<()> {
     tx.execute(
         "UPDATE \"IdentityIndexState\" SET fingerprint = ?1, ready = ?2 WHERE id = 1",
         params![fingerprint, ready as i64],
@@ -168,13 +159,16 @@ mod tests {
         let token_b = vec![2u8; 32];
         replace_tokens(&tx, visitor_id, &[token_a.clone(), token_b.clone()]).unwrap();
         // Reemplazar con un solo token borra el otro.
-        replace_tokens(&tx, visitor_id, &[token_a.clone()]).unwrap();
+        replace_tokens(&tx, visitor_id, std::slice::from_ref(&token_a)).unwrap();
         tx.commit().unwrap();
 
         let tokens = tokens_for_visitor(&conn, visitor_id).unwrap();
         assert_eq!(tokens.len(), 1);
         assert_eq!(tokens[0].token, token_a);
-        assert_eq!(find_visitors_by_token(&conn, &token_a).unwrap(), vec![visitor_id]);
+        assert_eq!(
+            find_visitors_by_token(&conn, &token_a).unwrap(),
+            vec![visitor_id]
+        );
         assert!(find_visitors_by_token(&conn, &token_b).unwrap().is_empty());
 
         let tx = conn.transaction().unwrap();

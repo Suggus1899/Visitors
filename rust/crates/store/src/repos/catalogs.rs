@@ -88,10 +88,7 @@ mod tests {
         set_department_active(&tx, dept, false).unwrap();
         set_purpose_active(&tx, purpose, false).unwrap();
         tx.commit().unwrap();
-        assert_eq!(
-            list_departments(&conn).unwrap()[0].is_active,
-            Some(false)
-        );
+        assert_eq!(list_departments(&conn).unwrap()[0].is_active, Some(false));
         assert_eq!(list_purposes(&conn).unwrap()[0].is_active, Some(false));
     }
 }
