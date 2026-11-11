@@ -22,7 +22,7 @@ Documento de referencia: `workspace/your_files/migracion-rust-logmaster/migracio
 | 5 · Frontend | Leptos SSR: login, operación, admin, auditoría, privacidad y root; 4 recorridos Playwright | ✅ esta rama |
 | 6 · Operación | Respaldos con age, ensayo semanal, retención, correo, bandeja, logs | ✅ esta rama (lo que exige Windows real o SMTP real queda pendiente, ver fase 6) |
 | 7 · Comparación | Carga pequeña y recorridos en ambas versiones, mismo entorno | ✅ esta rama (informe: `rust/docs/comparacion-fase7.md`; arnés: `rust/tools/fase7/`) |
-| 8 · Corte | Conversión de datos reales, servicio en el equipo destino, observación | Pendiente |
+| 8 · Corte | Conversión de datos reales, servicio en el equipo destino, observación | ✅ esta rama (runbook: `rust/docs/corte-fase8.md`; informe: `rust/docs/aceptacion-fase8.md`; lo que exige Windows real queda pendiente, ver fase 8) |
 
 > Nota de mapeo: en el documento, la fase 0 es solo el congelamiento y los
 > fixtures, y el esqueleto es la fase 1. En esta rama se ejecutaron las dos
@@ -205,7 +205,7 @@ sección de la fase 6 (solo check, no enlazado).
 - **Arranque**: `serve` y `check` verifican las huellas de clave de los
   índices (`Store::verify_key_fingerprints`): error con clave
   equivocada; aviso si aún no están preparados (la reconstrucción
-  `ops reindex` queda para una fase posterior), a diferencia de Go, que no arranca
+  `ops reindex` llegó con la fase 8), a diferencia de Go, que no arranca
   sin índice preparado.
 
 Verificado en Linux (2026-11-11): `cargo test --workspace` (75 tests:
@@ -381,10 +381,12 @@ binario real por familia en `~/workspace/.rust-verify/smoke-test/`
 
 Fase 6 hecha: el correo de recuperación se envía con lettre, los
 respaldos se crean y restauran con age y la retención de auditoría
-se ejecuta (ver "Fase 6 · Operación"). Desviación conocida: Axum
-devuelve 404/405 sin el sobre de error para rutas o métodos
+se ejecuta (ver "Fase 6 · Operación"). Desviación resuelta en fase
+8: Axum devolvía 404/405 sin el sobre de error para rutas o métodos
 desconocidos (Go devuelve `NOT_FOUND`/`METHOD_NOT_ALLOWED` con el
-sobre). La exportación de visitas es JSON con los límites de Go; el
+sobre); ahora el router de `/api/v1` lleva manejadores propios de
+404/405 con ese mismo sobre (ver "Fase 8"). La exportación de
+visitas es JSON con los límites de Go; el
 PDF/XLSX en el servidor (rust_xlsxwriter/genpdf) queda para decidir
 con el frontend.
 
@@ -624,6 +626,53 @@ y carga: `rust/tools/fase7/` (`compare.py`, `load.py`, `run-go.sh`,
   avisos) en verde. El `cargo check --target x86_64-pc-windows-msvc`
   sigue roto como en fase 6 (`aws-lc-sys` exige `cl.exe` real).
 
+## Fase 8 · Corte y aceptación final
+
+Informe completo: `rust/docs/aceptacion-fase8.md`. Runbook de corte y
+reversión: `rust/docs/corte-fase8.md`.
+
+- **404/405 con sobre de error**: el router de `/api/v1` lleva
+  manejadores propios (`Router::fallback` y
+  `Router::method_not_allowed_fallback`) que responden 404
+  `NOT_FOUND` / "Ruta no encontrada" y 405 `METHOD_NOT_ALLOWED` /
+  "Método no permitido" con el sobre de Go. Prueba en proceso con la
+  pila real en `http.rs`. El diff Go vs Rust pasa de 10 diferencias
+  a **8** (quedan: el 500 ARCO de Go y sus 3 consecuencias, PDF/XLSX
+  en servidor por diseño, el cuerpo de `/api/v1/health` y `/health`
+  solo Rust).
+- **`ops reindex` para ambos motores**: `logmaster.exe ops reindex
+  [--force]` reconstruye los índices de búsqueda e identidad con
+  lotes de 1.000 y progreso guardado, mismas guardas que Go
+  (`--force` para rehacer, error si está listo con otra clave).
+- **Bug ARCO de Go documentado como defecto conocido**: `PATCH
+  /api/v1/privacy/arco-requests/{id}/status` → 500 `SERVER_ERROR`
+  (`*pgconn.PrepareError`); Go queda archivado y no se corrige; Rust
+  responde 200 y audita la transición.
+- **Ensayo de corte** (datos realistas, 152 visitantes / 1.052
+  visitas): `convert` PG → SQLite en 1,0 s con conteos idénticos;
+  las 152 fotos BLOB, byte a byte idénticas (SHA-256); `ops reindex`
+  verificado en ambos motores; **reversión ensayada** (`pg_restore`
+  en base nueva + Go sirviendo, `visits total: 1052`).
+- **Verificación final rehecha**: Rust `cargo test --workspace`
+  **177/177** (app 98, crypto 15, store 48, contrato 16), Go `go
+  test ./internal/httpapi/` 42/42 con Mailpit, recorridos 67 pasos
+  Go 48/49 (solo el 500 ARCO) y Rust 49/49 en ambos motores,
+  Playwright 5/5 + humo SSR 11/11, respaldo/restauración Rust por
+  CLI con conteos idénticos. `cargo check`, `cargo build`,
+  `cargo fmt --check` y `cargo clippy --workspace --all-targets` (0
+  avisos) en verde. El `cargo check --target
+  x86_64-pc-windows-msvc` sigue roto como en fase 6/7
+  (`aws-lc-sys` exige `cl.exe` real).
+- **Nota de rendimiento**: la exportación XLSX en PG dio p95
+  1.256,9 ms en esta corrida, por encima del límite del lab de 1 s
+  (en fase 7: 971,8 ms); merece una mirada si la carga crece.
+- **Pendiente para el PC de Gustavo**: instalación del servicio en
+  `C:\LogMaster` con cuenta virtual y permisos NTFS, arranque tras
+  reinicio sin iniciar sesión, DPAPI/bandeja/SMTP reales, `.exe`
+  release compilado en Windows y periodo de observación de 30 días
+  con PostgreSQL archivado (el borrado del archivo solo con su
+  confirmación).
+
 ## Qué NO hace todavía este esqueleto
 
 - `service install` registra el servicio con arranque automático
@@ -631,5 +680,3 @@ y carga: `rust/tools/fase7/` (`compare.py`, `load.py`, `run-go.sh`,
   y el binario con `service run` como punto de entrada del SCM.
   La cuenta virtual `NT SERVICE\LogMaster` y los permisos NTFS
   siguen pendientes (fase 8, en el equipo destino).
-- La reconstrucción de índices de identidad/búsqueda
-  (`ops reindex`) queda para una fase posterior.
