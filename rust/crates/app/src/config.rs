@@ -216,12 +216,15 @@ impl Config {
             .and_then(|v| v.parse().ok())
             .or(file.server.port)
             .unwrap_or(8443);
-        let db_path = std::env::var("LOGMASTER_DB_PATH")
-            .map(PathBuf::from)
-            .ok()
-            .filter(|p| !p.as_os_str().is_empty())
-            .or(file.database.path.map(PathBuf::from))
-            .unwrap_or_else(default_db_path);
+        let db_path = windows_path_or_default(
+            std::env::var("LOGMASTER_DB_PATH")
+                .map(PathBuf::from)
+                .ok()
+                .filter(|p| !p.as_os_str().is_empty())
+                .or(file.database.path.map(PathBuf::from))
+                .unwrap_or_else(default_db_path),
+            default_db_path(),
+        );
         let database_engine = match std::env::var("LOGMASTER_DATABASE").ok() {
             Some(value) if !value.is_empty() => DatabaseEngine::parse(&value)?,
             _ => match file.database.engine.as_deref() {
@@ -248,12 +251,15 @@ impl Config {
         // Carpeta del archivo de secretos (fase 6): se calcula
         // antes de resolver los secretos, porque es su último
         // recurso cuando no están en el entorno.
-        let secrets_dir = std::env::var("LOGMASTER_SECRETS_DIR")
-            .ok()
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .or(file.security.secrets_dir.map(PathBuf::from))
-            .unwrap_or_else(|| default_data_dir(&db_path).join("secrets"));
+        let secrets_dir = windows_path_or_default(
+            std::env::var("LOGMASTER_SECRETS_DIR")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+                .or(file.security.secrets_dir.map(PathBuf::from))
+                .unwrap_or_else(|| default_data_dir(&db_path).join("secrets")),
+            default_data_dir(&db_path).join("secrets"),
+        );
         // Secretos: entorno primero y archivo de secretos (DPAPI en
         // Windows) después; nunca `config.toml`.
         let secrets = crate::secrets::SecretsStore::new(secrets_dir.clone())
@@ -334,22 +340,25 @@ impl Config {
             .ok()
             .filter(|v| !v.is_empty())
             .map(PathBuf::from)
-            .or(file.backup.path.map(PathBuf::from));
+            .or(file.backup.path.map(PathBuf::from))
+            .map(|path| windows_path_or_default(path, default_data_dir(&db_path).join("backups")));
         // La carpeta de contraseñas nunca es la de respaldos (Go
         // exige lo mismo): por defecto, una hermana llamada
         // `backups-passwords` junto a la carpeta de respaldos.
-        let backup_passwords_path = std::env::var("BACKUP_PASSWORD_PATH")
-            .ok()
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .or(file.backup.passwords_path.map(PathBuf::from))
-            .or_else(|| {
-                backup_path.as_ref().map(|path| {
-                    path.parent()
-                        .map(|parent| parent.join("backups-passwords"))
-                        .unwrap_or_else(|| PathBuf::from("backups-passwords"))
-                })
-            });
+        let backup_passwords_path = windows_path_opt(
+            std::env::var("BACKUP_PASSWORD_PATH")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+                .or(file.backup.passwords_path.map(PathBuf::from)),
+        )
+        .or_else(|| {
+            backup_path.as_ref().map(|path| {
+                path.parent()
+                    .map(|parent| parent.join("backups-passwords"))
+                    .unwrap_or_else(|| PathBuf::from("backups-passwords"))
+            })
+        });
         if let (Some(backups), Some(passwords)) =
             (backup_path.as_ref(), backup_passwords_path.as_ref())
         {
@@ -415,22 +424,29 @@ impl Config {
             None => file.server.tls.unwrap_or(true),
             Some(_) => bail!("invalid LOGMASTER_TLS"),
         };
-        let tls_dir = std::env::var("LOGMASTER_TLS_DIR")
-            .ok()
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .or(file.server.tls_dir.map(PathBuf::from))
-            .unwrap_or_else(|| default_data_dir(&db_path).join("tls"));
-        let tls_cert = std::env::var("LOGMASTER_TLS_CERT")
-            .ok()
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .or(file.server.tls_cert.map(PathBuf::from));
-        let tls_key = std::env::var("LOGMASTER_TLS_KEY")
-            .ok()
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .or(file.server.tls_key.map(PathBuf::from));
+        let tls_dir = windows_path_or_default(
+            std::env::var("LOGMASTER_TLS_DIR")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+                .or(file.server.tls_dir.map(PathBuf::from))
+                .unwrap_or_else(|| default_data_dir(&db_path).join("tls")),
+            default_data_dir(&db_path).join("tls"),
+        );
+        let tls_cert = windows_path_opt(
+            std::env::var("LOGMASTER_TLS_CERT")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+                .or(file.server.tls_cert.map(PathBuf::from)),
+        );
+        let tls_key = windows_path_opt(
+            std::env::var("LOGMASTER_TLS_KEY")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+                .or(file.server.tls_key.map(PathBuf::from)),
+        );
         if tls_cert.is_some() != tls_key.is_some() {
             bail!("tls_cert y tls_key deben configurarse juntos");
         }
@@ -566,29 +582,39 @@ impl Config {
     pub(crate) fn load_paths() -> Result<InitPaths> {
         let (file, config_path) = load_config_file();
         let file = file.unwrap_or_default();
-        let db_path = std::env::var("LOGMASTER_DB_PATH")
-            .map(PathBuf::from)
-            .ok()
-            .filter(|p| !p.as_os_str().is_empty())
-            .or(file.database.path.map(PathBuf::from))
-            .unwrap_or_else(default_db_path);
-        let secrets_dir = std::env::var("LOGMASTER_SECRETS_DIR")
-            .ok()
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .or(file.security.secrets_dir.map(PathBuf::from))
-            .unwrap_or_else(|| default_data_dir(&db_path).join("secrets"));
-        let tls_dir = std::env::var("LOGMASTER_TLS_DIR")
-            .ok()
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .or(file.server.tls_dir.map(PathBuf::from))
-            .unwrap_or_else(|| default_data_dir(&db_path).join("tls"));
+        let db_path = windows_path_or_default(
+            std::env::var("LOGMASTER_DB_PATH")
+                .map(PathBuf::from)
+                .ok()
+                .filter(|p| !p.as_os_str().is_empty())
+                .or(file.database.path.map(PathBuf::from))
+                .unwrap_or_else(default_db_path),
+            default_db_path(),
+        );
+        let secrets_dir = windows_path_or_default(
+            std::env::var("LOGMASTER_SECRETS_DIR")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+                .or(file.security.secrets_dir.map(PathBuf::from))
+                .unwrap_or_else(|| default_data_dir(&db_path).join("secrets")),
+            default_data_dir(&db_path).join("secrets"),
+        );
+        let tls_dir = windows_path_or_default(
+            std::env::var("LOGMASTER_TLS_DIR")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+                .or(file.server.tls_dir.map(PathBuf::from))
+                .unwrap_or_else(|| default_data_dir(&db_path).join("tls")),
+            default_data_dir(&db_path).join("tls"),
+        );
         let backup_path = std::env::var("BACKUP_PATH")
             .ok()
             .filter(|v| !v.is_empty())
             .map(PathBuf::from)
-            .or(file.backup.path.map(PathBuf::from));
+            .or(file.backup.path.map(PathBuf::from))
+            .map(|path| windows_path_or_default(path, default_data_dir(&db_path).join("backups")));
         let database_engine = match std::env::var("LOGMASTER_DATABASE").ok() {
             Some(value) if !value.is_empty() => DatabaseEngine::parse(&value)?,
             _ => match file.database.engine.as_deref() {
@@ -921,6 +947,49 @@ fn default_data_dir(db_path: &Path) -> PathBuf {
         })
         .unwrap_or_else(|| PathBuf::from(""))
 }
+
+/// Ruta absoluta de Windows (`C:\...` o `C:/...`).
+#[cfg(not(windows))]
+fn is_windows_absolute_path(path: &Path) -> bool {
+    let bytes = path.to_string_lossy();
+    let bytes = bytes.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+}
+
+/// Una ruta absoluta de Windows (`C:\...`) del ejemplo no es
+/// válida fuera de Windows: en Linux/macOS se sustituye por el
+/// defecto de la plataforma, en vez de crear una carpeta con el
+/// nombre literal. En Windows se usa tal cual.
+#[cfg(not(windows))]
+fn windows_path_or_default(path: PathBuf, default: PathBuf) -> PathBuf {
+    if is_windows_absolute_path(&path) {
+        default
+    } else {
+        path
+    }
+}
+
+#[cfg(windows)]
+fn windows_path_or_default(path: PathBuf, _default: PathBuf) -> PathBuf {
+    path
+}
+
+/// Como `windows_path_or_default` para rutas opcionales sin
+/// defecto: una ruta de Windows fuera de Windows pasa a `None`
+/// (certificado propio, carpeta de contraseñas), no a un nombre
+/// literal con barras invertidas.
+#[cfg(not(windows))]
+fn windows_path_opt(path: Option<PathBuf>) -> Option<PathBuf> {
+    path.filter(|p| !is_windows_absolute_path(p))
+}
+
+#[cfg(windows)]
+fn windows_path_opt(path: Option<PathBuf>) -> Option<PathBuf> {
+    path
+}
 fn parse_int_env(key: &str, fallback: i64) -> Result<i64> {
     match std::env::var(key).ok() {
         Some(raw) if !raw.is_empty() => {
@@ -1232,6 +1301,55 @@ desktop_shortcut = false
         std::fs::remove_file(&path).unwrap();
     }
 
+    /// Las rutas absolutas de Windows del ejemplo no crean carpetas
+    /// con el nombre literal fuera de Windows: se sustituyen por
+    /// los defectos de la plataforma (fase 6).
+    #[cfg(not(windows))]
+    #[test]
+    fn load_windows_paths_fall_back_on_linux() {
+        let dir = std::env::temp_dir().join("logmaster-config-test-winpaths");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.toml");
+        std::fs::write(
+            &path,
+            r#"
+[database]
+path = "C:\\ProgramData\\LogMaster\\data\\logmaster.db"
+
+[server]
+tls_cert = "C:\\ProgramData\\LogMaster\\tls\\cert.pem"
+tls_key = "C:\\ProgramData\\LogMaster\\tls\\key.pem"
+
+[security]
+secrets_dir = "C:\\ProgramData\\LogMaster\\secrets"
+
+[backup]
+path = "C:\\ProgramData\\LogMaster\\backups"
+"#,
+        )
+        .unwrap();
+        let path_str = path.to_string_lossy().to_string();
+        let mut vars = base_vars();
+        vars.push((
+            "LOGMASTER_CONFIG",
+            Some(Box::leak(path_str.into_boxed_str()) as &'static str),
+        ));
+        with_env(&vars, || {
+            let cfg = Config::load().unwrap();
+            assert_eq!(cfg.db_path, PathBuf::from("data/logmaster.db"));
+            assert_eq!(cfg.backup_path.as_deref(), Some(Path::new("backups")));
+            assert_eq!(
+                cfg.backup_passwords_path_resolved().as_deref(),
+                Some(Path::new("backups-passwords"))
+            );
+            assert_eq!(cfg.secrets_dir, PathBuf::from("secrets"));
+            assert_eq!(cfg.tls_dir, PathBuf::from("tls"));
+            assert!(cfg.tls_cert.is_none());
+            assert!(cfg.tls_key.is_none());
+        });
+        std::fs::remove_file(&path).unwrap();
+    }
+
     #[test]
     fn load_env_overrides_toml() {
         let dir = std::env::temp_dir().join("logmaster-config-test-override");
@@ -1341,7 +1459,7 @@ desktop_shortcut = false
             r#"
 [server]
 tls = false
-tls_dir = "C:\\LogMaster\\tls"
+tls_dir = "mis-tls"
 
 [mail]
 host = "smtp.ejemplo.local"
@@ -1356,13 +1474,13 @@ data_days = 90
 audit_days = 400
 
 [backup]
-path = "C:\\LogMaster\\backups"
+path = "mis-respaldos"
 keep = 10
 daily_at = "01:30"
-passwords_path = "C:\\LogMaster\\backups-passwords"
+passwords_path = "mis-respaldos-contrasenas"
 
 [security]
-secrets_dir = "C:\\LogMaster\\secrets"
+secrets_dir = "mis-secretos"
 "#,
         )
         .unwrap();
@@ -1375,7 +1493,7 @@ secrets_dir = "C:\\LogMaster\\secrets"
         with_env(&vars, || {
             let cfg = Config::load().unwrap();
             assert!(!cfg.tls_enabled);
-            assert_eq!(cfg.tls_dir, PathBuf::from(r"C:\LogMaster\tls"));
+            assert_eq!(cfg.tls_dir, PathBuf::from("mis-tls"));
             assert_eq!(cfg.mail_host.as_deref(), Some("smtp.ejemplo.local"));
             assert_eq!(cfg.mail_port, 587);
             assert_eq!(
@@ -1387,17 +1505,14 @@ secrets_dir = "C:\\LogMaster\\secrets"
             assert_eq!(cfg.retention_run_at, "02:30");
             assert_eq!(cfg.retention_data_days, 90);
             assert_eq!(cfg.audit_retention_days, 400);
-            assert_eq!(
-                cfg.backup_path.as_deref(),
-                Some(Path::new(r"C:\LogMaster\backups"))
-            );
+            assert_eq!(cfg.backup_path.as_deref(), Some(Path::new("mis-respaldos")));
             assert_eq!(cfg.backup_keep, 10);
             assert_eq!(cfg.backup_daily_at, "01:30");
             assert_eq!(
                 cfg.backup_passwords_path.as_deref(),
-                Some(Path::new(r"C:\LogMaster\backups-passwords"))
+                Some(Path::new("mis-respaldos-contrasenas"))
             );
-            assert_eq!(cfg.secrets_dir, PathBuf::from(r"C:\LogMaster\secrets"));
+            assert_eq!(cfg.secrets_dir, PathBuf::from("mis-secretos"));
         });
         std::fs::remove_file(&path).unwrap();
     }
