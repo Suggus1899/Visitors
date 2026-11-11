@@ -403,42 +403,42 @@ pub(crate) async fn edit_visitor_with_body(
         }
     }
     // Valores viejos en claro, antes de mutar el perfil.
-    let plain = |value: Option<&str>| -> Result<Option<String>, Response> {
+    let plain = |value: Option<&str>| -> Result<Option<String>, Box<Response>> {
         match decrypt(&key, value.unwrap_or("")) {
             Ok(text) => Ok(if text.is_empty() { None } else { Some(text) }),
-            Err(e) => Err(server_error(&e.to_string())),
+            Err(e) => Err(Box::new(server_error(&e.to_string()))),
         }
     };
     let old_first = match plain(Some(&visitor.first_name)) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     let old_last = match plain(Some(&visitor.last_name)) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     let old_job = match plain(visitor.job_title.as_deref()) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     let old_company = Some(visitor.company.clone());
     let old_email = match plain(visitor.email.as_deref()) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     let old_phone = match plain(visitor.phone.as_deref()) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     let old_observations = match plain(visitor.observations.as_deref()) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     let old_blocked = Some(visitor.is_blocked.unwrap_or(false).to_string());
-    let enc = |value: &str| -> Result<String, Response> {
-        encrypt(&key, value).map_err(|e| server_error(&e.to_string()))
+    let enc = |value: &str| -> Result<String, Box<Response>> {
+        encrypt(&key, value).map_err(|e| Box::new(server_error(&e.to_string())))
     };
-    let enc_opt = |value: &Option<String>| -> Result<Option<String>, Response> {
+    let enc_opt = |value: &Option<String>| -> Result<Option<String>, Box<Response>> {
         match value {
             Some(text) => Ok(Some(enc(text)?)),
             None => Ok(None),
@@ -471,11 +471,11 @@ pub(crate) async fn edit_visitor_with_body(
             visitor.is_blocked = Some(blocked);
             let old_enc = match enc_opt(&old_blocked) {
                 Ok(value) => value,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             let new_enc = match enc(&blocked.to_string()) {
                 Ok(value) => Some(value),
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             changes.push((field.clone(), old_enc, new_enc));
         } else if column == "photo_data" || column == "id_photo_data" {
@@ -544,13 +544,13 @@ pub(crate) async fn edit_visitor_with_body(
             };
             let old_enc = match enc_opt(old) {
                 Ok(value) => value,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             let new_enc = match &value {
                 None => None,
                 Some(text) => match enc(text.trim()) {
                     Ok(value) => Some(value),
-                    Err(response) => return response,
+                    Err(response) => return *response,
                 },
             };
             match column {

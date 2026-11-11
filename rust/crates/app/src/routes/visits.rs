@@ -100,6 +100,10 @@ struct VisitorDataBody {
     #[serde(default)]
     id_photo_base64: String,
     #[serde(default)]
+    // Go acepta `photo` en el check-in pero nunca lo lee (solo
+    // `photoBase64` / `idPhotoBase64`); se conserva para no rechazar
+    // el cuerpo que envía el cliente.
+    #[allow(dead_code)]
     photo: String,
 }
 
@@ -147,11 +151,17 @@ struct CheckInBody {
     action: String,
     #[serde(default)]
     department: String,
+    // Go acepta estas tres horas en el check-in pero nunca las lee:
+    // el servidor pone la hora real de llegada/entrada/salida. Se
+    // conservan para no rechazar el cuerpo que envía el cliente.
     #[serde(default)]
+    #[allow(dead_code)]
     arrival_time: String,
     #[serde(default)]
+    #[allow(dead_code)]
     entry_time: String,
     #[serde(default)]
+    #[allow(dead_code)]
     exit_time: String,
     #[serde(default)]
     visitor_data: Option<VisitorDataBody>,

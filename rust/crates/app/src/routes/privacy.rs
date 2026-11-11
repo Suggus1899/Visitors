@@ -91,16 +91,30 @@ struct ArcoCreateBody {
     request_payload: Option<Map<String, Value>>,
 }
 
-async fn arco_create_inner(
-    state: &ApiState,
-    session: &Session,
-    headers: &HeaderMap,
+/// Argumentos de la creación de solicitud ARCO (común a la ruta
+/// general y a la de oposición por titular).
+struct ArcoCreateArgs<'a> {
+    state: &'a ApiState,
+    session: &'a Session,
+    headers: &'a HeaderMap,
     remote: RemoteAddr,
-    uri: &Uri,
-    mut body: ArcoCreateBody,
+    uri: &'a Uri,
+    body: ArcoCreateBody,
     cedula_override: Option<String>,
-    type_override: Option<&str>,
-) -> Response {
+    type_override: Option<&'a str>,
+}
+
+async fn arco_create_inner(args: ArcoCreateArgs<'_>) -> Response {
+    let ArcoCreateArgs {
+        state,
+        session,
+        headers,
+        remote,
+        uri,
+        mut body,
+        cedula_override,
+        type_override,
+    } = args;
     if let Some(cedula) = cedula_override {
         body.cedula = cedula;
     }
@@ -161,7 +175,7 @@ async fn arco_create_inner(
     // real de la solicitud, como en Go.
     let entry = audit_entry(
         &meta,
-        &session,
+        session,
         "ARCO_REQUEST_CREATED",
         "ArcoRequest",
         "",
@@ -209,7 +223,17 @@ async fn arco_create(
     uri: Uri,
     StrictJson(body): StrictJson<ArcoCreateBody>,
 ) -> Response {
-    arco_create_inner(&state, &session, &headers, remote, &uri, body, None, None).await
+    arco_create_inner(ArcoCreateArgs {
+        state: &state,
+        session: &session,
+        headers: &headers,
+        remote,
+        uri: &uri,
+        body,
+        cedula_override: None,
+        type_override: None,
+    })
+    .await
 }
 
 async fn arco_opposition(
@@ -221,16 +245,16 @@ async fn arco_opposition(
     Path(raw): Path<String>,
     StrictJson(body): StrictJson<ArcoCreateBody>,
 ) -> Response {
-    arco_create_inner(
-        &state,
-        &session,
-        &headers,
+    arco_create_inner(ArcoCreateArgs {
+        state: &state,
+        session: &session,
+        headers: &headers,
         remote,
-        &uri,
+        uri: &uri,
         body,
-        Some(raw),
-        Some("opposition"),
-    )
+        cedula_override: Some(raw),
+        type_override: Some("opposition"),
+    })
     .await
 }
 

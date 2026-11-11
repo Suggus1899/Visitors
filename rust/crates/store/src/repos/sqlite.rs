@@ -779,7 +779,13 @@ impl UnitOfWork for SqliteUnitOfWork {
                 }
                 Err(e) => return Err(e),
             };
-            audit::write(tx, audit)?;
+            audit::write(
+                tx,
+                &AuditEntry {
+                    entity_id: &id.to_string(),
+                    ..*audit
+                },
+            )?;
             Ok(id)
         })
     }

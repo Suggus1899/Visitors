@@ -32,17 +32,6 @@ pub enum Role {
 }
 
 impl Role {
-    /// Nombre del rol, como se guarda en `Users.role`.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Role::Root => "root",
-            Role::Admin => "admin",
-            Role::Operador => "operador",
-            Role::Auditor => "auditor",
-            Role::Demo => "demo",
-        }
-    }
-
     /// Parsea el rol guardado; un valor desconocido no concede nada.
     pub fn parse(value: &str) -> Option<Self> {
         match value {
@@ -252,15 +241,15 @@ mod tests {
         }
         // Un rol desconocido no concede nada.
         assert_eq!(Role::parse("superusuario"), None);
-        // El nombre del rol hace ida y vuelta con el parseo.
-        for role in [
-            Role::Root,
-            Role::Admin,
-            Role::Operador,
-            Role::Auditor,
-            Role::Demo,
+        // Cada rol se parsea desde su nombre guardado.
+        for (name, role) in [
+            ("root", Role::Root),
+            ("admin", Role::Admin),
+            ("operador", Role::Operador),
+            ("auditor", Role::Auditor),
+            ("demo", Role::Demo),
         ] {
-            assert_eq!(Role::parse(role.as_str()), Some(role));
+            assert_eq!(Role::parse(name), Some(role));
         }
     }
 }

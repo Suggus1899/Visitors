@@ -7,8 +7,10 @@
 
 pub mod audit;
 pub mod auth;
+pub mod backups;
 pub mod privacy;
 pub mod reports;
+pub mod superadmin;
 pub mod visitors;
 pub mod visits;
 
@@ -27,8 +29,10 @@ pub fn protected_routes() -> Router<ApiState> {
     Router::new()
         .merge(auth::protected_routes())
         .merge(audit::routes())
+        .merge(backups::routes())
         .merge(privacy::routes())
         .merge(reports::routes())
+        .merge(superadmin::routes())
         .merge(visitors::routes())
         .merge(visits::routes())
 }

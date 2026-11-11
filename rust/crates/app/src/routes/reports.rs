@@ -22,10 +22,10 @@ use logmaster_store::models::ReportRow;
 use serde_json::{json, Map, Value};
 
 use crate::common::{
-    caracas_date, caracas_local, date_range, format_instant, parse_instant, parse_query,
-    store_fail, validation_error, Params, CARACAS_OFFSET_SECS,
+    caracas_local, date_range, format_instant, now_dt, parse_instant, parse_query, store_fail,
+    validation_error, Params, CARACAS_OFFSET_SECS,
 };
-use crate::dto::visit_dtos;
+use crate::dto::{caracas_day, visit_dtos};
 use crate::error;
 use crate::http::ApiState;
 
@@ -156,7 +156,11 @@ fn aggregate(rows: &[ReportRow], start: DateTime<Utc>, end: DateTime<Utc>, month
         let weekday = local.weekday().num_days_from_sunday() as usize;
         day_counts[weekday] += count;
         *day_reasons[weekday].entry(purpose.clone()).or_default() += count;
-        *days.entry(caracas_date(instant)).or_default() += count;
+        // `instant` ya se parseó de `raw`, así que `caracas_day`
+        // devuelve `Some` aquí.
+        if let Some(day) = caracas_day(raw) {
+            *days.entry(day).or_default() += count;
+        }
         let day = local.date_naive();
         let week_start = day - chrono::Duration::days(weekday as i64);
         let week = if monthly {
@@ -272,7 +276,7 @@ fn aggregate(rows: &[ReportRow], start: DateTime<Utc>, end: DateTime<Utc>, month
 /// Rango mensual de Go (`monthRange`): mes 0–11 y año 1900–9998;
 /// por defecto, el mes actual de Caracas.
 fn month_range(params: &Params) -> Result<(DateTime<Utc>, DateTime<Utc>), Box<Response>> {
-    let now = caracas_local(Utc::now());
+    let now = caracas_local(now_dt());
     let mut month = now.month() as i64 - 1;
     let mut year = now.year() as i64;
     if let Some(raw) = crate::common::param(params, "month") {
@@ -312,7 +316,7 @@ async fn visit_stats(State(state): State<ApiState>, uri: Uri) -> Response {
         Ok(range) => range,
         Err(response) => return *response,
     };
-    let now = Utc::now();
+    let now = now_dt();
     let end = end.unwrap_or(now);
     let start = start.unwrap_or_else(|| end - chrono::Duration::days(30));
     if start >= end {
@@ -446,7 +450,7 @@ async fn alerts(State(state): State<ApiState>, uri: Uri) -> Response {
             _ => return validation_error("Umbral inválido"),
         }
     }
-    let before = Utc::now() - chrono::Duration::hours(threshold);
+    let before = now_dt() - chrono::Duration::hours(threshold);
     let visits = match state
         .repos
         .visits
@@ -465,10 +469,9 @@ async fn alerts(State(state): State<ApiState>, uri: Uri) -> Response {
         let Some(raw) = visit.check_in_time.as_deref() else {
             continue;
         };
-        let Some(instant) = parse_instant(raw) else {
-            continue;
-        };
-        *counts.entry(caracas_date(instant)).or_default() += 1;
+        if let Some(day) = caracas_day(raw) {
+            *counts.entry(day).or_default() += 1;
+        }
     }
     let by_date: Vec<Value> = counts
         .iter()

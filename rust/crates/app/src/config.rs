@@ -57,6 +57,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 use crate::client_ip::TrustedPrefix;
+use crate::session::ABSOLUTE_SESSION_TTL;
 
 /// Candado compartido por las pruebas que mutan variables de entorno
 /// en este binario (tambien lo usa `convert.rs`): las pruebas corren
@@ -125,7 +126,6 @@ pub struct Config {
     /// ella, el listado de respaldos falla como en Go
     /// (`BACKUP_PATH required`). La usan las rutas de respaldos
     /// (fase 4).
-    #[allow(dead_code)]
     pub backup_path: Option<PathBuf>,
     /// Ventana del limite general, en milisegundos (por defecto 60000).
     pub rate_window_ms: u64,
@@ -306,7 +306,7 @@ impl Config {
             edit_password,
             access_ttl,
             refresh_ttl,
-            absolute_session_ttl: Duration::from_secs(7 * 24 * 3600),
+            absolute_session_ttl: ABSOLUTE_SESSION_TTL,
             max_login_attempts,
             lockout_minutes,
             audit_retention_days,

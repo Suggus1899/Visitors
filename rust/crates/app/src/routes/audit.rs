@@ -27,8 +27,8 @@ use logmaster_store::repos::audit::AuditFilter;
 use serde_json::json;
 
 use crate::common::{
-    caracas_day_start, caracas_local, csv_text, date_range, format_instant, pagination, param,
-    parse_instant, parse_query, store_fail, validation_error, Params,
+    caracas_day_start, caracas_local, csv_row, csv_text, date_range, format_instant, pagination,
+    param, parse_instant, parse_query, store_fail, validation_error, Params,
 };
 use crate::dto::activity_log_json;
 use crate::error;
@@ -227,25 +227,6 @@ async fn audit_stats(State(state): State<ApiState>) -> Response {
     .into_response()
 }
 
-/// Una fila CSV con el entrecomillado de `encoding/csv` de Go.
-fn csv_record(fields: &[String]) -> String {
-    let mut out = String::new();
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        if field.contains([',', '"', '\n', '\r']) {
-            out.push('"');
-            out.push_str(&field.replace('"', "\"\""));
-            out.push('"');
-        } else {
-            out.push_str(field);
-        }
-    }
-    out.push('\n');
-    out
-}
-
 async fn audit_csv(State(state): State<ApiState>, uri: Uri) -> Response {
     let params = parse_query(&uri);
     let query = match audit_query(&params) {
@@ -259,7 +240,7 @@ async fn audit_csv(State(state): State<ApiState>, uri: Uri) -> Response {
     };
     let mut body = vec![0xef, 0xbb, 0xbf];
     body.extend_from_slice(
-        csv_record(
+        csv_row(
             &[
                 "ID",
                 "Fecha",
@@ -292,7 +273,7 @@ async fn audit_csv(State(state): State<ApiState>, uri: Uri) -> Response {
         .iter()
         .map(|value| csv_text(value))
         .collect::<Vec<_>>();
-        body.extend_from_slice(csv_record(&record).as_bytes());
+        body.extend_from_slice(csv_row(&record).as_bytes());
     }
     let mut response = Response::new(Body::from(body));
     response.headers_mut().insert(
