@@ -18,7 +18,7 @@ Documento de referencia: `workspace/your_files/migracion-rust-logmaster/migracio
 | 2 · Datos | Esquema SQLite de las 6 migraciones, repositorios, `convert` desde PostgreSQL y preflight | ✅ esta rama |
 | 3 · Cripto y sesión | AES-GCM/HMAC/bcrypt compatibles, JWT, cookies, roles como extractores | ✅ esta rama |
 | Doble motor (entre 3 y 4) | Traits de repositorio, `Sqlite*`/`Pg*` sobre sqlx, selección por configuración, prueba de conexión al arrancar, `config.toml` junto al .exe, primer arranque en C: + acceso directo | ✅ esta rama |
-| 4 · API por familias | auth, visits, visitors, privacy, audit, reports, superadmin, backups, SSE | Pendiente |
+| 4 · API por familias | auth, visits, visitors, privacy, audit, reports, superadmin, backups, SSE | ✅ esta rama |
 | 5 · Frontend | Leptos: login y operación primero; luego admin, auditoría, privacidad y root | Pendiente |
 | 6 · Operación | Respaldos con age, ensayo semanal, retención, correo, bandeja, logs | Pendiente |
 | 7 · Comparación | Carga pequeña y recorridos en ambas versiones, mismo entorno | Pendiente |
@@ -332,6 +332,53 @@ arranque con credenciales malas falla con salida 1 y el motivo
 concreto). Lo de Windows queda pendiente de probar en el PC de
 Gustavo, como en las fases anteriores.
 
+## Fase 4 · API por familias: las 59 rutas, con paridad
+
+Las rutas viven en `crates/app/src/routes/` (una familia por módulo)
+y solo trabajan contra los traits de repositorio async y el
+`UnitOfWork` de `crates/store`: el check-in y cada transición que
+toca varios repositorios son atómicos en ambos motores (SQLite con
+transacción inmediata, PostgreSQL con transacción + bloqueo asesor
+por cédula). La auditoría se escribe en la misma transacción, con el
+`entity_id` real. Los avisos SSE se publican después del commit.
+
+- `auth`: login/refresh/forgot/reset/logout/session/change-password/
+  renew, con `RateLimiter` por cuenta y `Retry-After: 900`.
+- `visits`: check-in con consentimiento, transiciones del ciclo,
+  listas por estado, filtrada, calendario (62 días, America/Caracas)
+  y exportación JSON con los límites de Go por formato.
+- `visitors`: detalle, empresas, fotos BLOB autenticadas, edición con
+  contraseña adicional en cada guardado e historial.
+- `privacy`: solicitudes ARCO, acceso, rectificación y cancelación
+  con constancia de verificación de identidad.
+- `audit`: bitácora, estadísticas, CSV con BOM y config de retención.
+- `reports`: stats, mensual, comparativo y alertas (con las
+  peculiaridades de agregación de Go).
+- `superadmin`: cuentas solo para root (sin crear rol root, sin
+  borrarlo ni cambiar su rol) y su variante de bitácora.
+- `backups`: listado desde `backup.path`; crear y restaurar devuelven
+  los 409 de Go hasta la fase 6.
+- `events`: `GET /api/v1/events/visits` (SSE, 256 suscriptores,
+  `system:connected`, `:heartbeat` cada 25 s, revalidación por evento
+  y latido, temporizador en la expiración del token).
+
+Verificación: `cargo test --workspace` (incluye la prueba de paridad
+`routes::parity`, que recorre las 59 rutas de
+`rust/fixtures/routes.json` comprobando método, path, protección por
+sesión, rol permitido/denegado y códigos de error) y smoke tests del
+binario real por familia en `~/workspace/.rust-verify/smoke-test/`
+(no se guardan en el repo).
+
+Pendiente para la fase 6: envío del correo de recuperación (lettre;
+el token ya se guarda y el `forgot` avisa que el envío está
+pendiente), ejecución real de respaldo/restauración con age, y
+ejecución de la retención de auditoría. Desviación conocida: Axum
+devuelve 404/405 sin el sobre de error para rutas o métodos
+desconocidos (Go devuelve `NOT_FOUND`/`METHOD_NOT_ALLOWED` con el
+sobre). La exportación de visitas es JSON con los límites de Go; el
+PDF/XLSX en el servidor (rust_xlsxwriter/genpdf) queda para decidir
+con el frontend.
+
 ## Salud
 
 - `GET /health` — salud del proceso.
@@ -343,11 +390,9 @@ Gustavo, como en las fases anteriores.
 
 ## Qué NO hace todavía este esqueleto
 
-- No hay rutas de dominio (fase 4: las 59 rutas por familias, con
-  `auth` primero), ni frontend Leptos (fase 5). La autenticación, la
-  sesión, las cookies y los roles ya están (fase 3) como servicio y
-  capas listos para esas rutas; el envío del correo de recuperación es
-  de la fase 6 (lettre).
+- No hay frontend Leptos (fase 5). El envío del correo de
+  recuperación, la ejecución real de respaldos con age y la retención
+  de auditoría son de la fase 6 (lettre/age).
 - `service install` registra el servicio con arranque automático
   retrasado y el binario con `service run` como punto de entrada del SCM.
   Las acciones de recuperación (reinicio a los 5 s en el 1.º y 2.º fallo)

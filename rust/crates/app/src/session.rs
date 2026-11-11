@@ -38,7 +38,6 @@ use axum::response::IntoResponse;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use logmaster_crypto::{hash_password, hash_token, random_token, verify_password};
-use logmaster_store::error::StoreError;
 use logmaster_store::models::User;
 use logmaster_store::repos::traits::UserRepository;
 use serde::{Deserialize, Serialize};
@@ -65,10 +64,6 @@ pub enum SessionError {
     AbsoluteExpired,
     /// Token de renovacion historico sin inicio ni maximo absoluto.
     LegacyRefresh,
-    /// La sesion cambio entre la lectura y la escritura (409).
-    Changed,
-    /// El token de recuperacion es invalido o vencio (400 INVALID_TOKEN).
-    InvalidResetToken,
     /// Error interno (500).
     Internal(String),
 }
@@ -87,16 +82,6 @@ impl SessionError {
                 StatusCode::UNAUTHORIZED,
                 "UNAUTHORIZED",
                 "Sesión inválida o revocada",
-            ),
-            SessionError::Changed => (
-                StatusCode::CONFLICT,
-                "SESSION_CHANGED",
-                "La sesión cambió durante la operación",
-            ),
-            SessionError::InvalidResetToken => (
-                StatusCode::BAD_REQUEST,
-                "INVALID_TOKEN",
-                "Token inválido o vencido",
             ),
             SessionError::Internal(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -144,6 +129,10 @@ pub struct Session {
     pub must_change: bool,
     pub session_started_at: Option<DateTime<Utc>>,
     pub absolute_expires_at: Option<DateTime<Utc>>,
+    /// Expiración del token de acceso que se validó (`exp` del JWT).
+    /// `None` cuando la sesión no viene de un token (p. ej., recién
+    /// creada con `from_user`); el SSE la usa como temporizador.
+    pub expires_at: Option<DateTime<Utc>>,
 }
 
 impl Session {
@@ -159,6 +148,7 @@ impl Session {
             must_change: user.must_change_password.unwrap_or(true),
             session_started_at: None,
             absolute_expires_at: None,
+            expires_at: None,
         }
     }
 
@@ -346,6 +336,7 @@ impl SessionService {
         let mut session = Session::from_user(&user);
         session.session_started_at = claims.session_started_at;
         session.absolute_expires_at = claims.absolute_expires_at;
+        session.expires_at = DateTime::from_timestamp(claims.exp as i64, 0).or(Some(now));
         Ok(session)
     }
 
@@ -363,21 +354,6 @@ impl SessionService {
     ) -> Result<Tokens, SessionError> {
         let session = self.validate_at(refresh_token, true, now).await?;
         self.issue_at(&session, now)
-    }
-
-    /// Revoca la sesion subiendo `tokenVersion` (logout). Devuelve
-    /// `Changed` si la version cambio entre tanto, como Go (409).
-    pub async fn revoke(&self, session: &Session) -> Result<(), SessionError> {
-        let now = Utc::now().format("%Y-%m-%dT%H:%M:%S%.6fZ").to_string();
-        let rows = self
-            .users
-            .revoke_session(session.id, session.token_version, &now)
-            .await
-            .map_err(|e| SessionError::Internal(e.to_string()))?;
-        if rows != 1 {
-            return Err(SessionError::Changed);
-        }
-        Ok(())
     }
 
     /// Inicia la recuperacion: si la cuenta existe y tiene correo,
@@ -420,38 +396,6 @@ impl SessionService {
             return Ok(None);
         }
         Ok(Some((token, email)))
-    }
-
-    /// Limpia el token de recuperacion guardado (si el envio del
-    /// correo fallo, como hace Go).
-    pub async fn clear_recovery(&self, user_id: i64, raw_token: &str) -> Result<(), SessionError> {
-        let hashed = hash_token(raw_token);
-        self.users
-            .clear_reset_token(user_id, &hashed)
-            .await
-            .map_err(|e| SessionError::Internal(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Consume el token de recuperacion (un solo uso) y aplica la
-    /// nueva contrasena, que ya viene hasheada con bcrypt.
-    pub async fn consume_recovery(
-        &self,
-        raw_token: &str,
-        new_password_hash: &str,
-        now: DateTime<Utc>,
-    ) -> Result<User, SessionError> {
-        let now_text = now.format("%Y-%m-%dT%H:%M:%S%.6fZ").to_string();
-        let hashed = hash_token(raw_token);
-        match self
-            .users
-            .consume_reset_token(&hashed, new_password_hash, &now_text)
-            .await
-        {
-            Ok(user) => Ok(user),
-            Err(StoreError::NotFound { .. }) => Err(SessionError::InvalidResetToken),
-            Err(e) => Err(SessionError::Internal(e.to_string())),
-        }
     }
 }
 
@@ -670,7 +614,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn session_lifecycle_issue_refresh_revoke() {
+    async fn session_lifecycle_issue_and_refresh() {
         let store = migrated_store();
         let service = test_service(&store);
         let users: Arc<dyn UserRepository> = service.users.clone();
@@ -708,22 +652,6 @@ mod tests {
             .validate(&tokens.refresh_token, false)
             .await
             .is_err());
-
-        // Revocar (logout) invalida ambos tokens.
-        service.revoke(&validated).await.unwrap();
-        assert!(matches!(
-            service.validate(&tokens.access_token, false).await,
-            Err(SessionError::Revoked)
-        ));
-        assert!(matches!(
-            service.validate(&tokens.refresh_token, true).await,
-            Err(SessionError::Revoked)
-        ));
-        // La segunda revocacion con la version vieja es un conflicto.
-        assert!(matches!(
-            service.revoke(&validated).await,
-            Err(SessionError::Changed)
-        ));
     }
 
     #[tokio::test]
@@ -824,11 +752,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn recovery_is_single_use_and_generic() {
+    async fn recovery_request_is_generic() {
         let store = migrated_store();
         let service = test_service(&store);
         let users: Arc<dyn UserRepository> = service.users.clone();
-        let user = seed_user(&users, "operador4", "operador").await;
+        let _user = seed_user(&users, "operador4", "operador").await;
         let now = Utc::now();
         // Cuenta inexistente: respuesta generica (None), sin error.
         assert!(service
@@ -836,40 +764,14 @@ mod tests {
             .await
             .unwrap()
             .is_none());
-        // Si el envio del correo falla, el token se limpia y ya no vale.
-        let (lost, _) = service
-            .request_recovery("operador4", now)
-            .await
-            .unwrap()
-            .expect("primer token");
-        service.clear_recovery(user.id, &lost).await.unwrap();
-        let hash = hash_password("Nueva!Clave123").unwrap();
-        assert_eq!(
-            service.consume_recovery(&lost, &hash, now).await,
-            Err(SessionError::InvalidResetToken)
-        );
-
-        // Un token nuevo si funciona una sola vez y revoca las
-        // sesiones (tokenVersion sube).
+        // Cuenta existente con correo: token de 64 hex y correo.
         let (token, email) = service
             .request_recovery("operador4", now)
             .await
             .unwrap()
-            .expect("segundo token");
+            .expect("token de recuperacion");
         assert_eq!(email, "usuario@example.test");
         assert_eq!(token.len(), 64);
-        let updated = service.consume_recovery(&token, &hash, now).await.unwrap();
-        assert_eq!(updated.id, user.id);
-        assert_eq!(updated.token_version, user.token_version + 1);
-        assert_eq!(
-            service.consume_recovery(&token, &hash, now).await,
-            Err(SessionError::InvalidResetToken)
-        );
-        // Token inventado: mismo error generico.
-        assert_eq!(
-            service.consume_recovery(&"00".repeat(32), &hash, now).await,
-            Err(SessionError::InvalidResetToken)
-        );
     }
 
     #[test]

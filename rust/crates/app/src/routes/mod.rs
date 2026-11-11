@@ -8,11 +8,15 @@
 pub mod audit;
 pub mod auth;
 pub mod backups;
+pub mod events;
 pub mod privacy;
 pub mod reports;
 pub mod superadmin;
 pub mod visitors;
 pub mod visits;
+
+#[cfg(test)]
+mod parity;
 
 use axum::Router;
 
@@ -30,6 +34,7 @@ pub fn protected_routes() -> Router<ApiState> {
         .merge(auth::protected_routes())
         .merge(audit::routes())
         .merge(backups::routes())
+        .merge(events::routes())
         .merge(privacy::routes())
         .merge(reports::routes())
         .merge(superadmin::routes())

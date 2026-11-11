@@ -23,6 +23,9 @@ pub const CHANNEL_CAPACITY: usize = 16;
 /// Máximo de suscriptores simultáneos, como Go.
 pub const MAX_SUBSCRIBERS: usize = 256;
 
+/// Latido SSE, como Go (`time.NewTicker(25 * time.Second)`).
+pub const HEARTBEAT_INTERVAL: std::time::Duration = std::time::Duration::from_secs(25);
+
 /// Aviso SSE, con el mismo JSON que Go (`visitId` se omite en cero).
 #[derive(Debug, Clone, Serialize)]
 pub struct VisitEvent {
@@ -71,11 +74,6 @@ impl Events {
             receiver: self.sender.subscribe(),
             subscribers: self.subscribers.clone(),
         })
-    }
-
-    /// Suscriptores actuales.
-    pub fn subscriber_count(&self) -> usize {
-        self.subscribers.load(Ordering::SeqCst)
     }
 }
 
