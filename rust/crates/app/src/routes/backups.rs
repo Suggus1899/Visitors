@@ -186,35 +186,7 @@ mod tests {
     const APP_ORIGIN: &str = "https://localhost:8443";
 
     fn test_config() -> Config {
-        Config {
-            bind: "127.0.0.1".to_string(),
-            port: 8443,
-            db_path: "data/logmaster.db".into(),
-            database_engine: logmaster_store::DatabaseEngine::Sqlite,
-            database_url: None,
-            test_connection_on_startup: true,
-            install_folder: r"C:\LogMaster".to_string(),
-            desktop_shortcut: true,
-            config_path: None,
-            jwt_secret: "fixture-only-not-a-real-secret-fixture-only-not-a-real-secret-"
-                .to_string(),
-            refresh_secret: "fixture-refresh-secret-fixture-refresh-secret-fixture--".to_string(),
-            encryption_key: [0x19u8; 32],
-            edit_password: "fixture-edit-password".to_string(),
-            access_ttl: std::time::Duration::from_secs(15 * 60),
-            refresh_ttl: std::time::Duration::from_secs(7 * 24 * 3600),
-            absolute_session_ttl: std::time::Duration::from_secs(7 * 24 * 3600),
-            max_login_attempts: 5,
-            lockout_minutes: 15,
-            audit_retention_days: 365,
-            retention_enabled: false,
-            backup_path: None,
-            rate_window_ms: 60_000,
-            rate_max_requests: 100,
-            app_url: APP_ORIGIN.to_string(),
-            cors_origins: vec![],
-            trusted_proxies: vec![],
-        }
+        Config::fixture()
     }
 
     fn test_state(backup_path: Option<PathBuf>) -> (ApiState, SessionService) {

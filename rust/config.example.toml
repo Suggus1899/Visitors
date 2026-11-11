@@ -13,6 +13,10 @@
 bind = "127.0.0.1"   # solo esta máquina; "0.0.0.0" si otros equipos entran por red
 port = 8443
 app_url = "https://localhost:8443"
+tls = true           # HTTPS con rustls; certificado autofirmado si no hay propio
+# tls_dir = "C:\\ProgramData\\LogMaster\\tls"   # donde vive/genera el certificado
+# tls_cert = "C:\\ProgramData\\LogMaster\\tls\\cert.pem"  # con tls_key, usa el propio
+# tls_key = "C:\\ProgramData\\LogMaster\\tls\\key.pem"
 
 [database]
 engine = "sqlite"    # "sqlite" | "postgres"
@@ -27,26 +31,26 @@ refresh_days = 7
 [security]
 # jwt_secret, jwt_refresh_secret, encryption_key y edit_password:
 # por entorno o archivo de secretos (DPAPI), nunca en este archivo.
+# secrets_dir = "C:\\ProgramData\\LogMaster\\secrets"  # archivo de secretos (DPAPI en Windows)
 
 [mail]
 host = "127.0.0.1"
-port = 1025
+port = 1025          # Mailpit en laboratorio; el SMTP real en producción
+tls_mode = "local"   # "local" (sin TLS, solo bucle local) | "starttls" | "implicit"
 # from = "logmaster@ejemplo.local"
+# user = "usuario-smtp"   # SMTP_USER/SMTP_PASSWORD solo por entorno, nunca aquí
 
 [retention]
-# enabled y audit_days ya tienen efecto (fase 4: los lee /audit/config);
-# run_at y data_days son fase 6 (la ejecución de la retención).
-enabled = false
+enabled = false      # desactivada por defecto, como hoy; la ejecuta el programador interno
 run_at = "02:00"      # hora de Caracas
 data_days = 60
 audit_days = 365
 
 [backup]
-# path ya tiene efecto (fase 4: las rutas de respaldos lo usan);
-# keep y daily_at son fase 6 (la ejecución de los respaldos).
 path = "C:\\ProgramData\\LogMaster\\backups"
-keep = 30
-daily_at = "01:00"
+keep = 30            # pares verificados que se conservan; manuales e incompletos se preservan
+daily_at = "01:00"   # hora de Caracas del respaldo diario
+# passwords_path = "C:\\ProgramData\\LogMaster\\backups-passwords"  # contraseñas cifradas, carpeta aparte
 
 [install]
 folder = "C:\\LogMaster"

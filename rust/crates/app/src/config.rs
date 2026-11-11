@@ -127,6 +127,62 @@ pub struct Config {
     /// (`BACKUP_PATH required`). La usan las rutas de respaldos
     /// (fase 4).
     pub backup_path: Option<PathBuf>,
+    /// Respaldo automatico: cuantos pares verificados se conservan
+    /// (`[backup] keep`, por defecto 30, como Go). Lo usa la
+    /// rotacion de la fase 6.
+    pub backup_keep: u32,
+    /// Hora de Caracas del respaldo diario (`[backup] daily_at`,
+    /// por defecto `"01:00"`). La usa el programador de la fase 6.
+    pub backup_daily_at: String,
+    /// Carpeta separada de las contraseñas de restauración cifradas
+    /// (`BACKUP_PASSWORD_PATH` o `[backup] passwords_path`; por
+    /// defecto, una carpeta hermana de `backup.path`). Nunca es la
+    /// misma carpeta que los respaldos, como en Go.
+    pub backup_passwords_path: Option<PathBuf>,
+    /// Hora de Caracas de la retención programada (`[retention]
+    /// run_at`, por defecto `"02:00"`). La usa el programador de la
+    /// fase 6.
+    pub retention_run_at: String,
+    /// Días de retención de los datos (`DATA_RETENTION_DAYS` o
+    /// `[retention] data_days`, por defecto 60, como Go). La usa la
+    /// ejecución de la retención de la fase 6.
+    pub retention_data_days: i64,
+    /// Servidor SMTP (`SMTP_HOST` o `[mail] host`). Sin él, el envío
+    /// de correo falla de forma visible, no silenciosa (fase 6).
+    pub mail_host: Option<String>,
+    /// Puerto SMTP (`SMTP_PORT` o `[mail] port`, por defecto 1025,
+    /// el de Mailpit en laboratorio).
+    pub mail_port: u16,
+    /// Remitente (`EMAIL_FROM` o `[mail] from`).
+    pub mail_from: Option<String>,
+    /// Modo TLS SMTP (`SMTP_TLS_MODE` o `[mail] tls_mode`):
+    /// `"local"` (sin TLS, solo bucle local), `"starttls"` o
+    /// `"implicit"`. Sin valor, el remitente decide: bucle local
+    /// sin TLS y resto con STARTTLS, como Go.
+    pub mail_tls_mode: Option<String>,
+    /// Usuario SMTP (`SMTP_USER`; solo por entorno, nunca en el
+    /// archivo).
+    pub mail_user: Option<String>,
+    /// Contraseña SMTP (`SMTP_PASSWORD`; solo por entorno, nunca en
+    /// el archivo).
+    pub mail_password: Option<String>,
+    /// TLS del servidor (`LOGMASTER_TLS` o `[server] tls`, por
+    /// defecto `true`: certificado local autogenerado, documento
+    /// §15). Con `false`, `serve` escucha en HTTP plano.
+    pub tls_enabled: bool,
+    /// Carpeta del certificado TLS (`LOGMASTER_TLS_DIR` o `[server]
+    /// tls_dir`; por defecto `<datos>/tls`, documento §14.3).
+    pub tls_dir: PathBuf,
+    /// Certificado TLS propio (`LOGMASTER_TLS_CERT` o `[server]
+    /// tls_cert`). Sin él, se genera uno autofirmado en `tls_dir`.
+    pub tls_cert: Option<PathBuf>,
+    /// Clave privada TLS (`LOGMASTER_TLS_KEY` o `[server] tls_key`).
+    pub tls_key: Option<PathBuf>,
+    /// Carpeta del archivo de secretos (`LOGMASTER_SECRETS_DIR` o
+    /// `[security] secrets_dir`; por defecto `<datos>/secrets`,
+    /// documento §14.3). En Windows el archivo va cifrado con
+    /// DPAPI; en Linux, con permisos 0600 (fase 6).
+    pub secrets_dir: PathBuf,
     /// Ventana del limite general, en milisegundos (por defecto 60000).
     pub rate_window_ms: u64,
     /// Maximo de peticiones del limite general por ventana (por
@@ -147,11 +203,6 @@ impl Config {
         if file.security.has_secrets() {
             tracing::warn!(
                 "los secretos en config.toml se ignoran: usen variables de entorno o el archivo de secretos (DPAPI)"
-            );
-        }
-        if file.has_future_sections() {
-            tracing::info!(
-                "las secciones [mail], [retention] run_at/data_days y [backup] keep/daily_at de config.toml aún no tienen efecto (fase 6)"
             );
         }
 
@@ -254,6 +305,112 @@ impl Config {
             .filter(|v| !v.is_empty())
             .map(PathBuf::from)
             .or(file.backup.path.map(PathBuf::from));
+        // La carpeta de contraseñas nunca es la de respaldos (Go
+        // exige lo mismo): por defecto, una hermana llamada
+        // `backups-passwords` junto a la carpeta de respaldos.
+        let backup_passwords_path = std::env::var("BACKUP_PASSWORD_PATH")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.backup.passwords_path.map(PathBuf::from))
+            .or_else(|| {
+                backup_path.as_ref().map(|path| {
+                    path.parent()
+                        .map(|parent| parent.join("backups-passwords"))
+                        .unwrap_or_else(|| PathBuf::from("backups-passwords"))
+                })
+            });
+        if let (Some(backups), Some(passwords)) =
+            (backup_path.as_ref(), backup_passwords_path.as_ref())
+        {
+            if backups == passwords {
+                bail!("la carpeta de contraseñas de respaldo debe ser distinta de la de respaldos");
+            }
+        }
+        let backup_keep = file.backup.keep.unwrap_or(30);
+        if backup_keep == 0 {
+            bail!("invalid [backup] keep (debe ser >= 1)");
+        }
+        let backup_daily_at = parse_hhmm(
+            file.backup.daily_at.as_deref().unwrap_or("01:00"),
+            "[backup] daily_at",
+        )?;
+        let retention_run_at = parse_hhmm(
+            file.retention.run_at.as_deref().unwrap_or("02:00"),
+            "[retention] run_at",
+        )?;
+        let retention_data_days = match std::env::var("DATA_RETENTION_DAYS").ok() {
+            Some(raw) if !raw.is_empty() => raw
+                .parse::<i64>()
+                .map_err(|_| anyhow!("invalid DATA_RETENTION_DAYS"))?,
+            _ => file
+                .retention
+                .data_days
+                .map(|days| days as i64)
+                .unwrap_or(60),
+        };
+        if retention_data_days < 1 || audit_retention_days < 1 {
+            bail!("la retención necesita data_days y audit_days >= 1");
+        }
+        let mail_host = std::env::var("SMTP_HOST")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .or(file.mail.host);
+        let mail_port = match std::env::var("SMTP_PORT").ok() {
+            Some(raw) if !raw.is_empty() => raw
+                .parse::<u16>()
+                .map_err(|_| anyhow!("invalid SMTP_PORT"))?,
+            _ => file.mail.port.unwrap_or(1025),
+        };
+        let mail_from = std::env::var("EMAIL_FROM")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .or(file.mail.from);
+        let mail_tls_mode = std::env::var("SMTP_TLS_MODE")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .or(file.mail.tls_mode);
+        if let Some(mode) = mail_tls_mode.as_deref() {
+            if !matches!(mode, "local" | "starttls" | "implicit") {
+                bail!("invalid SMTP_TLS_MODE (use \"local\", \"starttls\" o \"implicit\")");
+            }
+        }
+        let mail_user = std::env::var("SMTP_USER").ok().filter(|v| !v.is_empty());
+        let mail_password = std::env::var("SMTP_PASSWORD")
+            .ok()
+            .filter(|v| !v.is_empty());
+        let tls_enabled = match std::env::var("LOGMASTER_TLS").ok().as_deref() {
+            Some("true") => true,
+            Some("false") => false,
+            None => file.server.tls.unwrap_or(true),
+            Some(_) => bail!("invalid LOGMASTER_TLS"),
+        };
+        let tls_dir = std::env::var("LOGMASTER_TLS_DIR")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.server.tls_dir.map(PathBuf::from))
+            .unwrap_or_else(|| default_data_dir(&db_path).join("tls"));
+        let tls_cert = std::env::var("LOGMASTER_TLS_CERT")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.server.tls_cert.map(PathBuf::from));
+        let tls_key = std::env::var("LOGMASTER_TLS_KEY")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.server.tls_key.map(PathBuf::from));
+        if tls_cert.is_some() != tls_key.is_some() {
+            bail!("tls_cert y tls_key deben configurarse juntos");
+        }
+        let secrets_dir = std::env::var("LOGMASTER_SECRETS_DIR")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.security.secrets_dir.map(PathBuf::from))
+            .unwrap_or_else(|| default_data_dir(&db_path).join("secrets"));
+
         let rate_window_ms = parse_int_env("RATE_LIMIT_WINDOW_MS", 60_000)? as u64;
         let rate_max_requests = parse_int_env("RATE_LIMIT_MAX_REQUESTS", 100)? as u32;
         let app_url = std::env::var("APP_URL")
@@ -311,7 +468,23 @@ impl Config {
             lockout_minutes,
             audit_retention_days,
             retention_enabled,
+            retention_run_at,
+            retention_data_days,
             backup_path,
+            backup_keep,
+            backup_daily_at,
+            backup_passwords_path,
+            mail_host,
+            mail_port,
+            mail_from,
+            mail_tls_mode,
+            mail_user,
+            mail_password,
+            tls_enabled,
+            tls_dir,
+            tls_cert,
+            tls_key,
+            secrets_dir,
             rate_window_ms,
             rate_max_requests,
             app_url,
@@ -341,16 +514,66 @@ impl Config {
             postgres_url: self.database_url.clone(),
         }
     }
+
+    /// Configuración de pruebas con los mismos valores de los
+    /// fixtures anteriores: la usan los `test_config()` de cada
+    /// familia en vez de repetir el literal completo.
+    #[cfg(test)]
+    pub(crate) fn fixture() -> Self {
+        Self {
+            bind: "127.0.0.1".to_string(),
+            port: 8443,
+            db_path: "data/logmaster.db".into(),
+            database_engine: logmaster_store::DatabaseEngine::Sqlite,
+            database_url: None,
+            test_connection_on_startup: true,
+            install_folder: r"C:\LogMaster".to_string(),
+            desktop_shortcut: true,
+            config_path: None,
+            jwt_secret: "fixture-only-not-a-real-secret-fixture-only-not-a-real-secret-"
+                .to_string(),
+            refresh_secret: "fixture-refresh-secret-fixture-refresh-secret-fixture--".to_string(),
+            encryption_key: [0x19u8; 32],
+            edit_password: "fixture-edit-password".to_string(),
+            access_ttl: Duration::from_secs(15 * 60),
+            refresh_ttl: Duration::from_secs(7 * 24 * 3600),
+            absolute_session_ttl: Duration::from_secs(7 * 24 * 3600),
+            max_login_attempts: 5,
+            lockout_minutes: 15,
+            audit_retention_days: 365,
+            retention_enabled: false,
+            retention_run_at: "02:00".to_string(),
+            retention_data_days: 60,
+            backup_path: None,
+            backup_keep: 30,
+            backup_daily_at: "01:00".to_string(),
+            backup_passwords_path: None,
+            mail_host: None,
+            mail_port: 1025,
+            mail_from: None,
+            mail_tls_mode: None,
+            mail_user: None,
+            mail_password: None,
+            tls_enabled: true,
+            tls_dir: "tls".into(),
+            tls_cert: None,
+            tls_key: None,
+            secrets_dir: "secrets".into(),
+            rate_window_ms: 60_000,
+            rate_max_requests: 100,
+            app_url: "https://localhost:8443".to_string(),
+            cors_origins: vec![],
+            trusted_proxies: vec![],
+        }
+    }
 }
 
 /// Ejemplo incrustado (`rust/config.example.toml`).
 const CONFIG_EXAMPLE: &str = include_str!("../../../config.example.toml");
 
 /// Contenido de `config.toml`. Los secretos no se leen de aquí nunca
-/// (ver `FileSecurity`); el correo y la ejecución de la retención y
-/// de los respaldos se parsean para avisar que aún no tienen efecto
-/// (fase 6), pero `[retention] audit_days`/`enabled` y `[backup] path`
-/// ya se aplican (fase 4). Un campo desconocido es un error: un typo
+/// (ver `FileSecurity`); el correo, la retención y los respaldos se
+/// aplican desde la fase 6. Un campo desconocido es un error: un typo
 /// en la configuración no debe pasar en silencio.
 #[derive(Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -371,6 +594,10 @@ struct FileServer {
     bind: Option<String>,
     port: Option<u16>,
     app_url: Option<String>,
+    tls: Option<bool>,
+    tls_dir: Option<String>,
+    tls_cert: Option<String>,
+    tls_key: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -396,6 +623,7 @@ struct FileSecurity {
     jwt_refresh_secret: Option<String>,
     encryption_key: Option<String>,
     edit_password: Option<String>,
+    secrets_dir: Option<String>,
 }
 
 impl FileSecurity {
@@ -413,6 +641,8 @@ struct FileMail {
     host: Option<String>,
     port: Option<u16>,
     from: Option<String>,
+    tls_mode: Option<String>,
+    user: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -430,6 +660,7 @@ struct FileBackup {
     path: Option<String>,
     keep: Option<u32>,
     daily_at: Option<String>,
+    passwords_path: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -437,18 +668,6 @@ struct FileBackup {
 struct FileInstall {
     folder: Option<String>,
     desktop_shortcut: Option<bool>,
-}
-
-impl FileConfig {
-    fn has_future_sections(&self) -> bool {
-        self.mail.host.is_some()
-            || self.mail.port.is_some()
-            || self.mail.from.is_some()
-            || self.retention.run_at.is_some()
-            || self.retention.data_days.is_some()
-            || self.backup.keep.is_some()
-            || self.backup.daily_at.is_some()
-    }
 }
 
 /// Localiza el `config.toml` y lo parsea. Devuelve el contenido y
@@ -553,8 +772,40 @@ fn default_db_path() -> PathBuf {
     PathBuf::from("data").join("logmaster.db")
 }
 
-/// Entero de entorno con valor por defecto, validado como Go
-/// (1..=10_000_000).
+/// Hora del día en formato `HH:MM` (24 h), como la usan
+/// `[backup] daily_at` y `[retention] run_at`. Devuelve la cadena
+/// tal cual, validada.
+pub fn parse_hhmm(raw: &str, field: &str) -> Result<String> {
+    let valid = raw.len() == 5
+        && raw.as_bytes()[2] == b':'
+        && raw.as_bytes()[0].is_ascii_digit()
+        && raw.as_bytes()[1].is_ascii_digit()
+        && raw.as_bytes()[3].is_ascii_digit()
+        && raw.as_bytes()[4].is_ascii_digit();
+    let (hour, minute) = valid
+        .then(|| Some((raw[..2].parse::<u32>().ok()?, raw[3..].parse::<u32>().ok()?)))
+        .flatten()
+        .ok_or_else(|| anyhow!("invalid {field} (use \"HH:MM\")"))?;
+    if hour > 23 || minute > 59 {
+        bail!("invalid {field} (use \"HH:MM\")");
+    }
+    Ok(raw.to_string())
+}
+
+/// Carpeta de datos que contiene la base (`.../data` en Windows,
+/// `data` en desarrollo): de ella cuelgan `tls/` y `secrets/`
+/// (documento §14.3).
+fn default_data_dir(db_path: &PathBuf) -> PathBuf {
+    db_path
+        .parent()
+        .map(|parent| {
+            parent
+                .parent()
+                .map(|grand| grand.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from(""))
+        })
+        .unwrap_or_else(|| PathBuf::from(""))
+}
 fn parse_int_env(key: &str, fallback: i64) -> Result<i64> {
     match std::env::var(key).ok() {
         Some(raw) if !raw.is_empty() => {
@@ -634,6 +885,7 @@ pub fn parse_duration(raw: &str, fallback: Duration) -> Result<Duration> {
 mod tests {
     use super::*;
     use crate::config::ENV_LOCK;
+    use std::path::Path;
 
     // Las pruebas de variables de entorno comparten el proceso: se
     // serializan con el candado compartido de `config.rs`.
@@ -647,6 +899,11 @@ mod tests {
         "LOGMASTER_DB_PATH",
         "LOGMASTER_DATABASE",
         "LOGMASTER_CONFIG",
+        "LOGMASTER_TLS",
+        "LOGMASTER_TLS_DIR",
+        "LOGMASTER_TLS_CERT",
+        "LOGMASTER_TLS_KEY",
+        "LOGMASTER_SECRETS_DIR",
         "DATABASE_URL",
         "JWT_SECRET",
         "JWT_REFRESH_SECRET",
@@ -662,6 +919,17 @@ mod tests {
         "APP_URL",
         "CORS_ORIGINS",
         "TRUSTED_PROXY_CIDRS",
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USER",
+        "SMTP_PASSWORD",
+        "SMTP_TLS_MODE",
+        "EMAIL_FROM",
+        "RETENTION_ENABLED",
+        "DATA_RETENTION_DAYS",
+        "AUDIT_LOG_RETENTION_DAYS",
+        "BACKUP_PATH",
+        "BACKUP_PASSWORD_PATH",
     ];
 
     fn with_env(vars: &[(&str, Option<&str>)], f: impl FnOnce()) {
@@ -936,6 +1204,165 @@ desktop_shortcut = false
             ],
             || assert!(Config::load().is_err()),
         );
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn parse_hhmm_validates() {
+        assert_eq!(parse_hhmm("02:00", "run_at").unwrap(), "02:00");
+        assert_eq!(parse_hhmm("23:59", "run_at").unwrap(), "23:59");
+        for bad in ["24:00", "2:00", "02:60", "0200", "02:00:00", "", "ab:cd"] {
+            assert!(parse_hhmm(bad, "run_at").is_err(), "{bad} debe fallar");
+        }
+    }
+
+    #[test]
+    fn load_phase6_sections_from_toml() {
+        let dir = std::env::temp_dir().join("logmaster-config-test-f6");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.toml");
+        std::fs::write(
+            &path,
+            r#"
+[server]
+tls = false
+tls_dir = "C:\\LogMaster\\tls"
+
+[mail]
+host = "smtp.ejemplo.local"
+port = 587
+from = "LogMaster <avisos@ejemplo.local>"
+tls_mode = "starttls"
+
+[retention]
+enabled = true
+run_at = "02:30"
+data_days = 90
+audit_days = 400
+
+[backup]
+path = "C:\\LogMaster\\backups"
+keep = 10
+daily_at = "01:30"
+passwords_path = "C:\\LogMaster\\backups-passwords"
+
+[security]
+secrets_dir = "C:\\LogMaster\\secrets"
+"#,
+        )
+        .unwrap();
+        let path_str = path.to_string_lossy().to_string();
+        let mut vars = base_vars();
+        vars.push((
+            "LOGMASTER_CONFIG",
+            Some(Box::leak(path_str.into_boxed_str()) as &'static str),
+        ));
+        with_env(&vars, || {
+            let cfg = Config::load().unwrap();
+            assert!(!cfg.tls_enabled);
+            assert_eq!(cfg.tls_dir, PathBuf::from(r"C:\LogMaster\tls"));
+            assert_eq!(cfg.mail_host.as_deref(), Some("smtp.ejemplo.local"));
+            assert_eq!(cfg.mail_port, 587);
+            assert_eq!(
+                cfg.mail_from.as_deref(),
+                Some("LogMaster <avisos@ejemplo.local>")
+            );
+            assert_eq!(cfg.mail_tls_mode.as_deref(), Some("starttls"));
+            assert!(cfg.retention_enabled);
+            assert_eq!(cfg.retention_run_at, "02:30");
+            assert_eq!(cfg.retention_data_days, 90);
+            assert_eq!(cfg.audit_retention_days, 400);
+            assert_eq!(
+                cfg.backup_path.as_deref(),
+                Some(Path::new(r"C:\LogMaster\backups"))
+            );
+            assert_eq!(cfg.backup_keep, 10);
+            assert_eq!(cfg.backup_daily_at, "01:30");
+            assert_eq!(
+                cfg.backup_passwords_path.as_deref(),
+                Some(Path::new(r"C:\LogMaster\backups-passwords"))
+            );
+            assert_eq!(cfg.secrets_dir, PathBuf::from(r"C:\LogMaster\secrets"));
+        });
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn load_phase6_defaults_and_env_overrides() {
+        // Config explícito y vacío: sin él, `Config::load` crearía
+        // (y leería) un config.toml junto al binario de pruebas a
+        // partir del ejemplo, con sus valores de correo.
+        let dir = std::env::temp_dir().join("logmaster-config-test-f6-empty");
+        std::fs::create_dir_all(&dir).unwrap();
+        let empty_path = dir.join("config.toml");
+        std::fs::write(&empty_path, "").unwrap();
+        let empty_str = empty_path.to_string_lossy().to_string();
+        let mut vars = base_vars();
+        vars.push((
+            "LOGMASTER_CONFIG",
+            Some(Box::leak(empty_str.clone().into_boxed_str()) as &'static str),
+        ));
+        with_env(&vars, || {
+            let cfg = Config::load().unwrap();
+            assert!(cfg.tls_enabled);
+            assert_eq!(cfg.mail_port, 1025);
+            assert_eq!(cfg.mail_host, None);
+            assert_eq!(cfg.retention_run_at, "02:00");
+            assert_eq!(cfg.retention_data_days, 60);
+            assert_eq!(cfg.backup_keep, 30);
+            assert_eq!(cfg.backup_daily_at, "01:00");
+            assert!(!cfg.retention_enabled);
+        });
+        std::fs::remove_file(&empty_path).unwrap();
+        // Entorno de correo y retención.
+        let mut vars = base_vars();
+        vars.push((
+            "LOGMASTER_CONFIG",
+            Some(Box::leak(empty_str.clone().into_boxed_str()) as &'static str),
+        ));
+        vars.push(("SMTP_HOST", Some("127.0.0.1")));
+        vars.push(("SMTP_PORT", Some("1025")));
+        vars.push(("SMTP_TLS_MODE", Some("local")));
+        vars.push(("EMAIL_FROM", Some("logmaster@ejemplo.local")));
+        vars.push(("RETENTION_ENABLED", Some("true")));
+        vars.push(("DATA_RETENTION_DAYS", Some("30")));
+        vars.push(("LOGMASTER_TLS", Some("false")));
+        with_env(&vars, || {
+            let cfg = Config::load().unwrap();
+            assert_eq!(cfg.mail_host.as_deref(), Some("127.0.0.1"));
+            assert_eq!(cfg.mail_port, 1025);
+            assert_eq!(cfg.mail_tls_mode.as_deref(), Some("local"));
+            assert_eq!(cfg.mail_from.as_deref(), Some("logmaster@ejemplo.local"));
+            assert!(cfg.retention_enabled);
+            assert_eq!(cfg.retention_data_days, 30);
+            assert!(!cfg.tls_enabled);
+        });
+        // Modo TLS y horas inválidas fallan.
+        let mut vars = base_vars();
+        vars.push(("SMTP_TLS_MODE", Some("nada")));
+        with_env(&vars, || assert!(Config::load().is_err()));
+        let dir = std::env::temp_dir().join("logmaster-config-test-f6-bad");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.toml");
+        std::fs::write(&path, "[retention]\nrun_at = \"25:00\"\n").unwrap();
+        let path_str = path.to_string_lossy().to_string();
+        let mut vars = base_vars();
+        vars.push((
+            "LOGMASTER_CONFIG",
+            Some(Box::leak(path_str.into_boxed_str()) as &'static str),
+        ));
+        with_env(&vars, || assert!(Config::load().is_err()));
+        std::fs::remove_file(&path).unwrap();
+        // tls_cert sin tls_key falla.
+        let path = dir.join("config2.toml");
+        std::fs::write(&path, "[server]\ntls_cert = \"tls/cert.pem\"\n").unwrap();
+        let path_str = path.to_string_lossy().to_string();
+        let mut vars = base_vars();
+        vars.push((
+            "LOGMASTER_CONFIG",
+            Some(Box::leak(path_str.into_boxed_str()) as &'static str),
+        ));
+        with_env(&vars, || assert!(Config::load().is_err()));
         std::fs::remove_file(&path).unwrap();
     }
 }

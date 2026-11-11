@@ -528,39 +528,7 @@ mod tests {
     const NOW: &str = "2026-11-10T00:00:00.000000Z";
 
     fn test_config() -> Config {
-        // Configuracion de fixture: secretos ficticios, TTLs de Go.
-        let config = Config {
-            bind: "127.0.0.1".to_string(),
-            port: 8443,
-            db_path: "data/logmaster.db".into(),
-            database_engine: logmaster_store::DatabaseEngine::Sqlite,
-            database_url: None,
-            test_connection_on_startup: true,
-            install_folder: r"C:\LogMaster".to_string(),
-            desktop_shortcut: true,
-            config_path: None,
-            jwt_secret: "fixture-only-not-a-real-secret-fixture-only-not-a-real-secret-"
-                .to_string(),
-            refresh_secret: "fixture-refresh-secret-fixture-refresh-secret-fixture--".to_string(),
-            encryption_key: [0x19u8; 32],
-            edit_password: "fixture-edit-password".to_string(),
-            access_ttl: StdDuration::from_secs(15 * 60),
-            refresh_ttl: StdDuration::from_secs(7 * 24 * 3600),
-            absolute_session_ttl: ABSOLUTE_SESSION_TTL,
-            max_login_attempts: 5,
-            lockout_minutes: 15,
-            audit_retention_days: 365,
-            retention_enabled: false,
-            backup_path: None,
-            rate_window_ms: 60_000,
-            rate_max_requests: 100,
-            app_url: "https://localhost:8443".to_string(),
-            cors_origins: vec![],
-            trusted_proxies: vec![],
-        };
-        // El secreto de renovacion de Go no puede ser igual al de acceso.
-        assert_ne!(config.jwt_secret, config.refresh_secret);
-        config
+        Config::fixture()
     }
 
     fn migrated_store() -> Store {
