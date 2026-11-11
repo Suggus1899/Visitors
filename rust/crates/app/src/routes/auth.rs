@@ -7,8 +7,8 @@
 //!   `Retry-After: 900`), bloqueo temporal y auditoría `LOGIN`.
 //! - Renovación con el secreto independiente y el máximo absoluto.
 //! - Recuperación genérica: el token se guarda hasheado; el envío del
-//!   correo queda para la fase 6 (lettre) y aquí solo se registra que
-//!   está pendiente, sin exponer el token.
+//!   correo es real (lettre, fase 6): si falla o no hay SMTP, el token
+//!   se anula, sin exponerlo nunca en la respuesta.
 //! - Logout con revocación (`tokenVersion` +1) y auditoría `LOGOUT`.
 //! - Cambio de contraseña propio con revocación de sesiones.
 //! - Cookies de sesión/CSRF en login, refresh y renew, como las que
@@ -871,7 +871,7 @@ mod tests {
                 .contains("Si la cuenta existe"));
         }
         // Token de recuperación real (el servicio lo devuelve al
-        // llamador; el correo es fase 6).
+        // llamador; el correo se envía con lettre en el handler).
         let (token, _, _) = state
             .session
             .request_recovery("operador", Utc::now())

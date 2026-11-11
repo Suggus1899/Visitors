@@ -58,6 +58,8 @@ pub struct ApiState {
     pub retention_enabled: bool,
     /// Carpeta de respaldos (config).
     pub backup_path: Option<PathBuf>,
+    /// Servicio de respaldos con age (fase 6), si hay carpeta.
+    pub backup: Option<std::sync::Arc<crate::backup::BackupService>>,
     /// Remitente de correo (`[mail]`), si hay SMTP configurado;
     /// sin él, el `forgot` anula el token y lo registra (fase 6).
     pub mailer: Option<std::sync::Arc<crate::mail::Mailer>>,
@@ -87,6 +89,15 @@ impl ApiState {
             audit_retention_days: config.audit_retention_days,
             retention_enabled: config.retention_enabled,
             backup_path: config.backup_path.clone(),
+            backup: config.backup_path.as_ref().map(|path| {
+                std::sync::Arc::new(crate::backup::BackupService::new(
+                    path.clone(),
+                    config
+                        .backup_passwords_path_resolved()
+                        .expect("carpeta de contraseñas con backup_path"),
+                    config.encryption_key,
+                ))
+            }),
             mailer: match crate::mail::Mailer::from_config(config) {
                 Ok(mailer) => Some(std::sync::Arc::new(mailer)),
                 Err(e) => {

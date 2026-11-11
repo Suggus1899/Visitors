@@ -539,6 +539,19 @@ impl Config {
         }
     }
 
+    /// Carpeta de contraseñas de respaldo con el defecto aplicado:
+    /// la configurada, o la hermana `backups-passwords` de la
+    /// carpeta de respaldos. `None` si no hay carpeta de respaldos.
+    pub fn backup_passwords_path_resolved(&self) -> Option<PathBuf> {
+        self.backup_passwords_path.clone().or_else(|| {
+            self.backup_path.as_ref().map(|path| {
+                path.parent()
+                    .map(|parent| parent.join("backups-passwords"))
+                    .unwrap_or_else(|| PathBuf::from("backups-passwords"))
+            })
+        })
+    }
+
     /// Rutas para `init` y `secrets`: se leen del `config.toml`
     /// (o del entorno) **sin exigir secretos**, porque esos
     /// comandos existen precisamente para crearlos. Misma

@@ -1275,7 +1275,7 @@ fn admin_backups_view(files: Option<Vec<serde_json::Value>>) -> AnyView {
     let Some(files) = files else {
         return view! {
             <div class="alerta aviso">
-                "Carpeta de respaldos no configurada (backup.path). La ejecución de respaldos llega en la fase 6."
+                "Carpeta de respaldos no configurada (backup.path)."
             </div>
         }
         .into_any();
@@ -1328,7 +1328,7 @@ fn admin_backups_view(files: Option<Vec<serde_json::Value>>) -> AnyView {
                 </button>
             </p>
             <p class="muted">
-                "La creación y restauración reales llegan en la fase 6: hasta entonces la API devuelve 409."
+                "La creación y la restauración usan age: al crear, la contraseña de restauración se muestra una sola vez. La restauración de PostgreSQL se hace por CLI."
             </p>
             {tabla}
             <p class="muted">

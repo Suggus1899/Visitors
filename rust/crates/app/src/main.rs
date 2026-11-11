@@ -16,6 +16,10 @@
 //! logmaster.exe preflight --from-postgres <cadena> | --db <sqlite>
 //! logmaster.exe init [--root-password-file <archivo>]
 //! logmaster.exe secrets set <NOMBRE> | secrets list
+//! logmaster.exe backup [--automatic]
+//! logmaster.exe restore <archivo> --confirm-target <destino> [--password <clave>]
+//! logmaster.exe rehearse [archivo] [--password <clave>]
+//! logmaster.exe retention
 //! ```
 //!
 //! `convert` y `preflight` son operaciones síncronas de una sola vez
@@ -105,6 +109,44 @@ enum Command {
         #[arg(long)]
         db: Option<PathBuf>,
     },
+    /// Crea un respaldo con age (manual por defecto; con
+    /// `--automatic` guarda la contraseña cifrada aparte y poda a
+    /// 30 pares verificados). Imprime la contraseña una sola vez.
+    Backup {
+        /// Copia automática (contraseña guardada, podable).
+        #[arg(long)]
+        automatic: bool,
+    },
+    /// Restaura un respaldo en la base configurada. Exige el
+    /// servicio detenido y `--confirm-target` con el destino exacto
+    /// (ruta SQLite o cadena PostgreSQL): sin esa confirmación no
+    /// se toca el destino.
+    Restore {
+        /// Nombre del respaldo (en `backup.path`).
+        file: String,
+        /// Contraseña de restauración; si falta, se usa la guardada
+        /// de la copia automática.
+        #[arg(long)]
+        password: Option<String>,
+        /// Destino exacto que se va a sustituir (ruta SQLite o
+        /// cadena de conexión PostgreSQL).
+        #[arg(long)]
+        confirm_target: String,
+    },
+    /// Ensaya la restauración de un respaldo (o del más reciente):
+    /// descifra, verifica integridad y conteos, y descarta.
+    Rehearse {
+        /// Nombre del respaldo (en `backup.path`); sin él, el más
+        /// reciente.
+        file: Option<String>,
+        /// Contraseña de restauración; si falta, se usa la guardada
+        /// de la copia automática.
+        #[arg(long)]
+        password: Option<String>,
+    },
+    /// Ejecuta la retención ahora (según `[retention]` del config),
+    /// aunque esté desactivada: el operador la pide explícitamente.
+    Retention,
 }
 
 #[tokio::main]
@@ -152,7 +194,166 @@ async fn main() -> Result<()> {
             _ => bail!("preflight necesita exactamente una de --from-postgres o --db"),
         },
         Some(Command::Serve) | None => serve().await,
+        Some(Command::Backup { automatic }) => run_backup(automatic).await,
+        Some(Command::Restore {
+            file,
+            password,
+            confirm_target,
+        }) => run_restore(&file, password.as_deref(), &confirm_target).await,
+        Some(Command::Rehearse { file, password }) => {
+            run_rehearse(file.as_deref(), password.as_deref()).await
+        }
+        Some(Command::Retention) => run_retention().await,
     }
+}
+
+/// Servicio de respaldos desde la configuración cargada.
+fn backup_service(cfg: &config::Config) -> Result<backup::BackupService> {
+    let path = cfg
+        .backup_path
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("BACKUP_PATH required"))?;
+    let passwords = cfg
+        .backup_passwords_path_resolved()
+        .ok_or_else(|| anyhow::anyhow!("BACKUP_PATH required"))?;
+    Ok(backup::BackupService::new(
+        path,
+        passwords,
+        cfg.encryption_key,
+    ))
+}
+
+/// Destino configurado, para `--confirm-target` (sin secretos).
+fn configured_target(cfg: &config::Config) -> String {
+    match cfg.database_engine {
+        logmaster_store::DatabaseEngine::Sqlite => cfg.db_path.display().to_string(),
+        logmaster_store::DatabaseEngine::Postgres => cfg
+            .database_url
+            .clone()
+            .unwrap_or_else(|| "<postgres sin cadena>".to_string()),
+    }
+}
+
+async fn run_backup(automatic: bool) -> Result<()> {
+    let cfg = config::Config::load()?;
+    let db = Database::open(&cfg.database_config()).await?;
+    db.migrate().await?;
+    let service = backup_service(&cfg)?;
+    let created = service.create(&db, automatic).await?;
+    println!("respaldo creado: {}", created.name);
+    println!(
+        "archivo: {}",
+        service.backup_path.join(&created.name).display()
+    );
+    println!("motor: {}", created.manifest.engine);
+    println!("esquema: {}", created.manifest.schema_version);
+    println!(
+        "filas: {}",
+        created
+            .manifest
+            .counts
+            .iter()
+            .map(|(table, count)| format!("{table}={count}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    if automatic {
+        println!("contraseña guardada cifrada aparte (copia automática, podable)");
+    } else {
+        println!("contraseña de restauración (se muestra una sola vez):");
+        println!("{}", created.restore_password);
+    }
+    Ok(())
+}
+
+async fn run_restore(file: &str, password: Option<&str>, confirm_target: &str) -> Result<()> {
+    let cfg = config::Config::load()?;
+    let target = configured_target(&cfg);
+    if confirm_target != target {
+        bail!("el destino no coincide: --confirm-target debe ser exactamente {target}");
+    }
+    let service = backup_service(&cfg)?;
+    let owned;
+    let password = match password {
+        Some(password) => password,
+        None => {
+            owned = service.stored_password(file)?;
+            &owned
+        }
+    };
+    let prepared = service.prepare(file, password)?;
+    println!(
+        "respaldo verificado: {} ({} filas en total)",
+        prepared.manifest.original_name,
+        prepared.manifest.counts.values().sum::<u64>()
+    );
+    let db = Database::open(&cfg.database_config()).await?;
+    let now = chrono::Utc::now()
+        .format("%Y-%m-%dT%H:%M:%S%.6fZ")
+        .to_string();
+    match &db {
+        Database::Sqlite(_) => {
+            println!("restaurando SQLite con el servicio detenido...");
+            service.restore_sqlite_file(&prepared, &cfg.db_path, &now)?;
+        }
+        Database::Postgres(_) => {
+            println!("restaurando PostgreSQL (DROP SCHEMA + migraciones + COPY)...");
+            service.restore_postgres(&db, &prepared).await?;
+        }
+    }
+    println!("respaldo restaurado en {target}");
+    Ok(())
+}
+
+async fn run_rehearse(file: Option<&str>, password: Option<&str>) -> Result<()> {
+    let cfg = config::Config::load()?;
+    let service = backup_service(&cfg)?;
+    let name = match file {
+        Some(file) => file.to_string(),
+        None => {
+            let listed = service.list()?;
+            listed
+                .first()
+                .map(|(name, _)| name.clone())
+                .ok_or_else(|| anyhow::anyhow!("no hay respaldos para ensayar"))?
+        }
+    };
+    let rehearsal = service.rehearse(&name, password)?;
+    println!("ensayo correcto: {}", rehearsal.name);
+    println!("motor: {}", rehearsal.engine);
+    println!("verificado: {}", rehearsal.verified_at);
+    println!(
+        "filas: {}",
+        rehearsal
+            .counts
+            .iter()
+            .map(|(table, count)| format!("{table}={count}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    Ok(())
+}
+
+async fn run_retention() -> Result<()> {
+    let cfg = config::Config::load()?;
+    if !cfg.retention_enabled {
+        println!("aviso: la retención está desactivada en el config; se ejecuta porque se pidió explícitamente");
+    }
+    let db = Database::open(&cfg.database_config()).await?;
+    db.migrate().await?;
+    let counts = db
+        .run_retention(
+            true,
+            cfg.retention_data_days,
+            cfg.audit_retention_days,
+            chrono::Utc::now(),
+        )
+        .await?;
+    println!(
+        "retención: {} registros de auditoría, {} visitas, {} visitantes, {} solicitudes",
+        counts.logs, counts.visits, counts.visitors, counts.requests
+    );
+    Ok(())
 }
 
 /// Arranque en consola: cargar configuracion, abrir la base, aplicar
@@ -219,7 +420,7 @@ where
     match fingerprints {
         true => tracing::info!("huellas de clave de los indices verificadas"),
         false => tracing::warn!(
-            "indices de identidad/busqueda sin preparar (reindex en fase 6); se arranca igual"
+            "indices de identidad/busqueda sin preparar (reindex pendiente para una fase posterior); se arranca igual"
         ),
     }
     let probe = probe_database(&db).await?;
