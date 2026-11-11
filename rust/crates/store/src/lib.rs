@@ -20,6 +20,7 @@ pub mod crypto;
 pub mod error;
 pub mod migrations;
 pub mod models;
+pub mod pg_migrations;
 pub mod preflight;
 pub mod repos;
 
