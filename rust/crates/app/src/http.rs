@@ -90,13 +90,16 @@ impl ApiState {
             retention_enabled: config.retention_enabled,
             backup_path: config.backup_path.clone(),
             backup: config.backup_path.as_ref().map(|path| {
-                std::sync::Arc::new(crate::backup::BackupService::new(
-                    path.clone(),
-                    config
-                        .backup_passwords_path_resolved()
-                        .expect("carpeta de contraseñas con backup_path"),
-                    config.encryption_key,
-                ))
+                std::sync::Arc::new(
+                    crate::backup::BackupService::new(
+                        path.clone(),
+                        config
+                            .backup_passwords_path_resolved()
+                            .expect("carpeta de contraseñas con backup_path"),
+                        config.encryption_key,
+                    )
+                    .with_keep(config.backup_keep as usize),
+                )
             }),
             mailer: match crate::mail::Mailer::from_config(config) {
                 Ok(mailer) => Some(std::sync::Arc::new(mailer)),

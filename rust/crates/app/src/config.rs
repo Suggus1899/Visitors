@@ -522,6 +522,13 @@ impl Config {
         format!("{}:{}", self.bind, self.port)
     }
 
+    /// Dirección de escucha como `SocketAddr` (para axum-server).
+    pub fn socket_addr(&self) -> Result<std::net::SocketAddr> {
+        self.addr()
+            .parse()
+            .map_err(|e| anyhow::anyhow!("dirección de escucha inválida {}: {e}", self.addr()))
+    }
+
     /// Origenes permitidos para `Origin`/`Referer` y CORS: el origen
     /// de la aplicacion mas los adicionales configurados.
     pub fn allowed_origins(&self) -> Vec<String> {

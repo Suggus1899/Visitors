@@ -221,6 +221,8 @@ pub struct BackupService {
     /// Factor de trabajo scrypt (`SCRYPT_WORK_FACTOR` en
     /// producción; los tests lo bajan para no tardar un minuto).
     pub scrypt_work_factor: u8,
+    /// Pares automáticos que se conservan (`keep` del config).
+    pub keep: usize,
 }
 
 /// Nombre válido de copia: `backup-<...>.dump.enc`, sin rutas.
@@ -347,7 +349,14 @@ impl BackupService {
             passwords_path,
             encryption_key,
             scrypt_work_factor: SCRYPT_WORK_FACTOR,
+            keep: BACKUP_KEEP_DEFAULT,
         }
+    }
+
+    /// Pares automáticos que se conservan (del config).
+    pub fn with_keep(mut self, keep: usize) -> Self {
+        self.keep = keep.max(1);
+        self
     }
 
     /// Factor de trabajo scrypt distinto del de producción (tests).
@@ -446,7 +455,7 @@ impl BackupService {
         };
         drop(prepared);
         if automatic {
-            if let Ok(report) = self.prune(BACKUP_KEEP_DEFAULT) {
+            if let Ok(report) = self.prune(self.keep) {
                 tracing::info!(
                     kept = report.kept,
                     removed = report.removed.len(),

@@ -41,7 +41,7 @@ pub fn next_daily(now: DateTime<Utc>, time: NaiveTime) -> DateTime<Utc> {
         .single()
         .expect("hora local sin ambigüedad en Caracas");
     if candidate <= local {
-        candidate = candidate + chrono::Duration::days(1);
+        candidate += chrono::Duration::days(1);
     }
     candidate.with_timezone(&Utc)
 }

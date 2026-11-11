@@ -47,6 +47,7 @@ mod scheduler;
 mod secrets;
 mod service;
 mod session;
+mod tls;
 mod ui;
 
 use std::path::PathBuf;
@@ -218,11 +219,10 @@ fn backup_service(cfg: &config::Config) -> Result<backup::BackupService> {
     let passwords = cfg
         .backup_passwords_path_resolved()
         .ok_or_else(|| anyhow::anyhow!("BACKUP_PATH required"))?;
-    Ok(backup::BackupService::new(
-        path,
-        passwords,
-        cfg.encryption_key,
-    ))
+    Ok(
+        backup::BackupService::new(path, passwords, cfg.encryption_key)
+            .with_keep(cfg.backup_keep as usize),
+    )
 }
 
 /// Destino configurado, para `--confirm-target` (sin secretos).
@@ -440,14 +440,43 @@ where
         Arc::new(cfg.clone()),
         backup_service(&cfg).ok().map(Arc::new),
     );
-    let listener = tokio::net::TcpListener::bind(cfg.addr()).await?;
-    tracing::info!(addr = %cfg.addr(), "logmaster escuchando");
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown)
-    .await?;
+    match tls::load_or_generate(&cfg)? {
+        Some(material) => {
+            tracing::info!(
+                fingerprint = %material.fingerprint,
+                generated = material.generated,
+                cert = %material.cert_path.display(),
+                "TLS activado (rustls)"
+            );
+            let tls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(
+                &material.cert_path,
+                &material.key_path,
+            )
+            .await?;
+            let handle = axum_server::Handle::new();
+            let shutdown_handle = handle.clone();
+            tokio::spawn(async move {
+                shutdown.await;
+                shutdown_handle.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
+            });
+            tracing::info!(addr = %cfg.addr(), "logmaster escuchando (https)");
+            axum_server::bind_rustls(cfg.socket_addr()?, tls_config)
+                .handle(handle)
+                .serve(app.into_make_service_with_connect_info::<std::net::SocketAddr>())
+                .await?;
+        }
+        None => {
+            tracing::info!("TLS desactivado (tls=false): HTTP plano");
+            let listener = tokio::net::TcpListener::bind(cfg.addr()).await?;
+            tracing::info!(addr = %cfg.addr(), "logmaster escuchando (http)");
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .with_graceful_shutdown(shutdown)
+            .await?;
+        }
+    }
     Ok(())
 }
 
@@ -464,6 +493,7 @@ async fn check() -> Result<()> {
     }
     println!("motor: {}", probe.engine);
     println!("base: {}", probe_location(&probe));
+    println!("secretos: {}", cfg.secrets_dir.display());
     println!("versión: {}", probe.version);
     println!("latencia: {} ms", probe.latency_ms);
     println!("esquema: {}", probe.schema_version);
@@ -472,6 +502,17 @@ async fn check() -> Result<()> {
         println!("huellas de clave: ok");
     } else {
         println!("huellas de clave: pendientes (indices sin preparar)");
+    }
+    match tls::status(&cfg)? {
+        Some(material) => println!(
+            "TLS: activado ({}), huella {}",
+            material.cert_path.display(),
+            material.fingerprint
+        ),
+        None if cfg.tls_enabled => {
+            println!("TLS: activado (sin certificado todavía; se genera al arrancar)")
+        }
+        None => println!("TLS: desactivado (tls=false)"),
     }
     println!("estado: ok");
     Ok(())
