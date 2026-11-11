@@ -12,10 +12,12 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+base64.workspace = true
 chrono.workspace = true
 clap.workspace = true
 fallible-iterator.workspace = true
 hex.workspace = true
+jsonwebtoken.workspace = true
 logmaster-crypto = { path = "../crypto" }
 postgres.workspace = true
 rusqlite.workspace = true

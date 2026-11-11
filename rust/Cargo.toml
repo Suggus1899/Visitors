@@ -7,12 +7,14 @@ aes = "0.8"
 aes-gcm = "0.10"
 anyhow = "1"
 axum = { version = "0.8", features = ["multipart"] }
+base64 = "0.22"
 bcrypt = "0.17"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 fallible-iterator = "0.2"
 hex = "0.4"
 hmac = "0.13"
+jsonwebtoken = "9"
 postgres = { version = "0.19", features = ["with-chrono-0_4"] }
 rand = "0.8"
 rusqlite = { version = "0.32", features = ["bundled"] }

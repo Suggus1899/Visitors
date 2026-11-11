@@ -195,6 +195,34 @@ pub fn change_password(
     Ok(rows as u64)
 }
 
+/// `Logout`: revoca la sesion subiendo `tokenVersion`, solo si la
+/// version coincide (y no esta en el maximo de int32). Devuelve las
+/// filas afectadas (0 = la version cambio entre tanto).
+pub fn revoke_session(
+    tx: &Transaction,
+    id: i64,
+    token_version: i64,
+    now: &str,
+) -> StoreResult<u64> {
+    let rows = tx.execute(
+        "UPDATE \"Users\" SET \"tokenVersion\" = \"tokenVersion\" + 1, \"updatedAt\" = ?3 \
+         WHERE id = ?1 AND \"tokenVersion\" = ?2 AND \"tokenVersion\" < 2147483647",
+        params![id, token_version, now],
+    )?;
+    Ok(rows as u64)
+}
+
+/// Limpia el token de recuperacion de una cuenta (si el envio del
+/// correo fallo, como hace Go en `forgotPassword`).
+pub fn clear_reset_token(tx: &Transaction, id: i64, token: &str) -> StoreResult<()> {
+    tx.execute(
+        "UPDATE \"Users\" SET \"resetToken\" = NULL, \"resetTokenExpiry\" = NULL \
+         WHERE id = ?1 AND \"resetToken\" = ?2",
+        params![id, token],
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -306,6 +334,42 @@ mod tests {
         // La versión ya subió a 1: con 0 no cambia nada.
         let rows = change_password(&tx, id, "$2a$12$otro", false, 0, NOW).unwrap();
         assert_eq!(rows, 0);
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn revoke_session_requires_current_token_version() {
+        let mut conn = migrated();
+        let id = seed_user(&mut conn);
+        let tx = conn.transaction().unwrap();
+        assert_eq!(revoke_session(&tx, id, 0, NOW).unwrap(), 1);
+        assert_eq!(revoke_session(&tx, id, 0, NOW).unwrap(), 0);
+        tx.commit().unwrap();
+        assert_eq!(find_by_id(&conn, id).unwrap().token_version, 1);
+    }
+
+    #[test]
+    fn clear_reset_token_only_clears_its_token() {
+        let mut conn = migrated();
+        let id = seed_user(&mut conn);
+        let tx = conn.transaction().unwrap();
+        save_reset_token(
+            &tx,
+            id,
+            "tok123",
+            "2026-11-10T00:15:00.000000Z",
+            "root@example.test",
+            0,
+            NOW,
+        )
+        .unwrap();
+        clear_reset_token(&tx, id, "otro").unwrap();
+        assert_eq!(
+            find_by_id(&tx, id).unwrap().reset_token.as_deref(),
+            Some("tok123")
+        );
+        clear_reset_token(&tx, id, "tok123").unwrap();
+        assert_eq!(find_by_id(&tx, id).unwrap().reset_token, None);
         tx.commit().unwrap();
     }
 
