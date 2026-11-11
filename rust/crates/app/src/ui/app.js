@@ -404,3 +404,31 @@ if (est) {
   fill('stats-comparativo', '/api/v1/reports/comparison');
   fill('stats-alertas', '/api/v1/reports/alerts');
 }
+
+// Consulta del titular y cancelación (anonimización) en /privacy.
+var consultaForm = document.getElementById('consultar-titular');
+if (consultaForm) {
+  consultaForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var cedula = document.getElementById('consulta-cedula').value.trim();
+    var out = document.getElementById('consulta-resultado');
+    if (!cedula || !out) return;
+    api('GET', '/api/v1/privacy/subjects/' + encodeURIComponent(cedula)).then(function (data) {
+      out.textContent = JSON.stringify(data, null, 2);
+    }).catch(function (err) {
+      out.textContent = 'Error: ' + err.message;
+    });
+  });
+}
+var cancelarForm = document.getElementById('cancelar-titular');
+if (cancelarForm) {
+  cancelarForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var cedula = document.getElementById('cancelar-cedula').value.trim();
+    if (!cedula) return;
+    if (!confirm('Anonimizar todos los datos del titular ' + cedula + '?')) return;
+    api('DELETE', '/api/v1/privacy/subjects/' + encodeURIComponent(cedula)).then(function () {
+      window.location.reload();
+    }).catch(function (err) { alert(err.message); });
+  });
+}

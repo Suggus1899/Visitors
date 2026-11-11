@@ -32,6 +32,8 @@ pub fn router(state: ApiState) -> Router<ApiState> {
         .route("/visits/{id}", get(pages::visit_page))
         .route("/visitors/{cedula}", get(pages::visitor_page))
         .route("/admin", get(pages::admin_page))
+        .route("/audit", get(pages::audit_page))
+        .route("/privacy", get(pages::privacy_page))
         .route("/change-password", get(pages::change_password_page))
         .route("/logout", post(pages::logout))
         .layer(middleware::from_fn_with_state(
@@ -484,5 +486,74 @@ mod tests {
         .await;
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("Carpeta de respaldos no configurada"));
+    }
+
+    #[tokio::test]
+    async fn audit_and_privacy_pages() {
+        let (state, _) = test_state();
+        seed_user(&state, "operador", "operador").await;
+        seed_user(&state, "auditor", "auditor").await;
+        seed_user(&state, "admin", "admin").await;
+        let router = build_router_with_state(state);
+        let token_admin = login_token(router.clone(), "admin").await;
+        let cookie_admin = format!("__Host-logmaster-access={token_admin}");
+
+        // El operador no ve ni auditoría ni privacidad.
+        let cookie_op = login_cookie(router.clone(), "operador").await;
+        let (status, _, _) = request(router.clone(), Method::GET, "/audit", Some(&cookie_op)).await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        let (status, _, _) =
+            request(router.clone(), Method::GET, "/privacy", Some(&cookie_op)).await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        // El auditor sí; la bitácora ya tiene los inicios de sesión.
+        let cookie_aud = login_cookie(router.clone(), "auditor").await;
+        let (status, _, body) =
+            request(router.clone(), Method::GET, "/audit", Some(&cookie_aud)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Auditoría"));
+        assert!(body.contains("Hoy —"));
+        assert!(body.contains("Descargar CSV"));
+        assert!(body.contains("LOGIN"));
+
+        // Crear una solicitud ARCO como admin y verla en /privacy.
+        let body = serde_json::json!({
+            "requestType": "access",
+            "cedula": "V-12345678",
+            "requestedByName": "Ana Pérez",
+            "contactEmail": "",
+            "reason": "Quiero mis datos",
+        })
+        .to_string();
+        let (status, _, text) = request_full(
+            router.clone(),
+            Method::POST,
+            "/api/v1/privacy/arco-requests",
+            None,
+            Some(&token_admin),
+            Some(&body),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "crear ARCO: {text}");
+
+        let (status, _, body) =
+            request(router.clone(), Method::GET, "/privacy", Some(&cookie_aud)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Privacidad"));
+        assert!(body.contains("V-12345678"));
+        assert!(body.contains("Acceso"));
+        assert!(body.contains("Ana Pérez"));
+        // El auditor no crea ni gestiona: sin formulario de creación
+        // ni de cambio de estado.
+        assert!(!body.contains("Nueva solicitud ARCO"));
+        assert!(!body.contains("Cambiar estado"));
+
+        // El admin sí ve el formulario de creación, el cambio de
+        // estado y la cancelación del titular.
+        let (status, _, body) = request(router, Method::GET, "/privacy", Some(&cookie_admin)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Nueva solicitud ARCO"));
+        assert!(body.contains("Cambiar estado"));
+        assert!(body.contains("Anonimizar titular"));
     }
 }

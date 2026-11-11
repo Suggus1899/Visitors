@@ -9,10 +9,12 @@ use logmaster_store::error::StoreError;
 use serde_json::Value;
 
 use crate::common::{
-    date_range, format_instant, matching_visitor_ids, normalize_cedula, pagination, param,
-    parse_query,
+    caracas_day_start, date_range, format_instant, matching_visitor_ids, normalize_cedula,
+    pagination, param, parse_query,
 };
-use crate::dto::{edit_history_json, visit_dto, visit_dtos, visitor_dto};
+use crate::dto::{
+    activity_log_json, arco_dto, edit_history_json, visit_dto, visit_dtos, visitor_dto,
+};
 use crate::http::ApiState;
 use axum::http::Uri;
 
@@ -292,4 +294,100 @@ fn valid_backup_name(name: &str) -> bool {
         && base
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+}
+
+use logmaster_store::repos::audit::AuditFilter;
+use logmaster_store::repos::privacy::ArcoFilter;
+
+/// Bitácora para /audit: los filtros de la API, paginación de 50, y
+/// los conteos de hoy (inicios de sesión, acciones, usuarios, IP).
+pub async fn audit_logs(
+    state: &ApiState,
+    uri: &Uri,
+) -> PageResult<(Vec<Value>, i64, i64, i64, (i64, i64, i64, i64))> {
+    let params = parse_query(uri);
+    let (page, limit) =
+        pagination(&params, 50).map_err(|_| PageError::BadRequest("Paginación inválida"))?;
+    let (start, end) =
+        date_range(&params).map_err(|_| PageError::BadRequest("Rango de fechas inválido"))?;
+    let user_id = match param(&params, "userId") {
+        Some(raw) => Some(
+            raw.parse::<i64>()
+                .map_err(|_| PageError::BadRequest("Usuario inválido"))?,
+        ),
+        None => None,
+    };
+    let start_text = start.map(format_instant);
+    let end_text = end.map(format_instant);
+    let filter = AuditFilter {
+        start: start_text.as_deref(),
+        end: end_text.as_deref(),
+        action: param(&params, "action"),
+        username: param(&params, "username"),
+        entity: param(&params, "entity"),
+        ip: param(&params, "ip"),
+        search: param(&params, "search"),
+        user_id,
+    };
+    let total = state.repos.audit.count_filtered(&filter).await?;
+    let logs = state
+        .repos
+        .audit
+        .list_filtered(&filter, limit, (page - 1) * limit)
+        .await?;
+    let items = logs.iter().map(activity_log_json).collect();
+    let now = chrono::Utc::now();
+    let today = caracas_day_start(now);
+    let tomorrow = today + chrono::Duration::days(1);
+    let counts = state
+        .repos
+        .audit
+        .today_counts(&format_instant(today), &format_instant(tomorrow))
+        .await?;
+    Ok((items, total, page, limit, counts))
+}
+
+/// Solicitudes ARCO para /privacy: filtros de la API, paginación de 20.
+pub async fn privacy_requests(
+    state: &ApiState,
+    uri: &Uri,
+) -> PageResult<(Vec<Value>, i64, i64, i64)> {
+    let params = parse_query(uri);
+    let (page, limit) =
+        pagination(&params, 20).map_err(|_| PageError::BadRequest("Paginación inválida"))?;
+    let status = param(&params, "status");
+    let kind = param(&params, "requestType");
+    let search = param(&params, "search");
+    if status
+        .is_some_and(|value| !matches!(value, "pending" | "in_progress" | "completed" | "rejected"))
+        || kind.is_some_and(|value| {
+            !matches!(
+                value,
+                "access" | "rectification" | "cancellation" | "opposition"
+            )
+        })
+        || search.is_some_and(|value| value.len() > 500)
+    {
+        return Err(PageError::BadRequest("Filtros inválidos"));
+    }
+    let cedula_hash = match search {
+        Some(text) => normalize_cedula(text)
+            .ok()
+            .map(|cedula| identity_hash(&state.encryption_key, &cedula)),
+        None => None,
+    };
+    let filter = ArcoFilter {
+        status: status.filter(|value| !value.is_empty()).map(str::to_string),
+        request_type: kind.filter(|value| !value.is_empty()).map(str::to_string),
+        search: search.filter(|value| !value.is_empty()).map(str::to_string),
+        cedula_hash,
+        limit,
+        offset: (page - 1) * limit,
+    };
+    let (requests, total) = state.repos.arco.list_filtered(&filter).await?;
+    let mut items = Vec::with_capacity(requests.len());
+    for request in &requests {
+        items.push(arco_dto(&state.encryption_key, request)?);
+    }
+    Ok((items, total, page, limit))
 }

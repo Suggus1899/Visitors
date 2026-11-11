@@ -1418,3 +1418,432 @@ pub async fn admin_page(State(state): State<ApiState>, session: Session, uri: Ur
     .to_html();
     page(Some(&session), "Administración", body)
 }
+
+// ---------------------------------------------------------------------
+// Auditoría y privacidad.
+// ---------------------------------------------------------------------
+
+/// Reconstruye la cadena de consulta conservando los filtros
+/// indicados y cambiando solo la página.
+fn keep_query(params: &Params, page: i64, keys: &[&str]) -> String {
+    let mut parts = vec![format!("page={page}")];
+    for key in keys {
+        if let Some(value) = param(params, key) {
+            parts.push(format!("{key}={}", guard::encode_return_to(value)));
+        }
+    }
+    parts.join("&")
+}
+
+/// Cadena de consulta de /audit con sus filtros.
+fn audit_query(params: &Params, page: i64) -> String {
+    keep_query(
+        params,
+        page,
+        &[
+            "action",
+            "username",
+            "entity",
+            "ip",
+            "search",
+            "startDate",
+            "endDate",
+        ],
+    )
+}
+
+/// Cadena de consulta de /privacy con sus filtros.
+fn privacy_query(params: &Params, page: i64) -> String {
+    keep_query(params, page, &["status", "requestType", "search"])
+}
+
+/// /audit — admin, root y auditor. Bitácora SSR con filtros,
+/// estadísticas de hoy y enlace al CSV de la API.
+pub async fn audit_page(State(state): State<ApiState>, session: Session, uri: Uri) -> Response {
+    if !matches!(
+        Role::parse(&session.role),
+        Some(Role::Admin | Role::Root | Role::Auditor)
+    ) {
+        return forbid(&session, "La auditoría es para admin, root y auditor.");
+    }
+    let params = parse_query(&uri);
+    let (items, total, page_no, limit, today) = match data::audit_logs(&state, &uri).await {
+        Ok(values) => values,
+        Err(error) => return page_error(&session, &error),
+    };
+    let rows: Vec<AnyView> = items
+        .iter()
+        .map(|log| {
+            let created = text_or(log, "createdAt", "");
+            let username = text_or(log, "username", "");
+            let action = text_or(log, "action", "");
+            let entity = text_or(log, "entity", "");
+            let details = text_or(log, "details", "");
+            let ip = text_or(log, "ipAddress", "");
+            view! {
+                <tr>
+                    <td>{created}</td>
+                    <td>{username}</td>
+                    <td>{action}</td>
+                    <td>{entity}</td>
+                    <td>{details}</td>
+                    <td>{ip}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let tabla = if rows.is_empty() {
+        view! { <p class="muted">"Sin entradas con esos filtros."</p> }.into_any()
+    } else {
+        view! {
+            <table>
+                <thead>
+                    <tr>
+                        <th>"Fecha"</th>
+                        <th>"Usuario"</th>
+                        <th>"Acción"</th>
+                        <th>"Entidad"</th>
+                        <th>"Detalles"</th>
+                        <th>"IP"</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+        }
+        .into_any()
+    };
+    let anterior = if page_no > 1 {
+        view! {
+            <a href={format!("/audit?{}", audit_query(&params, page_no - 1))}>"« Anterior"</a>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let siguiente = if page_no * limit < total {
+        view! {
+            <a href={format!("/audit?{}", audit_query(&params, page_no + 1))}>"Siguiente »"</a>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let body = view! {
+        <div>
+            <h1>"Auditoría"</h1>
+            <p class="muted">
+                {format!(
+                    "Hoy — inicios de sesión: {} · acciones: {} · usuarios: {} · IP distintas: {}",
+                    today.0, today.1, today.2, today.3
+                )}
+            </p>
+            <form method="get" action="/audit" class="filtros">
+                <label>
+                    "Acción "
+                    <input name="action" value={param(&params, "action").unwrap_or("")} />
+                </label>
+                <label>
+                    "Usuario "
+                    <input name="username" value={param(&params, "username").unwrap_or("")} />
+                </label>
+                <label>
+                    "Entidad "
+                    <input name="entity" value={param(&params, "entity").unwrap_or("")} />
+                </label>
+                <label>
+                    "IP "
+                    <input name="ip" value={param(&params, "ip").unwrap_or("")} />
+                </label>
+                <label>
+                    "Búsqueda "
+                    <input name="search" value={param(&params, "search").unwrap_or("")} />
+                </label>
+                <label>
+                    "Desde "
+                    <input type="date" name="startDate" value={param(&params, "startDate").unwrap_or("")} />
+                </label>
+                <label>
+                    "Hasta "
+                    <input type="date" name="endDate" value={param(&params, "endDate").unwrap_or("")} />
+                </label>
+                <button class="boton" type="submit">"Filtrar"</button>
+            </form>
+            <p>
+                <a href={format!("/api/v1/audit/export?format=csv&{}", audit_query(&params, 1))}>
+                    "Descargar CSV"
+                </a>
+            </p>
+            <p class="muted">
+                {format!("Total: {total} · Página {page_no} ({limit} por página)")}
+            </p>
+            {tabla}
+            <p class="paginacion">
+                {anterior}
+                " "
+                {siguiente}
+            </p>
+        </div>
+    }
+    .to_html();
+    page(Some(&session), "Auditoría", body)
+}
+
+fn arco_type_label(value: &str) -> &'static str {
+    match value {
+        "access" => "Acceso",
+        "rectification" => "Rectificación",
+        "cancellation" => "Cancelación",
+        "opposition" => "Oposición",
+        _ => "Otro",
+    }
+}
+
+fn arco_status_label(value: &str) -> &'static str {
+    match value {
+        "pending" => "Pendiente",
+        "in_progress" => "En proceso",
+        "completed" => "Completada",
+        "rejected" => "Rechazada",
+        _ => "Otro",
+    }
+}
+
+/// /privacy — admin, root y auditor (lectura). Crear solicitudes:
+/// operador/admin/root; cambiar estado y cancelar titular: admin/root.
+/// La consulta del titular y la cancelación van por fetch a la API.
+pub async fn privacy_page(State(state): State<ApiState>, session: Session, uri: Uri) -> Response {
+    if !matches!(
+        Role::parse(&session.role),
+        Some(Role::Admin | Role::Root | Role::Auditor)
+    ) {
+        return forbid(&session, "La privacidad es para admin, root y auditor.");
+    }
+    let role = Role::parse(&session.role);
+    let can_create = role.is_some_and(|role| allows(role, Permission::CreateArco));
+    let can_manage = role.is_some_and(|role| allows(role, Permission::ManageArco));
+    let params = parse_query(&uri);
+    let (items, total, page_no, limit) = match data::privacy_requests(&state, &uri).await {
+        Ok(values) => values,
+        Err(error) => return page_error(&session, &error),
+    };
+    let rows: Vec<AnyView> = items
+        .iter()
+        .map(|request| {
+            let id = request.get("id").and_then(|item| item.as_i64()).unwrap_or(0);
+            let kind = text_or(request, "requestType", "");
+            let status = text_or(request, "status", "");
+            let cedula = text_or(request, "subjectCedula", "");
+            let name = text_or(request, "requestedByName", "");
+            let created = text_or(request, "createdAt", "");
+            let status_form = if can_manage {
+                view! {
+                    <form
+                        data-api-form
+                        data-method="PATCH"
+                        data-api={format!("/api/v1/privacy/arco-requests/{id}/status")}
+                    >
+                        <select name="status">
+                            <option value="pending" selected={status == "pending"}>"Pendiente"</option>
+                            <option value="in_progress" selected={status == "in_progress"}>"En proceso"</option>
+                            <option value="completed" selected={status == "completed"}>"Completada"</option>
+                            <option value="rejected" selected={status == "rejected"}>"Rechazada"</option>
+                        </select>
+                        <input name="resolutionNotes" placeholder="Notas de resolución" />
+                        <button class="secundario" type="submit">"Cambiar"</button>
+                    </form>
+                }
+                .into_any()
+            } else {
+                view! { "" }.into_any()
+            };
+            view! {
+                <tr>
+                    <td>{id.to_string()}</td>
+                    <td>{arco_type_label(&kind)}</td>
+                    <td>{arco_status_label(&status)}</td>
+                    <td>{cedula}</td>
+                    <td>{name}</td>
+                    <td>{created}</td>
+                    <td>{status_form}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let header_status = if can_manage {
+        view! { <th>"Cambiar estado"</th> }.into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let tabla = if rows.is_empty() {
+        view! { <p class="muted">"Sin solicitudes con esos filtros."</p> }.into_any()
+    } else {
+        view! {
+            <table>
+                <thead>
+                    <tr>
+                        <th>"ID"</th>
+                        <th>"Tipo"</th>
+                        <th>"Estado"</th>
+                        <th>"Cédula"</th>
+                        <th>"Solicitante"</th>
+                        <th>"Fecha"</th>
+                        {header_status}
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+        }
+        .into_any()
+    };
+    let anterior = if page_no > 1 {
+        view! {
+            <a href={format!("/privacy?{}", privacy_query(&params, page_no - 1))}>"« Anterior"</a>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let siguiente = if page_no * limit < total {
+        view! {
+            <a href={format!("/privacy?{}", privacy_query(&params, page_no + 1))}>"Siguiente »"</a>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let create_form = if can_create {
+        view! {
+            <section class="tarjeta">
+                <h2>"Nueva solicitud ARCO"</h2>
+                <form data-api-form data-api="/api/v1/privacy/arco-requests">
+                    <div class="alerta error" data-error="" hidden=true></div>
+                    <div class="fila">
+                        <div class="campo">
+                            <label>
+                                "Tipo "
+                                <select name="requestType">
+                                    <option value="access">"Acceso"</option>
+                                    <option value="rectification">"Rectificación"</option>
+                                    <option value="cancellation">"Cancelación"</option>
+                                    <option value="opposition">"Oposición"</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="campo">
+                            <label>
+                                "Cédula "
+                                <input name="cedula" placeholder="V-12345678" required />
+                            </label>
+                        </div>
+                        <div class="campo">
+                            <label>
+                                "Solicitante "
+                                <input name="requestedByName" required />
+                            </label>
+                        </div>
+                        <div class="campo">
+                            <label>
+                                "Correo de contacto "
+                                <input name="contactEmail" type="email" />
+                            </label>
+                        </div>
+                    </div>
+                    <div class="campo">
+                        <label>
+                            "Motivo "
+                            <textarea name="reason"></textarea>
+                        </label>
+                    </div>
+                    <button class="boton" type="submit">"Crear solicitud"</button>
+                </form>
+            </section>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let cancel_form = if can_manage {
+        view! {
+            <section class="tarjeta">
+                <h2>"Cancelar (anonimizar) un titular"</h2>
+                <form id="cancelar-titular">
+                    <div class="campo">
+                        <label>
+                            "Cédula "
+                            <input id="cancelar-cedula" placeholder="V-12345678" required />
+                        </label>
+                    </div>
+                    <button class="boton" type="submit">"Anonimizar titular"</button>
+                </form>
+                <p class="muted">
+                    "Borra los datos personales del titular (anonimización). Acción irreversible."
+                </p>
+            </section>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let status = param(&params, "status");
+    let kind = param(&params, "requestType");
+    let body = view! {
+        <div>
+            <h1>"Privacidad"</h1>
+            {create_form}
+            <section class="tarjeta">
+                <h2>"Consulta del titular"</h2>
+                <form id="consultar-titular">
+                    <div class="campo">
+                        <label>
+                            "Cédula "
+                            <input id="consulta-cedula" placeholder="V-12345678" required />
+                        </label>
+                    </div>
+                    <button class="boton" type="submit">"Consultar"</button>
+                </form>
+                <pre id="consulta-resultado">"Sin consulta todavía."</pre>
+            </section>
+            {cancel_form}
+            <form method="get" action="/privacy" class="filtros">
+                <label>
+                    "Estado "
+                    <select name="status">
+                        <option value="" selected={status.is_none()}>"Todos"</option>
+                        <option value="pending" selected={status == Some("pending")}>"Pendiente"</option>
+                        <option value="in_progress" selected={status == Some("in_progress")}>"En proceso"</option>
+                        <option value="completed" selected={status == Some("completed")}>"Completada"</option>
+                        <option value="rejected" selected={status == Some("rejected")}>"Rechazada"</option>
+                    </select>
+                </label>
+                <label>
+                    "Tipo "
+                    <select name="requestType">
+                        <option value="" selected={kind.is_none()}>"Todos"</option>
+                        <option value="access" selected={kind == Some("access")}>"Acceso"</option>
+                        <option value="rectification" selected={kind == Some("rectification")}>"Rectificación"</option>
+                        <option value="cancellation" selected={kind == Some("cancellation")}>"Cancelación"</option>
+                        <option value="opposition" selected={kind == Some("opposition")}>"Oposición"</option>
+                    </select>
+                </label>
+                <label>
+                    "Búsqueda "
+                    <input name="search" value={param(&params, "search").unwrap_or("")} />
+                </label>
+                <button class="boton" type="submit">"Filtrar"</button>
+            </form>
+            <p class="muted">
+                {format!("Total: {total} · Página {page_no} ({limit} por página)")}
+            </p>
+            {tabla}
+            <p class="paginacion">
+                {anterior}
+                " "
+                {siguiente}
+            </p>
+        </div>
+    }
+    .to_html();
+    page(Some(&session), "Privacidad", body)
+}
