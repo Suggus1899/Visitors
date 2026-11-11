@@ -20,7 +20,7 @@ Documento de referencia: `workspace/your_files/migracion-rust-logmaster/migracio
 | Doble motor (entre 3 y 4) | Traits de repositorio, `Sqlite*`/`Pg*` sobre sqlx, selección por configuración, prueba de conexión al arrancar, `config.toml` junto al .exe, primer arranque en C: + acceso directo | ✅ esta rama |
 | 4 · API por familias | auth, visits, visitors, privacy, audit, reports, superadmin, backups, SSE | ✅ esta rama |
 | 5 · Frontend | Leptos SSR: login, operación, admin, auditoría, privacidad y root; 4 recorridos Playwright | ✅ esta rama |
-| 6 · Operación | Respaldos con age, ensayo semanal, retención, correo, bandeja, logs | Pendiente |
+| 6 · Operación | Respaldos con age, ensayo semanal, retención, correo, bandeja, logs | ✅ esta rama (lo que exige Windows real o SMTP real queda pendiente, ver fase 6) |
 | 7 · Comparación | Carga pequeña y recorridos en ambas versiones, mismo entorno | Pendiente |
 | 8 · Corte | Conversión de datos reales, servicio en el equipo destino, observación | Pendiente |
 
@@ -84,6 +84,14 @@ logmaster.exe check            # motor, base, version, latencia, esquema, integr
 logmaster.exe migrate          # aplica migraciones pendientes
 logmaster.exe service install  # instala el servicio de Windows (admin)
 logmaster.exe service start | stop | restart | uninstall
+logmaster.exe backup [--automatic]              # crea un respaldo age
+logmaster.exe restore <archivo> --confirm-target <destino> [--password <clave>]
+logmaster.exe rehearse [archivo] [--password <clave>]  # ensayo de restauración
+logmaster.exe retention        # ejecuta la retención ahora (aunque esté desactivada)
+logmaster.exe tray             # bandeja del sistema (solo Windows)
+logmaster.exe secrets set <NOMBRE>   # guarda un secreto (stdin, una línea)
+logmaster.exe secrets list
+logmaster.exe init [--root-password-file <archivo>]  # crea carpetas, config y secretos
 logmaster.exe convert --from-postgres <cadena> --to <sqlite>
 logmaster.exe preflight --from-postgres <cadena> | --db <sqlite>
 ```
@@ -130,9 +138,9 @@ visitas, 2 intervalos, 1 historial, 4 registros de auditoría, 2 ARCO,
 3 tokens): `preflight` del origen, `convert` con conteos idénticos y
 `preflight` del destino, todo en verde; también se comprobó que un
 origen con visita abierta duplicada y una clave incorrecta cancelan la
-conversión sin dejar parciales. El `cargo check --target
-x86_64-pc-windows-msvc` de la fase 1 sigue pendiente de re-verificar
-tras estos cambios (solo check, no enlazado).
+conversión sin dejar parciales. El estado del
+`cargo check --target x86_64-pc-windows-msvc` se recoge en la
+sección de la fase 6 (solo check, no enlazado).
 
 ## Fase 3 · Cripto y sesión: AES-GCM/HMAC/bcrypt, JWT, cookies y roles
 
@@ -161,8 +169,8 @@ tras estos cambios (solo check, no enlazado).
   base en cada validación, rechazo del refresh histórico sin fechas y
   revocación por `tokenVersion` (logout, cambio de contraseña y
   restauración). Recuperación con token aleatorio hasheado, 15 min, un
-  solo uso y respuesta genérica; el envío del correo es de la fase 6
-  (lettre). El gate de cambio obligatorio solo permite
+  solo uso y respuesta genérica; el correo se envía con lettre
+  (fase 6). El gate de cambio obligatorio solo permite
   `/api/v1/auth/change-password` y `/api/v1/auth/session`.
 - **Cookies** (`crates/app/src/cookies.rs`): Axum emite y lee
   directamente `__Host-logmaster-access` y `__Host-logmaster-refresh`
@@ -193,11 +201,11 @@ tras estos cambios (solo check, no enlazado).
   `https://localhost:8443` (el BFF usaba `https://localhost:5173`, el
   origen de Next; aquí ya no hay Next). El `config.toml` junto al .exe
   y la selección de motor llegaron con el doble motor (ver abajo);
-  DPAPI para los secretos sigue siendo de la fase 6.
+  DPAPI para los secretos (fase 6).
 - **Arranque**: `serve` y `check` verifican las huellas de clave de los
   índices (`Store::verify_key_fingerprints`): error con clave
   equivocada; aviso si aún no están preparados (la reconstrucción
-  `ops reindex` es de la fase 6), a diferencia de Go, que no arranca
+  `ops reindex` queda para una fase posterior), a diferencia de Go, que no arranca
   sin índice preparado.
 
 Verificado en Linux (2026-11-11): `cargo test --workspace` (75 tests:
@@ -215,8 +223,8 @@ Por defecto escucha en `127.0.0.1:8443` (HTTP plano en el esqueleto) y usa
 la base `data/logmaster.db` junto al directorio de trabajo, o
 `%ProgramData%\LogMaster\data\logmaster.db` en Windows. Se puede anular
 con `LOGMASTER_BIND`, `LOGMASTER_PORT` y `LOGMASTER_DB_PATH`.
-El TLS con rustls y los secretos con DPAPI llegan con las fases
-siguientes (documento, secciones 14.4 y 15).
+El TLS con rustls y los secretos con DPAPI llegan con la fase 6
+(documento, secciones 14.4 y 15).
 
 ## Doble motor por configuración (entre fase 3 y fase 4)
 
@@ -287,7 +295,8 @@ tiene sus propios datos; `convert` sigue siendo solo PG → SQLite.
   partir del ejemplo sin pisar nunca el del usuario
   (`LOGMASTER_CONFIG` fija otra ruta; las actualizaciones nunca
   sobrescriben la configuración). Los secretos **no** van en el
-  archivo: van por entorno (o archivo de secretos DPAPI en fase 6).
+  archivo: van por entorno o por el archivo de secretos (DPAPI en
+Windows, fase 6).
   Diferencias entre el ejemplo canónico y la implementación real:
   (1) la `url` debe ser formato URL
   `postgres://usuario:clave@host:5432/base` (sqlx no acepta
@@ -295,8 +304,8 @@ tiene sus propios datos; `convert` sigue siendo solo PG → SQLite.
   soporta TLS con PostgreSQL (misma limitación que `convert`, que
   usa `NoTls`): mismo host o red de confianza; (3)
   `test_on_startup = false` es un error de configuración; (4) las
-  secciones `[mail]`, `[retention]` y `[backup]` se parsean pero
-  aún no tienen efecto (fase 6; se avisa en el log); (5) los
+  secciones `[mail]`, `[retention]` y `[backup]` ya tienen efecto
+  (fase 6: correo, retención programada y respaldos); (5) los
   secretos en `[security]` se ignoran con advertencia (van por
   entorno); (6) `[install] folder` y `desktop_shortcut` alimentan
   la lógica de primer arranque.
@@ -356,8 +365,9 @@ por cédula). La auditoría se escribe en la misma transacción, con el
   peculiaridades de agregación de Go).
 - `superadmin`: cuentas solo para root (sin crear rol root, sin
   borrarlo ni cambiar su rol) y su variante de bitácora.
-- `backups`: listado desde `backup.path`; crear y restaurar devuelven
-  los 409 de Go hasta la fase 6.
+- `backups`: listado desde `backup.path`; crear y restaurar
+  ejecutan de verdad con age (fase 6), con los mismos códigos de
+  error de Go.
 - `events`: `GET /api/v1/events/visits` (SSE, 256 suscriptores,
   `system:connected`, `:heartbeat` cada 25 s, revalidación por evento
   y latido, temporizador en la expiración del token).
@@ -369,10 +379,9 @@ sesión, rol permitido/denegado y códigos de error) y smoke tests del
 binario real por familia en `~/workspace/.rust-verify/smoke-test/`
 (no se guardan en el repo).
 
-Pendiente para la fase 6: envío del correo de recuperación (lettre;
-el token ya se guarda y el `forgot` avisa que el envío está
-pendiente), ejecución real de respaldo/restauración con age, y
-ejecución de la retención de auditoría. Desviación conocida: Axum
+Fase 6 hecha: el correo de recuperación se envía con lettre, los
+respaldos se crean y restauran con age y la retención de auditoría
+se ejecuta (ver "Fase 6 · Operación"). Desviación conocida: Axum
 devuelve 404/405 sin el sobre de error para rutas o métodos
 desconocidos (Go devuelve `NOT_FOUND`/`METHOD_NOT_ALLOWED` con el
 sobre). La exportación de visitas es JSON con los límites de Go; el
@@ -419,10 +428,10 @@ Decisiones de la fase 5:
   envío CSRF sigue vigente.
 - **Exportaciones**: JSON de visitas y CSV de auditoría, ya
   disponibles en la fase 4, enlazados desde `/admin` y `/audit`.
-  PDF/XLSX en servidor (`rust_xlsxwriter`/genpdf) quedan para la
-  fase 6; el recorrido original de admin que los descargaba no puede
-  pasar aún y queda documentado aquí.
-- **Correo (Mailpit/reset)**: el envío es fase 6; las páginas
+  PDF/XLSX en servidor llegaron con la fase 6 (XLSX con
+  rust_xlsxwriter, PDF con printpdf; genpdf no encaja porque exige
+  archivos de fuentes en disco y el .exe es único).
+- **Correo (Mailpit/reset)**: el envío va con lettre (fase 6); las páginas
   forgot/reset existen y la API responde el mensaje genérico.
 - **Fotos/cámara**: subida por archivo (a data-URI) o captura con
   `getUserMedia` (exige contexto seguro); la cédula se normaliza en
@@ -440,14 +449,152 @@ Requiere el binario en marcha con usuarios sembrados
 en el login. Corre con `@playwright/test 1.64.1` (el `package.json`
 del repo ya lo fija); el `node_modules` vive fuera del repo.
 
+## Fase 6 · Operación: respaldos, retención, correo, secretos, TLS, bandeja, logs y exportaciones
+
+- **Config con efecto** (`crates/app/src/config.rs`): `[mail]`
+  (`SMTP_HOST`, `SMTP_PORT`, `EMAIL_FROM`, `SMTP_TLS_MODE`
+  local/starttls/implicit, `SMTP_USER`/`SMTP_PASSWORD` solo por
+  entorno), `[retention]` (`enabled = false` por defecto,
+  `run_at = "02:00"`, `data_days = 60`, `audit_days = 365`),
+  `[backup]` (`keep = 30`, `daily_at = "01:00"`,
+  `passwords_path`), `[server] tls = true` por defecto con
+  `tls_dir`/`tls_cert`/`tls_key`, y `[secrets] dir`. Validaciones:
+  `HH:MM` exacto, `tls_mode` válido, `keep`/`data_days`/`audit_days
+  >= 1`, certificado y clave juntos o error, la carpeta de
+  contraseñas distinta de la de respaldos. Las rutas absolutas de
+  Windows del ejemplo (`C:\ProgramData\...`) fuera de Windows se
+  sustituyen por los defectos de la plataforma, en vez de crear
+  una carpeta con ese nombre literal.
+- **Respaldos con age** (`crates/app/src/backup.rs`, formato propio
+  `logmaster-rust/1`): sin pg_dump. SQLite se copia en línea con la
+  API de respaldo de rusqlite; PostgreSQL se vuelca con
+  `COPY ... TO STDOUT` en una transacción `REPEATABLE READ`
+  (secciones `##TABLE "Nombre" N` … `##END`, 12 tablas en orden de
+  dependencias). Archivo
+  `backup-AAAA-MM-DDTHH-MM-SS-<12 hex>.dump.enc`, cifrado age+scrypt
+  (factor de trabajo 15, como Go), manifiesto `<nombre>.meta` JSON
+  (versión, formato, fecha, `passwordHash` SHA-256, `originalName`,
+  `engine`, `sha256` del contenido en claro, `schemaVersion`,
+  conteos por tabla, `automatic`), contraseña aleatoria por copia
+  (64 hex) guardada cifrada con AES-GCM (`ENCRYPTION_KEY`) en
+  `<nombre>.password.enc` dentro de la carpeta aparte de
+  contraseñas —solo las automáticas—; candado `.backup.lock` (una
+  creación a la vez); límites 20 GiB archivo / 80 GiB contenido en
+  claro, como Go. Cada copia se verifica releyéndola antes de darla
+  por buena; la rotación poda a `keep` solo pares automáticos
+  verificados (manuales e incompletos se preservan) y escribe
+  `backup-status.json`. `POST /backups` crea de verdad (manual,
+  contraseña una sola vez, auditoría `BACKUP_CREATED`);
+  `POST /backups/{f}/restore` restaura en vivo en SQLite (bump
+  `tokenVersion`, verificación de root, `BACKUP_RESTORE_COMPLETED`
+  dentro de la copia, intercambio atómico con `Store::replace_with`)
+  y en PostgreSQL devuelve 409 `RESTORE_TARGET_NOT_ALLOWED` antes
+  de descifrar, como Go. CLI: `backup [--automatic]`,
+  `restore <archivo> --confirm-target <destino> [--password]`
+  (el destino debe ser exactamente la ruta SQLite configurada o la
+  cadena PostgreSQL), `rehearse [archivo] [--password]`
+  (restauración en archivo temporal + `restore-status.json`).
+  La restauración por CLI en PostgreSQL hace `DROP SCHEMA public
+  CASCADE; CREATE SCHEMA public;`, migraciones y carga por
+  `COPY FROM STDIN` en la misma transacción. El `restore` por CLI
+  no abre la base viva antes de restaurar (abrirla creaba el
+  archivo vacío y fallaba con "no such table") y crea la carpeta
+  del destino si falta.
+- **Retención** (`crates/store/src/retention.rs`): el alcance exacto
+  de Go (actividad antigua, visitas completadas, solicitudes ARCO
+  resueltas, perfiles elegibles sin referencias vigentes; fuera:
+  visitas canceladas e historial de ediciones), en una transacción
+  con `RETENTION_CLEANUP` del primer root (error si no hay root);
+  desactivada devuelve conteos en cero. Los cortes se calculan en
+  UTC (Caracas no tiene horario de verano, UTC-4 fijo, así que
+  restar días en UTC equivale a restarlos en hora de Caracas).
+  CLI `retention` (ejecuta aunque esté desactivada, con aviso).
+- **Correo con lettre** (`crates/app/src/mail.rs`): lettre 0.11,
+  mismos modos y textos que Go (`local`/`starttls`/`implicit`; sin
+  modo explícito: bucle local → `local`, resto → `starttls`;
+  `local` con host externo → error; timeout 10 s; asunto
+  "Restablecimiento de contraseña — LogMaster", enlace
+  `{app_url}/reset-password?token=…`, "vence en 15 minutos y tiene
+  un solo uso"). Sin SMTP configurado o si el envío falla, el token
+  se anula (`clear_reset_token`) y el fallo queda en el log; la
+  respuesta de `forgot` sigue siendo genérica. El envío genérico
+  (`Mailer::send`) queda listo para otros avisos.
+- **Secretos con DPAPI** (`crates/app/src/secrets.rs`):
+  `secrets.json` en `secrets_dir` (`{"version":1,"dpapi":bool,
+  "entries":{...}}`); en Windows cada valor se cifra con DPAPI
+  (`CryptProtectData`, ámbito de usuario/cuenta del servicio) y en
+  Linux queda en base64 con permisos 0600 y aviso en el log (un
+  archivo con `dpapi:true` leído en Linux da error). Nombres:
+  `JWT_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY`,
+  `EDIT_PASSWORD`. `Config::load` los lee como último recurso
+  (entorno primero; `config.toml` nunca). `init` crea carpetas
+  (datos, respaldos, secretos, TLS, logs), config desde el ejemplo
+  si falta, genera los 3 secretos aleatorios si faltan, y con
+  `--root-password-file` crea la cuenta root. `secrets set
+  <NOMBRE>` lee el valor de stdin; `secrets list` muestra solo
+  nombres.
+- **TLS con rustls** (`crates/app/src/tls.rs`): `serve` en HTTPS por
+  defecto (axum-server + rustls, TLS 1.2/1.3). Se instala el
+  proveedor cripto `ring` al arrancar: el árbol habilita dos
+  (`aws-lc-rs` y `ring`) y sin uno instalado el servidor entraba
+  en pánico al construir el `RustlsConfig`. Sin certificado
+  propio, genera uno autofirmado con rcgen (ECDSA P-256, SANs
+  `localhost` + `127.0.0.1`) en `tls_dir` (`cert.pem`/`key.pem`,
+  clave 0600) y lo reutiliza; la huella SHA-256 (DER) sale en el
+  log de arranque y en `check` (`tls::status` solo lee, no genera).
+  `tls = false` mantiene HTTP plano. Apagado ordenado con
+  `axum_server::Handle` + `graceful_shutdown(5 s)`.
+- **Programador interno** (`crates/app/src/scheduler.rs`): tareas
+  tokio en `serve` con zona America/Caracas (chrono-tz): respaldo
+  diario automático a `backup_daily_at` (01:00), retención a
+  `retention_run_at` (02:00, solo si `enabled`), ensayo semanal
+  domingo 03:00 sobre el respaldo más reciente. Los fallos quedan
+  en el log sin tumbar el servidor.
+- **Logs** (`crates/app/src/logging.rs`): consola + `logmaster.log`
+  en `<datos>/logs` (`LOGMASTER_LOG_DIR`), rotación propia: 3
+  archivos de 10 MiB (`logmaster.log`, `.1`, `.2`). Sin query
+  strings ni secretos en los logs.
+- **Bandeja** (`crates/app/src/tray.rs`, solo Windows):
+  `logmaster tray` — icono 32×32 generado en código (cuadro verde
+  con `L` blanca, sin archivos externos), menú (Abrir interfaz /
+  Reiniciar servicio / Salir), tooltip con el estado del servicio
+  consultado al SCM cada ~30 s. `service install` configura además
+  la recuperación (reinicio a los 5 s en el 1.º y 2.º fallo,
+  contador a cero tras un día sin fallos).
+- **Exportaciones en servidor** (`crates/app/src/export.rs`):
+  `GET /api/v1/visits/export` genera el binario: XLSX con
+  rust_xlsxwriter (hoja `Visitas`, hasta 20.000) y PDF con printpdf
+  (fuentes Helvetica integradas, apaisado A4, hasta 2.000).
+  **Decisión: genpdf no encaja** porque exige archivos de fuentes
+  en disco y el ejecutable es único; printpdf trae las fuentes
+  integradas. `Content-Type` y `Content-Disposition: attachment`
+  con `visitas.pdf` / `visitas.xlsx`.
+
+Verificado en Linux (2026-11-11): `cargo test --workspace` (172
+tests en total: binario 96, crypto 15, store 45, contrato 16; los
+de contrato PG y el de respaldo PG se omiten sin clúster
+PostgreSQL en marcha),
+`cargo fmt --check`, `cargo clippy --workspace --all-targets` sin
+avisos, y humo real del binario (`init` + `secrets`, ciclo de
+respaldo por CLI crear → listar → restaurar en base temporal con
+datos comprobados, retención por CLI, correo contra el sumidero
+SMTP del test, `serve` con TLS y `/health` con `curl -k`). Lo que
+sigue pendiente de probar en Windows real o con SMTP real (no
+afirmado aquí): DPAPI real, bandeja real, servicio de Windows con
+cuenta virtual `NT SERVICE\LogMaster` y permisos NTFS, envío
+contra Mailpit/SMTP real, ciclo de respaldo/restauración en
+PostgreSQL en vivo, y el `cargo check --workspace --target
+x86_64-pc-windows-msvc` (en este entorno no corre: `aws-lc-sys`,
+dependencia de rustls, exige `cl.exe` de MSVC y aquí solo hay
+`cc` de Linux; la API de `tray-icon`/`muda` se verificó contra
+las fuentes descargadas de los crates).
+
 ## Qué NO hace todavía este esqueleto
 
-- El envío del correo de
-  recuperación, la ejecución real de respaldos con age y la retención
-  de auditoría son de la fase 6 (lettre/age).
 - `service install` registra el servicio con arranque automático
-  retrasado y el binario con `service run` como punto de entrada del SCM.
-  Las acciones de recuperación (reinicio a los 5 s en el 1.º y 2.º fallo)
-  se configuran con `sc.exe failure` hasta tener instalador propio;
-  la cuenta virtual `NT SERVICE\LogMaster` y los permisos NTFS llegan
-  con la fase 6 de operación.
+  retrasado, recuperación (reinicio a los 5 s en el 1.º y 2.º fallo)
+  y el binario con `service run` como punto de entrada del SCM.
+  La cuenta virtual `NT SERVICE\LogMaster` y los permisos NTFS
+  siguen pendientes (fase 7 u 8, en el equipo destino).
+- La reconstrucción de índices de identidad/búsqueda
+  (`ops reindex`) queda para una fase posterior.
