@@ -33,6 +33,7 @@ mod http;
 mod origin;
 mod rate_limit;
 mod roles;
+mod routes;
 mod service;
 mod session;
 

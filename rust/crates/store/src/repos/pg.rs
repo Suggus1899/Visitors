@@ -575,6 +575,20 @@ impl UserRepository for PgUserRepository {
             })
     }
 
+    async fn find_by_reset_token(&self, token: &str) -> StoreResult<User> {
+        let sql = format!("SELECT {USER_COLUMNS} FROM \"Users\" WHERE \"resetToken\" = $1");
+        sqlx::query(&sql)
+            .bind(token)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(StoreError::from)?
+            .map(|row| user_from_row(&row).map_err(StoreError::from))
+            .transpose()?
+            .ok_or_else(|| {
+                StoreError::not_found("USER_NOT_FOUND", "token de recuperación inválido o vencido")
+            })
+    }
+
     async fn list_all(&self) -> StoreResult<Vec<User>> {
         let rows = sqlx::query(
             "SELECT id, username, email, role::text AS role, \"mustChangePassword\", \

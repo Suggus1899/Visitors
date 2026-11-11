@@ -109,11 +109,9 @@ pub struct Config {
     pub absolute_session_ttl: Duration,
     /// Intentos de login antes del bloqueo (por defecto 5). Lo usa el
     /// handler de login de la fase 4.
-    #[allow(dead_code)]
     pub max_login_attempts: i64,
     /// Minutos de bloqueo tras agotar los intentos (por defecto 15).
     /// Lo usa el handler de login de la fase 4.
-    #[allow(dead_code)]
     pub lockout_minutes: i64,
     /// Días de retención de la bitácora (`AUDIT_LOG_RETENTION_DAYS`
     /// o `[retention] audit_days`, por defecto 365, como Go). Lo usa

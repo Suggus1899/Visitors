@@ -72,6 +72,9 @@ pub trait UserRepository: Send + Sync {
     async fn find_by_username(&self, username: &str) -> StoreResult<User>;
     /// `FindUserByID`: por id. Sin fila → `USER_NOT_FOUND`.
     async fn find_by_id(&self, id: i64) -> StoreResult<User>;
+    /// `FindUserByResetToken`: por hash de token de recuperación.
+    /// Sin fila → `USER_NOT_FOUND`.
+    async fn find_by_reset_token(&self, token: &str) -> StoreResult<User>;
     /// `ListUsers`: todas las cuentas por id.
     async fn list_all(&self) -> StoreResult<Vec<User>>;
     /// Inserta una cuenta y devuelve su id.

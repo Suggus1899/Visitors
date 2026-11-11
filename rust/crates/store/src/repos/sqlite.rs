@@ -57,6 +57,11 @@ impl UserRepository for SqliteUserRepository {
         self.store.read_store(|conn| users::find_by_id(conn, id))
     }
 
+    async fn find_by_reset_token(&self, token: &str) -> StoreResult<User> {
+        self.store
+            .read_store(|conn| users::find_by_reset_token(conn, token))
+    }
+
     async fn list_all(&self) -> StoreResult<Vec<User>> {
         self.store.read_store(users::list_all)
     }

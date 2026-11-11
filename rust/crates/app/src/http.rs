@@ -11,6 +11,7 @@
 //! 3. Sesion JWT (`session.rs`) en las rutas protegidas, con el
 //!    permiso declarado por ruta (`roles.rs`).
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -18,27 +19,45 @@ use axum::{
     extract::State, http::StatusCode, middleware, response::IntoResponse, routing::get, Json,
     Router,
 };
-use logmaster_store::Database;
+use logmaster_store::{Database, Repositories};
 use serde_json::json;
 
 use crate::client_ip::TrustedPrefix;
 use crate::config::Config;
 use crate::error;
+use crate::events::Events;
 use crate::origin::{origin_and_csrf, origin_of, OriginConfig};
 use crate::rate_limit::{rate_limit, RateLimitConfig, RateLimiter};
+use crate::routes;
 use crate::session::{session_middleware, SessionService};
 
 /// Estado compartido por el router. La base es el enum `Database`:
-/// el mismo router sirve SQLite y PostgreSQL.
+/// el mismo router sirve SQLite y PostgreSQL; los handlers trabajan
+/// solo contra `repos` (traits) y el hub `events`.
 #[derive(Clone)]
 pub struct ApiState {
     pub db: Database,
+    pub repos: Repositories,
     pub session: SessionService,
     pub limiter: Arc<RateLimiter>,
     pub allowed_origins: Vec<String>,
     pub trusted_proxies: Vec<TrustedPrefix>,
     pub rate_max_requests: u32,
     pub rate_window: Duration,
+    /// Clave de datos AES-256-GCM, para cifrar y descifrar perfiles.
+    pub encryption_key: [u8; 32],
+    /// Hub de avisos SSE.
+    pub events: Events,
+    /// Intentos de login antes del bloqueo (config).
+    pub max_login_attempts: i64,
+    /// Minutos de bloqueo tras agotar los intentos (config).
+    pub lockout_minutes: i64,
+    /// Días de retención de la bitácora (config).
+    pub audit_retention_days: i64,
+    /// Retención automática habilitada (config).
+    pub retention_enabled: bool,
+    /// Carpeta de respaldos (config).
+    pub backup_path: Option<PathBuf>,
 }
 
 impl ApiState {
@@ -48,31 +67,45 @@ impl ApiState {
             .iter()
             .filter_map(|origin| origin_of(origin))
             .collect();
+        let repos = db.repositories();
         Self {
-            session: SessionService::new(config, db.repositories().users),
+            session: SessionService::new(config, repos.users.clone()),
             db,
+            repos,
             limiter: Arc::new(RateLimiter::new()),
             allowed_origins,
             trusted_proxies: config.trusted_proxies.clone(),
             rate_max_requests: config.rate_max_requests,
             rate_window: Duration::from_millis(config.rate_window_ms),
+            encryption_key: config.encryption_key,
+            events: Events::new(),
+            max_login_attempts: config.max_login_attempts,
+            lockout_minutes: config.lockout_minutes,
+            audit_retention_days: config.audit_retention_days,
+            retention_enabled: config.retention_enabled,
+            backup_path: config.backup_path.clone(),
         }
     }
 }
 
 /// Router completo: `/health` del proceso y `/api/v1/*`.
 pub fn build_router(db: Database, config: &Config) -> Router {
-    let state = ApiState::new(db, config);
+    build_router_with_state(ApiState::new(db, config))
+}
+
+/// Router a partir de un estado ya construido (lo usan las pruebas
+/// de cada familia para sembrar usuarios sin arrancar el binario).
+pub fn build_router_with_state(state: ApiState) -> Router {
     // Rutas protegidas: la sesion se valida antes que el permiso de
     // cada ruta (la capa de sesion es la mas interna de las dos).
-    // Las rutas de dominio llegan en la fase 4.
-    let protected = Router::new().layer(middleware::from_fn_with_state(
+    let protected = routes::protected_routes().layer(middleware::from_fn_with_state(
         state.session.clone(),
         session_middleware,
     ));
     let api = Router::new()
         .route("/health", get(api_health))
         .merge(protected)
+        .merge(routes::public_routes())
         .layer(middleware::from_fn_with_state(
             RateLimitConfig {
                 limiter: state.limiter.clone(),

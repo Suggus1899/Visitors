@@ -32,6 +32,20 @@ pub fn find_by_username(conn: &Connection, username: &str) -> StoreResult<User> 
         })
 }
 
+/// `FindUserByResetToken`: por hash de token de recuperación. Sin
+/// fila → `USER_NOT_FOUND`. Lo usa el reset de contraseña para
+/// construir la auditoría antes de consumir el token (fase 4).
+pub fn find_by_reset_token(conn: &Connection, token: &str) -> StoreResult<User> {
+    let sql = format!("SELECT {USER_COLUMNS} FROM \"Users\" WHERE \"resetToken\" = ?1");
+    conn.query_row(&sql, params![token], row_to_user)
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                StoreError::not_found("USER_NOT_FOUND", "token de recuperación inválido o vencido")
+            }
+            other => other.into(),
+        })
+}
+
 /// `FindUserByID`: por id. Sin fila → `USER_NOT_FOUND`.
 pub fn find_by_id(conn: &Connection, id: i64) -> StoreResult<User> {
     let sql = format!("SELECT {USER_COLUMNS} FROM \"Users\" WHERE id = ?1");
