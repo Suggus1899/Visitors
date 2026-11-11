@@ -5,8 +5,10 @@
 //! que corre después de la sesión. El orden de las capas externas es
 //! el de Go: origen/CSRF, límite y sesión.
 
+pub mod audit;
 pub mod auth;
 pub mod privacy;
+pub mod reports;
 pub mod visitors;
 pub mod visits;
 
@@ -24,7 +26,9 @@ pub fn public_routes() -> Router<ApiState> {
 pub fn protected_routes() -> Router<ApiState> {
     Router::new()
         .merge(auth::protected_routes())
+        .merge(audit::routes())
         .merge(privacy::routes())
+        .merge(reports::routes())
         .merge(visitors::routes())
         .merge(visits::routes())
 }

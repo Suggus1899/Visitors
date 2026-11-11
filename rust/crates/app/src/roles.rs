@@ -1,9 +1,3 @@
-// API de la fase 3 para los handlers de la fase 4 (rutas /auth/* y de
-// dominio): hasta que lleguen, el binario no consume estas piezas y
-// rustc las marcaria como muertas. Se retira este allow al cablear
-// cada pieza en la fase 4.
-#![allow(dead_code)]
-
 //! Roles y permisos como extractores de Axum.
 //!
 //! Traduccion de la linea base, seccion 3 (tabla de autorizacion),

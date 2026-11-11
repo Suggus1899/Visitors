@@ -25,7 +25,6 @@ use axum::{
     Router,
 };
 use logmaster_crypto::{encrypt, identity_hash, random_token};
-use logmaster_store::error::StoreError;
 use logmaster_store::repos::privacy::{ArcoFilter, CancelAudit, NewArcoRequest};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};

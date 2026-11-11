@@ -116,12 +116,10 @@ pub struct Config {
     /// Días de retención de la bitácora (`AUDIT_LOG_RETENTION_DAYS`
     /// o `[retention] audit_days`, por defecto 365, como Go). Lo usa
     /// `/audit/config` (fase 4).
-    #[allow(dead_code)]
     pub audit_retention_days: i64,
     /// Retención automática habilitada (`RETENTION_ENABLED` o
     /// `[retention] enabled`, por defecto `false`, como Go). Lo usa
     /// `/audit/config` (fase 4); la ejecución es fase 6.
-    #[allow(dead_code)]
     pub retention_enabled: bool,
     /// Carpeta de respaldos (`BACKUP_PATH` o `[backup] path`). Sin
     /// ella, el listado de respaldos falla como en Go
