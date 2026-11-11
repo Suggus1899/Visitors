@@ -29,8 +29,10 @@ leptos.workspace = true
 lettre.workspace = true
 logmaster-crypto = { path = "../crypto" }
 postgres.workspace = true
+printpdf.workspace = true
 rcgen.workspace = true
 rusqlite.workspace = true
+rust_xlsxwriter.workspace = true
 rustls-pemfile.workspace = true
 serde.workspace = true
 serde_json.workspace = true

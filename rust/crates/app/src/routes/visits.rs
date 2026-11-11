@@ -12,9 +12,9 @@
 //! - Listas por estado (sin paginación, como Go), visitas filtradas
 //!   con el orden permitido y límite 10 por defecto, calendario por
 //!   día de Caracas (hasta 62 días) y exportación.
-//! - La exportación de Go devuelve JSON (`{visits, total}`) con el
-//!   límite por formato (PDF 2.000, XLSX 20.000); el archivo lo
-//!   genera el cliente, así que aquí no se genera ningún binario.
+//! - La exportación genera el binario en el servidor (fase 6):
+//!   PDF con printpdf (hasta 2.000 visitas) y XLSX con
+//!   rust_xlsxwriter (hasta 20.000), con las columnas fijas del DTO.
 //! - Todo el acceso a datos va por los traits (`Repositories`) y el
 //!   check-in por `UnitOfWork::checkin` (una sola transacción en
 //!   ambos motores). La comprobación de bloqueo se lee antes de la
@@ -928,7 +928,41 @@ async fn export_visits(State(state): State<ApiState>, uri: Uri) -> Response {
         Ok(items) => items,
         Err(e) => return server_error(&e.to_string()),
     };
-    error::ok(json!({"visits": items, "total": total})).into_response()
+    let format = param(&params, "format").unwrap_or("");
+    match format {
+        "pdf" => match crate::export::visits_pdf(&items, total) {
+            Ok(bytes) => (
+                [
+                    (axum::http::header::CONTENT_TYPE, "application/pdf"),
+                    (
+                        axum::http::header::CONTENT_DISPOSITION,
+                        "attachment; filename=\"visitas.pdf\"",
+                    ),
+                ],
+                bytes,
+            )
+                .into_response(),
+            Err(e) => server_error(&e.to_string()),
+        },
+        "xlsx" => match crate::export::visits_xlsx(&items) {
+            Ok(bytes) => (
+                [
+                    (
+                        axum::http::header::CONTENT_TYPE,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    ),
+                    (
+                        axum::http::header::CONTENT_DISPOSITION,
+                        "attachment; filename=\"visitas.xlsx\"",
+                    ),
+                ],
+                bytes,
+            )
+                .into_response(),
+            Err(e) => server_error(&e.to_string()),
+        },
+        _ => validation_error("formato de exportación inválido"),
+    }
 }
 
 #[cfg(test)]
@@ -1017,6 +1051,33 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
         (status, value)
+    }
+
+    /// Como `request`, pero devuelve los bytes crudos y el
+    /// content-type (para las exportaciones binarias).
+    async fn request_bytes(
+        router: Router,
+        method: Method,
+        uri: &str,
+        token: Option<&str>,
+    ) -> (StatusCode, Option<String>, Vec<u8>) {
+        let mut builder = Request::builder().method(method).uri(uri);
+        if let Some(token) = token {
+            builder = builder.header("authorization", format!("Bearer {token}"));
+        }
+        let request = builder.body(Body::empty()).unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        let status = response.status();
+        let content_type = response
+            .headers()
+            .get(axum::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| value.to_string());
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .to_vec();
+        (status, content_type, bytes)
     }
 
     fn checkin_body(cedula: &str) -> String {
@@ -1322,7 +1383,7 @@ mod tests {
         .await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
 
-        // Exportación sin formato: 400; con formato: JSON con total.
+        // Exportación sin formato: 400; con formato: binario real.
         let (status, _) = request(
             router.clone(),
             Method::GET,
@@ -1332,15 +1393,28 @@ mod tests {
         )
         .await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
-        let (status, body) = request(
+        let (status, content_type, bytes) = request_bytes(
             router.clone(),
             Method::GET,
             "/api/v1/visits/export?format=pdf",
             Some(&token),
-            None,
         )
         .await;
-        assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["data"]["total"], 1);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(content_type.as_deref(), Some("application/pdf"));
+        assert!(bytes.starts_with(b"%PDF-"));
+        let (status, content_type, bytes) = request_bytes(
+            router.clone(),
+            Method::GET,
+            "/api/v1/visits/export?format=xlsx",
+            Some(&token),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            content_type.as_deref(),
+            Some("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        );
+        assert!(bytes.starts_with(b"PK\x03\x04"));
     }
 }

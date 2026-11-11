@@ -35,6 +35,7 @@ mod cookies;
 mod dto;
 mod error;
 mod events;
+mod export;
 mod first_run;
 mod http;
 mod init;

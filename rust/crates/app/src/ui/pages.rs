@@ -1333,8 +1333,10 @@ fn admin_backups_view(files: Option<Vec<serde_json::Value>>) -> AnyView {
             {tabla}
             <p class="muted">
                 "Exportación de visitas: "
-                <a href="/api/v1/visits/export?format=xlsx">"JSON (hasta 20.000 visitas)"</a>
-                ". PDF/XLSX en servidor, fase 6."
+                <a href="/api/v1/visits/export?format=xlsx">"XLSX (hasta 20.000 visitas)"</a>
+                " · "
+                <a href="/api/v1/visits/export?format=pdf">"PDF (hasta 2.000 visitas)"</a>
+                "."
             </p>
         </div>
     }
