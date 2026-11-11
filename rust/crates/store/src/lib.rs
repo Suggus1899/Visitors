@@ -24,8 +24,10 @@ pub mod models;
 pub mod pg_migrations;
 pub mod preflight;
 pub mod repos;
+pub mod retention;
 
 pub use database::{ConnectionProbe, Database, DatabaseConfig, DatabaseEngine, Repositories};
+pub use retention::RetentionCounts;
 
 /// Versión esperada del esquema (número de migraciones definidas).
 pub const SCHEMA_VERSION: usize = migrations::MIGRATION_COUNT;

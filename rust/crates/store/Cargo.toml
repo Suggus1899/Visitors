@@ -12,6 +12,8 @@ chrono.workspace = true
 logmaster-crypto = { path = "../crypto" }
 rusqlite.workspace = true
 rusqlite_migration.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 sqlx.workspace = true
 tracing.workspace = true
 
