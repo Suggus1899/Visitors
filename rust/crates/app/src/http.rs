@@ -18,7 +18,7 @@ use axum::{
     extract::State, http::StatusCode, middleware, response::IntoResponse, routing::get, Json,
     Router,
 };
-use logmaster_store::Store;
+use logmaster_store::Database;
 use serde_json::json;
 
 use crate::client_ip::TrustedPrefix;
@@ -28,10 +28,11 @@ use crate::origin::{origin_and_csrf, origin_of, OriginConfig};
 use crate::rate_limit::{rate_limit, RateLimitConfig, RateLimiter};
 use crate::session::{session_middleware, SessionService};
 
-/// Estado compartido por el router.
+/// Estado compartido por el router. La base es el enum `Database`:
+/// el mismo router sirve SQLite y PostgreSQL.
 #[derive(Clone)]
 pub struct ApiState {
-    pub store: Store,
+    pub db: Database,
     pub session: SessionService,
     pub limiter: Arc<RateLimiter>,
     pub allowed_origins: Vec<String>,
@@ -41,15 +42,15 @@ pub struct ApiState {
 }
 
 impl ApiState {
-    pub fn new(store: Store, config: &Config) -> Self {
+    pub fn new(db: Database, config: &Config) -> Self {
         let allowed_origins = config
             .allowed_origins()
             .iter()
             .filter_map(|origin| origin_of(origin))
             .collect();
         Self {
-            session: SessionService::new(config, store.clone()),
-            store,
+            session: SessionService::new(config, db.repositories().users),
+            db,
             limiter: Arc::new(RateLimiter::new()),
             allowed_origins,
             trusted_proxies: config.trusted_proxies.clone(),
@@ -60,8 +61,8 @@ impl ApiState {
 }
 
 /// Router completo: `/health` del proceso y `/api/v1/*`.
-pub fn build_router(store: Store, config: &Config) -> Router {
-    let state = ApiState::new(store, config);
+pub fn build_router(db: Database, config: &Config) -> Router {
+    let state = ApiState::new(db, config);
     // Rutas protegidas: la sesion se valida antes que el permiso de
     // cada ruta (la capa de sesion es la mas interna de las dos).
     // Las rutas de dominio llegan en la fase 4.
@@ -102,15 +103,35 @@ async fn health() -> Json<serde_json::Value> {
     }))
 }
 
-/// Salud de la API: comprueba la base, como hoy comprueba PostgreSQL.
-/// Si la base no responde, 503 con `DB_UNAVAILABLE`.
+/// Salud de la API: ejecuta la prueba real de conexion contra el
+/// motor configurado (`SELECT version()` en PostgreSQL,
+/// `SELECT 1` + `integrity_check` en SQLite) y reporta motor,
+/// version, latencia y version de esquema. `database: ok` solo si
+/// la prueba pasa; si no, 503 con `DB_UNAVAILABLE`.
 async fn api_health(State(state): State<ApiState>) -> impl IntoResponse {
-    match state.store.ping() {
-        Ok(()) => (
-            StatusCode::OK,
-            error::ok(json!({ "status": "ok", "database": "ok" })),
-        )
-            .into_response(),
+    match state.db.test_connection().await {
+        Ok(probe) => {
+            let mut body = serde_json::Map::new();
+            body.insert("status".to_string(), json!("ok"));
+            body.insert("database".to_string(), json!("ok"));
+            body.insert("engine".to_string(), json!(probe.engine));
+            body.insert("version".to_string(), json!(probe.version));
+            body.insert("latency_ms".to_string(), json!(probe.latency_ms));
+            body.insert("schema_version".to_string(), json!(probe.schema_version));
+            if let Some(host) = probe.host {
+                body.insert("host".to_string(), json!(host));
+            }
+            if let Some(port) = probe.port {
+                body.insert("port".to_string(), json!(port));
+            }
+            if let Some(database) = probe.database {
+                body.insert("database_name".to_string(), json!(database));
+            }
+            if let Some(path) = probe.path {
+                body.insert("path".to_string(), json!(path.to_string_lossy()));
+            }
+            (StatusCode::OK, error::ok(serde_json::Value::Object(body))).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "la base no responde al health check");
             error::fail(
@@ -133,7 +154,8 @@ mod tests {
         routing::{get, patch},
     };
     use logmaster_crypto::hash_password;
-    use logmaster_store::repos::users::{self as user_repos, NewUser};
+    use logmaster_store::repos::users::NewUser;
+    use logmaster_store::{Database, Store};
     use tower::ServiceExt;
 
     use crate::cookies::{CSRF_COOKIE, CSRF_HEADER};
@@ -175,37 +197,37 @@ mod tests {
     fn test_state() -> (ApiState, SessionService) {
         let store = Store::open(":memory:".as_ref()).unwrap();
         store.migrate().unwrap();
-        let state = ApiState::new(store, &test_config());
+        let state = ApiState::new(Database::Sqlite(store), &test_config());
         let service = state.session.clone();
         (state, service)
     }
 
-    fn seed_user(state: &ApiState, username: &str, role: &str, must_change: bool) -> i64 {
+    async fn seed_user(state: &ApiState, username: &str, role: &str, must_change: bool) -> i64 {
         let hash = hash_password("Private!Safe12Á").unwrap();
         state
-            .store
-            .tx_immediate(|tx| {
-                user_repos::insert(
-                    tx,
-                    &NewUser {
-                        username,
-                        email: Some("usuario@example.test"),
-                        password_hash: &hash,
-                        role,
-                        must_change_password: must_change,
-                        created_at: NOW,
-                        updated_at: NOW,
-                    },
-                )
-                .map_err(|e| anyhow::anyhow!(e.to_string()))
+            .db
+            .repositories()
+            .users
+            .insert(&NewUser {
+                username,
+                email: Some("usuario@example.test"),
+                password_hash: &hash,
+                role,
+                must_change_password: must_change,
+                created_at: NOW,
+                updated_at: NOW,
             })
+            .await
             .unwrap()
     }
 
-    fn token_for(service: &SessionService, state: &ApiState, user_id: i64) -> String {
+    async fn token_for(service: &SessionService, state: &ApiState, user_id: i64) -> String {
         let user = state
-            .store
-            .read(|conn| user_repos::find_by_id(conn, user_id).map_err(anyhow::Error::from))
+            .db
+            .repositories()
+            .users
+            .find_by_id(user_id)
+            .await
             .unwrap();
         service
             .issue(&Session::from_user(&user))
@@ -316,8 +338,8 @@ mod tests {
         let edit_body = r#"{"editPassword":"fixture-edit-password","firstName":"Visitante"}"#;
         let block_body = r#"{"editPassword":"fixture-edit-password","isBlocked":false}"#;
         for role in ["root", "admin", "operador", "auditor", "demo"] {
-            let user_id = seed_user(&state, &format!("usuario-{role}"), role, false);
-            let token = token_for(&service, &state, user_id);
+            let user_id = seed_user(&state, &format!("usuario-{role}"), role, false).await;
+            let token = token_for(&service, &state, user_id).await;
             let router = matrix_router(state.clone());
             for path in [
                 "/api/v1/visitors/V-98989102",
@@ -413,8 +435,8 @@ mod tests {
         assert_eq!(status, StatusCode::UNAUTHORIZED);
 
         // Con cambio obligatorio: solo sesion y cambio de contrasena.
-        let user_id = seed_user(&state, "cambio-obligatorio", "operador", true);
-        let token = token_for(&service, &state, user_id);
+        let user_id = seed_user(&state, "cambio-obligatorio", "operador", true).await;
+        let token = token_for(&service, &state, user_id).await;
         let (status, body) = request(
             router.clone(),
             Method::GET,
@@ -439,8 +461,8 @@ mod tests {
     #[tokio::test]
     async fn cookie_auth_requires_csrf_on_writes() {
         let (state, service) = test_state();
-        let user_id = seed_user(&state, "por-cookie", "operador", false);
-        let token = token_for(&service, &state, user_id);
+        let user_id = seed_user(&state, "por-cookie", "operador", false).await;
+        let token = token_for(&service, &state, user_id).await;
         let edit_body = r#"{"editPassword":"fixture-edit-password","firstName":"Visitante"}"#;
 
         // GET por cookie funciona sin CSRF.

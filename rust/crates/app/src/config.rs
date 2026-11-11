@@ -84,9 +84,12 @@ pub struct Config {
     /// archivo, que no admite `false`.
     pub test_connection_on_startup: bool,
     /// Carpeta de instalación en disco C: (`[install] folder`).
+    /// La consume `first_run` (primer arranque, siguiente commit).
+    #[allow(dead_code)]
     pub install_folder: String,
     /// Crear el acceso directo del escritorio (`[install]
-    /// desktop_shortcut`).
+    /// desktop_shortcut`). La consume `first_run` (siguiente commit).
+    #[allow(dead_code)]
     pub desktop_shortcut: bool,
     /// Ruta del `config.toml` usado (o creado junto al .exe), si lo
     /// hay.

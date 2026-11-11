@@ -36,7 +36,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
-use logmaster_store::Store;
+use logmaster_store::Database;
 
 #[derive(Parser)]
 #[command(
@@ -136,6 +136,41 @@ async fn serve() -> Result<()> {
     serve_with_shutdown(shutdown_signal()).await
 }
 
+/// Abre la base configurada (SQLite o PostgreSQL), aplica las
+/// migraciones del motor y verifica esquema y huellas de clave.
+/// Devuelve la base y si las huellas pasaron.
+async fn open_database(cfg: &config::Config) -> Result<(Database, bool)> {
+    let db = Database::open(&cfg.database_config()).await?;
+    db.migrate().await?;
+    db.verify().await?;
+    let fingerprints = db.verify_key_fingerprints(&cfg.encryption_key).await?;
+    Ok((db, fingerprints))
+}
+
+/// Prueba real de conexion contra la base configurada
+/// (`test_on_startup` es siempre activo: no se puede desactivar).
+/// Devuelve la sonda o un error con el motivo concreto (credenciales,
+/// host inalcanzable, base inexistente, TLS) para que el arranque
+/// falle de forma visible, no silenciosa.
+async fn probe_database(db: &Database) -> Result<logmaster_store::ConnectionProbe> {
+    db.test_connection()
+        .await
+        .map_err(|e| anyhow::anyhow!("prueba de conexión con la base de datos fallida: {e:#}"))
+}
+
+/// Ubicacion legible de la sonda para el log y `check` (sin secretos:
+/// nunca se imprime la cadena de conexion).
+fn probe_location(probe: &logmaster_store::ConnectionProbe) -> String {
+    match (&probe.host, &probe.port, &probe.database) {
+        (Some(host), Some(port), Some(database)) => format!("{database}@{host}:{port}"),
+        _ => probe
+            .path
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_default(),
+    }
+}
+
 /// Arranque con senal de parada externa (consola: ctrl-c / SIGTERM;
 /// servicio de Windows: Stop del SCM).
 pub(crate) async fn serve_with_shutdown<S>(shutdown: S) -> Result<()>
@@ -143,16 +178,26 @@ where
     S: std::future::Future<Output = ()> + Send + 'static,
 {
     let cfg = config::Config::load()?;
-    let store = Store::open(&cfg.db_path)?;
-    store.migrate()?;
-    store.verify()?;
-    match store.verify_key_fingerprints(&cfg.encryption_key)? {
+    // `load()` rechaza `test_on_startup = false`: la sonda siempre
+    // corre al arrancar, por diseño.
+    debug_assert!(cfg.test_connection_on_startup);
+    let (db, fingerprints) = open_database(&cfg).await?;
+    match fingerprints {
         true => tracing::info!("huellas de clave de los indices verificadas"),
         false => tracing::warn!(
             "indices de identidad/busqueda sin preparar (reindex en fase 6); se arranca igual"
         ),
     }
-    let app = http::build_router(store, &cfg);
+    let probe = probe_database(&db).await?;
+    tracing::info!(
+        engine = probe.engine,
+        base = %probe_location(&probe),
+        version = %probe.version,
+        latency_ms = probe.latency_ms,
+        schema_version = probe.schema_version,
+        "base de datos verificada"
+    );
+    let app = http::build_router(db, &cfg);
     let listener = tokio::net::TcpListener::bind(cfg.addr()).await?;
     tracing::info!(addr = %cfg.addr(), "logmaster escuchando");
     axum::serve(
@@ -164,16 +209,22 @@ where
     Ok(())
 }
 
-/// `check`: version de esquema, conectividad e integridad. Forma parte
-/// del arranque y del healthcheck, como en Go.
+/// `check`: version de esquema, conectividad e integridad, con la
+/// prueba real de conexion del motor configurado. Forma parte del
+/// arranque y del healthcheck, como en Go.
 async fn check() -> Result<()> {
     let cfg = config::Config::load()?;
-    let store = Store::open(&cfg.db_path)?;
-    store.migrate()?;
-    store.verify()?;
-    let fingerprints = store.verify_key_fingerprints(&cfg.encryption_key)?;
+    let (db, fingerprints) = open_database(&cfg).await?;
+    let probe = probe_database(&db).await?;
     println!("logmaster {}", env!("CARGO_PKG_VERSION"));
-    println!("base: {}", cfg.db_path.display());
+    if let Some(path) = &cfg.config_path {
+        println!("config: {}", path.display());
+    }
+    println!("motor: {}", probe.engine);
+    println!("base: {}", probe_location(&probe));
+    println!("versión: {}", probe.version);
+    println!("latencia: {} ms", probe.latency_ms);
+    println!("esquema: {}", probe.schema_version);
     println!("integridad: ok");
     if fingerprints {
         println!("huellas de clave: ok");
@@ -184,12 +235,18 @@ async fn check() -> Result<()> {
     Ok(())
 }
 
-/// `migrate`: aplica migraciones pendientes de forma explicita.
+/// `migrate`: aplica migraciones pendientes de forma explicita, en el
+/// motor configurado.
 async fn migrate() -> Result<()> {
     let cfg = config::Config::load()?;
-    let store = Store::open(&cfg.db_path)?;
-    store.migrate()?;
-    println!("migraciones al dia: {}", cfg.db_path.display());
+    let db = Database::open(&cfg.database_config()).await?;
+    db.migrate().await?;
+    let probe = probe_database(&db).await?;
+    println!(
+        "migraciones al dia: {} {}",
+        probe.engine,
+        probe_location(&probe)
+    );
     Ok(())
 }
 

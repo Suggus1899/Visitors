@@ -46,9 +46,9 @@ use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, 
 use logmaster_crypto::{hash_password, hash_token, random_token, verify_password};
 use logmaster_store::error::StoreError;
 use logmaster_store::models::User;
-use logmaster_store::repos::users as user_repos;
-use logmaster_store::Store;
+use logmaster_store::repos::traits::UserRepository;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration as StdDuration;
 
 use crate::config::Config;
@@ -213,7 +213,8 @@ pub struct Tokens {
     pub user: SessionUser,
 }
 
-/// Servicio de sesion: emite y valida JWT contra la base.
+/// Servicio de sesion: emite y valida JWT contra el trait
+/// `UserRepository`. No conoce el motor (SQLite o PostgreSQL).
 #[derive(Clone)]
 pub struct SessionService {
     jwt_secret: String,
@@ -222,11 +223,11 @@ pub struct SessionService {
     refresh_ttl: StdDuration,
     absolute_ttl: StdDuration,
     edit_password: String,
-    store: Store,
+    users: Arc<dyn UserRepository>,
 }
 
 impl SessionService {
-    pub fn new(config: &Config, store: Store) -> Self {
+    pub fn new(config: &Config, users: Arc<dyn UserRepository>) -> Self {
         Self {
             jwt_secret: config.jwt_secret.clone(),
             refresh_secret: config.refresh_secret.clone(),
@@ -234,7 +235,7 @@ impl SessionService {
             refresh_ttl: config.refresh_ttl,
             absolute_ttl: config.absolute_session_ttl,
             edit_password: config.edit_password.clone(),
-            store,
+            users,
         }
     }
 
@@ -301,12 +302,12 @@ impl SessionService {
     }
 
     /// Valida un token de acceso o de renovacion contra la base.
-    pub fn validate(&self, token: &str, refresh: bool) -> Result<Session, SessionError> {
-        self.validate_at(token, refresh, Utc::now())
+    pub async fn validate(&self, token: &str, refresh: bool) -> Result<Session, SessionError> {
+        self.validate_at(token, refresh, Utc::now()).await
     }
 
     /// Valida con un `ahora` dado (para pruebas).
-    pub fn validate_at(
+    pub async fn validate_at(
         &self,
         token: &str,
         refresh: bool,
@@ -341,8 +342,9 @@ impl SessionService {
             }
         }
         let user = self
-            .store
-            .read(|conn| user_repos::find_by_id(conn, claims.id).map_err(anyhow::Error::from))
+            .users
+            .find_by_id(claims.id)
+            .await
             .map_err(|_| SessionError::Revoked)?;
         if user.token_version != claims.token_version {
             return Err(SessionError::Revoked);
@@ -355,30 +357,28 @@ impl SessionService {
 
     /// Renueva una sesion a partir de su token de renovacion: valida y
     /// vuelve a emitir, conservando inicio y maximo absoluto.
-    pub fn refresh(&self, refresh_token: &str) -> Result<Tokens, SessionError> {
-        self.refresh_at(refresh_token, Utc::now())
+    pub async fn refresh(&self, refresh_token: &str) -> Result<Tokens, SessionError> {
+        self.refresh_at(refresh_token, Utc::now()).await
     }
 
     /// Renueva con un `ahora` dado (para pruebas).
-    pub fn refresh_at(
+    pub async fn refresh_at(
         &self,
         refresh_token: &str,
         now: DateTime<Utc>,
     ) -> Result<Tokens, SessionError> {
-        let session = self.validate_at(refresh_token, true, now)?;
+        let session = self.validate_at(refresh_token, true, now).await?;
         self.issue_at(&session, now)
     }
 
     /// Revoca la sesion subiendo `tokenVersion` (logout). Devuelve
     /// `Changed` si la version cambio entre tanto, como Go (409).
-    pub fn revoke(&self, session: &Session) -> Result<(), SessionError> {
+    pub async fn revoke(&self, session: &Session) -> Result<(), SessionError> {
         let now = Utc::now().format("%Y-%m-%dT%H:%M:%S%.6fZ").to_string();
         let rows = self
-            .store
-            .tx_immediate(|tx| {
-                user_repos::revoke_session(tx, session.id, session.token_version, &now)
-                    .map_err(|e| anyhow::anyhow!(e.to_string()))
-            })
+            .users
+            .revoke_session(session.id, session.token_version, &now)
+            .await
             .map_err(|e| SessionError::Internal(e.to_string()))?;
         if rows != 1 {
             return Err(SessionError::Changed);
@@ -391,15 +391,12 @@ impl SessionService {
     /// claro y el correo para enviarlo. Si no existe o no tiene
     /// correo, devuelve `None`: la respuesta al cliente es generica
     /// en ambos casos.
-    pub fn request_recovery(
+    pub async fn request_recovery(
         &self,
         username: &str,
         now: DateTime<Utc>,
     ) -> Result<Option<(String, String)>, SessionError> {
-        let user = match self
-            .store
-            .read(|conn| user_repos::find_by_username(conn, username).map_err(anyhow::Error::from))
-        {
+        let user = match self.users.find_by_username(username).await {
             Ok(user) => user,
             Err(_) => return Ok(None),
         };
@@ -414,19 +411,16 @@ impl SessionService {
             .to_string();
         let now_text = now.format("%Y-%m-%dT%H:%M:%S%.6fZ").to_string();
         let saved = self
-            .store
-            .tx_immediate(|tx| {
-                user_repos::save_reset_token(
-                    tx,
-                    user.id,
-                    &hashed,
-                    &expiry,
-                    &email,
-                    user.token_version,
-                    &now_text,
-                )
-                .map_err(|e| anyhow::anyhow!(e.to_string()))
-            })
+            .users
+            .save_reset_token(
+                user.id,
+                &hashed,
+                &expiry,
+                &email,
+                user.token_version,
+                &now_text,
+            )
+            .await
             .map_err(|e| SessionError::Internal(e.to_string()))?;
         if saved == 0 {
             return Ok(None);
@@ -436,20 +430,18 @@ impl SessionService {
 
     /// Limpia el token de recuperacion guardado (si el envio del
     /// correo fallo, como hace Go).
-    pub fn clear_recovery(&self, user_id: i64, raw_token: &str) -> Result<(), SessionError> {
+    pub async fn clear_recovery(&self, user_id: i64, raw_token: &str) -> Result<(), SessionError> {
         let hashed = hash_token(raw_token);
-        self.store
-            .tx_immediate(|tx| {
-                user_repos::clear_reset_token(tx, user_id, &hashed)
-                    .map_err(|e| anyhow::anyhow!(e.to_string()))
-            })
+        self.users
+            .clear_reset_token(user_id, &hashed)
+            .await
             .map_err(|e| SessionError::Internal(e.to_string()))?;
         Ok(())
     }
 
     /// Consume el token de recuperacion (un solo uso) y aplica la
     /// nueva contrasena, que ya viene hasheada con bcrypt.
-    pub fn consume_recovery(
+    pub async fn consume_recovery(
         &self,
         raw_token: &str,
         new_password_hash: &str,
@@ -457,22 +449,14 @@ impl SessionService {
     ) -> Result<User, SessionError> {
         let now_text = now.format("%Y-%m-%dT%H:%M:%S%.6fZ").to_string();
         let hashed = hash_token(raw_token);
-        let result = self.store.tx_immediate(|tx| {
-            user_repos::consume_reset_token(tx, &hashed, new_password_hash, &now_text)
-                .map_err(|e| anyhow::anyhow!(e))
-        });
-        match result {
+        match self
+            .users
+            .consume_reset_token(&hashed, new_password_hash, &now_text)
+            .await
+        {
             Ok(user) => Ok(user),
-            Err(e) => {
-                if matches!(
-                    e.downcast_ref::<StoreError>(),
-                    Some(StoreError::NotFound { .. })
-                ) {
-                    Err(SessionError::InvalidResetToken)
-                } else {
-                    Err(SessionError::Internal(e.to_string()))
-                }
-            }
+            Err(StoreError::NotFound { .. }) => Err(SessionError::InvalidResetToken),
+            Err(e) => Err(SessionError::Internal(e.to_string())),
         }
     }
 }
@@ -576,7 +560,7 @@ pub async fn session_middleware(
             .into_response();
         }
     };
-    let session = match service.validate(&token, false) {
+    let session = match service.validate(&token, false).await {
         Ok(session) => session,
         Err(e) => {
             let (status, code, message) = e.response();
@@ -598,7 +582,10 @@ pub async fn session_middleware(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use logmaster_store::repos::sqlite::SqliteUserRepository;
+    use logmaster_store::repos::traits::UserRepository;
     use logmaster_store::repos::users::NewUser;
+    use logmaster_store::Store;
 
     const NOW: &str = "2026-11-10T00:00:00.000000Z";
 
@@ -641,28 +628,26 @@ mod tests {
         store
     }
 
-    fn seed_user(store: &Store, username: &str, role: &str) -> User {
+    fn test_service(store: &Store) -> SessionService {
+        let users: Arc<dyn UserRepository> = Arc::new(SqliteUserRepository::new(store.clone()));
+        SessionService::new(&test_config(), users)
+    }
+
+    async fn seed_user(users: &Arc<dyn UserRepository>, username: &str, role: &str) -> User {
         let hash = hash_password("Private!Safe12Á").unwrap();
-        let id = store
-            .tx_immediate(|tx| {
-                user_repos::insert(
-                    tx,
-                    &NewUser {
-                        username,
-                        email: Some("usuario@example.test"),
-                        password_hash: &hash,
-                        role,
-                        must_change_password: true,
-                        created_at: NOW,
-                        updated_at: NOW,
-                    },
-                )
-                .map_err(|e| anyhow::anyhow!(e.to_string()))
+        let id = users
+            .insert(&NewUser {
+                username,
+                email: Some("usuario@example.test"),
+                password_hash: &hash,
+                role,
+                must_change_password: true,
+                created_at: NOW,
+                updated_at: NOW,
             })
+            .await
             .unwrap();
-        store
-            .read(|conn| user_repos::find_by_id(conn, id).map_err(anyhow::Error::from))
-            .unwrap()
+        users.find_by_id(id).await.unwrap()
     }
 
     #[test]
@@ -687,17 +672,18 @@ mod tests {
         assert_eq!(data.claims.token_version, 7);
     }
 
-    #[test]
-    fn session_lifecycle_issue_refresh_revoke() {
+    #[tokio::test]
+    async fn session_lifecycle_issue_refresh_revoke() {
         let store = migrated_store();
-        let service = SessionService::new(&test_config(), store.clone());
-        let user = seed_user(&store, "operador1", "operador");
+        let service = test_service(&store);
+        let users: Arc<dyn UserRepository> = service.users.clone();
+        let user = seed_user(&users, "operador1", "operador").await;
         let session = Session::from_user(&user);
         assert!(session.must_change);
 
         let tokens = service.issue(&session).unwrap();
         assert_ne!(tokens.access_token, tokens.refresh_token);
-        let validated = service.validate(&tokens.access_token, false).unwrap();
+        let validated = service.validate(&tokens.access_token, false).await.unwrap();
         assert_eq!(validated.id, user.id);
         assert_eq!(validated.role, "operador");
         assert!(validated.must_change);
@@ -705,8 +691,11 @@ mod tests {
         assert!(validated.absolute_expires_at.is_some());
 
         // Renovar conserva el inicio y el maximo absoluto.
-        let renewed = service.refresh(&tokens.refresh_token).unwrap();
-        let renewed_session = service.validate(&renewed.access_token, false).unwrap();
+        let renewed = service.refresh(&tokens.refresh_token).await.unwrap();
+        let renewed_session = service
+            .validate(&renewed.access_token, false)
+            .await
+            .unwrap();
         assert_eq!(
             renewed_session.session_started_at,
             validated.session_started_at
@@ -717,31 +706,35 @@ mod tests {
         );
 
         // Un token de acceso no sirve como renovacion y viceversa.
-        assert!(service.validate(&tokens.access_token, true).is_err());
-        assert!(service.validate(&tokens.refresh_token, false).is_err());
+        assert!(service.validate(&tokens.access_token, true).await.is_err());
+        assert!(service
+            .validate(&tokens.refresh_token, false)
+            .await
+            .is_err());
 
         // Revocar (logout) invalida ambos tokens.
-        service.revoke(&validated).unwrap();
+        service.revoke(&validated).await.unwrap();
         assert!(matches!(
-            service.validate(&tokens.access_token, false),
+            service.validate(&tokens.access_token, false).await,
             Err(SessionError::Revoked)
         ));
         assert!(matches!(
-            service.validate(&tokens.refresh_token, true),
+            service.validate(&tokens.refresh_token, true).await,
             Err(SessionError::Revoked)
         ));
         // La segunda revocacion con la version vieja es un conflicto.
         assert!(matches!(
-            service.revoke(&validated),
+            service.revoke(&validated).await,
             Err(SessionError::Changed)
         ));
     }
 
-    #[test]
-    fn absolute_expiry_is_enforced() {
+    #[tokio::test]
+    async fn absolute_expiry_is_enforced() {
         let store = migrated_store();
-        let service = SessionService::new(&test_config(), store.clone());
-        let user = seed_user(&store, "operador2", "operador");
+        let service = test_service(&store);
+        let users: Arc<dyn UserRepository> = service.users.clone();
+        let user = seed_user(&users, "operador2", "operador").await;
         let now = Utc::now();
         // Sesion que empezo hace 8 dias: emitir ya falla.
         let stale = Session {
@@ -772,7 +765,7 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            service.validate_at(&token, false, now),
+            service.validate_at(&token, false, now).await,
             Err(SessionError::AbsoluteExpired)
         ));
         // Token con exp pasada se rechaza por firma/expiracion.
@@ -789,16 +782,17 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            service.validate_at(&token, false, now),
+            service.validate_at(&token, false, now).await,
             Err(SessionError::Invalid)
         ));
     }
 
-    #[test]
-    fn legacy_refresh_token_requires_login() {
+    #[tokio::test]
+    async fn legacy_refresh_token_requires_login() {
         let store = migrated_store();
-        let service = SessionService::new(&test_config(), store.clone());
-        let user = seed_user(&store, "operador3", "operador");
+        let service = test_service(&store);
+        let users: Arc<dyn UserRepository> = service.users.clone();
+        let user = seed_user(&users, "operador3", "operador").await;
         let now = Utc::now();
         // Token de renovacion sin sessionStartedAt ni absoluteExpiresAt.
         let claims = SessionClaims {
@@ -818,7 +812,7 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            service.validate_at(&token, true, now),
+            service.validate_at(&token, true, now).await,
             Err(SessionError::LegacyRefresh)
         ));
         // Como acceso, un token sin fechas firmado con el secreto de
@@ -829,26 +823,32 @@ mod tests {
             &EncodingKey::from_secret(test_config().jwt_secret.as_bytes()),
         )
         .unwrap();
-        assert!(service.validate_at(&token, false, now).is_ok());
+        assert!(service.validate_at(&token, false, now).await.is_ok());
     }
 
-    #[test]
-    fn recovery_is_single_use_and_generic() {
+    #[tokio::test]
+    async fn recovery_is_single_use_and_generic() {
         let store = migrated_store();
-        let service = SessionService::new(&test_config(), store.clone());
-        let user = seed_user(&store, "operador4", "operador");
+        let service = test_service(&store);
+        let users: Arc<dyn UserRepository> = service.users.clone();
+        let user = seed_user(&users, "operador4", "operador").await;
         let now = Utc::now();
         // Cuenta inexistente: respuesta generica (None), sin error.
-        assert!(service.request_recovery("nadie", now).unwrap().is_none());
+        assert!(service
+            .request_recovery("nadie", now)
+            .await
+            .unwrap()
+            .is_none());
         // Si el envio del correo falla, el token se limpia y ya no vale.
         let (lost, _) = service
             .request_recovery("operador4", now)
+            .await
             .unwrap()
             .expect("primer token");
-        service.clear_recovery(user.id, &lost).unwrap();
+        service.clear_recovery(user.id, &lost).await.unwrap();
         let hash = hash_password("Nueva!Clave123").unwrap();
         assert_eq!(
-            service.consume_recovery(&lost, &hash, now),
+            service.consume_recovery(&lost, &hash, now).await,
             Err(SessionError::InvalidResetToken)
         );
 
@@ -856,20 +856,21 @@ mod tests {
         // sesiones (tokenVersion sube).
         let (token, email) = service
             .request_recovery("operador4", now)
+            .await
             .unwrap()
             .expect("segundo token");
         assert_eq!(email, "usuario@example.test");
         assert_eq!(token.len(), 64);
-        let updated = service.consume_recovery(&token, &hash, now).unwrap();
+        let updated = service.consume_recovery(&token, &hash, now).await.unwrap();
         assert_eq!(updated.id, user.id);
         assert_eq!(updated.token_version, user.token_version + 1);
         assert_eq!(
-            service.consume_recovery(&token, &hash, now),
+            service.consume_recovery(&token, &hash, now).await,
             Err(SessionError::InvalidResetToken)
         );
         // Token inventado: mismo error generico.
         assert_eq!(
-            service.consume_recovery(&"00".repeat(32), &hash, now),
+            service.consume_recovery(&"00".repeat(32), &hash, now).await,
             Err(SessionError::InvalidResetToken)
         );
     }
@@ -881,7 +882,7 @@ mod tests {
         assert!(verify_password("Private!Safe12Á", &hash));
         // El servicio valida la contrasena de edicion configurada.
         let store = migrated_store();
-        let service = SessionService::new(&test_config(), store);
+        let service = test_service(&store);
         assert!(service.valid_edit_password("fixture-edit-password"));
         assert!(!service.valid_edit_password("otra"));
     }
