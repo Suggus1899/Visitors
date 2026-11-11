@@ -9,7 +9,8 @@
 //! - Exportación CSV con BOM, cabecera fija y protección contra
 //!   inyección de fórmulas (`csv_text`).
 //! - Valores distintos de acción y usuario, y configuración de
-//!   retención (la ejecución es fase 6).
+//!   retención (la ejecución es el programador interno de fase 6 y
+//!   el comando `retention`).
 //! - Lectura de auditoría: admin, root o auditor (`ReadAudit`); la
 //!   variante del panel root solo root (`ManageAccounts`).
 

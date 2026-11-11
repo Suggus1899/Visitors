@@ -351,6 +351,7 @@ impl BackupService {
     }
 
     /// Factor de trabajo scrypt distinto del de producción (tests).
+    #[cfg(test)]
     pub fn with_scrypt_work_factor(mut self, work_factor: u8) -> Self {
         self.scrypt_work_factor = work_factor;
         self
@@ -445,7 +446,13 @@ impl BackupService {
         };
         drop(prepared);
         if automatic {
-            let _ = self.prune(BACKUP_KEEP_DEFAULT)?;
+            if let Ok(report) = self.prune(BACKUP_KEEP_DEFAULT) {
+                tracing::info!(
+                    kept = report.kept,
+                    removed = report.removed.len(),
+                    "rotación de respaldos automáticos"
+                );
+            }
             self.write_backup_status(&name)?;
         }
         Ok(CreatedBackup {

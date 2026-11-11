@@ -43,12 +43,14 @@ mod origin;
 mod rate_limit;
 mod roles;
 mod routes;
+mod scheduler;
 mod secrets;
 mod service;
 mod session;
 mod ui;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
@@ -432,7 +434,12 @@ where
         schema_version = probe.schema_version,
         "base de datos verificada"
     );
-    let app = http::build_router(db, &cfg);
+    let app = http::build_router(db.clone(), &cfg);
+    scheduler::spawn_scheduler(
+        db.clone(),
+        Arc::new(cfg.clone()),
+        backup_service(&cfg).ok().map(Arc::new),
+    );
     let listener = tokio::net::TcpListener::bind(cfg.addr()).await?;
     tracing::info!(addr = %cfg.addr(), "logmaster escuchando");
     axum::serve(
