@@ -391,6 +391,22 @@ impl TryFrom<&Row<'_>> for VisitPurpose {
     }
 }
 
+/// Fila agregada de reportes (`reportVisits` de Go): un grupo por día
+/// local de Caracas, propósito y estado, con su conteo y la suma de
+/// minutos de las visitas completadas del grupo. `check_out_time`
+/// es siempre `None` (Go la selecciona como NULL) y
+/// `visitor_cedula` es siempre `""`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReportRow {
+    pub count: i64,
+    pub minutes: f64,
+    pub visitor_cedula: String,
+    pub purpose: String,
+    pub check_in_time: Option<String>,
+    pub check_out_time: Option<String>,
+    pub status: String,
+}
+
 /// Trigrama protegido de búsqueda (tabla `VisitorSearchTokens`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct VisitorSearchToken {

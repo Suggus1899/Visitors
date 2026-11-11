@@ -17,10 +17,12 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use logmaster_store::error::StoreError;
-use logmaster_store::repos::audit::AuditEntry;
+use logmaster_store::repos::audit::{AuditEntry, AuditFilter};
+use logmaster_store::repos::privacy::NewArcoRequest;
+use logmaster_store::repos::traits::{CheckinInput, ProfileEdit};
 use logmaster_store::repos::users::NewUser;
-use logmaster_store::repos::visitors::NewVisitor;
-use logmaster_store::repos::visits::{NewVisit, Transition};
+use logmaster_store::repos::visitors::{NewEditHistory, NewVisitor, VisitorFilter};
+use logmaster_store::repos::visits::{NewVisit, Transition, TransitionCall, VisitFilter};
 use logmaster_store::repos::Actor;
 use logmaster_store::{Database, DatabaseConfig, DatabaseEngine, Repositories, Store};
 
@@ -172,7 +174,17 @@ async fn visit_full_cycle() {
 
         let visit = repos
             .visits
-            .transition(visit_id, Transition::Admit, &actor(), None, None, LATER)
+            .transition(
+                visit_id,
+                Transition::Admit,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
+            )
             .await
             .unwrap();
         assert_eq!(visit.status.as_deref(), Some("active"));
@@ -183,10 +195,13 @@ async fn visit_full_cycle() {
             .transition(
                 visit_id,
                 Transition::Exit,
-                &actor(),
-                Some("Almuerzo"),
-                None,
-                LATER,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: Some("Almuerzo"),
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
             )
             .await
             .unwrap();
@@ -198,7 +213,17 @@ async fn visit_full_cycle() {
 
         let visit = repos
             .visits
-            .transition(visit_id, Transition::Reentry, &actor(), None, None, LATER)
+            .transition(
+                visit_id,
+                Transition::Reentry,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
+            )
             .await
             .unwrap();
         assert_eq!(visit.status.as_deref(), Some("active"));
@@ -210,10 +235,13 @@ async fn visit_full_cycle() {
             .transition(
                 visit_id,
                 Transition::Checkout,
-                &actor(),
-                Some("Salió"),
-                None,
-                LATER,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: Some("Salió"),
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
             )
             .await
             .unwrap();
@@ -291,19 +319,49 @@ async fn invalid_transitions_are_conflicts() {
         // Salir desde `waiting` no es válido.
         let err = repos
             .visits
-            .transition(visit_id, Transition::Checkout, &actor(), None, None, LATER)
+            .transition(
+                visit_id,
+                Transition::Checkout,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
+            )
             .await
             .unwrap_err();
         assert_code(&err, "INVALID_VISIT_STATE");
         // Admitir dos veces tampoco.
         repos
             .visits
-            .transition(visit_id, Transition::Admit, &actor(), None, None, LATER)
+            .transition(
+                visit_id,
+                Transition::Admit,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
+            )
             .await
             .unwrap();
         let err = repos
             .visits
-            .transition(visit_id, Transition::Admit, &actor(), None, None, LATER)
+            .transition(
+                visit_id,
+                Transition::Admit,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
+            )
             .await
             .unwrap_err();
         assert_code(&err, "INVALID_VISIT_STATE");
@@ -319,10 +377,13 @@ async fn invalid_transitions_are_conflicts() {
             .transition(
                 visit_id,
                 Transition::Cancel,
-                &actor(),
-                None,
-                Some("No vino"),
-                LATER,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: Some("No vino"),
+                    now: LATER,
+                    audit: None,
+                },
             )
             .await
             .unwrap();
@@ -333,10 +394,13 @@ async fn invalid_transitions_are_conflicts() {
             .transition(
                 visit_id,
                 Transition::Cancel,
-                &actor(),
-                None,
-                Some("Otra"),
-                LATER,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: Some("Otra"),
+                    now: LATER,
+                    audit: None,
+                },
             )
             .await
             .unwrap_err();
@@ -414,6 +478,7 @@ async fn arco_cancel_full_and_with_open_visit() {
                 &actor(),
                 "documento",
                 NOW,
+                None,
             )
             .await
             .unwrap_err();
@@ -422,12 +487,32 @@ async fn arco_cancel_full_and_with_open_visit() {
         // Visita completada: la cancelación procede y anonimiza.
         repos
             .visits
-            .transition(visit_id, Transition::Admit, &actor(), None, None, LATER)
+            .transition(
+                visit_id,
+                Transition::Admit,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
+            )
             .await
             .unwrap();
         repos
             .visits
-            .transition(visit_id, Transition::Checkout, &actor(), None, None, LATER)
+            .transition(
+                visit_id,
+                Transition::Checkout,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: None,
+                    now: LATER,
+                    audit: None,
+                },
+            )
             .await
             .unwrap();
         repos
@@ -445,6 +530,7 @@ async fn arco_cancel_full_and_with_open_visit() {
                 &actor(),
                 "documento",
                 NOW,
+                None,
             )
             .await
             .unwrap();
@@ -617,4 +703,604 @@ async fn probe_reports_engine_and_schema() {
         assert!(probe.version.starts_with("PostgreSQL 16"));
         assert_eq!(probe.database.as_deref(), Some("logmaster_pg_test"));
     }
+}
+
+fn audit(action: &'static str) -> AuditEntry<'static> {
+    AuditEntry {
+        user_id: 1,
+        username: "root",
+        action,
+        entity: "Visit",
+        entity_id: "1",
+        details: None,
+        ip_address: None,
+        user_agent: None,
+        created_at: NOW,
+        role: None,
+        method: None,
+        path: None,
+    }
+}
+
+fn new_visit<'a>(cedula_hash: &'a str, visitor_id: i64, when: &'a str) -> NewVisit<'a> {
+    NewVisit {
+        visitor_cedula: cedula_hash,
+        visitor_id,
+        purpose: "Reunión",
+        person_to_visit: "Anfitrión",
+        status: "waiting",
+        notes: None,
+        companion_name: None,
+        companion_cedula: None,
+        vehicle_brand: None,
+        vehicle_model: None,
+        vehicle_plate: None,
+        area: None,
+        action: "Ninguna",
+        department: None,
+        target_department: None,
+        host_person: None,
+        arrival_time: when,
+        entry_time: None,
+        check_in_time: when,
+        consent_policy_version: "v1",
+        consent_accepted_at: when,
+        consent_recorded_by: 1,
+        created_at: when,
+        updated_at: when,
+    }
+}
+
+#[tokio::test]
+async fn uow_checkin_atomic() {
+    run_case(|repos, tag| async move {
+        let cedula = format!("hash-{tag}");
+        let visit = new_visit(&cedula, 0, NOW);
+        let outcome = repos
+            .uow
+            .checkin(&CheckinInput {
+                cedula_hash: &cedula,
+                new_visitor: Some(&NewVisitor {
+                    cedula_hash: &cedula,
+                    encrypted_cedula: None,
+                    first_name: "Ana",
+                    last_name: "Pérez",
+                    company: "Trébol",
+                    job_title: None,
+                    email: None,
+                    phone: None,
+                    photo_data: None,
+                    id_photo_data: None,
+                    created_at: NOW,
+                    updated_at: NOW,
+                }),
+                visit: &visit,
+                search_tokens: &[vec![1u8; 32]],
+                actor: &actor(),
+                audit: &audit("CHECKIN"),
+            })
+            .await
+            .unwrap();
+        assert!(outcome.visitor_id > 0);
+        assert!(outcome.visit_id > 0);
+        let visitor = repos.visitors.find_by_cedula(&cedula).await.unwrap();
+        assert_eq!(visitor.id, outcome.visitor_id);
+        let saved = repos.visits.find_by_id(outcome.visit_id).await.unwrap();
+        assert_eq!(saved.status.as_deref(), Some("waiting"));
+        let tokens = repos
+            .search
+            .tokens_for_visitor(outcome.visitor_id)
+            .await
+            .unwrap();
+        assert_eq!(tokens.len(), 1);
+        let recent = repos.audit.list_recent(200).await.unwrap();
+        assert!(recent.iter().any(|l| l.action == "CHECKIN"));
+
+        // Segundo check-in con la misma cédula: el índice parcial
+        // lo rechaza y no deja un segundo perfil.
+        let visit = new_visit(&cedula, 0, NOW);
+        let err = repos
+            .uow
+            .checkin(&CheckinInput {
+                cedula_hash: &cedula,
+                new_visitor: None,
+                visit: &visit,
+                search_tokens: &[],
+                actor: &actor(),
+                audit: &audit("CHECKIN"),
+            })
+            .await
+            .unwrap_err();
+        assert_code(&err, "OPEN_VISIT_EXISTS");
+        let found = repos
+            .visitors
+            .list_filtered(&VisitorFilter {
+                company: Some("Trébol".to_string()),
+                search: None,
+                search_ids: None,
+                limit: 100,
+                offset: 0,
+            })
+            .await
+            .unwrap();
+        assert!(found.iter().any(|v| v.id == outcome.visitor_id));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn uow_auth_flow() {
+    run_case(|repos, tag| async move {
+        let username = format!("u-{tag}");
+        let id = repos
+            .uow
+            .create_user(
+                &NewUser {
+                    username: &username,
+                    email: Some("u@example.test"),
+                    password_hash: "$2a$12$hashficticio",
+                    role: "operador",
+                    must_change_password: true,
+                    created_at: NOW,
+                    updated_at: NOW,
+                },
+                &audit("SUPERADMIN_CREATE_USER"),
+            )
+            .await
+            .unwrap();
+        let err = repos
+            .uow
+            .create_user(
+                &NewUser {
+                    username: &username,
+                    email: Some("otro@example.test"),
+                    password_hash: "$2a$12$hashficticio",
+                    role: "operador",
+                    must_change_password: true,
+                    created_at: NOW,
+                    updated_at: NOW,
+                },
+                &audit("SUPERADMIN_CREATE_USER"),
+            )
+            .await
+            .unwrap_err();
+        assert_code(&err, "USERNAME_EXISTS");
+
+        repos
+            .uow
+            .login_success(id, NOW, &audit("LOGIN"))
+            .await
+            .unwrap();
+        let recent = repos.audit.list_recent(200).await.unwrap();
+        assert!(recent.iter().any(|l| l.action == "LOGIN"));
+
+        assert_eq!(
+            repos
+                .uow
+                .logout(id, 0, NOW, &audit("LOGOUT"))
+                .await
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            repos
+                .uow
+                .logout(id, 0, NOW, &audit("LOGOUT"))
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            repos
+                .uow
+                .change_password(id, "$2a$12$nuevo", false, 1, NOW, &audit("PASSWORD_CHANGE"))
+                .await
+                .unwrap(),
+            1
+        );
+
+        repos
+            .users
+            .save_reset_token(
+                id,
+                "tok-f4",
+                "2026-11-10T00:15:00.000000Z",
+                "u@example.test",
+                2,
+                NOW,
+            )
+            .await
+            .unwrap();
+        let user = repos
+            .uow
+            .consume_reset("tok-f4", "$2a$12$reseteada", NOW, &audit("PASSWORD_RESET"))
+            .await
+            .unwrap();
+        assert_eq!(user.id, id);
+        assert_eq!(user.must_change_password, Some(false));
+        let err = repos
+            .uow
+            .consume_reset("tok-f4", "$2a$12$otra", NOW, &audit("PASSWORD_RESET"))
+            .await
+            .unwrap_err();
+        assert_code(&err, "USER_NOT_FOUND");
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn uow_profile_edit_and_arco() {
+    run_case(|repos, tag| async move {
+        let cedula = format!("hash-{tag}");
+        let visitor_id = seed_visitor(&repos, &cedula).await;
+        let visit_id = checkin(&repos, visitor_id, &cedula).await;
+
+        let mut visitor = repos.visitors.find_by_id(visitor_id).await.unwrap();
+        visitor.company = "Nueva".to_string();
+        let updated = repos
+            .uow
+            .apply_profile_edit(&ProfileEdit {
+                visitor: &visitor,
+                history: &[NewEditHistory {
+                    visit_id: None,
+                    visitor_id,
+                    field: "company",
+                    old_value: Some("Trébol"),
+                    new_value: Some("Nueva"),
+                    edited_by: 1,
+                    edited_by_username: "root",
+                    edited_at: NOW,
+                    created_at: NOW,
+                }],
+                search_tokens: &[],
+                audit: &audit("VISITOR_UPDATE"),
+                now: NOW,
+            })
+            .await
+            .unwrap();
+        assert_eq!(updated.company, "Nueva");
+        let history = repos
+            .visitors
+            .list_edit_history_by_visitor(visitor_id)
+            .await
+            .unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].field, "company");
+
+        let arco_id = repos
+            .uow
+            .create_arco(
+                &NewArcoRequest {
+                    request_type: "access",
+                    subject_cedula_hash: &cedula,
+                    subject_cedula_encrypted: None,
+                    requested_by_name: "Ana Pérez",
+                    requested_by_user_id: Some(1),
+                    contact_email: Some("ana@example.test"),
+                    reason: Some("Quiero mis datos"),
+                    request_payload: None,
+                    created_at: NOW,
+                    updated_at: NOW,
+                },
+                &audit("ARCO_REQUEST_CREATED"),
+            )
+            .await
+            .unwrap();
+        let err = repos
+            .uow
+            .update_arco_status(
+                999_999,
+                "completed",
+                None,
+                Some(NOW),
+                NOW,
+                &audit("ARCO_REQUEST_UPDATED"),
+            )
+            .await
+            .unwrap_err();
+        assert_code(&err, "NOT_FOUND");
+        let updated = repos
+            .uow
+            .update_arco_status(
+                arco_id,
+                "completed",
+                Some("Entregado"),
+                Some(NOW),
+                NOW,
+                &audit("ARCO_REQUEST_UPDATED"),
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.status, "completed");
+        assert_eq!(updated.resolved_at.as_deref(), Some(NOW));
+
+        let (subject, visits) = repos
+            .uow
+            .subject_access(&cedula, 50, &audit("ARCO_ACCESS_EXECUTED"))
+            .await
+            .unwrap();
+        assert_eq!(subject.id, visitor_id);
+        assert_eq!(visits.len(), 1);
+        assert_eq!(visits[0].id, visit_id);
+        let recent = repos.audit.list_recent(200).await.unwrap();
+        assert!(recent.iter().any(|l| l.action == "ARCO_ACCESS_EXECUTED"));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn filtered_lists_reports_and_audit() {
+    run_case(|repos, tag| async move {
+        let company = format!("F4-{tag}");
+        let cedula = format!("hash-{tag}");
+        let visitor_id = repos
+            .visitors
+            .insert(&NewVisitor {
+                cedula_hash: &cedula,
+                encrypted_cedula: None,
+                first_name: "Ana",
+                last_name: "Pérez",
+                company: &company,
+                job_title: None,
+                email: None,
+                phone: None,
+                photo_data: None,
+                id_photo_data: None,
+                created_at: NOW,
+                updated_at: NOW,
+            })
+            .await
+            .unwrap();
+        // Fecha única (2020) para que los conteos no se mezclen con
+        // los demás casos que corren en paralelo sobre el mismo PG.
+        let when = "2020-01-02T12:00:00.000000Z";
+        let visit_id = repos
+            .visits
+            .insert_checkin(&new_visit(&cedula, visitor_id, when))
+            .await
+            .unwrap();
+        repos
+            .visits
+            .transition(
+                visit_id,
+                Transition::Admit,
+                &TransitionCall {
+                    actor: &actor(),
+                    notes: None,
+                    reason: None,
+                    now: "2020-01-02T13:00:00.000000Z",
+                    audit: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let (visits, total) = repos
+            .visits
+            .list_filtered(&VisitFilter {
+                start: Some("2020-01-01T00:00:00.000000Z".to_string()),
+                end: Some("2020-01-03T00:00:00.000000Z".to_string()),
+                status: Some("active".to_string()),
+                company: Some(company.clone()),
+                cedula_hash: None,
+                visitor_ids: None,
+                search: None,
+                sort_field: "check_in_time".to_string(),
+                sort_dir: "desc".to_string(),
+                limit: 10,
+                offset: 0,
+            })
+            .await
+            .unwrap();
+        assert_eq!(total, 1);
+        assert_eq!(visits[0].id, visit_id);
+
+        let counts = repos
+            .visits
+            .calendar_counts(
+                "2020-01-01T00:00:00.000000Z",
+                "2020-01-03T00:00:00.000000Z",
+                "",
+            )
+            .await
+            .unwrap();
+        assert!(
+            counts.iter().any(|(day, n)| day == "2020-01-02" && *n == 1),
+            "conteo de calendario inesperado: {counts:?}"
+        );
+        let rows = repos
+            .visits
+            .report_rows("2020-01-01T00:00:00.000000Z", "2020-01-03T00:00:00.000000Z")
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 1);
+        assert_eq!(rows[0].minutes, 0.0);
+        assert_eq!(rows[0].status, "active");
+        assert_eq!(
+            repos
+                .visits
+                .count_distinct_visitors(
+                    "2020-01-01T00:00:00.000000Z",
+                    "2020-01-03T00:00:00.000000Z"
+                )
+                .await
+                .unwrap(),
+            1
+        );
+        assert!(repos.visits.count_active().await.unwrap() >= 1);
+        let long = repos
+            .visits
+            .list_long_active("2020-01-03T00:00:00.000000Z")
+            .await
+            .unwrap();
+        assert!(long.iter().any(|v| v.id == visit_id));
+
+        let found = repos
+            .visitors
+            .list_filtered(&VisitorFilter {
+                company: Some(company.clone()),
+                search: None,
+                search_ids: None,
+                limit: 10,
+                offset: 0,
+            })
+            .await
+            .unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].id, visitor_id);
+        let companies = repos
+            .visitors
+            .list_companies_filtered(&format!("F4-{tag}"))
+            .await
+            .unwrap();
+        assert!(companies.contains(&company));
+
+        let marker = format!("F4TEST-{tag}");
+        repos.audit.write(&audit("F4TEST-A")).await.unwrap();
+        let _ = marker;
+        let filtered = repos
+            .audit
+            .list_filtered(
+                &AuditFilter {
+                    start: None,
+                    end: None,
+                    action: Some("F4TEST-A"),
+                    username: None,
+                    entity: None,
+                    ip: None,
+                    search: None,
+                    user_id: None,
+                },
+                50,
+                0,
+            )
+            .await
+            .unwrap();
+        assert!(!filtered.is_empty());
+        assert!(filtered.iter().all(|l| l.action == "F4TEST-A"));
+        let total = repos
+            .audit
+            .count_filtered(&AuditFilter {
+                start: None,
+                end: None,
+                action: Some("F4TEST-A"),
+                username: None,
+                entity: None,
+                ip: None,
+                search: None,
+                user_id: None,
+            })
+            .await
+            .unwrap();
+        assert!(total >= 1);
+        let (logins, actions, _users, _ips) = repos
+            .audit
+            .today_counts("2026-11-10T00:00:00.000000Z", "2026-11-11T00:00:00.000000Z")
+            .await
+            .unwrap();
+        assert!(actions >= 1);
+        assert!(logins >= 0);
+        let grouped = repos
+            .audit
+            .group_counts("2026-11-10T00:00:00.000000Z", "action")
+            .await
+            .unwrap();
+        assert!(grouped.iter().any(|(a, _)| a == "F4TEST-A"));
+        let actions = repos.audit.distinct("action").await.unwrap();
+        assert!(actions.contains(&"F4TEST-A".to_string()));
+        let err = repos.audit.distinct("bogus").await.unwrap_err();
+        assert_code(&err, "VALIDATION_ERROR");
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn uow_superadmin_user_ops() {
+    run_case(|repos, tag| async move {
+        let first = repos
+            .uow
+            .create_user(
+                &NewUser {
+                    username: &format!("s1-{tag}"),
+                    email: Some("s1@example.test"),
+                    password_hash: "$2a$12$hashficticio",
+                    role: "operador",
+                    must_change_password: true,
+                    created_at: NOW,
+                    updated_at: NOW,
+                },
+                &audit("SUPERADMIN_CREATE_USER"),
+            )
+            .await
+            .unwrap();
+        let second = repos
+            .uow
+            .create_user(
+                &NewUser {
+                    username: &format!("s2-{tag}"),
+                    email: Some("s2@example.test"),
+                    password_hash: "$2a$12$hashficticio",
+                    role: "auditor",
+                    must_change_password: true,
+                    created_at: NOW,
+                    updated_at: NOW,
+                },
+                &audit("SUPERADMIN_CREATE_USER"),
+            )
+            .await
+            .unwrap();
+        let _ = first;
+        let err = repos
+            .uow
+            .update_user(
+                second,
+                &format!("s1-{tag}"),
+                None,
+                "auditor",
+                &audit("SUPERADMIN_UPDATE_USER"),
+            )
+            .await
+            .unwrap_err();
+        assert_code(&err, "USERNAME_EXISTS");
+        let updated = repos
+            .uow
+            .update_user(
+                second,
+                &format!("s2b-{tag}"),
+                Some(None),
+                "auditor",
+                &audit("SUPERADMIN_UPDATE_USER"),
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.username, format!("s2b-{tag}"));
+        assert_eq!(updated.email, None);
+        let err = repos
+            .uow
+            .update_user(
+                999_999,
+                "nadie",
+                None,
+                "auditor",
+                &audit("SUPERADMIN_UPDATE_USER"),
+            )
+            .await
+            .unwrap_err();
+        assert_code(&err, "USER_NOT_FOUND");
+        let err = repos
+            .uow
+            .delete_user(999_999, &audit("SUPERADMIN_DELETE_USER"))
+            .await
+            .unwrap_err();
+        assert_code(&err, "USER_NOT_FOUND");
+        repos
+            .uow
+            .delete_user(second, &audit("SUPERADMIN_DELETE_USER"))
+            .await
+            .unwrap();
+        let err = repos.users.find_by_id(second).await.unwrap_err();
+        assert_code(&err, "USER_NOT_FOUND");
+    })
+    .await;
 }

@@ -80,6 +80,81 @@ pub fn list_requests(conn: &Connection, limit: i64, offset: i64) -> StoreResult<
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
 
+/// Filtro de `arcoList` de Go (`privacy.go`): estado, tipo y texto
+/// (nombre, correo, motivo o hash de cédula).
+pub struct ArcoFilter {
+    pub status: Option<String>,
+    pub request_type: Option<String>,
+    pub search: Option<String>,
+    pub cedula_hash: Option<String>,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+fn arco_where(filter: &ArcoFilter, args: &mut Vec<rusqlite::types::Value>) -> String {
+    let mut clauses: Vec<String> = Vec::new();
+    if let Some(status) = filter.status.as_deref() {
+        clauses.push("status = ?".to_string());
+        args.push(status.to_string().into());
+    }
+    if let Some(kind) = filter.request_type.as_deref() {
+        clauses.push("\"requestType\" = ?".to_string());
+        args.push(kind.to_string().into());
+    }
+    if let Some(search) = filter.search.as_deref() {
+        // Como Go: el texto se busca en nombre, correo y motivo, o la
+        // cédula es la del hash. SQLite `LIKE` solo pliega ASCII.
+        clauses.push(
+            "(\"requestedByName\" LIKE '%' || ? || '%' \
+             OR \"contactEmail\" LIKE '%' || ? || '%' OR reason LIKE '%' || ? || '%' \
+             OR \"subjectCedulaHash\" = ?)"
+                .to_string(),
+        );
+        args.push(search.to_string().into());
+        args.push(search.to_string().into());
+        args.push(search.to_string().into());
+        args.push(filter.cedula_hash.clone().unwrap_or_default().into());
+    }
+    if clauses.is_empty() {
+        String::new()
+    } else {
+        format!(" WHERE {}", clauses.join(" AND "))
+    }
+}
+
+/// Solicitudes filtradas, las más recientes primero.
+pub fn list_requests_filtered(
+    conn: &Connection,
+    filter: &ArcoFilter,
+) -> StoreResult<Vec<ArcoRequest>> {
+    let mut args: Vec<rusqlite::types::Value> = Vec::new();
+    let sql = format!(
+        "SELECT {REQUEST_COLUMNS} FROM \"ArcoRequests\"{} \
+         ORDER BY \"createdAt\" DESC, id DESC LIMIT ? OFFSET ?",
+        arco_where(filter, &mut args),
+    );
+    args.push(filter.limit.into());
+    args.push(filter.offset.into());
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(rusqlite::params_from_iter(args.iter()), |row| {
+        ArcoRequest::try_from(row)
+    })?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+/// Total de solicitudes del mismo filtro.
+pub fn count_requests_filtered(conn: &Connection, filter: &ArcoFilter) -> StoreResult<i64> {
+    let mut args: Vec<rusqlite::types::Value> = Vec::new();
+    let sql = format!(
+        "SELECT count(*) FROM \"ArcoRequests\"{}",
+        arco_where(filter, &mut args),
+    );
+    conn.query_row(&sql, rusqlite::params_from_iter(args.iter()), |row| {
+        row.get(0)
+    })
+    .map_err(Into::into)
+}
+
 /// Cambia el estado de una solicitud (admin/root). Devuelve las filas
 /// afectadas (0 = la solicitud no existe).
 pub fn update_request_status(
@@ -98,6 +173,16 @@ pub fn update_request_status(
     Ok(rows as u64)
 }
 
+/// Metadatos de la petición para la auditoría de la cancelación
+/// (los que `auditWithDetails` de Go guarda en la entrada).
+pub struct CancelAudit<'a> {
+    pub ip_address: Option<&'a str>,
+    pub user_agent: Option<&'a str>,
+    pub role: Option<&'a str>,
+    pub method: Option<&'a str>,
+    pub path: Option<&'a str>,
+}
+
 /// Cancela los datos de un titular: anonimiza perfil, visitas,
 /// historial, bitácora y solicitudes, borra fotos y tokens, y deja la
 /// solicitud de cancelación resuelta como constancia.
@@ -113,7 +198,7 @@ pub fn update_request_status(
 /// `cedula_hash` (el HMAC de la columna `cedula`) y `reference` (el
 /// identificador anónimo aleatorio que sustituye a la identidad).
 /// Con visitas abiertas devuelve `OPEN_VISIT_EXISTS`.
-#[allow(clippy::too_many_arguments)] // los 8 parámetros son la operación de Go, sin abreviar
+#[allow(clippy::too_many_arguments)] // los 9 parámetros son la operación de Go, sin abreviar
 pub fn cancel_subject(
     tx: &Transaction,
     visitor_id: i64,
@@ -123,6 +208,7 @@ pub fn cancel_subject(
     actor: &Actor,
     verification_method: &str,
     now: &str,
+    audit_meta: Option<&CancelAudit<'_>>,
 ) -> StoreResult<()> {
     // 1. Visitas del titular: ninguna puede estar abierta.
     let mut stmt = tx.prepare(
@@ -271,6 +357,16 @@ pub fn cancel_subject(
     )?;
 
     // 10. Auditoría de la cancelación, en la misma transacción.
+    let (ip, agent, role, method, path) = match audit_meta {
+        Some(meta) => (
+            meta.ip_address,
+            meta.user_agent,
+            meta.role,
+            meta.method,
+            meta.path,
+        ),
+        None => (None, None, None, None, None),
+    };
     audit::write(
         tx,
         &AuditEntry {
@@ -280,12 +376,12 @@ pub fn cancel_subject(
             entity: "Visitor",
             entity_id: reference,
             details: Some(&format!("Verificación de identidad: {verification_method}")),
-            ip_address: None,
-            user_agent: None,
+            ip_address: ip,
+            user_agent: agent,
             created_at: now,
-            role: None,
-            method: None,
-            path: None,
+            role,
+            method,
+            path,
         },
     )?;
     Ok(())
@@ -431,6 +527,7 @@ mod tests {
             &actor,
             "cédula laminada",
             NOW,
+            None,
         )
         .unwrap();
         tx.commit().unwrap();
@@ -538,6 +635,7 @@ mod tests {
             &actor,
             "cédula laminada",
             NOW,
+            None,
         )
         .unwrap_err();
         assert!(matches!(

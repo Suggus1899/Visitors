@@ -151,6 +151,93 @@ pub fn list_companies(conn: &Connection) -> StoreResult<Vec<String>> {
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
 
+/// Empresas distintas con filtro de texto (`companies` de Go):
+/// solo perfiles no anonimizados, como mucho 100.
+pub fn list_companies_filtered(conn: &Connection, query: &str) -> StoreResult<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT DISTINCT company FROM \"Visitors\" \
+         WHERE \"anonymizedAt\" IS NULL AND company LIKE '%' || ?1 || '%' \
+         ORDER BY company LIMIT 100",
+    )?;
+    let rows = stmt.query_map(params![query], |row| row.get::<_, String>(0))?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+/// Filtro de `listVisitors` de Go (`visitors.go`): empresa, búsqueda
+/// (candidatos del índice o empresa) y paginación.
+pub struct VisitorFilter {
+    pub company: Option<String>,
+    pub search: Option<String>,
+    pub search_ids: Option<Vec<i64>>,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+fn visitor_where(filter: &VisitorFilter, args: &mut Vec<rusqlite::types::Value>) -> String {
+    let mut clauses = vec!["\"anonymizedAt\" IS NULL".to_string()];
+    match filter.company.as_deref() {
+        Some(company) => {
+            clauses.push("company LIKE '%' || ? || '%'".to_string());
+            args.push(company.to_string().into());
+        }
+        None => {
+            clauses.push("? = ''".to_string());
+            args.push(String::new().into());
+        }
+    }
+    match filter.search.as_deref() {
+        Some(search) => {
+            let ids = filter.search_ids.as_deref().unwrap_or(&[]);
+            let placeholders: Vec<String> = if ids.is_empty() {
+                vec!["NULL".to_string()]
+            } else {
+                ids.iter().map(|_| "?".to_string()).collect()
+            };
+            clauses.push(format!(
+                "(? = '' OR id IN ({}) OR company LIKE '%' || ? || '%')",
+                placeholders.join(",")
+            ));
+            args.push(search.to_string().into());
+            for id in ids {
+                args.push((*id).into());
+            }
+            args.push(search.to_string().into());
+        }
+        None => {
+            clauses.push("? = ''".to_string());
+            args.push(String::new().into());
+        }
+    }
+    format!(" WHERE {}", clauses.join(" AND "))
+}
+
+/// Perfiles filtrados, ordenados por id como en Go.
+pub fn list_filtered(conn: &Connection, filter: &VisitorFilter) -> StoreResult<Vec<Visitor>> {
+    let mut args: Vec<rusqlite::types::Value> = Vec::new();
+    let sql = format!(
+        "SELECT {VISITOR_COLUMNS} FROM \"Visitors\"{} ORDER BY id LIMIT ? OFFSET ?",
+        visitor_where(filter, &mut args),
+    );
+    args.push(filter.limit.into());
+    args.push(filter.offset.into());
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(rusqlite::params_from_iter(args.iter()), row_to_visitor)?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+/// Total de perfiles del mismo filtro.
+pub fn count_filtered(conn: &Connection, filter: &VisitorFilter) -> StoreResult<i64> {
+    let mut args: Vec<rusqlite::types::Value> = Vec::new();
+    let sql = format!(
+        "SELECT count(*) FROM \"Visitors\"{}",
+        visitor_where(filter, &mut args),
+    );
+    conn.query_row(&sql, rusqlite::params_from_iter(args.iter()), |row| {
+        row.get(0)
+    })
+    .map_err(Into::into)
+}
+
 /// Un cambio de campo de un perfil (para el historial de edición).
 pub struct NewEditHistory<'a> {
     pub visit_id: Option<i64>,
@@ -369,5 +456,63 @@ mod tests {
         .unwrap();
         tx.commit().unwrap();
         assert_eq!(list_companies(&conn).unwrap(), vec!["Otra", "Trébol"]);
+        assert_eq!(
+            list_companies_filtered(&conn, "tré").unwrap(),
+            vec!["Trébol"]
+        );
+        assert!(list_companies_filtered(&conn, "zzz").unwrap().is_empty());
+    }
+
+    fn base_filter() -> VisitorFilter {
+        VisitorFilter {
+            company: None,
+            search: None,
+            search_ids: None,
+            limit: 10,
+            offset: 0,
+        }
+    }
+
+    #[test]
+    fn filtered_list_matches_go_where_clause() {
+        let mut conn = migrated();
+        seed(&mut conn);
+        let tx = conn.transaction().unwrap();
+        insert(
+            &tx,
+            &NewVisitor {
+                cedula_hash: "ddeeff",
+                encrypted_cedula: None,
+                first_name: "B",
+                last_name: "C",
+                company: "Otra",
+                job_title: None,
+                email: None,
+                phone: None,
+                photo_data: None,
+                id_photo_data: None,
+                created_at: NOW,
+                updated_at: NOW,
+            },
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        assert_eq!(count_filtered(&conn, &base_filter()).unwrap(), 2);
+        let mut by_company = base_filter();
+        by_company.company = Some("tré".to_string());
+        assert_eq!(count_filtered(&conn, &by_company).unwrap(), 1);
+        assert_eq!(
+            list_filtered(&conn, &by_company).unwrap()[0].company,
+            "Trébol"
+        );
+        // Búsqueda por empresa o por ids del índice.
+        let mut by_search = base_filter();
+        by_search.search = Some("Otra".to_string());
+        by_search.search_ids = Some(vec![]);
+        assert_eq!(count_filtered(&conn, &by_search).unwrap(), 1);
+        let mut page = base_filter();
+        page.limit = 1;
+        page.offset = 1;
+        assert_eq!(list_filtered(&conn, &page).unwrap().len(), 1);
     }
 }

@@ -15,22 +15,22 @@
 
 use async_trait::async_trait;
 
-use crate::error::StoreResult;
+use crate::error::{is_unique_violation, StoreError, StoreResult};
 use crate::models::{
-    ActivityLog, ArcoRequest, Department, IdentityIndexState, IntermittentLog, SearchIndexState,
-    User, Visit, VisitPurpose, Visitor, VisitorEditHistory, VisitorSearchToken,
+    ActivityLog, ArcoRequest, Department, IdentityIndexState, IntermittentLog, ReportRow,
+    SearchIndexState, User, Visit, VisitPurpose, Visitor, VisitorEditHistory, VisitorSearchToken,
 };
-use crate::repos::audit::{self, AuditEntry};
+use crate::repos::audit::{self, AuditEntry, AuditFilter};
 use crate::repos::catalogs;
-use crate::repos::privacy::{self, NewArcoRequest};
+use crate::repos::privacy::{self, ArcoFilter, CancelAudit, NewArcoRequest};
 use crate::repos::search;
 use crate::repos::traits::{
-    ArcoRepository, AuditRepository, CatalogRepository, SearchTokenRepository, UserRepository,
-    VisitRepository, VisitorRepository,
+    ArcoRepository, AuditRepository, CatalogRepository, CheckinInput, CheckinOutcome, ProfileEdit,
+    SearchTokenRepository, UnitOfWork, UserRepository, VisitRepository, VisitorRepository,
 };
 use crate::repos::users::{self, NewUser};
-use crate::repos::visitors::{self, NewEditHistory, NewVisitor};
-use crate::repos::visits::{self, NewVisit, Transition};
+use crate::repos::visitors::{self, NewEditHistory, NewVisitor, VisitorFilter};
+use crate::repos::visits::{self, NewVisit, Transition, TransitionCall, VisitFilter};
 use crate::repos::Actor;
 use crate::Store;
 
@@ -134,6 +134,22 @@ impl UserRepository for SqliteUserRepository {
         self.store
             .tx_store(|tx| users::clear_reset_token(tx, id, token))
     }
+
+    async fn update_user(
+        &self,
+        id: i64,
+        username: &str,
+        email: Option<Option<&str>>,
+        role: &str,
+        now: &str,
+    ) -> StoreResult<u64> {
+        self.store
+            .tx_store(|tx| users::update_user(tx, id, username, email, role, now))
+    }
+
+    async fn delete_user(&self, id: i64) -> StoreResult<u64> {
+        self.store.tx_store(|tx| users::delete_user(tx, id))
+    }
 }
 
 /// Repositorio de visitantes sobre SQLite.
@@ -185,6 +201,21 @@ impl VisitorRepository for SqliteVisitorRepository {
 
     async fn list_companies(&self) -> StoreResult<Vec<String>> {
         self.store.read_store(visitors::list_companies)
+    }
+
+    async fn list_companies_filtered(&self, query: &str) -> StoreResult<Vec<String>> {
+        self.store
+            .read_store(|conn| visitors::list_companies_filtered(conn, query))
+    }
+
+    async fn list_filtered(&self, filter: &VisitorFilter) -> StoreResult<Vec<Visitor>> {
+        self.store
+            .read_store(|conn| visitors::list_filtered(conn, filter))
+    }
+
+    async fn count_filtered(&self, filter: &VisitorFilter) -> StoreResult<i64> {
+        self.store
+            .read_store(|conn| visitors::count_filtered(conn, filter))
     }
 
     async fn insert_edit_history(&self, change: &NewEditHistory<'_>) -> StoreResult<i64> {
@@ -241,6 +272,64 @@ impl VisitRepository for SqliteVisitRepository {
             .read_store(|conn| visits::list_by_status(conn, status, limit, offset))
     }
 
+    async fn list_filtered(&self, filter: &VisitFilter) -> StoreResult<(Vec<Visit>, i64)> {
+        self.store.read_store(|conn| {
+            let visits = visits::list_filtered(conn, filter)?;
+            let total = visits::count_filtered(conn, filter)?;
+            Ok((visits, total))
+        })
+    }
+
+    async fn calendar_counts(
+        &self,
+        start: &str,
+        end: &str,
+        status: &str,
+    ) -> StoreResult<Vec<(String, i64)>> {
+        self.store
+            .read_store(|conn| visits::calendar_counts(conn, start, end, status))
+    }
+
+    async fn report_rows(&self, start: &str, end: &str) -> StoreResult<Vec<ReportRow>> {
+        self.store
+            .read_store(|conn| visits::report_rows(conn, start, end))
+    }
+
+    async fn count_active(&self) -> StoreResult<i64> {
+        self.store.read_store(visits::count_active)
+    }
+
+    async fn count_distinct_visitors(&self, start: &str, end: &str) -> StoreResult<i64> {
+        self.store
+            .read_store(|conn| visits::count_distinct_visitors(conn, start, end))
+    }
+
+    async fn list_long_active(&self, before: &str) -> StoreResult<Vec<Visit>> {
+        self.store
+            .read_store(|conn| visits::list_long_active(conn, before))
+    }
+
+    async fn history_by_visitor(
+        &self,
+        visitor_id: i64,
+        cedula_hash: &str,
+        limit: i64,
+    ) -> StoreResult<Vec<Visit>> {
+        self.store
+            .read_store(|conn| visits::history_by_visitor(conn, visitor_id, cedula_hash, limit))
+    }
+
+    async fn list_by_visitor_for_access(
+        &self,
+        visitor_id: i64,
+        cedula_hash: &str,
+        limit: i64,
+    ) -> StoreResult<Vec<Visit>> {
+        self.store.read_store(|conn| {
+            visits::list_by_visitor_for_access(conn, visitor_id, cedula_hash, limit)
+        })
+    }
+
     async fn visit_logs(&self, visit_id: i64) -> StoreResult<Vec<IntermittentLog>> {
         self.store
             .read_store(|conn| visits::visit_logs(conn, visit_id))
@@ -250,13 +339,10 @@ impl VisitRepository for SqliteVisitRepository {
         &self,
         id: i64,
         operation: Transition,
-        actor: &Actor,
-        notes: Option<&str>,
-        reason: Option<&str>,
-        now: &str,
+        call: &TransitionCall<'_>,
     ) -> StoreResult<Visit> {
         self.store
-            .tx_store(|tx| visits::transition(tx, id, operation, actor, notes, reason, now))
+            .tx_store(|tx| visits::transition(tx, id, operation, call))
     }
 }
 
@@ -285,6 +371,35 @@ impl AuditRepository for SqliteAuditRepository {
 
     async fn count(&self) -> StoreResult<i64> {
         self.store.read_store(audit::count)
+    }
+
+    async fn list_filtered(
+        &self,
+        filter: &AuditFilter<'_>,
+        limit: i64,
+        offset: i64,
+    ) -> StoreResult<Vec<ActivityLog>> {
+        self.store
+            .read_store(|conn| audit::list_filtered(conn, filter, limit, offset))
+    }
+
+    async fn count_filtered(&self, filter: &AuditFilter<'_>) -> StoreResult<i64> {
+        self.store
+            .read_store(|conn| audit::count_filtered(conn, filter))
+    }
+
+    async fn today_counts(&self, start: &str, end: &str) -> StoreResult<(i64, i64, i64, i64)> {
+        self.store
+            .read_store(|conn| audit::today_counts(conn, start, end))
+    }
+
+    async fn group_counts(&self, since: &str, group: &str) -> StoreResult<Vec<(String, i64)>> {
+        self.store
+            .read_store(|conn| audit::group_counts(conn, since, group))
+    }
+
+    async fn distinct(&self, column: &str) -> StoreResult<Vec<String>> {
+        self.store.read_store(|conn| audit::distinct(conn, column))
     }
 }
 
@@ -317,6 +432,14 @@ impl ArcoRepository for SqliteArcoRepository {
             .read_store(|conn| privacy::list_requests(conn, limit, offset))
     }
 
+    async fn list_filtered(&self, filter: &ArcoFilter) -> StoreResult<(Vec<ArcoRequest>, i64)> {
+        self.store.read_store(|conn| {
+            let requests = privacy::list_requests_filtered(conn, filter)?;
+            let total = privacy::count_requests_filtered(conn, filter)?;
+            Ok((requests, total))
+        })
+    }
+
     async fn update_request_status(
         &self,
         id: i64,
@@ -339,6 +462,7 @@ impl ArcoRepository for SqliteArcoRepository {
         actor: &Actor,
         verification_method: &str,
         now: &str,
+        audit_meta: Option<&CancelAudit<'_>>,
     ) -> StoreResult<()> {
         self.store.tx_store(|tx| {
             privacy::cancel_subject(
@@ -350,6 +474,7 @@ impl ArcoRepository for SqliteArcoRepository {
                 actor,
                 verification_method,
                 now,
+                audit_meta,
             )
         })
     }
@@ -458,5 +583,224 @@ impl SearchTokenRepository for SqliteSearchTokenRepository {
     async fn set_identity_state(&self, fingerprint: &str, ready: bool) -> StoreResult<()> {
         self.store
             .tx_store(|tx| search::set_identity_state(tx, fingerprint, ready))
+    }
+}
+
+/// Operaciones compuestas sobre SQLite: cada método compone las
+/// funciones libres dentro de una sola `tx_immediate`, así que el
+/// perfil, la visita, los tokens y la auditoría se confirman o se
+/// revierten juntos, como en Go.
+#[derive(Clone)]
+pub struct SqliteUnitOfWork {
+    store: Store,
+}
+
+impl SqliteUnitOfWork {
+    pub fn new(store: Store) -> Self {
+        Self { store }
+    }
+}
+
+#[async_trait]
+impl UnitOfWork for SqliteUnitOfWork {
+    async fn login_success(&self, id: i64, now: &str, audit: &AuditEntry<'_>) -> StoreResult<()> {
+        self.store.tx_store(|tx| {
+            users::login_succeeded(tx, id, now)?;
+            audit::write(tx, audit)?;
+            Ok(())
+        })
+    }
+
+    async fn logout(
+        &self,
+        id: i64,
+        token_version: i64,
+        now: &str,
+        audit: &AuditEntry<'_>,
+    ) -> StoreResult<u64> {
+        self.store.tx_store(|tx| {
+            let rows = users::revoke_session(tx, id, token_version, now)?;
+            if rows == 1 {
+                audit::write(tx, audit)?;
+            }
+            Ok(rows)
+        })
+    }
+
+    async fn change_password(
+        &self,
+        id: i64,
+        hash: &str,
+        must_change: bool,
+        token_version: i64,
+        now: &str,
+        audit: &AuditEntry<'_>,
+    ) -> StoreResult<u64> {
+        self.store.tx_store(|tx| {
+            let rows = users::change_password(tx, id, hash, must_change, token_version, now)?;
+            if rows == 1 {
+                audit::write(tx, audit)?;
+            }
+            Ok(rows)
+        })
+    }
+
+    async fn consume_reset(
+        &self,
+        token: &str,
+        hash: &str,
+        now: &str,
+        audit: &AuditEntry<'_>,
+    ) -> StoreResult<User> {
+        self.store.tx_store(|tx| {
+            let user = users::consume_reset_token(tx, token, hash, now)?;
+            audit::write(tx, audit)?;
+            Ok(user)
+        })
+    }
+
+    async fn checkin(&self, input: &CheckinInput<'_>) -> StoreResult<CheckinOutcome> {
+        self.store.tx_store(|tx| {
+            let visitor_id = match input.new_visitor {
+                Some(visitor) => visitors::insert(tx, visitor)?,
+                None => visitors::find_by_cedula(tx, input.cedula_hash)?.id,
+            };
+            search::replace_tokens(tx, visitor_id, input.search_tokens)?;
+            let visit = NewVisit {
+                visitor_id,
+                ..*input.visit
+            };
+            let visit_id = visits::insert_checkin(tx, &visit)?;
+            audit::write(tx, input.audit)?;
+            Ok(CheckinOutcome {
+                visitor_id,
+                visit_id,
+            })
+        })
+    }
+
+    async fn apply_profile_edit(&self, edit: &ProfileEdit<'_>) -> StoreResult<Visitor> {
+        self.store.tx_store(|tx| {
+            visitors::update(tx, edit.visitor, edit.now)?;
+            for change in edit.history {
+                visitors::insert_edit_history(tx, change)?;
+            }
+            search::replace_tokens(tx, edit.visitor.id, edit.search_tokens)?;
+            audit::write(tx, edit.audit)?;
+            visitors::find_by_id(tx, edit.visitor.id)
+        })
+    }
+
+    async fn create_arco(
+        &self,
+        request: &NewArcoRequest<'_>,
+        audit: &AuditEntry<'_>,
+    ) -> StoreResult<i64> {
+        self.store.tx_store(|tx| {
+            let id = privacy::insert_request(tx, request)?;
+            audit::write(tx, audit)?;
+            Ok(id)
+        })
+    }
+
+    async fn update_arco_status(
+        &self,
+        id: i64,
+        status: &str,
+        notes: Option<&str>,
+        resolved_at: Option<&str>,
+        now: &str,
+        audit: &AuditEntry<'_>,
+    ) -> StoreResult<ArcoRequest> {
+        self.store.tx_store(|tx| {
+            let rows = privacy::update_request_status(tx, id, status, notes, resolved_at, now)?;
+            if rows == 0 {
+                return Err(StoreError::not_found(
+                    "NOT_FOUND",
+                    format!("solicitud {id} no encontrada"),
+                ));
+            }
+            audit::write(tx, audit)?;
+            privacy::find_request_by_id(tx, id)
+        })
+    }
+
+    async fn subject_access(
+        &self,
+        cedula_hash: &str,
+        limit: i64,
+        audit: &AuditEntry<'_>,
+    ) -> StoreResult<(Visitor, Vec<Visit>)> {
+        self.store.tx_store(|tx| {
+            let visitor = visitors::find_by_cedula(tx, cedula_hash)?;
+            let visits = visits::list_by_visitor_for_access(tx, visitor.id, cedula_hash, limit)?;
+            audit::write(tx, audit)?;
+            Ok((visitor, visits))
+        })
+    }
+
+    async fn create_user(&self, user: &NewUser<'_>, audit: &AuditEntry<'_>) -> StoreResult<i64> {
+        self.store.tx_store(|tx| {
+            let result = users::insert(tx, user);
+            let id = match result {
+                Ok(id) => id,
+                Err(StoreError::Db(ref e)) if is_unique_violation(e) => {
+                    return Err(StoreError::conflict(
+                        "USERNAME_EXISTS",
+                        format!("el nombre de usuario {} ya existe", user.username),
+                    ));
+                }
+                Err(e) => return Err(e),
+            };
+            audit::write(tx, audit)?;
+            Ok(id)
+        })
+    }
+
+    async fn update_user(
+        &self,
+        id: i64,
+        username: &str,
+        email: Option<Option<&str>>,
+        role: &str,
+        audit: &AuditEntry<'_>,
+    ) -> StoreResult<User> {
+        self.store.tx_store(|tx| {
+            users::find_by_id(tx, id)?;
+            let result = users::update_user(tx, id, username, email, role, audit.created_at);
+            let rows = match result {
+                Ok(rows) => rows,
+                Err(StoreError::Db(ref e)) if is_unique_violation(e) => {
+                    return Err(StoreError::conflict(
+                        "USERNAME_EXISTS",
+                        format!("el nombre de usuario {username} ya existe"),
+                    ));
+                }
+                Err(e) => return Err(e),
+            };
+            if rows == 0 {
+                return Err(StoreError::not_found(
+                    "USER_NOT_FOUND",
+                    format!("usuario {id} no existe"),
+                ));
+            }
+            audit::write(tx, audit)?;
+            users::find_by_id(tx, id)
+        })
+    }
+
+    async fn delete_user(&self, id: i64, audit: &AuditEntry<'_>) -> StoreResult<()> {
+        self.store.tx_store(|tx| {
+            users::find_by_id(tx, id)?;
+            let rows = users::delete_user(tx, id)?;
+            if rows == 0 {
+                return Err(StoreError::not_found(
+                    "USER_NOT_FOUND",
+                    format!("usuario {id} no existe"),
+                ));
+            }
+            audit::write(tx, audit)?;
+            Ok(())
+        })
     }
 }

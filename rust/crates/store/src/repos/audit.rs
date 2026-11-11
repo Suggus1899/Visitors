@@ -74,6 +74,151 @@ pub fn count(conn: &Connection) -> StoreResult<i64> {
     .map_err(Into::into)
 }
 
+/// Filtros de `listActivityLogs` de Go: rango medio abierto sobre
+/// `createdAt` (los bordes llegan como RFC 3339), igualdades exactas
+/// y búsqueda por subcadena en usuario/acción/detalles/entidad.
+#[derive(Debug, Clone, Default)]
+pub struct AuditFilter<'a> {
+    pub start: Option<&'a str>,
+    pub end: Option<&'a str>,
+    pub action: Option<&'a str>,
+    pub username: Option<&'a str>,
+    pub entity: Option<&'a str>,
+    pub ip: Option<&'a str>,
+    pub search: Option<&'a str>,
+    pub user_id: Option<i64>,
+}
+
+fn filter_where(filter: &AuditFilter<'_>) -> (String, Vec<rusqlite::types::Value>) {
+    let mut sql = String::from(" WHERE 1 = 1");
+    let mut args: Vec<rusqlite::types::Value> = Vec::new();
+    if let Some(v) = filter.start {
+        sql.push_str(" AND \"createdAt\" >= ?");
+        args.push(v.to_owned().into());
+    }
+    if let Some(v) = filter.end {
+        sql.push_str(" AND \"createdAt\" < ?");
+        args.push(v.to_owned().into());
+    }
+    for (column, value) in [
+        ("action", filter.action),
+        ("username", filter.username),
+        ("entity", filter.entity),
+        ("\"ipAddress\"", filter.ip),
+    ] {
+        if let Some(v) = value {
+            sql.push_str(&format!(" AND {column} = ?"));
+            args.push(v.to_owned().into());
+        }
+    }
+    if let Some(v) = filter.search {
+        sql.push_str(
+            " AND (username LIKE '%' || ? || '%' ESCAPE '\\' OR action LIKE '%' || ? || '%' ESCAPE '\\' \
+             OR details LIKE '%' || ? || '%' ESCAPE '\\' OR \"entityId\" LIKE '%' || ? || '%' ESCAPE '\\')",
+        );
+        for _ in 0..4 {
+            args.push(v.to_owned().into());
+        }
+    }
+    if let Some(v) = filter.user_id {
+        sql.push_str(" AND \"userId\" = ?");
+        args.push(v.to_owned().into());
+    }
+    (sql, args)
+}
+
+/// Entradas filtradas (`listActivityLogs` y su variante de
+/// superadministración de Go), ordenadas por fecha descendente.
+pub fn list_filtered(
+    conn: &Connection,
+    filter: &AuditFilter<'_>,
+    limit: i64,
+    offset: i64,
+) -> StoreResult<Vec<ActivityLog>> {
+    let (cond, args) = filter_where(filter);
+    let sql = format!(
+        "SELECT {LOG_COLUMNS} FROM \"ActivityLogs\" {cond} ORDER BY \"createdAt\" DESC, id DESC LIMIT ? OFFSET ?"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let mut all: Vec<rusqlite::types::Value> = args;
+    all.push(limit.into());
+    all.push(offset.into());
+    let rows = stmt.query_map(rusqlite::params_from_iter(all.iter()), |row| {
+        ActivityLog::try_from(row)
+    })?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+/// Total de entradas que cumplen el filtro, para la paginación.
+pub fn count_filtered(conn: &Connection, filter: &AuditFilter<'_>) -> StoreResult<i64> {
+    let (cond, args) = filter_where(filter);
+    let sql = format!("SELECT count(*) FROM \"ActivityLogs\" {cond}");
+    conn.query_row(&sql, rusqlite::params_from_iter(args.iter()), |row| {
+        row.get(0)
+    })
+    .map_err(Into::into)
+}
+
+/// Resumen de hoy (`auditStats` de Go): inicios de sesión, acciones,
+/// usuarios distintos e IPs distintas entre `start` y `end`.
+pub fn today_counts(
+    conn: &Connection,
+    start: &str,
+    end: &str,
+) -> StoreResult<(i64, i64, i64, i64)> {
+    conn.query_row(
+        "SELECT count(CASE WHEN action = 'LOGIN' THEN 1 END), count(*), \
+         count(DISTINCT \"userId\"), count(DISTINCT \"ipAddress\") \
+         FROM \"ActivityLogs\" WHERE \"createdAt\" >= ?1 AND \"createdAt\" < ?2",
+        params![start, end],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )
+    .map_err(Into::into)
+}
+
+/// Conteo agrupado (`auditStats` de Go): `group` es `action`,
+/// `username` o `date` (fecha local de Caracas). En `date` el
+/// resultado es `YYYY-MM-DD`.
+pub fn group_counts(
+    conn: &Connection,
+    since: &str,
+    group: &str,
+) -> StoreResult<Vec<(String, i64)>> {
+    let (expr, limit) = match group {
+        "username" => ("username", " LIMIT 5"),
+        "date" => ("date(\"createdAt\", '-4 hours')", ""),
+        _ => ("action", ""),
+    };
+    let sql = format!(
+        "SELECT {expr}, count(*) FROM \"ActivityLogs\" WHERE \"createdAt\" >= ?1 \
+         GROUP BY 1 ORDER BY 2 DESC, 1{limit}"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params![since], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+    })?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+/// Valores distintos de una columna (`distinctActivityLogValues` de
+/// Go): solo `action` y `username` son columnas válidas; cualquier
+/// otro valor es un error de programación, no de entrada.
+pub fn distinct(conn: &Connection, column: &str) -> StoreResult<Vec<String>> {
+    let column = match column {
+        "action" => "action",
+        "username" => "username",
+        _ => {
+            return Err(crate::error::StoreError::Validation(
+                "columna no válida".to_string(),
+            ))
+        }
+    };
+    let sql = format!("SELECT DISTINCT {column} FROM \"ActivityLogs\" ORDER BY 1");
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

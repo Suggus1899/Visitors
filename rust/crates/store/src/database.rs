@@ -24,16 +24,16 @@ use anyhow::{Context, Result};
 use crate::pg_migrations;
 use crate::repos::pg::{
     PgArcoRepository, PgAuditRepository, PgCatalogRepository, PgSearchTokenRepository, PgStore,
-    PgUserRepository, PgVisitRepository, PgVisitorRepository,
+    PgUnitOfWork, PgUserRepository, PgVisitRepository, PgVisitorRepository,
 };
 use crate::repos::sqlite::{
     SqliteArcoRepository, SqliteAuditRepository, SqliteCatalogRepository,
-    SqliteSearchTokenRepository, SqliteUserRepository, SqliteVisitRepository,
+    SqliteSearchTokenRepository, SqliteUnitOfWork, SqliteUserRepository, SqliteVisitRepository,
     SqliteVisitorRepository,
 };
 use crate::repos::traits::{
-    ArcoRepository, AuditRepository, CatalogRepository, SearchTokenRepository, UserRepository,
-    VisitRepository, VisitorRepository,
+    ArcoRepository, AuditRepository, CatalogRepository, SearchTokenRepository, UnitOfWork,
+    UserRepository, VisitRepository, VisitorRepository,
 };
 use crate::Store;
 
@@ -100,6 +100,8 @@ pub struct Repositories {
     pub catalogs: Arc<dyn CatalogRepository>,
     /// Búsqueda protegida y estados de índice.
     pub search: Arc<dyn SearchTokenRepository>,
+    /// Operaciones compuestas atómicas (fase 4).
+    pub uow: Arc<dyn UnitOfWork>,
 }
 
 /// Resultado de la prueba real de conexión: se usa en el log de
@@ -186,6 +188,7 @@ impl Database {
                 arco: Arc::new(SqliteArcoRepository::new(store.clone())),
                 catalogs: Arc::new(SqliteCatalogRepository::new(store.clone())),
                 search: Arc::new(SqliteSearchTokenRepository::new(store.clone())),
+                uow: Arc::new(SqliteUnitOfWork::new(store.clone())),
             },
             Database::Postgres(pg) => {
                 let pool = pg.pool().clone();
@@ -196,7 +199,8 @@ impl Database {
                     audit: Arc::new(PgAuditRepository::new(pool.clone())),
                     arco: Arc::new(PgArcoRepository::new(pool.clone())),
                     catalogs: Arc::new(PgCatalogRepository::new(pool.clone())),
-                    search: Arc::new(PgSearchTokenRepository::new(pool)),
+                    search: Arc::new(PgSearchTokenRepository::new(pool.clone())),
+                    uow: Arc::new(PgUnitOfWork::new(pool)),
                 }
             }
         }

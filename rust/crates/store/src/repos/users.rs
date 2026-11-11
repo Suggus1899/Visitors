@@ -212,6 +212,43 @@ pub fn revoke_session(
     Ok(rows as u64)
 }
 
+/// `UpdateUser` (panel root, fase 4): cambia nombre, correo
+/// (un `None` exterior lo deja; un `Some(None)` lo borra) y rol,
+/// y revoca sesiones (sube `tokenVersion`, limpia el token de
+/// recuperación). Devuelve las filas afectadas. La unicidad del
+/// nombre la impone la base; el llamador traduce la violación.
+pub fn update_user(
+    tx: &Transaction,
+    id: i64,
+    username: &str,
+    email: Option<Option<&str>>,
+    role: &str,
+    now: &str,
+) -> StoreResult<u64> {
+    let rows = match email {
+        Some(value) => tx.execute(
+            "UPDATE \"Users\" SET username = ?2, email = ?3, role = ?4, \
+             \"tokenVersion\" = \"tokenVersion\" + 1, \"resetToken\" = NULL, \
+             \"resetTokenExpiry\" = NULL, \"updatedAt\" = ?5 WHERE id = ?1",
+            params![id, username, value, role, now],
+        )?,
+        None => tx.execute(
+            "UPDATE \"Users\" SET username = ?2, role = ?3, \
+             \"tokenVersion\" = \"tokenVersion\" + 1, \"resetToken\" = NULL, \
+             \"resetTokenExpiry\" = NULL, \"updatedAt\" = ?4 WHERE id = ?1",
+            params![id, username, role, now],
+        )?,
+    };
+    Ok(rows as u64)
+}
+
+/// `DeleteUser` (panel root, fase 4): borra la cuenta. Devuelve las
+/// filas afectadas (0 = no existe).
+pub fn delete_user(tx: &Transaction, id: i64) -> StoreResult<u64> {
+    let rows = tx.execute("DELETE FROM \"Users\" WHERE id = ?1", params![id])?;
+    Ok(rows as u64)
+}
+
 /// Limpia el token de recuperacion de una cuenta (si el envio del
 /// correo fallo, como hace Go en `forgotPassword`).
 pub fn clear_reset_token(tx: &Transaction, id: i64, token: &str) -> StoreResult<()> {
