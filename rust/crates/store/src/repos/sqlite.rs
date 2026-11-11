@@ -711,7 +711,15 @@ impl UnitOfWork for SqliteUnitOfWork {
     ) -> StoreResult<i64> {
         self.store.tx_store(|tx| {
             let id = privacy::insert_request(tx, request)?;
-            audit::write(tx, audit)?;
+            // La auditoría de Go registra el id de la solicitud; el
+            // handler no lo conoce antes de insertar, así que la
+            // entrada se escribe aquí con el id real.
+            let id_text = id.to_string();
+            let entry = AuditEntry {
+                entity_id: &id_text,
+                ..*audit
+            };
+            audit::write(tx, &entry)?;
             Ok(id)
         })
     }
@@ -747,7 +755,13 @@ impl UnitOfWork for SqliteUnitOfWork {
         self.store.tx_store(|tx| {
             let visitor = visitors::find_by_cedula(tx, cedula_hash)?;
             let visits = visits::list_by_visitor_for_access(tx, visitor.id, cedula_hash, limit)?;
-            audit::write(tx, audit)?;
+            // La auditoría de Go registra el id del titular.
+            let visitor_id_text = visitor.id.to_string();
+            let entry = AuditEntry {
+                entity_id: &visitor_id_text,
+                ..*audit
+            };
+            audit::write(tx, &entry)?;
             Ok((visitor, visits))
         })
     }

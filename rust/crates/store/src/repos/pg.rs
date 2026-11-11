@@ -2618,7 +2618,14 @@ impl UnitOfWork for PgUnitOfWork {
         .fetch_one(&mut *tx)
         .await
         .map_err(StoreError::from)?;
-        insert_audit(&mut *tx, audit).await?;
+        insert_audit(
+            &mut *tx,
+            &AuditEntry {
+                entity_id: &id.to_string(),
+                ..*audit
+            },
+        )
+        .await?;
         tx.commit().await.map_err(StoreError::from)?;
         Ok(id as i64)
     }
@@ -2699,7 +2706,14 @@ impl UnitOfWork for PgUnitOfWork {
             .iter()
             .map(|row| visit_from_row(row).map_err(StoreError::from))
             .collect::<StoreResult<_>>()?;
-        insert_audit(&mut *tx, audit).await?;
+        insert_audit(
+            &mut *tx,
+            &AuditEntry {
+                entity_id: &visitor.id.to_string(),
+                ..*audit
+            },
+        )
+        .await?;
         tx.commit().await.map_err(StoreError::from)?;
         Ok((visitor, visits))
     }

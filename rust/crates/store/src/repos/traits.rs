@@ -476,7 +476,9 @@ pub trait UnitOfWork: Send + Sync {
     /// `VISITOR_UPDATE`. Devuelve el perfil actualizado.
     async fn apply_profile_edit(&self, edit: &ProfileEdit<'_>) -> StoreResult<Visitor>;
     /// Creación de solicitud ARCO (`insert_request` + auditoría
-    /// `ARCO_REQUEST_CREATED`): devuelve el id.
+    /// `ARCO_REQUEST_CREATED`): devuelve el id. La auditoría se
+    /// escribe con `entity_id` igual al id de la solicitud (como
+    /// Go); el `entity_id` que trae la entrada se ignora.
     async fn create_arco(
         &self,
         request: &NewArcoRequest<'_>,
@@ -496,7 +498,9 @@ pub trait UnitOfWork: Send + Sync {
     ) -> StoreResult<ArcoRequest>;
     /// Acceso ARCO (`subjectAccess` de Go): perfil + visitas del
     /// titular y auditoría `ARCO_ACCESS_EXECUTED`, en una transacción.
-    /// Sin perfil → `VISITOR_NOT_FOUND`.
+    /// Sin perfil → `VISITOR_NOT_FOUND`. La auditoría se escribe
+    /// con `entity_id` igual al id del titular (como Go); el
+    /// `entity_id` que trae la entrada se ignora.
     async fn subject_access(
         &self,
         cedula_hash: &str,
