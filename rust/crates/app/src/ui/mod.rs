@@ -34,6 +34,7 @@ pub fn router(state: ApiState) -> Router<ApiState> {
         .route("/admin", get(pages::admin_page))
         .route("/audit", get(pages::audit_page))
         .route("/privacy", get(pages::privacy_page))
+        .route("/root", get(pages::root_page))
         .route("/change-password", get(pages::change_password_page))
         .route("/logout", post(pages::logout))
         .layer(middleware::from_fn_with_state(
@@ -555,5 +556,27 @@ mod tests {
         assert!(body.contains("Nueva solicitud ARCO"));
         assert!(body.contains("Cambiar estado"));
         assert!(body.contains("Anonimizar titular"));
+    }
+
+    #[tokio::test]
+    async fn root_page_is_root_only_and_lists_accounts() {
+        let (state, _) = test_state();
+        seed_user(&state, "admin", "admin").await;
+        seed_user(&state, "root", "root").await;
+        let router = build_router_with_state(state);
+        let cookie_admin = login_cookie(router.clone(), "admin").await;
+        let (status, _, _) =
+            request(router.clone(), Method::GET, "/root", Some(&cookie_admin)).await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let cookie_root = login_cookie(router.clone(), "root").await;
+        let (status, _, body) = request(router, Method::GET, "/root", Some(&cookie_root)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Superadmin"));
+        assert!(body.contains("Cuentas"));
+        assert!(body.contains("Crear cuenta"));
+        assert!(body.contains("Cuenta actual"));
+        assert!(body.contains("Auditoría de superadmin"));
+        assert!(body.contains("Respaldos"));
     }
 }

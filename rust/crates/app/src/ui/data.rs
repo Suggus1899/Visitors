@@ -6,7 +6,7 @@
 use axum::http::StatusCode;
 use logmaster_crypto::identity_hash;
 use logmaster_store::error::StoreError;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::common::{
     caracas_day_start, date_range, format_instant, matching_visitor_ids, normalize_cedula,
@@ -390,4 +390,24 @@ pub async fn privacy_requests(
         items.push(arco_dto(&state.encryption_key, request)?);
     }
     Ok((items, total, page, limit))
+}
+
+/// Cuentas para /root (solo root): todas las cuentas del sistema.
+pub async fn root_users(state: &ApiState) -> PageResult<Vec<Value>> {
+    let users = state.repos.users.list_all().await?;
+    Ok(users
+        .iter()
+        .map(|user| {
+            json!({
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "mustChangePassword": user.must_change_password,
+                "loginAttempts": user.login_attempts,
+                "lockedUntil": user.locked_until,
+                "createdAt": user.created_at,
+            })
+        })
+        .collect())
 }

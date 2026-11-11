@@ -1847,3 +1847,198 @@ pub async fn privacy_page(State(state): State<ApiState>, session: Session, uri: 
     .to_html();
     page(Some(&session), "Privacidad", body)
 }
+
+// ---------------------------------------------------------------------
+// Root (superadmin).
+// ---------------------------------------------------------------------
+
+/// /root — solo root. Cuentas (crear, cambiar rol, restablecer
+/// contraseña, eliminar), últimas entradas de auditoría y respaldos.
+/// La ejecución real de respaldos es fase 6.
+pub async fn root_page(State(state): State<ApiState>, session: Session, uri: Uri) -> Response {
+    if !matches!(Role::parse(&session.role), Some(Role::Root)) {
+        return forbid(&session, "Solo el superadmin ve esta página.");
+    }
+    let users = match data::root_users(&state).await {
+        Ok(users) => users,
+        Err(error) => return page_error(&session, &error),
+    };
+    let (audit_items, _, _, _, _) = match data::audit_logs(&state, &uri).await {
+        Ok(values) => values,
+        Err(error) => return page_error(&session, &error),
+    };
+    let files = match data::backup_files(&state) {
+        Ok(files) => files,
+        Err(error) => return page_error(&session, &error),
+    };
+    let user_rows: Vec<AnyView> = users
+        .iter()
+        .map(|user| {
+            let id = user.get("id").and_then(|item| item.as_i64()).unwrap_or(0);
+            let username = text_or(user, "username", "");
+            let email = text_or(user, "email", "");
+            let role = text_or(user, "role", "");
+            let must_change = user
+                .get("mustChangePassword")
+                .and_then(|item| item.as_bool())
+                .unwrap_or(false);
+            let must_change = if must_change { "Sí" } else { "No" };
+            let created = text_or(user, "createdAt", "");
+            let actions = if id == session.id {
+                view! { <span class="muted">"Cuenta actual"</span> }.into_any()
+            } else {
+                view! {
+                    <span>
+                        <form
+                            data-api-form
+                            data-method="PUT"
+                            data-api={format!("/api/v1/superadmin/users/{id}")}
+                        >
+                            <select name="role">
+                                <option value="admin" selected={role == "admin"}>"admin"</option>
+                                <option value="operador" selected={role == "operador"}>"operador"</option>
+                                <option value="auditor" selected={role == "auditor"}>"auditor"</option>
+                                <option value="demo" selected={role == "demo"}>"demo"</option>
+                            </select>
+                            <button class="secundario" type="submit">"Cambiar rol"</button>
+                        </form>
+                        <button
+                            class="secundario"
+                            data-api={format!("/api/v1/superadmin/users/{id}/reset-password")}
+                            data-method="POST"
+                            data-confirm="Restablecer la contraseña de este usuario?"
+                        >
+                            "Restablecer contraseña"
+                        </button>
+                        <button
+                            class="secundario"
+                            data-api={format!("/api/v1/superadmin/users/{id}")}
+                            data-method="DELETE"
+                            data-confirm="Eliminar esta cuenta?"
+                        >
+                            "Eliminar"
+                        </button>
+                    </span>
+                }
+                .into_any()
+            };
+            view! {
+                <tr>
+                    <td>{username}</td>
+                    <td>{email}</td>
+                    <td>{role}</td>
+                    <td>{must_change}</td>
+                    <td>{created}</td>
+                    <td>{actions}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let audit_rows: Vec<AnyView> = audit_items
+        .iter()
+        .take(10)
+        .map(|log| {
+            let created = text_or(log, "createdAt", "");
+            let username = text_or(log, "username", "");
+            let action = text_or(log, "action", "");
+            let entity = text_or(log, "entity", "");
+            view! {
+                <tr>
+                    <td>{created}</td>
+                    <td>{username}</td>
+                    <td>{action}</td>
+                    <td>{entity}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let audit_table = if audit_rows.is_empty() {
+        view! { <p class="muted">"Sin entradas de auditoría todavía."</p> }.into_any()
+    } else {
+        view! {
+            <table>
+                <thead>
+                    <tr>
+                        <th>"Fecha"</th>
+                        <th>"Usuario"</th>
+                        <th>"Acción"</th>
+                        <th>"Entidad"</th>
+                    </tr>
+                </thead>
+                <tbody>{audit_rows}</tbody>
+            </table>
+        }
+        .into_any()
+    };
+    let body = view! {
+        <div>
+            <h1>"Superadmin"</h1>
+            <section class="tarjeta">
+                <h2>"Cuentas"</h2>
+                <form data-api-form data-api="/api/v1/superadmin/users">
+                    <div class="alerta error" data-error="" hidden=true></div>
+                    <div class="fila">
+                        <div class="campo">
+                            <label>
+                                "Usuario "
+                                <input name="username" required />
+                            </label>
+                        </div>
+                        <div class="campo">
+                            <label>
+                                "Contraseña "
+                                <input name="password" type="password" required />
+                            </label>
+                        </div>
+                        <div class="campo">
+                            <label>
+                                "Correo "
+                                <input name="email" type="email" />
+                            </label>
+                        </div>
+                        <div class="campo">
+                            <label>
+                                "Rol "
+                                <select name="role">
+                                    <option value="admin">"admin"</option>
+                                    <option value="operador">"operador"</option>
+                                    <option value="auditor">"auditor"</option>
+                                    <option value="demo">"demo"</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                    <button class="boton" type="submit">"Crear cuenta"</button>
+                </form>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>"Usuario"</th>
+                            <th>"Correo"</th>
+                            <th>"Rol"</th>
+                            <th>"Debe cambiar contraseña"</th>
+                            <th>"Creada"</th>
+                            <th>"Acciones"</th>
+                        </tr>
+                    </thead>
+                    <tbody>{user_rows}</tbody>
+                </table>
+            </section>
+            <section class="tarjeta">
+                <h2>"Auditoría de superadmin"</h2>
+                {audit_table}
+                <p>
+                    <a href="/audit">"Ver la bitácora completa"</a>
+                </p>
+            </section>
+            <section class="tarjeta">
+                <h2>"Respaldos"</h2>
+                {admin_backups_view(files)}
+            </section>
+        </div>
+    }
+    .to_html();
+    page(Some(&session), "Superadmin", body)
+}
