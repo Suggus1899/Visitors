@@ -33,7 +33,7 @@ pub use hash::{
     identity_fingerprint, identity_hash, identity_key, normalize_identity, normalize_search,
     search_fingerprint, search_key, search_tokens, sha256_hex,
 };
-pub use key::load_key_from_env;
+pub use key::{load_key_from_env, parse_key_hex};
 pub use password::{hash_password, validate_password, verify_password, PasswordError};
 pub use token::{hash_token, random_token};
 

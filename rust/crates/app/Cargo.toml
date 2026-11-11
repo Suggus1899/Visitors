@@ -36,6 +36,10 @@ logmaster-store = { path = "../store" }
 
 [target.'cfg(windows)'.dependencies]
 windows-service = "0.7"
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_Security_Cryptography",
+] }
 mslnk = "0.1"
 
 [dev-dependencies]

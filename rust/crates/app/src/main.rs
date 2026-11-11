@@ -14,6 +14,8 @@
 //! logmaster.exe service start | stop | restart | uninstall
 //! logmaster.exe convert --from-postgres <cadena> --to <sqlite>
 //! logmaster.exe preflight --from-postgres <cadena> | --db <sqlite>
+//! logmaster.exe init [--root-password-file <archivo>]
+//! logmaster.exe secrets set <NOMBRE> | secrets list
 //! ```
 //!
 //! `convert` y `preflight` son operaciones síncronas de una sola vez
@@ -30,10 +32,12 @@ mod error;
 mod events;
 mod first_run;
 mod http;
+mod init;
 mod origin;
 mod rate_limit;
 mod roles;
 mod routes;
+mod secrets;
 mod service;
 mod session;
 mod ui;
@@ -68,6 +72,18 @@ enum Command {
         #[command(subcommand)]
         action: service::ServiceAction,
     },
+    /// Gestion del archivo de secretos (DPAPI en Windows).
+    Secrets {
+        #[command(subcommand)]
+        action: init::SecretsAction,
+    },
+    /// Crea las carpetas, el config.toml y los secretos, y con
+    /// `--root-password-file` la cuenta root inicial.
+    Init {
+        /// Archivo privado con la contraseña del root inicial.
+        #[arg(long)]
+        root_password_file: Option<PathBuf>,
+    },
     /// Copia los datos de PostgreSQL a una base SQLite nueva.
     Convert {
         /// Cadena de conexión a PostgreSQL (sin TLS: mismo host o red
@@ -98,6 +114,8 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Some(Command::Service { action }) => service::run_action(action),
+        Some(Command::Secrets { action }) => init::run_secrets(action),
+        Some(Command::Init { root_password_file }) => init::run_init(root_password_file).await,
         Some(Command::Check) => check().await,
         Some(Command::Migrate) => migrate().await,
         Some(Command::Convert { from_postgres, to }) => {

@@ -47,10 +47,10 @@
 //!   `test_on_startup` (siempre activo: la prueba de conexión al
 //!   arrancar no se puede desactivar; ver `database.rs`).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use logmaster_crypto::load_key_from_env;
 use logmaster_store::{DatabaseConfig, DatabaseEngine};
 use serde::Deserialize;
@@ -245,27 +245,57 @@ impl Config {
                 "database = \"postgres\" necesita una cadena de conexión: [database] url en config.toml o DATABASE_URL"
             );
         }
+        // Carpeta del archivo de secretos (fase 6): se calcula
+        // antes de resolver los secretos, porque es su último
+        // recurso cuando no están en el entorno.
+        let secrets_dir = std::env::var("LOGMASTER_SECRETS_DIR")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.security.secrets_dir.map(PathBuf::from))
+            .unwrap_or_else(|| default_data_dir(&db_path).join("secrets"));
+        // Secretos: entorno primero y archivo de secretos (DPAPI en
+        // Windows) después; nunca `config.toml`.
+        let secrets = crate::secrets::SecretsStore::new(secrets_dir.clone())
+            .get_all()
+            .context("leer el archivo de secretos")?;
+        let secret = |name: &str| secrets.get(name).cloned();
 
-        let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_default();
-        if jwt_secret.len() < 32 {
-            bail!("JWT_SECRET must contain at least 32 bytes");
-        }
+        let jwt_secret = match std::env::var("JWT_SECRET").ok() {
+            Some(value) if value.len() >= 32 => value,
+            _ => match secret("JWT_SECRET") {
+                Some(value) if value.len() >= 32 => value,
+                _ => bail!("JWT_SECRET must contain at least 32 bytes"),
+            },
+        };
         let refresh_secret = match std::env::var("JWT_REFRESH_SECRET").ok() {
             Some(secret) if !secret.is_empty() => secret,
-            _ => {
-                let mut hasher = Sha256::new();
-                hasher.update(format!("{jwt_secret}:refresh").as_bytes());
-                hex::encode(hasher.finalize())
-            }
+            _ => match secret("JWT_REFRESH_SECRET") {
+                Some(value) if !value.is_empty() => value,
+                _ => {
+                    let mut hasher = Sha256::new();
+                    hasher.update(format!("{jwt_secret}:refresh").as_bytes());
+                    hex::encode(hasher.finalize())
+                }
+            },
         };
         if refresh_secret.len() < 32 || refresh_secret == jwt_secret {
             bail!("JWT_REFRESH_SECRET must be independent and at least 32 bytes");
         }
-        let encryption_key = load_key_from_env().map_err(|e| anyhow!(e))?;
-        let edit_password = std::env::var("EDIT_PASSWORD").unwrap_or_default();
-        if edit_password.is_empty() {
-            bail!("EDIT_PASSWORD is required");
-        }
+        let encryption_key = match load_key_from_env() {
+            Ok(key) => key,
+            Err(_) => match secret("ENCRYPTION_KEY") {
+                Some(raw) => logmaster_crypto::parse_key_hex(&raw).map_err(|e| anyhow!(e))?,
+                None => bail!("falta ENCRYPTION_KEY (o PII_ENCRYPTION_KEY)"),
+            },
+        };
+        let edit_password = match std::env::var("EDIT_PASSWORD").ok() {
+            Some(value) if !value.is_empty() => value,
+            _ => match secret("EDIT_PASSWORD") {
+                Some(value) if !value.is_empty() => value,
+                _ => bail!("EDIT_PASSWORD is required"),
+            },
+        };
         let access_ttl = match std::env::var("JWT_ACCESS_EXPIRATION").ok() {
             Some(raw) if !raw.is_empty() => parse_duration(&raw, Duration::from_secs(15 * 60))?,
             _ => match file.session.access_minutes {
@@ -404,12 +434,6 @@ impl Config {
         if tls_cert.is_some() != tls_key.is_some() {
             bail!("tls_cert y tls_key deben configurarse juntos");
         }
-        let secrets_dir = std::env::var("LOGMASTER_SECRETS_DIR")
-            .ok()
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .or(file.security.secrets_dir.map(PathBuf::from))
-            .unwrap_or_else(|| default_data_dir(&db_path).join("secrets"));
 
         let rate_window_ms = parse_int_env("RATE_LIMIT_WINDOW_MS", 60_000)? as u64;
         let rate_max_requests = parse_int_env("RATE_LIMIT_MAX_REQUESTS", 100)? as u32;
@@ -515,6 +539,58 @@ impl Config {
         }
     }
 
+    /// Rutas para `init` y `secrets`: se leen del `config.toml`
+    /// (o del entorno) **sin exigir secretos**, porque esos
+    /// comandos existen precisamente para crearlos. Misma
+    /// precedencia que `load` (entorno > archivo > defecto).
+    pub(crate) fn load_paths() -> Result<InitPaths> {
+        let (file, config_path) = load_config_file();
+        let file = file.unwrap_or_default();
+        let db_path = std::env::var("LOGMASTER_DB_PATH")
+            .map(PathBuf::from)
+            .ok()
+            .filter(|p| !p.as_os_str().is_empty())
+            .or(file.database.path.map(PathBuf::from))
+            .unwrap_or_else(default_db_path);
+        let secrets_dir = std::env::var("LOGMASTER_SECRETS_DIR")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.security.secrets_dir.map(PathBuf::from))
+            .unwrap_or_else(|| default_data_dir(&db_path).join("secrets"));
+        let tls_dir = std::env::var("LOGMASTER_TLS_DIR")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.server.tls_dir.map(PathBuf::from))
+            .unwrap_or_else(|| default_data_dir(&db_path).join("tls"));
+        let backup_path = std::env::var("BACKUP_PATH")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.backup.path.map(PathBuf::from));
+        let database_engine = match std::env::var("LOGMASTER_DATABASE").ok() {
+            Some(value) if !value.is_empty() => DatabaseEngine::parse(&value)?,
+            _ => match file.database.engine.as_deref() {
+                Some(value) => DatabaseEngine::parse(value)?,
+                None => DatabaseEngine::Sqlite,
+            },
+        };
+        let database_url = std::env::var("DATABASE_URL")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .or(file.database.url);
+        Ok(InitPaths {
+            config_path,
+            db_path,
+            database_engine,
+            database_url,
+            secrets_dir,
+            tls_dir,
+            backup_path,
+        })
+    }
+
     /// Configuración de pruebas con los mismos valores de los
     /// fixtures anteriores: la usan los `test_config()` de cada
     /// familia en vez de repetir el literal completo.
@@ -566,6 +642,25 @@ impl Config {
             trusted_proxies: vec![],
         }
     }
+}
+
+/// Rutas que usan `init` y `secrets` sin exigir secretos.
+#[derive(Debug, Clone)]
+pub(crate) struct InitPaths {
+    /// Ruta del `config.toml` usado (o creado), si lo hay.
+    pub config_path: Option<PathBuf>,
+    /// Archivo de la base SQLite.
+    pub db_path: PathBuf,
+    /// Motor de base de datos elegido.
+    pub database_engine: DatabaseEngine,
+    /// Cadena de conexión PostgreSQL, si el motor es `postgres`.
+    pub database_url: Option<String>,
+    /// Carpeta del archivo de secretos.
+    pub secrets_dir: PathBuf,
+    /// Carpeta del certificado TLS.
+    pub tls_dir: PathBuf,
+    /// Carpeta de respaldos, si está configurada.
+    pub backup_path: Option<PathBuf>,
 }
 
 /// Ejemplo incrustado (`rust/config.example.toml`).
@@ -795,7 +890,7 @@ pub fn parse_hhmm(raw: &str, field: &str) -> Result<String> {
 /// Carpeta de datos que contiene la base (`.../data` en Windows,
 /// `data` en desarrollo): de ella cuelgan `tls/` y `secrets/`
 /// (documento §14.3).
-fn default_data_dir(db_path: &PathBuf) -> PathBuf {
+fn default_data_dir(db_path: &Path) -> PathBuf {
     db_path
         .parent()
         .map(|parent| {
@@ -1364,5 +1459,47 @@ secrets_dir = "C:\\LogMaster\\secrets"
         ));
         with_env(&vars, || assert!(Config::load().is_err()));
         std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn load_secrets_from_secrets_file() {
+        // Sin secretos en el entorno: deben salir del archivo.
+        let dir = std::env::temp_dir().join("logmaster-config-test-secretsfile");
+        std::fs::create_dir_all(&dir).unwrap();
+        let secrets_dir = dir.join("secrets");
+        let store = crate::secrets::SecretsStore::new(secrets_dir.clone());
+        store.set("JWT_SECRET", SECRET_64).unwrap();
+        store.set("JWT_REFRESH_SECRET", &"t".repeat(64)).unwrap();
+        store.set("ENCRYPTION_KEY", KEY_HEX).unwrap();
+        store.set("EDIT_PASSWORD", "fixture-edit-password").unwrap();
+        let config_path = dir.join("config.toml");
+        std::fs::write(&config_path, "").unwrap();
+        let config_str = config_path.to_string_lossy().to_string();
+        let secrets_str = secrets_dir.to_string_lossy().to_string();
+        with_env(
+            &[
+                (
+                    "LOGMASTER_CONFIG",
+                    Some(Box::leak(config_str.into_boxed_str()) as &'static str),
+                ),
+                (
+                    "LOGMASTER_SECRETS_DIR",
+                    Some(Box::leak(secrets_str.into_boxed_str()) as &'static str),
+                ),
+                ("JWT_SECRET", None),
+                ("JWT_REFRESH_SECRET", None),
+                ("ENCRYPTION_KEY", None),
+                ("PII_ENCRYPTION_KEY", None),
+                ("EDIT_PASSWORD", None),
+            ],
+            || {
+                let cfg = Config::load().unwrap();
+                assert_eq!(cfg.jwt_secret, SECRET_64);
+                assert_eq!(cfg.refresh_secret, "t".repeat(64));
+                assert_eq!(cfg.encryption_key, [0x19u8; 32]);
+                assert_eq!(cfg.edit_password, "fixture-edit-password");
+            },
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

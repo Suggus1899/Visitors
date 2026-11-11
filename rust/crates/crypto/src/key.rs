@@ -7,6 +7,13 @@ pub fn load_key_from_env() -> Result<[u8; 32], String> {
     let raw = std::env::var("ENCRYPTION_KEY")
         .or_else(|_| std::env::var("PII_ENCRYPTION_KEY"))
         .map_err(|_| "falta ENCRYPTION_KEY (o PII_ENCRYPTION_KEY)".to_string())?;
+    parse_key_hex(&raw)
+}
+
+/// Parsea una clave de 32 bytes en hexadecimal (la misma regla que
+/// `load_key_from_env`, pero desde un valor ya leído, como el del
+/// archivo de secretos).
+pub fn parse_key_hex(raw: &str) -> Result<[u8; 32], String> {
     let bytes = hex::decode(raw.trim())
         .map_err(|_| "ENCRYPTION_KEY must be a 32-byte hexadecimal key".to_string())?;
     if bytes.len() != 32 {

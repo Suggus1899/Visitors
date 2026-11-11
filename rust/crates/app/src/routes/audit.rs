@@ -331,7 +331,6 @@ mod tests {
     use crate::session::{Session, SessionService};
 
     const NOW: &str = "2026-11-10T00:00:00.000000Z";
-    const APP_ORIGIN: &str = "https://localhost:8443";
 
     fn test_config() -> Config {
         Config::fixture()
