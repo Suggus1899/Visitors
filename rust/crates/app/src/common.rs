@@ -599,6 +599,21 @@ pub struct AuditMeta {
     pub path: Option<String>,
 }
 
+/// Ruta completa de la API para la auditoría.
+///
+/// Go registra `r.URL.Path` tal cual (`/api/v1/visits/1/checkout`),
+/// pero la `Uri` de Axum dentro de `.nest("/api/v1", …)` llega sin el
+/// prefijo del nido (`/visits/1/checkout`); auth ya pasa el literal
+/// completo. Sin esto, la bitácora mezclaba rutas con y sin prefijo.
+/// Las rutas que ya lo traen quedan intactas.
+pub fn full_api_path(path: &str) -> String {
+    if path.starts_with("/api/v1") {
+        path.to_string()
+    } else {
+        format!("/api/v1{path}")
+    }
+}
+
 pub fn audit_meta(
     headers: &HeaderMap,
     remote: Option<SocketAddr>,
@@ -617,7 +632,7 @@ pub fn audit_meta(
         user_agent: if agent.is_empty() { None } else { Some(agent) },
         role: Some(session.role.clone()),
         method: Some(method.to_string()),
-        path: Some(path.to_string()),
+        path: Some(full_api_path(path)),
     }
 }
 
@@ -739,6 +754,21 @@ mod tests {
         assert!(!valid_email("@example.test"));
         assert!(!valid_email("ana@"));
         assert!(!valid_email("Nombre <ana@example.test>"));
+    }
+
+    #[test]
+    fn audit_path_keeps_full_api_prefix() {
+        // Fase 7: la Uri dentro del nido llega sin /api/v1; la
+        // auditoría debe guardar la ruta completa, como Go.
+        assert_eq!(
+            full_api_path("/visits/1/checkout"),
+            "/api/v1/visits/1/checkout"
+        );
+        assert_eq!(
+            full_api_path("/privacy/arco-requests/1/status"),
+            "/api/v1/privacy/arco-requests/1/status"
+        );
+        assert_eq!(full_api_path("/api/v1/auth/login"), "/api/v1/auth/login");
     }
 
     #[test]

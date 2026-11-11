@@ -38,6 +38,10 @@ export ENCRYPTION_KEY=1919191919191919191919191919191919191919191919191919191919
 export EDIT_PASSWORD='Edit!2026-segura'
 export LOGMASTER_BIND=127.0.0.1 LOGMASTER_PORT=18085 LOGMASTER_TLS=false
 export RATE_LIMIT_MAX_REQUESTS=100000
+# Carpeta de respaldos de esta corrida: sin ella, el listado de
+# respaldos responde 500 (`BACKUP_PATH required`) mientras que Go
+# lista vacío; el arnés debe comparar con la misma configuración.
+export BACKUP_PATH="$OUT/rust-backups${SUFFIX}"
 
 if [ "$ENGINE" = "postgres" ]; then
   [ -n "${DATABASE_URL:-}" ] || { echo "ENGINE=postgres exige DATABASE_URL"; exit 1; }

@@ -156,21 +156,45 @@ class Client:
             self.tokens[username] = data.get("accessToken", "")
         return r
 
-    def sse_first(self, token, timeout=6):
-        """GET SSE y devuelve el estado y el primer fragmento."""
-        url = self.base + "/api/v1/events/visits"
-        req = urllib.request.Request(url, method="GET")
-        req.add_header("Authorization", "Bearer " + token)
-        req.add_header("Accept", "text/event-stream")
+    def sse_first(self, token, timeout=5):
+        """GET SSE: comprueba 200 + `text/event-stream` y que el flujo
+        se mantiene abierto con datos (primer byte del primer evento).
+        El contenido del primer evento (`system:connected`) se verifica
+        en las pruebas propias de cada versión; aquí solo se compara
+        que ambas versiones abran el flujo igual."""
+        import http.client
+        import socket
+        from urllib.parse import urlparse
+        u = urlparse(self.base)
+        conn = http.client.HTTPConnection(u.hostname, u.port or 80, timeout=timeout)
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                chunk = resp.read(400).decode("utf-8", "replace")
-                return {"status": resp.status,
-                        "body": {"sse_first": re.sub(r"\d{4}-\d{2}-\d{2}T[^\s\"}]*", "<T>", chunk)[:300]}}
+            conn.request("GET", "/api/v1/events/visits", headers={
+                "Authorization": "Bearer " + token,
+                "Accept": "text/event-stream",
+            })
+            resp = conn.getresponse()
+            status = resp.status
+            ctype = resp.getheader("Content-Type", "")
+            if status != 200:
+                return {"status": status,
+                        "body": {"error": resp.read(200).decode("utf-8", "replace")}}
+            try:
+                first = resp.read(1)
+            except (socket.timeout, TimeoutError):
+                return {"status": status, "body": {"sse": "open-sin-datos",
+                                                   "content_type": ctype}}
+            if not first:
+                return {"status": status, "body": {"sse": "cerrado-sin-datos",
+                                                   "content_type": ctype}}
+            return {"status": status,
+                    "body": {"sse": "abierto", "content_type": ctype,
+                             "first_byte": first.decode("utf-8", "replace")}}
         except urllib.error.HTTPError as e:
             return {"status": e.code, "body": {"error": e.read().decode("utf-8", "replace")[:200]}}
         except Exception as e:
             return {"status": 0, "body": {"transport_error": type(e).__name__}}
+        finally:
+            conn.close()
 
 
 def now_iso():
