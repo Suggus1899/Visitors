@@ -5,11 +5,13 @@ resolver = "2"
 [workspace.dependencies]
 aes = "0.8"
 aes-gcm = "0.10"
+age = "0.12"
 anyhow = "1"
 async-trait = "0.1"
 axum = { version = "0.8", features = ["multipart"] }
 base64 = "0.22"
 bcrypt = "0.17"
+bytes = "1"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 fallible-iterator = "0.2"
@@ -29,7 +31,7 @@ lettre = { version = "0.11", default-features = false, features = [
 ] }
 postgres = { version = "0.19", features = ["with-chrono-0_4"] }
 rand = "0.8"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }
 rusqlite_migration = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

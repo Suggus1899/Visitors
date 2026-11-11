@@ -40,6 +40,17 @@ pub struct Store {
 }
 
 impl Store {
+    /// Abre una conexión con los pragmas del diseño (WAL, FK ON,
+    /// busy_timeout de 5 s). La usan `open` y `replace_with`.
+    fn open_connection(path: &Path) -> Result<Connection> {
+        let conn =
+            Connection::open(path).with_context(|| format!("abrir base {}", path.display()))?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "foreign_keys", "ON")?;
+        conn.busy_timeout(Duration::from_millis(5000))?;
+        Ok(conn)
+    }
+
     /// Abre (o crea) el archivo de base y deja los pragmas del diseno.
     /// Crea la carpeta padre si no existe.
     pub fn open(path: &Path) -> Result<Self> {
@@ -49,11 +60,7 @@ impl Store {
                     .with_context(|| format!("crear carpeta de datos {}", parent.display()))?;
             }
         }
-        let conn =
-            Connection::open(path).with_context(|| format!("abrir base {}", path.display()))?;
-        conn.pragma_update(None, "journal_mode", "WAL")?;
-        conn.pragma_update(None, "foreign_keys", "ON")?;
-        conn.busy_timeout(Duration::from_millis(5000))?;
+        let conn = Self::open_connection(path)?;
         tracing::debug!(path = %path.display(), "base SQLite abierta (WAL, FK ON)");
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
@@ -171,6 +178,81 @@ impl Store {
         let integrity = self.integrity_check()?;
         anyhow::ensure!(integrity == "ok", "integridad de la base: {integrity}");
         Ok(())
+    }
+
+    /// Copia en línea de la base a otro archivo (API de respaldo de
+    /// rusqlite): instantánea consistente sin detener el servidor.
+    /// El destino queda como base SQLite válida, lista para cifrar.
+    pub fn backup_to(&self, dest: &Path) -> Result<()> {
+        let conn = self.conn.lock().expect("lock de la base");
+        let mut dest_conn = Connection::open(dest)
+            .with_context(|| format!("abrir destino de respaldo {}", dest.display()))?;
+        let backup = rusqlite::backup::Backup::new(&conn, &mut dest_conn)
+            .context("iniciar copia en línea de SQLite")?;
+        backup
+            .run_to_completion(100, Duration::from_millis(0), None)
+            .context("copia en línea de SQLite")?;
+        Ok(())
+    }
+
+    /// Número de filas por tabla (los nombres vienen de una lista
+    /// interna fija, nunca de entrada externa).
+    pub fn table_counts(&self, tables: &[&str]) -> Result<std::collections::BTreeMap<String, u64>> {
+        self.read(|conn| {
+            let mut counts = std::collections::BTreeMap::new();
+            for table in tables {
+                let count: i64 =
+                    conn.query_row(&format!("SELECT COUNT(*) FROM \"{table}\""), [], |row| {
+                        row.get(0)
+                    })?;
+                counts.insert((*table).to_string(), count as u64);
+            }
+            Ok(counts)
+        })
+    }
+
+    /// Vacía el WAL en el archivo principal (los datos pendientes
+    /// quedan en el `.db`, no en el `-wal`).
+    pub fn checkpoint(&self) -> Result<()> {
+        self.read(|conn| {
+            conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")?;
+            Ok(())
+        })
+    }
+
+    /// Sustituye el archivo de base vivo por otro ya verificado
+    /// (`staged`, en la misma carpeta: el rename es atómico) y
+    /// reabre la conexión sobre él. Es el intercambio en vivo de
+    /// la restauración por HTTP (fase 6): todos los clones de este
+    /// `Store` comparten la misma conexión, así que ven la base
+    /// restaurada sin reiniciar. El archivo viejo queda sustituido;
+    /// el llamador guarda antes una copia si quiere conservarlo.
+    pub fn replace_with(&self, staged: &Path) -> Result<()> {
+        anyhow::ensure!(
+            staged.exists(),
+            "archivo de restauración no encontrado: {}",
+            staged.display()
+        );
+        let live = self.path.clone();
+        let new_conn = Self::open_connection(staged)?;
+        {
+            let mut guard = self.conn.lock().expect("lock de la base");
+            let old = std::mem::replace(&mut *guard, new_conn);
+            drop(old); // cierra la conexión vieja: libera el archivo vivo
+        }
+        // El -wal/-shm del archivo vivo pertenecen a la conexión
+        // vieja; el nuevo archivo ya trae los datos consolidados.
+        for suffix in ["-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{suffix}", live.display()));
+        }
+        std::fs::rename(staged, &live).with_context(|| {
+            format!("sustituir base {} por {}", live.display(), staged.display())
+        })?;
+        // El -shm del archivo preparado quedó con el nombre viejo.
+        for suffix in ["-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{suffix}", staged.display()));
+        }
+        self.verify()
     }
 
     /// Comprueba las huellas de clave de los indices de identidad y
