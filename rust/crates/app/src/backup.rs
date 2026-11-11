@@ -836,6 +836,13 @@ impl BackupService {
             now_text,
         )?;
         drop(staged);
+        // La carpeta del destino puede no existir (recuperación en
+        // una máquina limpia): se crea antes del intercambio.
+        if let Some(parent) = target.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
         if target.exists() {
             let fallback = target.with_extension("pre-restore");
             fs::rename(target, &fallback)?;

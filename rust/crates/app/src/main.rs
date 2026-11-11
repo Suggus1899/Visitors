@@ -301,16 +301,20 @@ async fn run_restore(file: &str, password: Option<&str>, confirm_target: &str) -
         prepared.manifest.original_name,
         prepared.manifest.counts.values().sum::<u64>()
     );
-    let db = Database::open(&cfg.database_config()).await?;
+    // SQLite no necesita abrir la base viva: abrirla crearía el
+    // archivo vacío si el destino aún no existe y la restauración
+    // lo leería como base sin tablas. PostgreSQL sí necesita la
+    // conexión viva para el DROP SCHEMA + COPY.
     let now = chrono::Utc::now()
         .format("%Y-%m-%dT%H:%M:%S%.6fZ")
         .to_string();
-    match &db {
-        Database::Sqlite(_) => {
+    match cfg.database_engine {
+        logmaster_store::DatabaseEngine::Sqlite => {
             println!("restaurando SQLite con el servicio detenido...");
             service.restore_sqlite_file(&prepared, &cfg.db_path, &now)?;
         }
-        Database::Postgres(_) => {
+        logmaster_store::DatabaseEngine::Postgres => {
+            let db = Database::open(&cfg.database_config()).await?;
             println!("restaurando PostgreSQL (DROP SCHEMA + migraciones + COPY)...");
             service.restore_postgres(&db, &prepared).await?;
         }
