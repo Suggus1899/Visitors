@@ -31,3 +31,6 @@ logmaster-store = { path = "../store" }
 
 [target.'cfg(windows)'.dependencies]
 windows-service = "0.7"
+
+[dev-dependencies]
+tower.workspace = true

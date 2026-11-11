@@ -8,7 +8,7 @@
 //! y en la auditoria.
 
 use std::fmt;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::IpAddr;
 use std::str::FromStr;
 
 /// Un prefijo CIDR de confianza (`192.168.0.0/16`, `::1/128`).
@@ -116,15 +116,6 @@ pub fn client_ip(remote: IpAddr, forwarded_for: Option<&str>, trusted: &[Trusted
     ip
 }
 
-/// Atajo para una `SocketAddr` remota (lo que Axum entrega).
-pub fn client_ip_from_remote(
-    remote: std::net::SocketAddr,
-    forwarded_for: Option<&str>,
-    trusted: &[TrustedPrefix],
-) -> IpAddr {
-    client_ip(remote.ip(), forwarded_for, trusted)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,10 +126,10 @@ mod tests {
 
     #[test]
     fn prefix_contains_v4_and_v6() {
-        assert!(prefix("192.168.0.0/16").contains(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 5))));
-        assert!(!prefix("192.168.0.0/16").contains(IpAddr::V4(Ipv4Addr::new(192, 169, 1, 5))));
-        assert!(prefix("10.0.0.0/8").contains(IpAddr::V4(Ipv4Addr::new(10, 9, 9, 9))));
-        assert!(prefix("::1/128").contains(IpAddr::V6(Ipv6Addr::LOCALHOST)));
+        assert!(prefix("192.168.0.0/16").contains(IpAddr::from([192, 168, 1, 5])));
+        assert!(!prefix("192.168.0.0/16").contains(IpAddr::from([192, 169, 1, 5])));
+        assert!(prefix("10.0.0.0/8").contains(IpAddr::from([10, 9, 9, 9])));
+        assert!(prefix("::1/128").contains(IpAddr::from([0, 0, 0, 0, 0, 0, 0, 1])));
         assert!("192.168.0.0".parse::<TrustedPrefix>().is_err());
         assert!("192.168.0.0/33".parse::<TrustedPrefix>().is_err());
         assert!("no-es-ip/24".parse::<TrustedPrefix>().is_err());
@@ -147,25 +138,25 @@ mod tests {
     #[test]
     fn client_ip_walks_forwarded_for_while_trusted() {
         let trusted = vec![prefix("10.0.0.0/8"), prefix("172.16.0.0/12")];
-        let proxy = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1));
+        let proxy = IpAddr::from([10, 0, 0, 1]);
         // Par no confiable: se ignora X-Forwarded-For.
         assert_eq!(
             client_ip(
-                IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7)),
+                IpAddr::from([203, 0, 113, 7]),
                 Some("198.51.100.9"),
                 &trusted
             ),
-            IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7))
+            IpAddr::from([203, 0, 113, 7])
         );
         // Par confiable, un salto: la IP real.
         assert_eq!(
             client_ip(proxy, Some("198.51.100.9"), &trusted),
-            IpAddr::V4(Ipv4Addr::new(198, 51, 100, 9))
+            IpAddr::from([198, 51, 100, 9])
         );
         // Cadena con dos proxies de confianza y la IP real al final.
         assert_eq!(
             client_ip(proxy, Some("198.51.100.9, 172.16.0.5"), &trusted),
-            IpAddr::V4(Ipv4Addr::new(198, 51, 100, 9))
+            IpAddr::from([198, 51, 100, 9])
         );
         // Un salto no confiable en medio detiene el recorrido.
         assert_eq!(
@@ -174,7 +165,7 @@ mod tests {
                 Some("198.51.100.9, 203.0.113.1, 172.16.0.5"),
                 &trusted
             ),
-            IpAddr::V4(Ipv4Addr::new(203, 0, 113, 1))
+            IpAddr::from([203, 0, 113, 1])
         );
         // Sin cabecera: el par.
         assert_eq!(client_ip(proxy, None, &trusted), proxy);

@@ -1,3 +1,9 @@
+// API de la fase 3 para los handlers de la fase 4 (rutas /auth/* y de
+// dominio): hasta que lleguen, el binario no consume estas piezas y
+// rustc las marcaria como muertas. Se retira este allow al cablear
+// cada pieza en la fase 4.
+#![allow(dead_code)]
+
 //! Cookies de sesion y CSRF, emitidas y leidas directamente por Axum.
 //!
 //! Sin BFF: las cookies que antes ponia Next

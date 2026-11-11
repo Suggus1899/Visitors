@@ -26,6 +26,9 @@ mod convert;
 mod cookies;
 mod error;
 mod http;
+mod origin;
+mod rate_limit;
+mod roles;
 mod service;
 mod session;
 
@@ -143,12 +146,21 @@ where
     let store = Store::open(&cfg.db_path)?;
     store.migrate()?;
     store.verify()?;
-    let app = http::build_router(store);
+    match store.verify_key_fingerprints(&cfg.encryption_key)? {
+        true => tracing::info!("huellas de clave de los indices verificadas"),
+        false => tracing::warn!(
+            "indices de identidad/busqueda sin preparar (reindex en fase 6); se arranca igual"
+        ),
+    }
+    let app = http::build_router(store, &cfg);
     let listener = tokio::net::TcpListener::bind(cfg.addr()).await?;
     tracing::info!(addr = %cfg.addr(), "logmaster escuchando");
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown)
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown)
+    .await?;
     Ok(())
 }
 
@@ -159,9 +171,15 @@ async fn check() -> Result<()> {
     let store = Store::open(&cfg.db_path)?;
     store.migrate()?;
     store.verify()?;
+    let fingerprints = store.verify_key_fingerprints(&cfg.encryption_key)?;
     println!("logmaster {}", env!("CARGO_PKG_VERSION"));
     println!("base: {}", cfg.db_path.display());
     println!("integridad: ok");
+    if fingerprints {
+        println!("huellas de clave: ok");
+    } else {
+        println!("huellas de clave: pendientes (indices sin preparar)");
+    }
     println!("estado: ok");
     Ok(())
 }

@@ -1,3 +1,9 @@
+// API de la fase 3 para los handlers de la fase 4 (rutas /auth/* y de
+// dominio): hasta que lleguen, el binario no consume estas piezas y
+// rustc las marcaria como muertas. Se retira este allow al cablear
+// cada pieza en la fase 4.
+#![allow(dead_code)]
+
 //! Sesion JWT HS256, revocacion y recuperacion.
 //!
 //! Traduccion de `server-go/internal/httpapi/auth.go` (`Session`,
@@ -34,6 +40,7 @@
 //! Las rutas HTTP (`/auth/login`, `/auth/refresh`, ...) llegan en la
 //! fase 4; aqui queda el servicio listo para usarlas.
 
+use axum::response::IntoResponse;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use logmaster_crypto::{hash_password, hash_token, random_token, verify_password};
@@ -163,8 +170,12 @@ impl Session {
 
     /// `true` si esta peticion esta permitida con cambio obligatorio
     /// pendiente: solo cambio de contrasena y consulta de sesion.
+    /// Acepta la ruta completa (`/api/v1/auth/session`) y la forma
+    /// recortada (`/auth/session`) que ven las capas dentro de un
+    /// router anidado de Axum.
     pub fn path_allowed_while_must_change(path: &str) -> bool {
-        path == "/api/v1/auth/change-password" || path == "/api/v1/auth/session"
+        let path = path.strip_prefix("/api/v1").unwrap_or(path);
+        path == "/auth/change-password" || path == "/auth/session"
     }
 }
 
@@ -210,6 +221,7 @@ pub struct SessionService {
     access_ttl: StdDuration,
     refresh_ttl: StdDuration,
     absolute_ttl: StdDuration,
+    edit_password: String,
     store: Store,
 }
 
@@ -221,8 +233,14 @@ impl SessionService {
             access_ttl: config.access_ttl,
             refresh_ttl: config.refresh_ttl,
             absolute_ttl: config.absolute_session_ttl,
+            edit_password: config.edit_password.clone(),
             store,
         }
+    }
+
+    /// Valida la contrasena de edicion configurada (`EDIT_PASSWORD`).
+    pub fn valid_edit_password(&self, value: &str) -> bool {
+        valid_edit_password(&self.edit_password, value)
     }
 
     /// Emite el par de tokens para una sesion nueva (login): el inicio
@@ -524,6 +542,59 @@ pub fn new_password_hash(password: &str) -> Result<String, logmaster_crypto::Pas
     hash_password(password)
 }
 
+/// Capa de sesion de Axum (`authenticate` de Go): lee el token de
+/// acceso del `Authorization: Bearer ...` o de la cookie
+/// `__Host-logmaster-access`, lo valida contra la base y deja la
+/// sesion en las extensiones de la peticion. Sin token o invalido,
+/// 401 `UNAUTHORIZED`; con cambio obligatorio pendiente fuera de las
+/// dos rutas permitidas, 403 `PASSWORD_CHANGE_REQUIRED`.
+pub async fn session_middleware(
+    axum::extract::State(service): axum::extract::State<SessionService>,
+    mut request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use crate::cookies::{cookie_value, ACCESS_COOKIE};
+    use axum::http::StatusCode;
+
+    let token = request
+        .headers()
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| cookie_value(request.headers(), ACCESS_COOKIE));
+    let token = match token {
+        Some(token) => token,
+        None => {
+            return crate::error::fail(
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "Sesión requerida",
+            )
+            .into_response();
+        }
+    };
+    let session = match service.validate(&token, false) {
+        Ok(session) => session,
+        Err(e) => {
+            let (status, code, message) = e.response();
+            return crate::error::fail(status, code, message).into_response();
+        }
+    };
+    if session.must_change && !Session::path_allowed_while_must_change(request.uri().path()) {
+        return crate::error::fail(
+            StatusCode::FORBIDDEN,
+            "PASSWORD_CHANGE_REQUIRED",
+            "Debes cambiar tu contraseña",
+        )
+        .into_response();
+    }
+    request.extensions_mut().insert(session);
+    next.run(request).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -763,16 +834,26 @@ mod tests {
         let now = Utc::now();
         // Cuenta inexistente: respuesta generica (None), sin error.
         assert!(service.request_recovery("nadie", now).unwrap().is_none());
+        // Si el envio del correo falla, el token se limpia y ya no vale.
+        let (lost, _) = service
+            .request_recovery("operador4", now)
+            .unwrap()
+            .expect("primer token");
+        service.clear_recovery(user.id, &lost).unwrap();
+        let hash = hash_password("Nueva!Clave123").unwrap();
+        assert_eq!(
+            service.consume_recovery(&lost, &hash, now),
+            Err(SessionError::InvalidResetToken)
+        );
+
+        // Un token nuevo si funciona una sola vez y revoca las
+        // sesiones (tokenVersion sube).
         let (token, email) = service
             .request_recovery("operador4", now)
             .unwrap()
-            .expect("la cuenta existe y tiene correo");
+            .expect("segundo token");
         assert_eq!(email, "usuario@example.test");
         assert_eq!(token.len(), 64);
-
-        // Consumir con el token en claro funciona una sola vez y
-        // revoca las sesiones (tokenVersion sube).
-        let hash = hash_password("Nueva!Clave123").unwrap();
         let updated = service.consume_recovery(&token, &hash, now).unwrap();
         assert_eq!(updated.id, user.id);
         assert_eq!(updated.token_version, user.token_version + 1);
@@ -785,6 +866,18 @@ mod tests {
             service.consume_recovery(&"00".repeat(32), &hash, now),
             Err(SessionError::InvalidResetToken)
         );
+    }
+
+    #[test]
+    fn new_password_hash_validates_and_hashes() {
+        assert!(new_password_hash("weak").is_err());
+        let hash = new_password_hash("Private!Safe12Á").unwrap();
+        assert!(verify_password("Private!Safe12Á", &hash));
+        // El servicio valida la contrasena de edicion configurada.
+        let store = migrated_store();
+        let service = SessionService::new(&test_config(), store);
+        assert!(service.valid_edit_password("fixture-edit-password"));
+        assert!(!service.valid_edit_password("otra"));
     }
 
     #[test]
@@ -820,12 +913,17 @@ mod tests {
 
     #[test]
     fn must_change_gate_allows_only_password_and_session() {
-        assert!(Session::path_allowed_while_must_change(
-            "/api/v1/auth/change-password"
-        ));
-        assert!(Session::path_allowed_while_must_change(
-            "/api/v1/auth/session"
-        ));
+        for path in [
+            "/api/v1/auth/change-password",
+            "/auth/change-password",
+            "/api/v1/auth/session",
+            "/auth/session",
+        ] {
+            assert!(
+                Session::path_allowed_while_must_change(path),
+                "{path} debe estar permitido"
+            );
+        }
         assert!(!Session::path_allowed_while_must_change(
             "/api/v1/visits/active"
         ));

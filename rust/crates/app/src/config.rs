@@ -68,9 +68,13 @@ pub struct Config {
     pub refresh_ttl: Duration,
     /// Maximo absoluto de una sesion desde su inicio (7 dias, como Go).
     pub absolute_session_ttl: Duration,
-    /// Intentos de login antes del bloqueo (por defecto 5).
+    /// Intentos de login antes del bloqueo (por defecto 5). Lo usa el
+    /// handler de login de la fase 4.
+    #[allow(dead_code)]
     pub max_login_attempts: i64,
     /// Minutos de bloqueo tras agotar los intentos (por defecto 15).
+    /// Lo usa el handler de login de la fase 4.
+    #[allow(dead_code)]
     pub lockout_minutes: i64,
     /// Ventana del limite general, en milisegundos (por defecto 60000).
     pub rate_window_ms: u64,
@@ -229,7 +233,7 @@ fn parse_int_env(key: &str, fallback: i64) -> Result<i64> {
 /// - Sufijo `d`: dias enteros (1..=3650).
 /// - Resto: duracion de Go (`15m`, `1h30m`, `90s`, `500ms`, ...),
 ///   con unidades `ns`, `us`/`µs`/`μs`, `ms`, `s`, `m` y `h`.
-/// Debe ser mayor que cero.
+///   Debe ser mayor que cero.
 pub fn parse_duration(raw: &str, fallback: Duration) -> Result<Duration> {
     if raw.is_empty() {
         return Ok(fallback);

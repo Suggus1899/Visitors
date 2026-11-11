@@ -130,4 +130,72 @@ impl Store {
         anyhow::ensure!(integrity == "ok", "integridad de la base: {integrity}");
         Ok(())
     }
+
+    /// Comprueba las huellas de clave de los indices de identidad y
+    /// busqueda, como `New()` de Go (que no arranca si no coinciden).
+    /// Devuelve `true` si ambos indices estan preparados (`ready`) con
+    /// la huella de la clave dada, y `false` si aun no estan
+    /// preparados. La diferencia con Go es deliberada: Go se niega a
+    /// arrancar con el indice sin preparar, pero en Rust la
+    /// reconstruccion (`ops reindex`) llega en la fase 6 y una base
+    /// nueva no podria arrancar nunca; aqui solo es un error que un
+    /// indice preparado tenga otra huella (clave equivocada). El
+    /// llamador avisa cuando no estan preparados.
+    pub fn verify_key_fingerprints(&self, key: &[u8; 32]) -> Result<bool> {
+        let (search, identity) = self.read(|conn| {
+            let search =
+                crate::repos::search::get_search_state(conn).map_err(anyhow::Error::from)?;
+            let identity =
+                crate::repos::search::get_identity_state(conn).map_err(anyhow::Error::from)?;
+            Ok((search, identity))
+        })?;
+        if search.ready && search.fingerprint != logmaster_crypto::search_fingerprint(key) {
+            anyhow::bail!("la huella del indice de busqueda no coincide con la clave");
+        }
+        if identity.ready && identity.fingerprint != logmaster_crypto::identity_fingerprint(key) {
+            anyhow::bail!("la huella del indice de identidad no coincide con la clave");
+        }
+        Ok(search.ready && identity.ready)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn migrated() -> Store {
+        let store = Store::open(":memory:".as_ref()).unwrap();
+        store.migrate().unwrap();
+        store
+    }
+
+    #[test]
+    fn key_fingerprints_match_or_report_not_ready() {
+        let key = [0x19u8; 32];
+        let store = migrated();
+        // Base nueva: indices sin preparar.
+        assert!(!store.verify_key_fingerprints(&key).unwrap());
+        // Preparados con la huella correcta: listos.
+        store
+            .tx_immediate(|tx| {
+                crate::repos::search::set_search_state(
+                    tx,
+                    &logmaster_crypto::search_fingerprint(&key),
+                    0,
+                    true,
+                )
+                .map_err(anyhow::Error::from)?;
+                crate::repos::search::set_identity_state(
+                    tx,
+                    &logmaster_crypto::identity_fingerprint(&key),
+                    true,
+                )
+                .map_err(anyhow::Error::from)?;
+                Ok(())
+            })
+            .unwrap();
+        assert!(store.verify_key_fingerprints(&key).unwrap());
+        // Otra clave: error, no arranque con datos de otra clave.
+        assert!(store.verify_key_fingerprints(&[0x20u8; 32]).is_err());
+    }
 }
