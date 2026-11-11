@@ -33,7 +33,14 @@ mod tests {
     const APP_ORIGIN: &str = "https://localhost:8443";
 
     fn test_config() -> Config {
-        Config::fixture()
+        let mut config = Config::fixture();
+        // La paridad hace ~324 peticiones por un solo router: con
+        // el límite general (100/60 s) y un solo cubo `api:unknown`
+        // en oneshot, el recorrido responde 429 a mitad. El límite
+        // en sí se cubre en los tests de `rate_limit`; aquí solo
+        // importa la paridad de rutas y roles.
+        config.rate_max_requests = 10_000;
+        config
     }
 
     const ROLES: [&str; 5] = ["root", "admin", "operador", "auditor", "demo"];
