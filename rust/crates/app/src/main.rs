@@ -36,6 +36,7 @@ mod roles;
 mod routes;
 mod service;
 mod session;
+mod ui;
 
 use std::path::PathBuf;
 

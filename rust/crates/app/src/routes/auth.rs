@@ -265,18 +265,33 @@ async fn logout(
         )
         .into_response();
     };
+    logout_session(&state, &session, &headers, remote, "/api/v1/auth/logout").await
+}
+
+/// Núcleo del cierre de sesión, compartido por la ruta de la API
+/// (que recibe los tokens en el cuerpo) y por la del frontend
+/// (`POST /logout`, que los lee de las cookies: el navegador no
+/// puede leer la cookie de acceso, `HttpOnly`): revoca la sesión
+/// (`tokenVersion` +1), audita `LOGOUT` y limpia las cookies.
+pub(crate) async fn logout_session(
+    state: &ApiState,
+    session: &Session,
+    headers: &HeaderMap,
+    remote: RemoteAddr,
+    path: &str,
+) -> Response {
     let meta = audit_meta(
-        &headers,
+        headers,
         remote.0,
         &state.trusted_proxies,
-        &session,
+        session,
         &Method::POST,
-        "/api/v1/auth/logout",
+        path,
     );
     let now_text = now_text();
     let entity_id = session.id.to_string();
     let entry = audit_entry(
-        &meta, &session, "LOGOUT", "User", &entity_id, None, &now_text,
+        &meta, session, "LOGOUT", "User", &entity_id, None, &now_text,
     );
     match state
         .repos

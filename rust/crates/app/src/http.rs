@@ -124,6 +124,7 @@ pub fn build_router_with_state(state: ApiState) -> Router {
     Router::new()
         .route("/health", get(health))
         .nest("/api/v1", api)
+        .merge(crate::ui::router(state.clone()))
         .with_state(state)
 }
 
