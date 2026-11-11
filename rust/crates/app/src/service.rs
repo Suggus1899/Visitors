@@ -90,6 +90,10 @@ mod imp {
     }
 
     fn install() -> Result<()> {
+        // El servicio debe instalarse desde el disco C:; si el .exe
+        // no está allí, se ofrece copiarlo y se aborta indicando que
+        // se repita la instalación desde la copia.
+        crate::first_run::ensure_service_location()?;
         let manager = manager()?;
         let exe = std::env::current_exe().context("ruta del ejecutable")?;
         let info = ServiceInfo {

@@ -25,6 +25,7 @@ mod config;
 mod convert;
 mod cookies;
 mod error;
+mod first_run;
 mod http;
 mod origin;
 mod rate_limit;
@@ -181,6 +182,14 @@ where
     // `load()` rechaza `test_on_startup = false`: la sonda siempre
     // corre al arrancar, por diseño.
     debug_assert!(cfg.test_connection_on_startup);
+    // Primer arranque: si el .exe no está en C: se ofrece copiarlo
+    // allí (con el config.toml); si se copió, se termina indicando
+    // que se ejecute desde la nueva ubicación.
+    if let first_run::FirstRunOutcome::Relocated(target) = first_run::ensure_first_run(&cfg)? {
+        println!("LogMaster se copió a {}.", target.display());
+        println!("Ejecuta {} para arrancar.", target.display());
+        return Ok(());
+    }
     let (db, fingerprints) = open_database(&cfg).await?;
     match fingerprints {
         true => tracing::info!("huellas de clave de los indices verificadas"),
