@@ -15,6 +15,13 @@
     return '';
   }
 
+  // La cédula se escribe con o sin prefijo: solo dígitos -> V-....
+  function normalizeCedula(value) {
+    var v = (value || '').trim().toUpperCase();
+    if (/^\d{6,9}$/.test(v)) return 'V-' + v;
+    return v;
+  }
+
   function showError(form, message) {
     var box = form ? form.querySelector('[data-error]') : null;
     if (box) {
@@ -140,8 +147,11 @@
   // data-api="/api/v1/visits/12/admit" data-method="POST"
   // data-confirm="¿Admitir esta visita?" data-reason="Motivo de cancelación:"
   // data-done="recargar" (o una URL). El cuerpo es {} salvo motivo.
+  // Solo botones: los formularios data-api-form también llevan data-api
+  // y un clic en su botón de envío no debe pasar por aquí (el
+  // preventDefault cancelaría el submit del formulario).
   document.addEventListener('click', async function (ev) {
-    var el = ev.target.closest('[data-api]');
+    var el = ev.target.closest('button[data-api]');
     if (!el) return;
     ev.preventDefault();
     if (el.dataset.confirm && !window.confirm(el.dataset.confirm)) return;
@@ -273,7 +283,7 @@
   if (buscarForm) {
     buscarForm.addEventListener('submit', function (ev) {
       ev.preventDefault();
-      var cedula = document.getElementById('buscar-cedula').value.trim();
+      var cedula = normalizeCedula(document.getElementById('buscar-cedula').value);
       if (cedula) window.location.href = '/visitors/' + encodeURIComponent(cedula);
     });
   }
@@ -289,7 +299,7 @@
     var perfilInfo = document.getElementById('perfil-info');
     if (perfilBtn) {
       perfilBtn.addEventListener('click', async function () {
-        var cedula = val('visitorCedula');
+        var cedula = normalizeCedula(val('visitorCedula'));
         if (!cedula) { alert('Escribe la cédula primero.'); return; }
         try {
           var p = await api('GET', '/api/v1/visitors/' + encodeURIComponent(cedula));
@@ -315,7 +325,7 @@
       var btn = checkinForm.querySelector('button[type=submit]');
       btn.disabled = true;
       var body = {
-        visitorCedula: val('visitorCedula'),
+        visitorCedula: normalizeCedula(val('visitorCedula')),
         purpose: val('purpose'),
         personToVisit: val('personToVisit'),
         targetDepartment: val('targetDepartment'),
@@ -367,7 +377,6 @@
     bindFile('foto-archivo', 'photoBase64', 'foto-vista');
     bindFile('foto-documento-archivo', 'idPhotoBase64', 'foto-documento-vista');
   }
-})();
 
 // Calendario de /admin: mes actual por fetch a la API.
 var cal = document.getElementById('calendario');
@@ -410,7 +419,7 @@ var consultaForm = document.getElementById('consultar-titular');
 if (consultaForm) {
   consultaForm.addEventListener('submit', function (ev) {
     ev.preventDefault();
-    var cedula = document.getElementById('consulta-cedula').value.trim();
+    var cedula = normalizeCedula(document.getElementById('consulta-cedula').value);
     var out = document.getElementById('consulta-resultado');
     if (!cedula || !out) return;
     api('GET', '/api/v1/privacy/subjects/' + encodeURIComponent(cedula)).then(function (data) {
@@ -424,7 +433,7 @@ var cancelarForm = document.getElementById('cancelar-titular');
 if (cancelarForm) {
   cancelarForm.addEventListener('submit', function (ev) {
     ev.preventDefault();
-    var cedula = document.getElementById('cancelar-cedula').value.trim();
+    var cedula = normalizeCedula(document.getElementById('cancelar-cedula').value);
     if (!cedula) return;
     if (!confirm('Anonimizar todos los datos del titular ' + cedula + '?')) return;
     api('DELETE', '/api/v1/privacy/subjects/' + encodeURIComponent(cedula)).then(function () {
@@ -432,3 +441,4 @@ if (cancelarForm) {
     }).catch(function (err) { alert(err.message); });
   });
 }
+})();

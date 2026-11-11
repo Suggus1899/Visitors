@@ -277,10 +277,9 @@ fn CheckinForm() -> impl IntoView {
                             </label>
                         </div>
                         <div class="campo">
-                            <label>
-                                " "
+                            <div>
                                 <button id="buscar-perfil-btn" type="button" class="secundario">"Buscar perfil"</button>
-                            </label>
+                            </div>
                         </div>
                     </div>
                     <p id="perfil-info" class="muted" hidden=true></p>
@@ -482,10 +481,9 @@ fn HomePage(
                         </label>
                     </div>
                     <div class="campo">
-                        <label>
-                            " "
+                        <div>
                             <button type="submit" class="secundario">"Buscar"</button>
-                        </label>
+                        </div>
                     </div>
                 </div>
             </form>

@@ -19,7 +19,7 @@ Documento de referencia: `workspace/your_files/migracion-rust-logmaster/migracio
 | 3 · Cripto y sesión | AES-GCM/HMAC/bcrypt compatibles, JWT, cookies, roles como extractores | ✅ esta rama |
 | Doble motor (entre 3 y 4) | Traits de repositorio, `Sqlite*`/`Pg*` sobre sqlx, selección por configuración, prueba de conexión al arrancar, `config.toml` junto al .exe, primer arranque en C: + acceso directo | ✅ esta rama |
 | 4 · API por familias | auth, visits, visitors, privacy, audit, reports, superadmin, backups, SSE | ✅ esta rama |
-| 5 · Frontend | Leptos: login y operación primero; luego admin, auditoría, privacidad y root | Pendiente |
+| 5 · Frontend | Leptos SSR: login, operación, admin, auditoría, privacidad y root; 4 recorridos Playwright | ✅ esta rama |
 | 6 · Operación | Respaldos con age, ensayo semanal, retención, correo, bandeja, logs | Pendiente |
 | 7 · Comparación | Carga pequeña y recorridos en ambas versiones, mismo entorno | Pendiente |
 | 8 · Corte | Conversión de datos reales, servicio en el equipo destino, observación | Pendiente |
@@ -388,9 +388,61 @@ con el frontend.
   responde, 503 (`DB_UNAVAILABLE`), con el mismo sobre de respuesta
   del contrato actual (`success` / `data`, `error.code` / `error.message`).
 
+## Fase 5 · Frontend Leptos (SSR, sin hidratación WebAssembly)
+
+Leptos 0.8 solo SSR: el servidor renderiza el HTML (`view!{...}.to_html()`)
+y un JS mínimo (`ui/app.js`, incrustado) llama a la API de la fase 4 por
+`fetch` con cookies + CSRF. **Ninguna escritura vive en el SSR**: todas
+las mutaciones van a `/api/v1/...`; las lecturas usan los mismos DTOs de
+la API, leídos por los traits de repositorio. La hidratación con
+WebAssembly queda diferida: el SSR + mejora progresiva cubre los 4
+recorridos de aceptación, y el estado en vivo llega por SSE + sondeo
+cada 15 s.
+
+Rutas web: `/login`, `/forgot-password`, `/reset-password`,
+`/change-password`, `POST /logout`, `/` (punto de control),
+`/visits/{id}`, `/visitors/{cedula}`, `/admin` (historial, visitantes,
+calendario y estadísticas por fetch, catálogos, respaldos), `/audit`
+(bitácora + CSV), `/privacy` (solicitudes ARCO, consulta del titular,
+cancelación) y `/root` (cuentas, auditoría de superadmin, respaldos).
+La guardia de sesión redirige al login con `returnTo` y repone la
+cookie al renovar; el cambio de contraseña obligatorio solo permite
+`/change-password` y `/logout`.
+
+Decisiones de la fase 5:
+
+- **Mismo origen permitido en la capa de origen**: la fase 4 solo
+  aceptaba el `Origin` de `APP_URL`/`CORS_ORIGINS`; el navegador que
+  llama a su propio origen daba 403 en cada fetch. La capa acepta
+  además el propio origen del servidor (mismo host y puerto que el
+  `Host` de la petición); otro origen sigue rechazado y el doble
+  envío CSRF sigue vigente.
+- **Exportaciones**: JSON de visitas y CSV de auditoría, ya
+  disponibles en la fase 4, enlazados desde `/admin` y `/audit`.
+  PDF/XLSX en servidor (`rust_xlsxwriter`/genpdf) quedan para la
+  fase 6; el recorrido original de admin que los descargaba no puede
+  pasar aún y queda documentado aquí.
+- **Correo (Mailpit/reset)**: el envío es fase 6; las páginas
+  forgot/reset existen y la API responde el mensaje genérico.
+- **Fotos/cámara**: subida por archivo (a data-URI) o captura con
+  `getUserMedia` (exige contexto seguro); la cédula se normaliza en
+  el cliente (solo dígitos → `V-…`), como el frontend anterior.
+- **Leptos**: los hijos de `Show`/`For` son closures `Fn` y no
+  admiten valores movidos; en SSR los bloques condicionales y las
+  filas se precalculan como `AnyView` antes del `view!`.
+
+Aceptación: `tests/browser/logmaster-fase5.spec.ts` — 5 pruebas
+(anonimo redirige al login; login + check-in completo con
+consentimiento y foto; ciclo completo waiting → admitir → salida
+temporal → reingreso → salida; flujo ARCO; admin/auditoría/root).
+Requiere el binario en marcha con usuarios sembrados
+(`LOGMASTER_APP_URL`, `LOGMASTER_TEST_PASSWORD`); sin ellos falla
+en el login. Corre con `@playwright/test 1.64.1` (el `package.json`
+del repo ya lo fija); el `node_modules` vive fuera del repo.
+
 ## Qué NO hace todavía este esqueleto
 
-- No hay frontend Leptos (fase 5). El envío del correo de
+- El envío del correo de
   recuperación, la ejecución real de respaldos con age y la retención
   de auditoría son de la fase 6 (lettre/age).
 - `service install` registra el servicio con arranque automático
