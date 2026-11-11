@@ -133,6 +133,14 @@ pub fn build_router_with_state(state: ApiState) -> Router {
         .route("/health", get(api_health))
         .merge(protected)
         .merge(routes::public_routes())
+        // 404/405 con el sobre de error de Go (fase 8): Axum los
+        // devolvia con el cuerpo vacio; Go responde
+        // `NOT_FOUND` / "Ruta no encontrada" y
+        // `METHOD_NOT_ALLOWED` / "Método no permitido".
+        // Solo cubre `/api/v1/*`: las rutas web del Leptos
+        // mantienen su propia pagina de error.
+        .fallback(not_found)
+        .method_not_allowed_fallback(method_not_allowed)
         .layer(middleware::from_fn_with_state(
             RateLimitConfig {
                 limiter: state.limiter.clone(),
@@ -162,6 +170,23 @@ async fn health() -> Json<serde_json::Value> {
         "service": "logmaster",
         "version": env!("CARGO_PKG_VERSION"),
     }))
+}
+
+/// Ruta desconocida bajo `/api/v1`: el mismo sobre que Go
+/// (`NOT_FOUND` / "Ruta no encontrada"), en vez del cuerpo vacio
+/// de Axum.
+async fn not_found() -> impl IntoResponse {
+    error::fail(StatusCode::NOT_FOUND, "NOT_FOUND", "Ruta no encontrada")
+}
+
+/// Metodo no permitido en una ruta conocida de `/api/v1`: el mismo
+/// sobre que Go (`METHOD_NOT_ALLOWED` / "Método no permitido").
+async fn method_not_allowed() -> impl IntoResponse {
+    error::fail(
+        StatusCode::METHOD_NOT_ALLOWED,
+        "METHOD_NOT_ALLOWED",
+        "Método no permitido",
+    )
 }
 
 /// Salud de la API: ejecuta la prueba real de conexion contra el
@@ -443,6 +468,41 @@ mod tests {
             .await;
             assert_eq!(status, expected, "privacidad con rol {role}");
         }
+    }
+
+    #[tokio::test]
+    async fn unknown_api_route_and_method_return_go_error_envelope() {
+        // Fase 8: 404/405 con el sobre de Go, no con el cuerpo vacio
+        // de Axum. El DELETE lleva cuerpo para que el helper ponga
+        // `Origin` (la capa de origen lo exige en escrituras).
+        let (state, service) = test_state();
+        let user_id = seed_user(&state, "sobre-404", "operador", false).await;
+        let token = token_for(&service, &state, user_id).await;
+        let router = build_router_with_state(state.clone());
+        let (status, body) = request(
+            router.clone(),
+            Method::GET,
+            "/api/v1/no-existe",
+            Some(&token),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body["success"], false);
+        assert_eq!(body["error"]["code"], "NOT_FOUND");
+        assert_eq!(body["error"]["message"], "Ruta no encontrada");
+        let (status, body) = request(
+            router.clone(),
+            Method::DELETE,
+            "/api/v1/visits",
+            Some(&token),
+            Some("{}"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
+        assert_eq!(body["success"], false);
+        assert_eq!(body["error"]["code"], "METHOD_NOT_ALLOWED");
+        assert_eq!(body["error"]["message"], "Método no permitido");
     }
 
     #[tokio::test]
