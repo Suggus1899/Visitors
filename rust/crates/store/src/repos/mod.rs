@@ -15,6 +15,7 @@ pub mod audit;
 pub mod catalogs;
 pub mod privacy;
 pub mod search;
+pub mod sqlite;
 pub mod traits;
 pub mod users;
 pub mod visitors;

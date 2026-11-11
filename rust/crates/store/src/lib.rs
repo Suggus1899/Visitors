@@ -83,6 +83,18 @@ impl Store {
         f(&conn)
     }
 
+    /// Como `read`, pero el cierre devuelve `StoreResult` y el error
+    /// de dominio se conserva sin pasar por anyhow: lo usan las
+    /// implementaciones `Sqlite*Repository` de los traits, que deben
+    /// devolver los mismos códigos de error que las funciones libres.
+    pub fn read_store<T, F>(&self, f: F) -> crate::error::StoreResult<T>
+    where
+        F: FnOnce(&Connection) -> crate::error::StoreResult<T>,
+    {
+        let conn = self.conn.lock().expect("lock de la base");
+        f(&conn)
+    }
+
     /// Ejecuta un cierre dentro de una transacción inmediata: la
     /// escritura toma el candado al empezar, así que la lectura del
     /// estado, la mutación y la auditoría son atómicas —es el
@@ -98,6 +110,30 @@ impl Store {
         match result {
             Ok(value) => {
                 tx.commit()?;
+                Ok(value)
+            }
+            Err(e) => {
+                let _ = tx.rollback();
+                Err(e)
+            }
+        }
+    }
+
+    /// Como `tx_immediate`, pero el cierre devuelve `StoreResult` y
+    /// el error de dominio se conserva sin pasar por anyhow: lo usan
+    /// las implementaciones `Sqlite*Repository` de los traits.
+    pub fn tx_store<T, F>(&self, f: F) -> crate::error::StoreResult<T>
+    where
+        F: FnOnce(&rusqlite::Transaction<'_>) -> crate::error::StoreResult<T>,
+    {
+        let mut conn = self.conn.lock().expect("lock de la base");
+        let tx = conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(crate::error::StoreError::from)?;
+        let result = f(&tx);
+        match result {
+            Ok(value) => {
+                tx.commit().map_err(crate::error::StoreError::from)?;
                 Ok(value)
             }
             Err(e) => {
