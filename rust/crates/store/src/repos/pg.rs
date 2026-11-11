@@ -2520,7 +2520,14 @@ impl UnitOfWork for PgUnitOfWork {
             }
             Err(e) => return Err(e.into()),
         };
-        insert_audit(&mut *tx, input.audit).await?;
+        insert_audit(
+            &mut *tx,
+            &AuditEntry {
+                entity_id: &visit_id.to_string(),
+                ..*input.audit
+            },
+        )
+        .await?;
         tx.commit().await.map_err(StoreError::from)?;
         Ok(CheckinOutcome {
             visitor_id,

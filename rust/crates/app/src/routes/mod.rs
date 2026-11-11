@@ -6,6 +6,7 @@
 //! el de Go: origen/CSRF, límite y sesión.
 
 pub mod auth;
+pub mod visits;
 
 use axum::Router;
 
@@ -19,5 +20,7 @@ pub fn public_routes() -> Router<ApiState> {
 /// Rutas protegidas de `/api/v1` (detrás de la capa de sesión, que
 /// instala `http::build_router`).
 pub fn protected_routes() -> Router<ApiState> {
-    Router::new().merge(auth::protected_routes())
+    Router::new()
+        .merge(auth::protected_routes())
+        .merge(visits::routes())
 }

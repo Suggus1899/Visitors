@@ -467,7 +467,9 @@ pub trait UnitOfWork: Send + Sync {
     /// Check-in compuesto de Go: bloqueo de identidad, inserción
     /// del perfil si es nuevo (con sus trigramas), inserción de la
     /// visita y auditoría `CHECKIN`. Si la visita abierta ya existe,
-    /// el índice parcial la rechaza como `OPEN_VISIT_EXISTS`.
+    /// el índice parcial la rechaza como `OPEN_VISIT_EXISTS`. La
+    /// auditoría se escribe con `entity_id` igual al id de la visita
+    /// (como Go); el `entity_id` que trae la entrada se ignora.
     async fn checkin(&self, input: &CheckinInput<'_>) -> StoreResult<CheckinOutcome>;
     /// Edición de perfil compuesta: actualiza el perfil, registra
     /// el historial por campo, reindexa los trigramas y audita

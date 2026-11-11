@@ -676,7 +676,15 @@ impl UnitOfWork for SqliteUnitOfWork {
                 ..*input.visit
             };
             let visit_id = visits::insert_checkin(tx, &visit)?;
-            audit::write(tx, input.audit)?;
+            // La auditoría de Go registra el id de la visita; el
+            // handler no lo conoce antes de insertar, así que la
+            // entrada se escribe aquí con el id real.
+            let visit_id_text = visit_id.to_string();
+            let entry = AuditEntry {
+                entity_id: &visit_id_text,
+                ..*input.audit
+            };
+            audit::write(tx, &entry)?;
             Ok(CheckinOutcome {
                 visitor_id,
                 visit_id,
