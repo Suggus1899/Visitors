@@ -17,6 +17,7 @@ Documento de referencia: `workspace/your_files/migracion-rust-logmaster/migracio
 | 1 · Esqueleto | Workspace, binario `logmaster` con Axum, `serve`/`check`/`migrate`, servicio de Windows mínimo, SQLite + migraciones base | ✅ esta rama |
 | 2 · Datos | Esquema SQLite de las 6 migraciones, repositorios, `convert` desde PostgreSQL y preflight | ✅ esta rama |
 | 3 · Cripto y sesión | AES-GCM/HMAC/bcrypt compatibles, JWT, cookies, roles como extractores | ✅ esta rama |
+| Doble motor (entre 3 y 4) | Traits de repositorio, `Sqlite*`/`Pg*` sobre sqlx, selección por configuración, prueba de conexión al arrancar, `config.toml` junto al .exe, primer arranque en C: + acceso directo | ✅ esta rama |
 | 4 · API por familias | auth, visits, visitors, privacy, audit, reports, superadmin, backups, SSE | Pendiente |
 | 5 · Frontend | Leptos: login y operación primero; luego admin, auditoría, privacidad y root | Pendiente |
 | 6 · Operación | Respaldos con age, ensayo semanal, retención, correo, bandeja, logs | Pendiente |
@@ -36,6 +37,9 @@ rust/
 ├── .cargo/config.toml  # /MT estatico para el target MSVC
 ├── .gitignore          # /target/ y *.pdb fuera del repo
 ├── README.md           # este archivo
+├── config.example.toml # ejemplo de config.toml junto al .exe (doble motor)
+├── docs/
+│   └── instalacion-postgresql.md  # tutorial guiado de PostgreSQL 16 (Windows)
 ├── fixtures/           # Fase 0: corte congelado, reutilizable por Go y por Rust
 │   ├── routes.json     # inventario de las 59 rutas (copia de server-go/contracts/routes.json)
 │   ├── roles.md        # tabla de autorizacion (linea base, seccion 3)
@@ -76,7 +80,7 @@ cargo test
 ```text
 logmaster.exe                  # arranca el servidor en consola
 logmaster.exe serve            # idem, explicito
-logmaster.exe check            # version de esquema, integridad y ping de la base
+logmaster.exe check            # motor, base, version, latencia, esquema, integridad y huellas
 logmaster.exe migrate          # aplica migraciones pendientes
 logmaster.exe service install  # instala el servicio de Windows (admin)
 logmaster.exe service start | stop | restart | uninstall
@@ -187,8 +191,9 @@ tras estos cambios (solo check, no enlazado).
   `CORS_ORIGINS`, `TRUSTED_PROXY_CIDRS`). `serve` y `check` exigen los
   secretos, como el CLI de Go. `APP_URL` es por defecto
   `https://localhost:8443` (el BFF usaba `https://localhost:5173`, el
-  origen de Next; aquí ya no hay Next). El `config.toml` y DPAPI son
-  de la fase 6.
+  origen de Next; aquí ya no hay Next). El `config.toml` junto al .exe
+  y la selección de motor llegaron con el doble motor (ver abajo);
+  DPAPI para los secretos sigue siendo de la fase 6.
 - **Arranque**: `serve` y `check` verifican las huellas de clave de los
   índices (`Store::verify_key_fingerprints`): error con clave
   equivocada; aviso si aún no están preparados (la reconstrucción
@@ -213,11 +218,127 @@ con `LOGMASTER_BIND`, `LOGMASTER_PORT` y `LOGMASTER_DB_PATH`.
 El TLS con rustls y los secretos con DPAPI llegan con las fases
 siguientes (documento, secciones 14.4 y 15).
 
+## Doble motor por configuración (entre fase 3 y fase 4)
+
+SQLite sigue siendo el destino principal: un solo .exe con la base
+embebida en WAL. PostgreSQL 16 es el motor elegible por
+configuración, para el equipo que ya tiene PostgreSQL o necesita
+multi-máquina. **No hay sincronización entre ambos**: cada motor
+tiene sus propios datos; `convert` sigue siendo solo PG → SQLite.
+
+- **Cómo se elige.** En el `config.toml` junto al .exe, sección
+  `[database]`: `engine = "sqlite"` (por defecto) o
+  `engine = "postgres"` con `url = "postgres://usuario:clave@host:5432/base"`.
+  Por entorno: `LOGMASTER_DATABASE` (`sqlite` | `postgres`) y
+  `DATABASE_URL`. El entorno gana al archivo, y el archivo al
+  defecto. `serve`, `check`, `migrate`, `convert` y `preflight`
+  funcionan con ambos; `migrate` aplica las migraciones del motor
+  elegido y `check` valida la conexión del motor elegido.
+- **Traits de repositorio** (`crates/store/src/repos/traits.rs`): el
+  dominio y los handlers futuros trabajan solo contra los traits
+  (`UserRepository`, `VisitorRepository`, `VisitRepository`,
+  `AuditRepository`, `ArcoRepository`, `CatalogRepository`,
+  `SearchTokenRepository`), sin SQL pegado a SQLite fuera de la
+  implementación. Son `async` (`async_trait`): sqlx es async y Axum
+  ya lo es; un trait síncrono obligaría a `block_on` en cada consulta
+  de PostgreSQL. La implementación SQLite ejecuta rusqlite en línea
+  (local, un solo escritor, sub-milisegundo). Un método = una
+  operación atómica (su propia transacción). Limitación conocida: el
+  patrón de la fase 2 de componer varias funciones libres en una
+  `tx_immediate` del llamador (el check-in de Go: bloqueo asesor +
+  insertar perfil + insertar visita + auditoría en una transacción)
+  no cabe en traits por repositorio; la adaptación mínima es una
+  operación compuesta en la fase 4 (servicio de dominio sobre los
+  traits, o `UnitOfWork`). Hasta entonces, llamar los tres métodos
+  seguidos deja los mismos datos y códigos, pero sin atomicidad
+  conjunta.
+- **Variante SQLite** (`Sqlite*Repository`): los repositorios de la
+  fase 2 detrás de los traits, mismo comportamiento, mismas
+  migraciones, mismos códigos.
+- **Variante PostgreSQL** (`Pg*Repository`, sqlx): reutiliza casi
+  literal el SQL de Go (`$n`, `RETURNING`, upserts). Las migraciones
+  Goose 00001–00006 se copiaron byte a byte a
+  `crates/store/migrations-pg/` y el runner propio replica Goose v3
+  (una transacción por migración, versión en `goose_db_version`).
+  Go no exige ninguna extensión en esas migraciones (no hay
+  `pg_trgm`: los trigramas son tokens HMAC calculados en la crate
+  `crypto` y guardados como columnas). Versión de esquema: 7 en
+  SQLite (la 1 es infraestructura propia), 6 en PostgreSQL.
+  Detalles de dialecto: los enums se escriben con cast explícito
+  (`$n::"enum_..."`, obligatorio porque sqlx envía parámetros
+  tipados como `text`), los ids `INTEGER` se mapean a `i64`, y los
+  timestamps los pasa el llamador en ISO 8601 UTC canónico.
+- **Prueba de conexión (sin comando `db test`).** No existe
+  `logmaster db test`: se decidió que la prueba no sea un comando
+  del CLI. Va en la configuración: `test_on_startup = true` en
+  `[database]` (siempre activo; `false` es un error de
+  configuración). Al arrancar (`serve`) y en `check`, el ejecutable
+  abre la conexión configurada y ejecuta una consulta mínima
+  (`SELECT version()` en PostgreSQL) y reporta motor, host/puerto o
+  archivo, versión, latencia y esquema en el log de arranque y en
+  `GET /api/v1/health`, que devuelve `database: ok` solo si la
+  prueba pasa. Si falla, el motivo concreto (credenciales, host
+  inalcanzable, base inexistente, TLS) y el arranque **falla de
+  forma visible, no silenciosa**. Para SQLite el mismo mecanismo
+  reporta archivo, integridad y versión de esquema.
+- **`config.toml` junto al .exe** (`config.example.toml` en la raíz
+  de `rust/`; el repo lleva solo el ejemplo). Al arrancar, el .exe
+  usa el `config.toml` junto a él si existe y, si no, lo crea a
+  partir del ejemplo sin pisar nunca el del usuario
+  (`LOGMASTER_CONFIG` fija otra ruta; las actualizaciones nunca
+  sobrescriben la configuración). Los secretos **no** van en el
+  archivo: van por entorno (o archivo de secretos DPAPI en fase 6).
+  Diferencias entre el ejemplo canónico y la implementación real:
+  (1) la `url` debe ser formato URL
+  `postgres://usuario:clave@host:5432/base` (sqlx no acepta
+  `clave=valor`); (2) no hay `sslmode=require`: esta compilación no
+  soporta TLS con PostgreSQL (misma limitación que `convert`, que
+  usa `NoTls`): mismo host o red de confianza; (3)
+  `test_on_startup = false` es un error de configuración; (4) las
+  secciones `[mail]`, `[retention]` y `[backup]` se parsean pero
+  aún no tienen efecto (fase 6; se avisa en el log); (5) los
+  secretos en `[security]` se ignoran con advertencia (van por
+  entorno); (6) `[install] folder` y `desktop_shortcut` alimentan
+  la lógica de primer arranque.
+- **Primer arranque en C:.** Al ejecutar el .exe por primera vez
+  fuera del disco C: (Descargas, escritorio, USB), avisa en consola
+  y ofrece copiarse a `C:\LogMaster` (o `[install] folder`) con
+  confirmación, llevando consigo el `config.toml`; si se copia, el
+  proceso termina indicando que se ejecute desde allí. Sin terminal
+  solo avisa y sigue. En C: crea el acceso directo
+  `LogMaster.lnk` en el escritorio (también en `service install`),
+  sin duplicarlo si ya existe. El acceso directo apunta al propio
+  .exe: se valoró que abriera la interfaz web
+  (`https://localhost:8443`), pero `mslnk` 0.1.8 exige que el
+  destino exista en disco y no admite un destino URL limpio; al
+  hacer doble clic se arranca el servidor en consola y la web queda
+  en `https://localhost:8443`. La creación real del .lnk solo está
+  verificada con el check de Windows y pruebas unitarias de rutas:
+  queda pendiente probarla en el PC de Gustavo.
+- **Tutorial de PostgreSQL**: `docs/instalacion-postgresql.md`
+  (instalador oficial 16, base y roles `logmaster_pilot`,
+  `logmaster_runtime`, `logmaster_backup`,
+  `logmaster_restore_test` con sus privilegios mínimos, puerto
+  5432, comprobación con `psql`, `config.toml` y errores típicos).
+
+Verificado en Linux (2026-11-11): `cargo test --workspace`
+(97 tests: app 33, crypto 15, store 38, contrato 11 — cada caso del
+contrato corre en ambos motores), `cargo fmt --check`,
+`cargo clippy --workspace --all-targets` sin avisos,
+`cargo check --workspace --target x86_64-pc-windows-msvc` con el
+shim de `lib.exe`, y humo real del binario en ambos motores
+(`serve` + `/health` con SQLite y con PostgreSQL 16 local; el
+arranque con credenciales malas falla con salida 1 y el motivo
+concreto). Lo de Windows queda pendiente de probar en el PC de
+Gustavo, como en las fases anteriores.
+
 ## Salud
 
 - `GET /health` — salud del proceso.
-- `GET /api/v1/health` — comprueba la base SQLite y devuelve 503
-  (`DB_UNAVAILABLE`) si no responde, con el mismo sobre de respuesta
+- `GET /api/v1/health` — ejecuta la prueba real de conexión del
+  motor configurado y devuelve motor, versión, latencia y versión
+  de esquema (`database: ok` solo si la prueba pasa); si no
+  responde, 503 (`DB_UNAVAILABLE`), con el mismo sobre de respuesta
   del contrato actual (`success` / `data`, `error.code` / `error.message`).
 
 ## Qué NO hace todavía este esqueleto
