@@ -34,12 +34,16 @@ port = 1025
 # from = "logmaster@ejemplo.local"
 
 [retention]
+# enabled y audit_days ya tienen efecto (fase 4: los lee /audit/config);
+# run_at y data_days son fase 6 (la ejecución de la retención).
 enabled = false
 run_at = "02:00"      # hora de Caracas
 data_days = 60
 audit_days = 365
 
 [backup]
+# path ya tiene efecto (fase 4: las rutas de respaldos lo usan);
+# keep y daily_at son fase 6 (la ejecución de los respaldos).
 path = "C:\\ProgramData\\LogMaster\\backups"
 keep = 30
 daily_at = "01:00"

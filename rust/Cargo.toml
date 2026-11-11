@@ -13,8 +13,11 @@ bcrypt = "0.17"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 fallible-iterator = "0.2"
+futures-util = "0.3"
 hex = "0.4"
 hmac = "0.13"
+http-body-util = "0.1"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 jsonwebtoken = "9"
 postgres = { version = "0.19", features = ["with-chrono-0_4"] }
 rand = "0.8"

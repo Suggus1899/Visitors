@@ -115,6 +115,22 @@ pub struct Config {
     /// Lo usa el handler de login de la fase 4.
     #[allow(dead_code)]
     pub lockout_minutes: i64,
+    /// Días de retención de la bitácora (`AUDIT_LOG_RETENTION_DAYS`
+    /// o `[retention] audit_days`, por defecto 365, como Go). Lo usa
+    /// `/audit/config` (fase 4).
+    #[allow(dead_code)]
+    pub audit_retention_days: i64,
+    /// Retención automática habilitada (`RETENTION_ENABLED` o
+    /// `[retention] enabled`, por defecto `false`, como Go). Lo usa
+    /// `/audit/config` (fase 4); la ejecución es fase 6.
+    #[allow(dead_code)]
+    pub retention_enabled: bool,
+    /// Carpeta de respaldos (`BACKUP_PATH` o `[backup] path`). Sin
+    /// ella, el listado de respaldos falla como en Go
+    /// (`BACKUP_PATH required`). La usan las rutas de respaldos
+    /// (fase 4).
+    #[allow(dead_code)]
+    pub backup_path: Option<PathBuf>,
     /// Ventana del limite general, en milisegundos (por defecto 60000).
     pub rate_window_ms: u64,
     /// Maximo de peticiones del limite general por ventana (por
@@ -139,7 +155,7 @@ impl Config {
         }
         if file.has_future_sections() {
             tracing::info!(
-                "las secciones [mail], [retention] y [backup] de config.toml aún no tienen efecto (fase 6)"
+                "las secciones [mail], [retention] run_at/data_days y [backup] keep/daily_at de config.toml aún no tienen efecto (fase 6)"
             );
         }
 
@@ -221,6 +237,27 @@ impl Config {
         };
         let max_login_attempts = parse_int_env("MAX_LOGIN_ATTEMPTS", 5)?;
         let lockout_minutes = parse_int_env("LOCKOUT_DURATION_MINUTES", 15)?;
+        let audit_retention_days = match std::env::var("AUDIT_LOG_RETENTION_DAYS").ok() {
+            Some(raw) if !raw.is_empty() => raw
+                .parse::<i64>()
+                .map_err(|_| anyhow!("invalid AUDIT_LOG_RETENTION_DAYS"))?,
+            _ => file
+                .retention
+                .audit_days
+                .map(|days| days as i64)
+                .unwrap_or(365),
+        };
+        let retention_enabled = match std::env::var("RETENTION_ENABLED").ok().as_deref() {
+            Some("true") => true,
+            Some("false") => false,
+            None => file.retention.enabled.unwrap_or(false),
+            Some(_) => bail!("invalid RETENTION_ENABLED"),
+        };
+        let backup_path = std::env::var("BACKUP_PATH")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or(file.backup.path.map(PathBuf::from));
         let rate_window_ms = parse_int_env("RATE_LIMIT_WINDOW_MS", 60_000)? as u64;
         let rate_max_requests = parse_int_env("RATE_LIMIT_MAX_REQUESTS", 100)? as u32;
         let app_url = std::env::var("APP_URL")
@@ -276,6 +313,9 @@ impl Config {
             absolute_session_ttl: Duration::from_secs(7 * 24 * 3600),
             max_login_attempts,
             lockout_minutes,
+            audit_retention_days,
+            retention_enabled,
+            backup_path,
             rate_window_ms,
             rate_max_requests,
             app_url,
@@ -311,10 +351,11 @@ impl Config {
 const CONFIG_EXAMPLE: &str = include_str!("../../../config.example.toml");
 
 /// Contenido de `config.toml`. Los secretos no se leen de aquí nunca
-/// (ver `FileSecurity`); las secciones de correo, retención y
-/// respaldo se parsean para avisar que aún no tienen efecto (fase 6).
-/// Un campo desconocido es un error: un typo en la configuración no
-/// debe pasar en silencio.
+/// (ver `FileSecurity`); el correo y la ejecución de la retención y
+/// de los respaldos se parsean para avisar que aún no tienen efecto
+/// (fase 6), pero `[retention] audit_days`/`enabled` y `[backup] path`
+/// ya se aplican (fase 4). Un campo desconocido es un error: un typo
+/// en la configuración no debe pasar en silencio.
 #[derive(Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct FileConfig {
@@ -407,11 +448,8 @@ impl FileConfig {
         self.mail.host.is_some()
             || self.mail.port.is_some()
             || self.mail.from.is_some()
-            || self.retention.enabled.is_some()
             || self.retention.run_at.is_some()
             || self.retention.data_days.is_some()
-            || self.retention.audit_days.is_some()
-            || self.backup.path.is_some()
             || self.backup.keep.is_some()
             || self.backup.daily_at.is_some()
     }

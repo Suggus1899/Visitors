@@ -21,10 +21,13 @@
 //! bloqueo para no detener el runtime de Tokio.
 
 mod client_ip;
+mod common;
 mod config;
 mod convert;
 mod cookies;
+mod dto;
 mod error;
+mod events;
 mod first_run;
 mod http;
 mod origin;
