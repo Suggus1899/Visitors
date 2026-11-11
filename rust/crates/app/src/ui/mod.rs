@@ -10,6 +10,8 @@
 //! lecturas van por los traits de repositorio (la misma capa que la
 //! API de la fase 4) y todas las escrituras van por `fetch` a la API.
 
+pub mod components;
+pub mod data;
 pub mod guard;
 pub mod layout;
 pub mod pages;
@@ -26,6 +28,9 @@ use crate::http::ApiState;
 /// redirigen a `/login` sin sesión (no devuelven 401 JSON).
 pub fn router(state: ApiState) -> Router<ApiState> {
     let protected = Router::new()
+        .route("/", get(pages::home_page))
+        .route("/visits/{id}", get(pages::visit_page))
+        .route("/visitors/{cedula}", get(pages::visitor_page))
         .route("/change-password", get(pages::change_password_page))
         .route("/logout", post(pages::logout))
         .layer(middleware::from_fn_with_state(
@@ -129,11 +134,31 @@ mod tests {
         uri: &str,
         cookie: Option<&str>,
     ) -> (StatusCode, HeaderMap, String) {
+        request_full(router, method, uri, cookie, None, None).await
+    }
+
+    async fn request_full(
+        router: Router,
+        method: Method,
+        uri: &str,
+        cookie: Option<&str>,
+        bearer: Option<&str>,
+        body: Option<&str>,
+    ) -> (StatusCode, HeaderMap, String) {
         let mut builder = Request::builder().method(method).uri(uri);
         if let Some(cookie) = cookie {
             builder = builder.header(header::COOKIE, cookie);
         }
-        let request = builder.body(Body::empty()).unwrap();
+        if let Some(bearer) = bearer {
+            builder = builder.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
+        }
+        if body.is_some() {
+            builder = builder.header(header::ORIGIN, APP_ORIGIN);
+            builder = builder.header(header::CONTENT_TYPE, "application/json");
+        }
+        let request = builder
+            .body(Body::from(body.unwrap_or_default().to_string()))
+            .unwrap();
         let response = router.oneshot(request).await.unwrap();
         let status = response.status();
         let headers = response.headers().clone();
@@ -145,6 +170,58 @@ mod tests {
             headers,
             String::from_utf8_lossy(&bytes).into_owned(),
         )
+    }
+
+    async fn login_token(router: Router, username: &str) -> String {
+        let body = serde_json::json!({
+            "username": username,
+            "password": "Private!Safe12Á",
+        })
+        .to_string();
+        let (status, _, text) = request_full(
+            router,
+            Method::POST,
+            "/api/v1/auth/login",
+            None,
+            None,
+            Some(&body),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "login de {username}: {text}");
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        value["data"]["accessToken"].as_str().unwrap().to_string()
+    }
+
+    async fn login_cookie(router: Router, username: &str) -> String {
+        let token = login_token(router, username).await;
+        format!("__Host-logmaster-access={token}")
+    }
+
+    async fn checkin_waiting(router: Router, token: &str) -> i64 {
+        let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        let body = serde_json::json!({
+            "visitorCedula": "V-12345678",
+            "purpose": "Reunión",
+            "personToVisit": "Anfitrión",
+            "targetDepartment": "Producción",
+            "hostPerson": "Jefe",
+            "status": "waiting",
+            "visitorData": {"firstName": "Ana", "lastName": "Pérez", "company": "Trébol"},
+            "consent": {"accepted": true, "policyVersion": "v1", "acceptedAt": now},
+        })
+        .to_string();
+        let (status, _, text) = request_full(
+            router,
+            Method::POST,
+            "/api/v1/visits/checkin",
+            None,
+            Some(token),
+            Some(&body),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "check-in: {text}");
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        value["data"]["id"].as_i64().unwrap()
     }
 
     #[tokio::test]
@@ -261,5 +338,84 @@ mod tests {
         )
         .await;
         assert_eq!(status, StatusCode::FOUND);
+    }
+
+    #[tokio::test]
+    async fn home_redirects_anonymous_and_forbids_auditor() {
+        let (state, _) = test_state();
+        let (status, headers, _) =
+            request(build_router_with_state(state), Method::GET, "/", None).await;
+        assert_eq!(status, StatusCode::FOUND);
+        assert_eq!(
+            headers.get(header::LOCATION).unwrap().to_str().unwrap(),
+            "/login?returnTo=/"
+        );
+
+        let (state, _) = test_state();
+        seed_user(&state, "auditor", "auditor").await;
+        let router = build_router_with_state(state);
+        let cookie = login_cookie(router.clone(), "auditor").await;
+        let (status, _, body) = request(router, Method::GET, "/", Some(&cookie)).await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert!(body.contains("Sin permiso"));
+    }
+
+    #[tokio::test]
+    async fn operation_flow_renders_lists_and_details() {
+        let (state, _) = test_state();
+        seed_user(&state, "operador", "operador").await;
+        let router = build_router_with_state(state);
+        let token = login_token(router.clone(), "operador").await;
+        let cookie = format!("__Host-logmaster-access={token}");
+        let visit_id = checkin_waiting(router.clone(), &token).await;
+
+        let (status, _, body) = request(router.clone(), Method::GET, "/", Some(&cookie)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Punto de control"));
+        assert!(body.contains("Ana Pérez"));
+        assert!(body.contains("Registrar check-in"));
+        assert!(body.contains("id=\"listas-vivo\""));
+        assert!(body.contains("En espera"));
+
+        let (status, _, body) = request(
+            router.clone(),
+            Method::GET,
+            &format!("/visits/{visit_id}"),
+            Some(&cookie),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Reunión"));
+        assert!(body.contains("Admitir"));
+        assert!(body.contains("Cancelar visita"));
+
+        let (status, _, body) = request(
+            router.clone(),
+            Method::GET,
+            "/visitors/V-12345678",
+            Some(&cookie),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Ana Pérez"));
+        assert!(body.contains("Trébol"));
+        assert!(body.contains("Editar perfil"));
+
+        // Visita inexistente: 404 con la cáscara.
+        let (status, _, body) = request(router, Method::GET, "/visits/999999", Some(&cookie)).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert!(body.contains("No se pudo cargar la página"));
+    }
+
+    #[tokio::test]
+    async fn demo_sees_lists_without_checkin_form() {
+        let (state, _) = test_state();
+        seed_user(&state, "demo", "demo").await;
+        let router = build_router_with_state(state);
+        let cookie = login_cookie(router.clone(), "demo").await;
+        let (status, _, body) = request(router, Method::GET, "/", Some(&cookie)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Punto de control"));
+        assert!(!body.contains("Registrar check-in"));
     }
 }

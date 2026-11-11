@@ -5,7 +5,7 @@
 //! es `format!` porque el CSS y el JS incrustados no deben pasar por
 //! el escape de texto de Leptos.
 
-use axum::response::Html;
+use axum::{http::StatusCode, response::Html};
 
 use crate::roles::{allows, Permission, Role};
 use crate::session::Session;
@@ -68,4 +68,20 @@ pub fn render(session: Option<&Session>, title: &str, body: &str) -> Html<String
         body,
         JS,
     ))
+}
+
+/// Página de error simple (403 de rol, 404 de recurso) con la
+/// cáscara y la navegación de la sesión, si la hay.
+pub fn error_page(
+    session: Option<&Session>,
+    status: StatusCode,
+    title: &str,
+    message: &str,
+) -> (StatusCode, Html<String>) {
+    let body = format!(
+        "<div class=\"tarjeta\"><h1>{}</h1><p>{}</p><p><a href=\"/\">Volver a Operación</a></p></div>",
+        escape(title),
+        escape(message),
+    );
+    (status, render(session, title, &body))
 }

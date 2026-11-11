@@ -247,4 +247,124 @@
       });
     }
   }
+
+  // ---- Formularios genéricos contra la API --------------------------------
+  // <form data-api-form data-method="PATCH" data-api="/api/v1/...">
+  // Los checkbox van como booleanos; el resto, como texto.
+  document.addEventListener('submit', async function (ev) {
+    var form = ev.target.closest('form[data-api-form]');
+    if (!form) return;
+    ev.preventDefault();
+    var body = {};
+    Array.prototype.forEach.call(form.elements, function (el) {
+      if (!el.name || el.disabled) return;
+      if (el.type === 'checkbox') body[el.name] = el.checked;
+      else if (el.type !== 'file' && el.type !== 'submit' && el.type !== 'button') body[el.name] = el.value;
+    });
+    try {
+      await api(form.dataset.method || 'POST', form.dataset.api, body);
+      if (form.dataset.done) window.location.href = form.dataset.done;
+      else window.location.reload();
+    } catch (err) { showError(form, err.message); }
+  });
+
+  // ---- Búsqueda por cédula (punto de control) ------------------------------
+  var buscarForm = document.getElementById('buscar-visitante');
+  if (buscarForm) {
+    buscarForm.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var cedula = document.getElementById('buscar-cedula').value.trim();
+      if (cedula) window.location.href = '/visitors/' + encodeURIComponent(cedula);
+    });
+  }
+
+  // ---- Check-in -------------------------------------------------------------
+  var checkinForm = document.getElementById('checkin-form');
+  if (checkinForm) {
+    var val = function (name) {
+      var el = checkinForm.elements[name];
+      return el ? el.value.trim() : '';
+    };
+    var perfilBtn = document.getElementById('buscar-perfil-btn');
+    var perfilInfo = document.getElementById('perfil-info');
+    if (perfilBtn) {
+      perfilBtn.addEventListener('click', async function () {
+        var cedula = val('visitorCedula');
+        if (!cedula) { alert('Escribe la cédula primero.'); return; }
+        try {
+          var p = await api('GET', '/api/v1/visitors/' + encodeURIComponent(cedula));
+          checkinForm.elements['firstName'].value = p.firstName || '';
+          checkinForm.elements['lastName'].value = p.lastName || '';
+          checkinForm.elements['company'].value = p.company || '';
+          checkinForm.elements['jobTitle'].value = p.jobTitle || '';
+          checkinForm.elements['email'].value = p.email || '';
+          checkinForm.elements['phone'].value = p.phone || '';
+          perfilInfo.textContent = 'Perfil conocido: ' + (p.firstName || '') + ' ' + (p.lastName || '') +
+            (p.isBlocked ? ' (BLOQUEADO: no puede registrar visitas)' : '') + '. Sus fotos se conservan.';
+          perfilInfo.hidden = false;
+        } catch (err) {
+          if (err.status === 404) {
+            perfilInfo.textContent = 'Perfil nuevo: completa los datos del visitante.';
+            perfilInfo.hidden = false;
+          } else { showError(checkinForm, err.message); }
+        }
+      });
+    }
+    checkinForm.addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var btn = checkinForm.querySelector('button[type=submit]');
+      btn.disabled = true;
+      var body = {
+        visitorCedula: val('visitorCedula'),
+        purpose: val('purpose'),
+        personToVisit: val('personToVisit'),
+        targetDepartment: val('targetDepartment'),
+        hostPerson: val('hostPerson'),
+        status: val('status') || 'active',
+        action: val('action') || 'Ninguna',
+        notes: val('notes'),
+        vehicleBrand: val('vehicleBrand'),
+        vehicleModel: val('vehicleModel'),
+        vehiclePlate: val('vehiclePlate'),
+        area: val('area'),
+        department: val('department'),
+        visitorData: {
+          firstName: val('firstName'), lastName: val('lastName'), company: val('company'),
+          jobTitle: val('jobTitle'), email: val('email'), phone: val('phone'),
+          photoBase64: val('photoBase64'), idPhotoBase64: val('idPhotoBase64'),
+        },
+        consent: {
+          accepted: document.getElementById('consentimiento').checked,
+          policyVersion: 'v1',
+          acceptedAt: new Date().toISOString(),
+        },
+      };
+      try {
+        var created = await api('POST', '/api/v1/visits/checkin', body);
+        window.location.href = '/visits/' + created.id;
+      } catch (err) {
+        showError(checkinForm, err.message);
+        btn.disabled = false;
+      }
+    });
+    // Subida de archivo -> data-URI en el campo oculto + vista previa.
+    var bindFile = function (inputId, hiddenId, previewId) {
+      var input = document.getElementById(inputId);
+      if (!input) return;
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          document.getElementById(hiddenId).value = reader.result;
+          var img = document.getElementById(previewId);
+          img.src = reader.result;
+          img.hidden = false;
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+    bindFile('foto-archivo', 'photoBase64', 'foto-vista');
+    bindFile('foto-documento-archivo', 'idPhotoBase64', 'foto-documento-vista');
+  }
 })();
