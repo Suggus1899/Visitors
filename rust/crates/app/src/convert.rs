@@ -844,7 +844,9 @@ mod tests {
     // serializan con el candado compartido de `config.rs`.
 
     fn with_env(vars: &[(&str, Option<&str>)], f: impl FnOnce()) {
-        let _guard = ENV_LOCK.lock().unwrap();
+        // Si un test anterior entró en pánico con el candado tomado,
+        // se recupera en vez de envenenar toda la suite.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let saved: Vec<(String, Option<String>)> = vars
             .iter()
             .map(|(k, _)| (k.to_string(), std::env::var(k).ok()))

@@ -1,0 +1,49 @@
+# LogMaster — config.toml (junto a logmaster.exe, p. ej. C:\LogMaster)
+# Los secretos NO van aquí: van por entorno o en el archivo de secretos (DPAPI).
+#
+# Este archivo es el EJEMPLO que lleva el repo (rust/config.example.toml).
+# El ejecutable, al arrancar, usa el config.toml junto al .exe si existe y,
+# si no existe, crea uno a partir de este ejemplo. Las actualizaciones
+# nunca pisan tu config.toml: el repo solo lleva el ejemplo.
+# Las variables de entorno tienen prioridad sobre este archivo.
+# Diferencias con este ejemplo que impone la implementación real: ver
+# rust/README.md, sección «Doble motor por configuración».
+
+[server]
+bind = "127.0.0.1"   # solo esta máquina; "0.0.0.0" si otros equipos entran por red
+port = 8443
+app_url = "https://localhost:8443"
+
+[database]
+engine = "sqlite"    # "sqlite" | "postgres"
+path = "C:\\ProgramData\\LogMaster\\data\\logmaster.db"  # solo SQLite
+# url = "postgres://logmaster_runtime:TU_CLAVE@127.0.0.1:5432/logmaster"  # solo PostgreSQL
+test_on_startup = true  # valida la conexión al arrancar; resultado en el log y en /health
+
+[session]
+access_minutes = 15
+refresh_days = 7
+
+[security]
+# jwt_secret, jwt_refresh_secret, encryption_key y edit_password:
+# por entorno o archivo de secretos (DPAPI), nunca en este archivo.
+
+[mail]
+host = "127.0.0.1"
+port = 1025
+# from = "logmaster@ejemplo.local"
+
+[retention]
+enabled = false
+run_at = "02:00"      # hora de Caracas
+data_days = 60
+audit_days = 365
+
+[backup]
+path = "C:\\ProgramData\\LogMaster\\backups"
+keep = 30
+daily_at = "01:00"
+
+[install]
+folder = "C:\\LogMaster"
+desktop_shortcut = true

@@ -148,6 +148,12 @@ mod tests {
             bind: "127.0.0.1".to_string(),
             port: 8443,
             db_path: "data/logmaster.db".into(),
+            database_engine: logmaster_store::DatabaseEngine::Sqlite,
+            database_url: None,
+            test_connection_on_startup: true,
+            install_folder: r"C:\LogMaster".to_string(),
+            desktop_shortcut: true,
+            config_path: None,
             jwt_secret: "fixture-only-not-a-real-secret-fixture-only-not-a-real-secret-"
                 .to_string(),
             refresh_secret: "fixture-refresh-secret-fixture-refresh-secret-fixture--".to_string(),
