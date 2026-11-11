@@ -20,6 +20,7 @@
 //! logmaster.exe restore <archivo> --confirm-target <destino> [--password <clave>]
 //! logmaster.exe rehearse [archivo] [--password <clave>]
 //! logmaster.exe retention
+//! logmaster.exe ops reindex [--force]   # reconstrucción de índices (fase 8)
 //! logmaster.exe tray             # bandeja del sistema (solo Windows)
 //! ```
 //!
@@ -154,9 +155,29 @@ enum Command {
     /// Ejecuta la retención ahora (según `[retention]` del config),
     /// aunque esté desactivada: el operador la pide explícitamente.
     Retention,
+    /// Operaciones de mantenimiento (`ops reindex`, ...).
+    Ops {
+        #[command(subcommand)]
+        action: OpsAction,
+    },
     /// Bandeja del sistema (solo Windows): icono con el estado del
     /// servicio, abrir la interfaz, reiniciar el servicio y salir.
     Tray,
+}
+
+/// Acciones de `logmaster ops`.
+#[derive(Subcommand)]
+enum OpsAction {
+    /// Reconstruye los índices de identidad y búsqueda por lotes
+    /// (lotes de 1.000, con progreso guardado), como el `ops` de
+    /// Go. Con el servicio detenido. Sin `--force` no rehace un
+    /// índice ya listo con la huella de la clave actual; con otra
+    /// clave, es un error (no se mezclan índices de dos claves).
+    Reindex {
+        /// Rehace los índices aunque ya estén listos.
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[tokio::main]
@@ -223,6 +244,9 @@ async fn main() -> Result<()> {
             run_rehearse(file.as_deref(), password.as_deref()).await
         }
         Some(Command::Retention) => run_retention().await,
+        Some(Command::Ops { action }) => match action {
+            OpsAction::Reindex { force } => run_reindex(force).await,
+        },
     }
 }
 
@@ -442,7 +466,7 @@ where
     match fingerprints {
         true => tracing::info!("huellas de clave de los indices verificadas"),
         false => tracing::warn!(
-            "indices de identidad/busqueda sin preparar (reindex pendiente para una fase posterior); se arranca igual"
+            "indices de identidad/busqueda sin preparar (ejecuta `logmaster ops reindex` con el servicio detenido); se arranca igual"
         ),
     }
     let probe = probe_database(&db).await?;
@@ -500,6 +524,33 @@ where
     Ok(())
 }
 
+/// `ops reindex`: reconstruye los índices de identidad y búsqueda
+/// del motor configurado, con el servicio detenido.
+async fn run_reindex(force: bool) -> Result<()> {
+    let cfg = config::Config::load()?;
+    let db = Database::open(&cfg.database_config()).await?;
+    db.migrate().await?;
+    let report = db.reindex(&cfg.encryption_key, force).await?;
+    println!("motor: {}", db.engine().as_str());
+    if report.search_rebuilt {
+        println!(
+            "búsqueda: {} perfiles, {} tokens (reconstruida)",
+            report.search_visitors, report.search_tokens
+        );
+    } else {
+        println!("búsqueda: ya lista con la clave actual (sin cambios; --force para rehacerla)");
+    }
+    if report.identity_rebuilt {
+        println!(
+            "identidad: {} perfiles, {} visitas, {} solicitudes ARCO (reconstruida)",
+            report.identity_visitors, report.identity_visits, report.identity_arco
+        );
+    } else {
+        println!("identidad: ya lista con la clave actual (sin cambios; --force para rehacerla)");
+    }
+    Ok(())
+}
+
 /// `check`: version de esquema, conectividad e integridad, con la
 /// prueba real de conexion del motor configurado. Forma parte del
 /// arranque y del healthcheck, como en Go.
@@ -521,7 +572,7 @@ async fn check() -> Result<()> {
     if fingerprints {
         println!("huellas de clave: ok");
     } else {
-        println!("huellas de clave: pendientes (indices sin preparar)");
+        println!("huellas de clave: pendientes (índices sin preparar; `logmaster ops reindex`)");
     }
     match tls::status(&cfg)? {
         Some(material) => println!(

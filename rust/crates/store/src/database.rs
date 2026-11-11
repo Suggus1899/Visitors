@@ -283,6 +283,16 @@ impl Database {
         }
     }
 
+    /// Reconstruye los índices de identidad y búsqueda del motor
+    /// elegido (`logmaster.exe ops reindex`, fase 8). Con el
+    /// servicio detenido; ver `reindex.rs`.
+    pub async fn reindex(&self, key: &[u8; 32], force: bool) -> Result<crate::ReindexReport> {
+        match self {
+            Database::Sqlite(store) => crate::reindex::reindex_sqlite(store, key, force),
+            Database::Postgres(pg) => crate::reindex::reindex_postgres(pg.pool(), key, force).await,
+        }
+    }
+
     /// Prueba real de la conexión configurada: abre la conexión,
     /// ejecuta una consulta mínima y mide la latencia.
     /// - PostgreSQL: `SELECT version()`; informa host, puerto, base

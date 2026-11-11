@@ -23,10 +23,12 @@ pub mod migrations;
 pub mod models;
 pub mod pg_migrations;
 pub mod preflight;
+pub mod reindex;
 pub mod repos;
 pub mod retention;
 
 pub use database::{ConnectionProbe, Database, DatabaseConfig, DatabaseEngine, Repositories};
+pub use reindex::ReindexReport;
 pub use retention::RetentionCounts;
 
 /// Versión esperada del esquema (número de migraciones definidas).
