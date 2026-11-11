@@ -21,7 +21,7 @@ Documento de referencia: `workspace/your_files/migracion-rust-logmaster/migracio
 | 4 · API por familias | auth, visits, visitors, privacy, audit, reports, superadmin, backups, SSE | ✅ esta rama |
 | 5 · Frontend | Leptos SSR: login, operación, admin, auditoría, privacidad y root; 4 recorridos Playwright | ✅ esta rama |
 | 6 · Operación | Respaldos con age, ensayo semanal, retención, correo, bandeja, logs | ✅ esta rama (lo que exige Windows real o SMTP real queda pendiente, ver fase 6) |
-| 7 · Comparación | Carga pequeña y recorridos en ambas versiones, mismo entorno | Pendiente |
+| 7 · Comparación | Carga pequeña y recorridos en ambas versiones, mismo entorno | ✅ esta rama (informe: `rust/docs/comparacion-fase7.md`; arnés: `rust/tools/fase7/`) |
 | 8 · Corte | Conversión de datos reales, servicio en el equipo destino, observación | Pendiente |
 
 > Nota de mapeo: en el documento, la fase 0 es solo el congelamiento y los
@@ -589,12 +589,47 @@ dependencia de rustls, exige `cl.exe` de MSVC y aquí solo hay
 `cc` de Linux; la API de `tray-icon`/`muda` se verificó contra
 las fuentes descargadas de los crates).
 
+## Fase 7 · Comparación y paridad (Go vs Rust)
+
+Informe completo: `rust/docs/comparacion-fase7.md`. Arnes de comparación
+y carga: `rust/tools/fase7/` (`compare.py`, `load.py`, `run-go.sh`,
+`run-rust.sh`, con su `README.md`).
+
+- **Recorridos (67 pasos, mismos contra las tres versiones)**: Go 48/49
+  (único fallo: `PATCH /api/v1/privacy/arco-requests/1/status` → 500
+  `SERVER_ERROR`, bug latente de Go, `*pgconn.PrepareError`); Rust SQLite
+  49/49; Rust PostgreSQL 49/49. Diff Go vs Rust: **57 iguales, 10
+  diferencias** en ambos motores —el 500 ARCO de Go y sus 3 consecuencias
+  en bitácora/estadísticas/CSV, la exportación PDF/XLSX (Go devuelve
+  instantánea JSON, Rust el binario en servidor), 404/405 de Axum sin
+  sobre de error, el cuerpo de `/api/v1/health` y `/health` (solo Rust).
+- **Carga pequeña (100 perfiles / 1.000 visitas)**: siembra Go 5,6 s, Rust
+  SQLite 51,0 s, Rust PG 14,8 s; totales idénticos (1002/100/0); **0/700
+  errores en las tres**. Todos los p95 por debajo de los límites del lab
+  (1 s consulta/operación, 2 s búsqueda); el más alto es la exportación
+  XLSX en PG (p95 971,8 ms, un máximo de 1.114,5 ms).
+- **Dos correcciones de esta fase**: la ruta de auditoría se guardaba sin
+  el prefijo `/api/v1` (la `Uri` de Axum dentro de `.nest` llega sin él) y
+  la búsqueda por texto en visitas PG devolvía 0 (los ids del índice de
+  trigramas iban como `AND` aparte en vez de dentro del grupo OR, como en
+  Go y en SQLite).
+- **PostgreSQL 16 restaurado en esta VM** con el repositorio oficial
+  `apt.postgresql.org` (16.15, clústeres `main` en 5432 y `fase7` en
+  55432). Si la VM se reinicia hay que reinstalarlo (igual que Go).
+- **Tests**: Rust `cargo test --workspace` 173/173 (contrato PG 16/16 en
+  serie sobre base limpia; en paralelo las migraciones chocan en
+  `pg_type_typname_nsp_index`); Go `go test ./internal/httpapi/` 42/42
+  con Mailpit y entorno de restauración. `cargo check`, `cargo build`,
+  `cargo fmt --check` y `cargo clippy --workspace --all-targets` (0
+  avisos) en verde. El `cargo check --target x86_64-pc-windows-msvc`
+  sigue roto como en fase 6 (`aws-lc-sys` exige `cl.exe` real).
+
 ## Qué NO hace todavía este esqueleto
 
 - `service install` registra el servicio con arranque automático
   retrasado, recuperación (reinicio a los 5 s en el 1.º y 2.º fallo)
   y el binario con `service run` como punto de entrada del SCM.
   La cuenta virtual `NT SERVICE\LogMaster` y los permisos NTFS
-  siguen pendientes (fase 7 u 8, en el equipo destino).
+  siguen pendientes (fase 8, en el equipo destino).
 - La reconstrucción de índices de identidad/búsqueda
   (`ops reindex`) queda para una fase posterior.
