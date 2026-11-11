@@ -421,20 +421,32 @@ async fn forgot_password(
     if body.username.is_empty() || body.username.len() > 100 {
         return validation_error("Usuario requerido");
     }
-    // El envío del correo es de la fase 6 (lettre): el token queda
-    // guardado y válido 15 minutos, y aquí solo se deja constancia de
-    // que el envío está pendiente. La respuesta es genérica en ambos
-    // casos, como en Go.
+    // El envío del correo es real (lettre, fase 6): si falla o no
+    // hay SMTP, el token guardado se anula, como en Go, para no
+    // dejar un token válido que el usuario nunca recibió. La
+    // respuesta sigue siendo genérica en ambos casos, como en Go.
     match state
         .session
         .request_recovery(&body.username, Utc::now())
         .await
     {
-        Ok(Some((_token, _email))) => {
-            tracing::warn!(
-                "correo de recuperación pendiente (fase 6, lettre) para el usuario {}",
-                body.username
-            );
+        Ok(Some((token, email, user_id))) => {
+            let sent = match &state.mailer {
+                Some(mailer) => mailer.send_reset_email(&email, &token).await,
+                None => Err(anyhow::anyhow!("SMTP is not configured")),
+            };
+            if let Err(e) = sent {
+                tracing::error!(
+                    error = %e,
+                    "no se pudo enviar el correo de recuperación para el usuario {}; el token queda anulado",
+                    body.username
+                );
+                let _ = state
+                    .repos
+                    .users
+                    .clear_reset_token(user_id, &logmaster_crypto::hash_token(&token))
+                    .await;
+            }
         }
         Ok(None) => {}
         Err(e) => return session_fail(&e),
@@ -860,7 +872,7 @@ mod tests {
         }
         // Token de recuperación real (el servicio lo devuelve al
         // llamador; el correo es fase 6).
-        let (token, _) = state
+        let (token, _, _) = state
             .session
             .request_recovery("operador", Utc::now())
             .await

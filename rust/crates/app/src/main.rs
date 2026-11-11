@@ -33,6 +33,7 @@ mod events;
 mod first_run;
 mod http;
 mod init;
+mod mail;
 mod origin;
 mod rate_limit;
 mod roles;

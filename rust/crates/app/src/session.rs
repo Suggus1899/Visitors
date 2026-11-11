@@ -358,14 +358,15 @@ impl SessionService {
 
     /// Inicia la recuperacion: si la cuenta existe y tiene correo,
     /// guarda el hash del token con 15 minutos y devuelve el token en
-    /// claro y el correo para enviarlo. Si no existe o no tiene
-    /// correo, devuelve `None`: la respuesta al cliente es generica
-    /// en ambos casos.
+    /// claro, el correo para enviarlo y el id de la cuenta (para
+    /// anular el token si el envío falla, como Go). Si no existe o
+    /// no tiene correo, devuelve `None`: la respuesta al cliente es
+    /// generica en ambos casos.
     pub async fn request_recovery(
         &self,
         username: &str,
         now: DateTime<Utc>,
-    ) -> Result<Option<(String, String)>, SessionError> {
+    ) -> Result<Option<(String, String, i64)>, SessionError> {
         let user = match self.users.find_by_username(username).await {
             Ok(user) => user,
             Err(_) => return Ok(None),
@@ -395,7 +396,7 @@ impl SessionService {
         if saved == 0 {
             return Ok(None);
         }
-        Ok(Some((token, email)))
+        Ok(Some((token, email, user.id)))
     }
 }
 
@@ -733,13 +734,14 @@ mod tests {
             .unwrap()
             .is_none());
         // Cuenta existente con correo: token de 64 hex y correo.
-        let (token, email) = service
+        let (token, email, user_id) = service
             .request_recovery("operador4", now)
             .await
             .unwrap()
             .expect("token de recuperacion");
         assert_eq!(email, "usuario@example.test");
         assert_eq!(token.len(), 64);
+        assert_eq!(user_id, _user.id);
     }
 
     #[test]
