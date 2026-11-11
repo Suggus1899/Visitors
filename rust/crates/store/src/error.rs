@@ -20,6 +20,8 @@ pub enum StoreError {
     Validation(String),
     /// Fallo de SQLite u otro error interno.
     Db(rusqlite::Error),
+    /// Fallo de PostgreSQL (variante `postgres` del doble motor).
+    Pg(sqlx::Error),
     /// Fallo de otra operación (conversión, E/S, ...).
     Other(anyhow::Error),
 }
@@ -31,7 +33,7 @@ impl StoreError {
             StoreError::NotFound { code, .. } => code,
             StoreError::Conflict { code, .. } => code,
             StoreError::Validation(_) => "VALIDATION_ERROR",
-            StoreError::Db(_) | StoreError::Other(_) => "INTERNAL_ERROR",
+            StoreError::Db(_) | StoreError::Pg(_) | StoreError::Other(_) => "INTERNAL_ERROR",
         }
     }
 
@@ -57,6 +59,7 @@ impl fmt::Display for StoreError {
             StoreError::Conflict { code, message } => write!(f, "{code}: {message}"),
             StoreError::Validation(message) => write!(f, "VALIDATION_ERROR: {message}"),
             StoreError::Db(e) => write!(f, "error de base: {e}"),
+            StoreError::Pg(e) => write!(f, "error de PostgreSQL: {e}"),
             StoreError::Other(e) => write!(f, "{e}"),
         }
     }
@@ -66,6 +69,7 @@ impl std::error::Error for StoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             StoreError::Db(e) => Some(e),
+            StoreError::Pg(e) => Some(e),
             StoreError::Other(e) => Some(e.as_ref()),
             _ => None,
         }
@@ -91,6 +95,19 @@ impl From<anyhow::Error> for StoreError {
     }
 }
 
+impl From<sqlx::Error> for StoreError {
+    fn from(e: sqlx::Error) -> Self {
+        // `RowNotFound` es "no existe", no un fallo interno.
+        if matches!(e, sqlx::Error::RowNotFound) {
+            return StoreError::NotFound {
+                code: "NOT_FOUND",
+                message: "recurso no encontrado".to_string(),
+            };
+        }
+        StoreError::Pg(e)
+    }
+}
+
 /// Resultado de la capa de datos.
 pub type StoreResult<T> = Result<T, StoreError>;
 
@@ -102,6 +119,16 @@ pub fn is_unique_violation(e: &rusqlite::Error) -> bool {
         rusqlite::Error::SqliteFailure(err, _) => {
             err.code == rusqlite::ErrorCode::ConstraintViolation
         }
+        _ => false,
+    }
+}
+
+/// ¿Es este error de PostgreSQL una violación de unicidad (SQLSTATE
+/// 23505)? Es el espejo de `is_unique_violation` para la variante
+/// `postgres`: Go traduce ese mismo código a `OPEN_VISIT_EXISTS`.
+pub fn is_pg_unique_violation(e: &sqlx::Error) -> bool {
+    match e {
+        sqlx::Error::Database(db) => db.code().as_deref() == Some("23505"),
         _ => false,
     }
 }

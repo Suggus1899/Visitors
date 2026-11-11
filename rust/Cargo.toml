@@ -6,6 +6,7 @@ resolver = "2"
 aes = "0.8"
 aes-gcm = "0.10"
 anyhow = "1"
+async-trait = "0.1"
 axum = { version = "0.8", features = ["multipart"] }
 base64 = "0.22"
 bcrypt = "0.17"
@@ -22,6 +23,7 @@ rusqlite_migration = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono"] }
 tokio = { version = "1", features = ["full"] }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "limit"] }
