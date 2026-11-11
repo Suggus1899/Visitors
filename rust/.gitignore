@@ -2,3 +2,4 @@
 /target/
 /crates/app/target/
 *.pdb
+__pycache__/

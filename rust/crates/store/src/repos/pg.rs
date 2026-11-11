@@ -321,13 +321,21 @@ fn visit_filter_where<'a>(
         qb.push(" AND v.visitor_cedula = ");
         qb.push_bind(hash);
     }
-    if let Some(ids) = &filter.visitor_ids {
-        let ids: Vec<i32> = ids.iter().map(|id| *id as i32).collect();
-        qb.push(" AND p.id = ANY(");
-        qb.push_bind(ids);
-        qb.push(")");
-    }
     if let Some(search) = &filter.search {
+        // Como Go y como el motor SQLite: el texto se busca en los
+        // campos de la visita y la empresa, o el perfil está entre
+        // los candidatos del índice de trigramas. Antes los ids iban
+        // como un `AND` aparte, así que una búsqueda por cédula o
+        // nombre (que solo casa por el índice) exigía además que el
+        // texto apareciera literal en propósito/persona/notas y no
+        // devolvía nada (fase 7, `visits?search=V-10000001` → 0).
+        let ids: Vec<i32> = filter
+            .visitor_ids
+            .clone()
+            .unwrap_or_default()
+            .iter()
+            .map(|id| *id as i32)
+            .collect();
         qb.push(" AND (v.purpose ILIKE '%' || ");
         qb.push_bind(search);
         qb.push(" || '%' OR v.person_to_visit ILIKE '%' || ");
@@ -340,7 +348,9 @@ fn visit_filter_where<'a>(
         qb.push_bind(search);
         qb.push(" || '%' OR p.company ILIKE '%' || ");
         qb.push_bind(search);
-        qb.push(" || '%')");
+        qb.push(" || '%' OR p.id = ANY(");
+        qb.push_bind(ids);
+        qb.push("))");
     }
     Ok(())
 }
