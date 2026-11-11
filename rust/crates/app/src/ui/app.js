@@ -368,3 +368,39 @@
     bindFile('foto-documento-archivo', 'idPhotoBase64', 'foto-documento-vista');
   }
 })();
+
+// Calendario de /admin: mes actual por fetch a la API.
+var cal = document.getElementById('calendario');
+if (cal) {
+  var now = new Date();
+  var first = new Date(now.getFullYear(), now.getMonth(), 1);
+  var last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  var fmt = function (d) { return d.toISOString().slice(0, 10); };
+  api('GET', '/api/v1/visits/calendar?startDate=' + fmt(first) + '&endDate=' + fmt(last)).then(function (data) {
+    var rows = (data.days || []).map(function (d) {
+      return '<tr><td>' + d.date + '</td><td>' + d.count + '</td></tr>';
+    }).join('');
+    cal.innerHTML = '<table><thead><tr><th>Día</th><th>Visitas</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="2" class="muted">Sin visitas este mes.</td></tr>') + '</tbody></table>';
+  }).catch(function (err) {
+    cal.innerHTML = '<div class="alerta error">' + err.message + '</div>';
+  });
+}
+
+// Estadísticas de /admin: cuatro paneles por fetch a la API.
+var est = document.getElementById('estadisticas');
+if (est) {
+  var fill = function (id, url) {
+    var pre = document.getElementById(id);
+    if (!pre) return;
+    api('GET', url).then(function (data) {
+      pre.textContent = JSON.stringify(data, null, 2);
+    }).catch(function (err) {
+      pre.textContent = 'Error: ' + err.message;
+    });
+  };
+  fill('stats-resumen', '/api/v1/reports/stats');
+  fill('stats-mensual', '/api/v1/reports/monthly');
+  fill('stats-comparativo', '/api/v1/reports/comparison');
+  fill('stats-alertas', '/api/v1/reports/alerts');
+}

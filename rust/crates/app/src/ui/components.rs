@@ -28,6 +28,17 @@ pub fn text_or(value: &Value, key: &str, fallback: &str) -> String {
     }
 }
 
+/// Nombre completo de un perfil de visitante (DTO de `visitor_dto`).
+pub fn profile_name(value: &Value) -> String {
+    let name = format!("{} {}", text(value, "firstName"), text(value, "lastName"));
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        "Anonimizado".to_string()
+    } else {
+        name
+    }
+}
+
 /// Nombre completo de un visitante en un DTO de visita.
 pub fn visitor_name(value: &Value) -> String {
     let name = text_or(value, "visitorName", "");

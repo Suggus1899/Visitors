@@ -9,19 +9,21 @@
 
 use axum::{
     extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode, Uri},
     response::{IntoResponse, Response},
 };
 use leptos::prelude::*;
 use serde::Deserialize;
 
-use crate::common::RemoteAddr;
+use crate::common::{param, parse_query, Params, RemoteAddr};
 use crate::http::ApiState;
 use crate::roles::{allows, Permission, Role};
 use crate::routes::auth::logout_session;
 use crate::session::{safe_return_to, Session};
+use logmaster_store::models::{Department, VisitPurpose};
+
 use crate::ui::{
-    components::{text, text_or, visitor_name, Dato, VisitTable},
+    components::{profile_name, text, text_or, visitor_name, Dato, VisitTable},
     data, guard, layout,
 };
 
@@ -960,4 +962,459 @@ pub async fn visitor_page(
     }
     .to_html();
     page(Some(&session), title.trim(), body)
+}
+
+// ---------------------------------------------------------------------
+// Admin.
+// ---------------------------------------------------------------------
+
+/// Reconstruye la cadena de consulta de /admin conservando los
+/// filtros y cambiando solo la página.
+fn admin_query(params: &Params, page: i64) -> String {
+    let mut parts = vec![format!("page={page}")];
+    for key in ["tab", "status", "company", "search", "startDate", "endDate"] {
+        if let Some(value) = param(params, key) {
+            parts.push(format!("{key}={}", guard::encode_return_to(value)));
+        }
+    }
+    parts.join("&")
+}
+
+fn admin_history_view(
+    items: Vec<serde_json::Value>,
+    total: i64,
+    page: i64,
+    limit: i64,
+    params: &Params,
+) -> AnyView {
+    let status = param(params, "status");
+    let rows: Vec<AnyView> = items
+        .iter()
+        .map(|visit| {
+            let id = visit.get("id").and_then(|item| item.as_i64()).unwrap_or(0);
+            let name = visitor_name(visit);
+            let cedula = text_or(visit, "visitorCedula", "");
+            let purpose = text_or(visit, "purpose", "");
+            let status = text_or(visit, "status", "");
+            let entrada = text_or(visit, "checkInTime", "");
+            view! {
+                <tr>
+                    <td>
+                        <a href={format!("/visits/{id}")}>{name}</a>
+                    </td>
+                    <td>{cedula}</td>
+                    <td>{purpose}</td>
+                    <td>{status}</td>
+                    <td>{entrada}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let tabla = if rows.is_empty() {
+        view! { <p class="muted">"Sin visitas con esos filtros."</p> }.into_any()
+    } else {
+        view! {
+            <table>
+                <thead>
+                    <tr>
+                        <th>"Visitante"</th>
+                        <th>"Cédula"</th>
+                        <th>"Propósito"</th>
+                        <th>"Estado"</th>
+                        <th>"Entrada"</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+        }
+        .into_any()
+    };
+    let anterior = if page > 1 {
+        view! {
+            <a href={format!("/admin?{}", admin_query(params, page - 1))}>"« Anterior"</a>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let siguiente = if page * limit < total {
+        view! {
+            <a href={format!("/admin?{}", admin_query(params, page + 1))}>"Siguiente »"</a>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    view! {
+        <div>
+            <form method="get" action="/admin" class="filtros">
+                <input type="hidden" name="tab" value="history" />
+                <label>
+                    "Estado "
+                    <select name="status">
+                        <option value="" selected={status.is_none()}>"Todos"</option>
+                        <option value="active" selected={status == Some("active")}>"Activa"</option>
+                        <option value="waiting" selected={status == Some("waiting")}>"En espera"</option>
+                        <option value="intermittent" selected={status == Some("intermittent")}>"Intermitente"</option>
+                        <option value="completed" selected={status == Some("completed")}>"Completada"</option>
+                        <option value="cancelled" selected={status == Some("cancelled")}>"Cancelada"</option>
+                    </select>
+                </label>
+                <label>
+                    "Empresa "
+                    <input name="company" value={param(params, "company").unwrap_or("")} />
+                </label>
+                <label>
+                    "Búsqueda "
+                    <input name="search" value={param(params, "search").unwrap_or("")} />
+                </label>
+                <label>
+                    "Desde "
+                    <input type="date" name="startDate" value={param(params, "startDate").unwrap_or("")} />
+                </label>
+                <label>
+                    "Hasta "
+                    <input type="date" name="endDate" value={param(params, "endDate").unwrap_or("")} />
+                </label>
+                <button class="boton" type="submit">"Filtrar"</button>
+            </form>
+            <p class="muted">
+                {format!("Total: {total} · Página {page} ({limit} por página)")}
+            </p>
+            {tabla}
+            <p class="paginacion">
+                {anterior}
+                " "
+                {siguiente}
+            </p>
+        </div>
+    }
+    .into_any()
+}
+
+fn admin_visitors_view(
+    items: Vec<serde_json::Value>,
+    total: i64,
+    page: i64,
+    limit: i64,
+    params: &Params,
+) -> AnyView {
+    let rows: Vec<AnyView> = items
+        .iter()
+        .map(|visitor| {
+            let name = profile_name(visitor);
+            let cedula = text_or(visitor, "cedula", "");
+            let company = text_or(visitor, "company", "");
+            let job = text_or(visitor, "jobTitle", "");
+            let blocked = visitor
+                .get("isBlocked")
+                .and_then(|item| item.as_bool())
+                .unwrap_or(false);
+            let blocked = if blocked { "Sí" } else { "No" };
+            view! {
+                <tr>
+                    <td>
+                        <a href={format!("/visitors/{cedula}")}>{name}</a>
+                    </td>
+                    <td>{cedula}</td>
+                    <td>{company}</td>
+                    <td>{job}</td>
+                    <td>{blocked}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let tabla = if rows.is_empty() {
+        view! { <p class="muted">"Sin visitantes con esos filtros."</p> }.into_any()
+    } else {
+        view! {
+            <table>
+                <thead>
+                    <tr>
+                        <th>"Visitante"</th>
+                        <th>"Cédula"</th>
+                        <th>"Empresa"</th>
+                        <th>"Cargo"</th>
+                        <th>"Bloqueado"</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+        }
+        .into_any()
+    };
+    let anterior = if page > 1 {
+        view! {
+            <a href={format!("/admin?{}", admin_query(params, page - 1))}>"« Anterior"</a>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    let siguiente = if page * limit < total {
+        view! {
+            <a href={format!("/admin?{}", admin_query(params, page + 1))}>"Siguiente »"</a>
+        }
+        .into_any()
+    } else {
+        view! { "" }.into_any()
+    };
+    view! {
+        <div>
+            <form method="get" action="/admin" class="filtros">
+                <input type="hidden" name="tab" value="visitors" />
+                <label>
+                    "Empresa "
+                    <input name="company" value={param(params, "company").unwrap_or("")} />
+                </label>
+                <label>
+                    "Búsqueda "
+                    <input name="search" value={param(params, "search").unwrap_or("")} />
+                </label>
+                <button class="boton" type="submit">"Filtrar"</button>
+            </form>
+            <p class="muted">
+                {format!("Total: {total} · Página {page} ({limit} por página)")}
+            </p>
+            {tabla}
+            <p class="paginacion">
+                {anterior}
+                " "
+                {siguiente}
+            </p>
+        </div>
+    }
+    .into_any()
+}
+
+fn admin_catalogs_view(departments: Vec<Department>, purposes: Vec<VisitPurpose>) -> AnyView {
+    let dept_rows: Vec<AnyView> = departments
+        .iter()
+        .map(|dept| {
+            let code = dept.code.clone().unwrap_or_default();
+            let active = if dept.is_active.unwrap_or(false) {
+                "Sí"
+            } else {
+                "No"
+            };
+            view! {
+                <tr>
+                    <td>{dept.name.clone()}</td>
+                    <td>{code}</td>
+                    <td>{active}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let purpose_rows: Vec<AnyView> = purposes
+        .iter()
+        .map(|purpose| {
+            let active = if purpose.is_active.unwrap_or(false) {
+                "Sí"
+            } else {
+                "No"
+            };
+            view! {
+                <tr>
+                    <td>{purpose.name.clone()}</td>
+                    <td>{active}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let dept_table = if dept_rows.is_empty() {
+        view! { <p class="muted">"Sin departamentos."</p> }.into_any()
+    } else {
+        view! {
+            <table>
+                <thead>
+                    <tr>
+                        <th>"Departamento"</th>
+                        <th>"Código"</th>
+                        <th>"Activo"</th>
+                    </tr>
+                </thead>
+                <tbody>{dept_rows}</tbody>
+            </table>
+        }
+        .into_any()
+    };
+    let purpose_table = if purpose_rows.is_empty() {
+        view! { <p class="muted">"Sin propósitos."</p> }.into_any()
+    } else {
+        view! {
+            <table>
+                <thead>
+                    <tr>
+                        <th>"Propósito"</th>
+                        <th>"Activo"</th>
+                    </tr>
+                </thead>
+                <tbody>{purpose_rows}</tbody>
+            </table>
+        }
+        .into_any()
+    };
+    view! {
+        <div>
+            <h2>"Departamentos"</h2>
+            {dept_table}
+            <h2>"Propósitos"</h2>
+            {purpose_table}
+            <p class="muted">
+                "Los catálogos son de solo lectura en esta fase: no hay rutas de API para gestionarlos."
+            </p>
+        </div>
+    }
+    .into_any()
+}
+
+fn admin_backups_view(files: Option<Vec<serde_json::Value>>) -> AnyView {
+    let Some(files) = files else {
+        return view! {
+            <div class="alerta aviso">
+                "Carpeta de respaldos no configurada (backup.path). La ejecución de respaldos llega en la fase 6."
+            </div>
+        }
+        .into_any();
+    };
+    let rows: Vec<AnyView> = files
+        .iter()
+        .map(|file| {
+            let name = text_or(file, "name", "");
+            let size = file
+                .get("sizeBytes")
+                .and_then(|item| item.as_u64())
+                .unwrap_or(0);
+            let date = text_or(file, "modifiedAt", "");
+            view! {
+                <tr>
+                    <td>{name}</td>
+                    <td>{date}</td>
+                    <td>{size.to_string()}</td>
+                </tr>
+            }
+            .into_any()
+        })
+        .collect();
+    let tabla = if rows.is_empty() {
+        view! { <p class="muted">"Sin respaldos todavía."</p> }.into_any()
+    } else {
+        view! {
+            <table>
+                <thead>
+                    <tr>
+                        <th>"Archivo"</th>
+                        <th>"Fecha"</th>
+                        <th>"Tamaño (bytes)"</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+        }
+        .into_any()
+    };
+    view! {
+        <div>
+            <p>
+                <button
+                    class="boton"
+                    data-api="POST /api/v1/backups"
+                    data-confirm="Crear un respaldo ahora?"
+                >
+                    "Crear respaldo"
+                </button>
+            </p>
+            <p class="muted">
+                "La creación y restauración reales llegan en la fase 6: hasta entonces la API devuelve 409."
+            </p>
+            {tabla}
+            <p class="muted">
+                "Exportación de visitas: "
+                <a href="/api/v1/visits/export?format=xlsx">"JSON (hasta 20.000 visitas)"</a>
+                ". PDF/XLSX en servidor, fase 6."
+            </p>
+        </div>
+    }
+    .into_any()
+}
+
+/// /admin — solo admin/root. Historial y visitantes en SSR; calendario
+/// y estadísticas por fetch a la API (carga diferida, como el
+/// original); catálogos en SSR de solo lectura; respaldos: listado
+/// SSR, ejecución en fase 6.
+pub async fn admin_page(State(state): State<ApiState>, session: Session, uri: Uri) -> Response {
+    if !matches!(Role::parse(&session.role), Some(Role::Admin | Role::Root)) {
+        return forbid(&session, "Solo administradores ven esta página.");
+    }
+    let params = parse_query(&uri);
+    let tab = param(&params, "tab").unwrap_or("history");
+    let tab = match tab {
+        "visitors" | "calendar" | "stats" | "catalogs" | "backups" => tab,
+        _ => "history",
+    };
+    let content: AnyView = match tab {
+        "visitors" => match data::admin_visitors(&state, &uri).await {
+            Ok((items, total, page, limit)) => {
+                admin_visitors_view(items, total, page, limit, &params)
+            }
+            Err(error) => return page_error(&session, &error),
+        },
+        "calendar" => view! {
+            <div>
+                <div id="calendario">
+                    <p class="muted">"Cargando calendario…"</p>
+                </div>
+                <p class="muted">"Rango: mes actual. Datos de /api/v1/visits/calendar."</p>
+            </div>
+        }
+        .into_any(),
+        "stats" => view! {
+            <div id="estadisticas">
+                <h2>"Resumen"</h2>
+                <pre id="stats-resumen">"Cargando…"</pre>
+                <h2>"Mensual"</h2>
+                <pre id="stats-mensual">"Cargando…"</pre>
+                <h2>"Comparativo"</h2>
+                <pre id="stats-comparativo">"Cargando…"</pre>
+                <h2>"Alertas"</h2>
+                <pre id="stats-alertas">"Cargando…"</pre>
+            </div>
+        }
+        .into_any(),
+        "catalogs" => match data::admin_catalogs(&state).await {
+            Ok((departments, purposes)) => admin_catalogs_view(departments, purposes),
+            Err(error) => return page_error(&session, &error),
+        },
+        "backups" => match data::backup_files(&state) {
+            Ok(files) => admin_backups_view(files),
+            Err(error) => return page_error(&session, &error),
+        },
+        _ => match data::admin_history(&state, &uri).await {
+            Ok((items, total, page, limit)) => {
+                admin_history_view(items, total, page, limit, &params)
+            }
+            Err(error) => return page_error(&session, &error),
+        },
+    };
+    let body = view! {
+        <div>
+            <h1>"Administración"</h1>
+            <nav class="pestanas">
+                <a href="/admin?tab=history" class={if tab == "history" { "activa" } else { "" }}>"Historial"</a>
+                <a href="/admin?tab=visitors" class={if tab == "visitors" { "activa" } else { "" }}>"Visitantes"</a>
+                <a href="/admin?tab=calendar" class={if tab == "calendar" { "activa" } else { "" }}>"Calendario"</a>
+                <a href="/admin?tab=stats" class={if tab == "stats" { "activa" } else { "" }}>"Estadísticas"</a>
+                <a href="/admin?tab=catalogs" class={if tab == "catalogs" { "activa" } else { "" }}>"Catálogos"</a>
+                <a href="/admin?tab=backups" class={if tab == "backups" { "activa" } else { "" }}>"Respaldos"</a>
+            </nav>
+            {content}
+        </div>
+    }
+    .to_html();
+    page(Some(&session), "Administración", body)
 }

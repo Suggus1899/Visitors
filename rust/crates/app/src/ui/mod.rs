@@ -31,6 +31,7 @@ pub fn router(state: ApiState) -> Router<ApiState> {
         .route("/", get(pages::home_page))
         .route("/visits/{id}", get(pages::visit_page))
         .route("/visitors/{cedula}", get(pages::visitor_page))
+        .route("/admin", get(pages::admin_page))
         .route("/change-password", get(pages::change_password_page))
         .route("/logout", post(pages::logout))
         .layer(middleware::from_fn_with_state(
@@ -417,5 +418,71 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("Punto de control"));
         assert!(!body.contains("Registrar check-in"));
+    }
+
+    #[tokio::test]
+    async fn admin_page_gates_roles_and_renders_tabs() {
+        let (state, _) = test_state();
+        seed_user(&state, "operador", "operador").await;
+        seed_user(&state, "auditor", "auditor").await;
+        seed_user(&state, "admin", "admin").await;
+        let router = build_router_with_state(state);
+        let token_admin = login_token(router.clone(), "admin").await;
+        let cookie_admin = format!("__Host-logmaster-access={token_admin}");
+        let token_op = login_token(router.clone(), "operador").await;
+        checkin_waiting(router.clone(), &token_op).await;
+
+        let cookie_op = format!("__Host-logmaster-access={token_op}");
+        let (status, _, _) = request(router.clone(), Method::GET, "/admin", Some(&cookie_op)).await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let cookie_aud = login_cookie(router.clone(), "auditor").await;
+        let (status, _, _) =
+            request(router.clone(), Method::GET, "/admin", Some(&cookie_aud)).await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, body) =
+            request(router.clone(), Method::GET, "/admin", Some(&cookie_admin)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Administración"));
+        assert!(body.contains("Historial"));
+        assert!(body.contains("Ana Pérez"));
+        assert!(body.contains("Reunión"));
+
+        let (status, _, body) = request(
+            router.clone(),
+            Method::GET,
+            "/admin?tab=visitors",
+            Some(&cookie_admin),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        eprintln!(
+            "VISITORS BODY: {}",
+            &body[body.find("<main>").unwrap_or(0)..]
+        );
+        assert!(body.contains("Ana Pérez"));
+        assert!(body.contains("Trébol"));
+
+        let (status, _, body) = request(
+            router.clone(),
+            Method::GET,
+            "/admin?tab=catalogs",
+            Some(&cookie_admin),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Departamentos"));
+        assert!(body.contains("Propósitos"));
+
+        let (status, _, body) = request(
+            router.clone(),
+            Method::GET,
+            "/admin?tab=backups",
+            Some(&cookie_admin),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("Carpeta de respaldos no configurada"));
     }
 }
