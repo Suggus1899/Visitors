@@ -17,12 +17,15 @@ use anyhow::{Context, Result};
 use rusqlite::{Connection, TransactionBehavior};
 
 pub mod crypto;
+pub mod database;
 pub mod error;
 pub mod migrations;
 pub mod models;
 pub mod pg_migrations;
 pub mod preflight;
 pub mod repos;
+
+pub use database::{ConnectionProbe, Database, DatabaseConfig, DatabaseEngine, Repositories};
 
 /// Versión esperada del esquema (número de migraciones definidas).
 pub const SCHEMA_VERSION: usize = migrations::MIGRATION_COUNT;

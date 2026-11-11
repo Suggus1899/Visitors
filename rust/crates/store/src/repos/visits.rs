@@ -172,7 +172,7 @@ pub enum Transition {
 }
 
 impl Transition {
-    fn expected_state(self) -> &'static str {
+    pub(crate) fn expected_state(self) -> &'static str {
         match self {
             Transition::Admit => "waiting",
             Transition::Checkout => "active",
@@ -182,7 +182,7 @@ impl Transition {
         }
     }
 
-    fn target_state(self) -> &'static str {
+    pub(crate) fn target_state(self) -> &'static str {
         match self {
             Transition::Admit => "active",
             Transition::Checkout => "completed",
@@ -192,7 +192,7 @@ impl Transition {
         }
     }
 
-    fn audit_action(self) -> &'static str {
+    pub(crate) fn audit_action(self) -> &'static str {
         match self {
             Transition::Admit => "VISIT_ADMIT",
             Transition::Checkout => "VISIT_CHECKOUT",

@@ -13,6 +13,7 @@
 
 pub mod audit;
 pub mod catalogs;
+pub mod pg;
 pub mod privacy;
 pub mod search;
 pub mod sqlite;
