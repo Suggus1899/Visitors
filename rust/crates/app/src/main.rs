@@ -20,6 +20,7 @@
 //! logmaster.exe restore <archivo> --confirm-target <destino> [--password <clave>]
 //! logmaster.exe rehearse [archivo] [--password <clave>]
 //! logmaster.exe retention
+//! logmaster.exe tray             # bandeja del sistema (solo Windows)
 //! ```
 //!
 //! `convert` y `preflight` son operaciones síncronas de una sola vez
@@ -39,6 +40,7 @@ mod export;
 mod first_run;
 mod http;
 mod init;
+mod logging;
 mod mail;
 mod origin;
 mod rate_limit;
@@ -49,6 +51,7 @@ mod secrets;
 mod service;
 mod session;
 mod tls;
+mod tray;
 mod ui;
 
 use std::path::PathBuf;
@@ -151,16 +154,24 @@ enum Command {
     /// Ejecuta la retención ahora (según `[retention]` del config),
     /// aunque esté desactivada: el operador la pide explícitamente.
     Retention,
+    /// Bandeja del sistema (solo Windows): icono con el estado del
+    /// servicio, abrir la interfaz, reiniciar el servicio y salir.
+    Tray,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    // Registro en archivo con rotación (fase 6); si el archivo no
+    // se puede abrir, se sigue solo con consola.
+    if logging::init(&init::log_dir()).is_err() {
+        let _ = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::INFO)
+            .try_init();
+    }
 
     let cli = Cli::parse();
     match cli.command {
+        Some(Command::Tray) => tray::run_tray(),
         Some(Command::Service { action }) => service::run_action(action),
         Some(Command::Secrets { action }) => init::run_secrets(action),
         Some(Command::Init { root_password_file }) => init::run_init(root_password_file).await,

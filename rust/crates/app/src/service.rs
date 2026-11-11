@@ -9,9 +9,9 @@
 //! espera las tareas en curso: el mismo apagado ordenado que hoy hace Go.
 //!
 //! Pendiente para la fase de operacion: cuenta virtual
-//! `NT SERVICE\LogMaster`, permisos NTFS de la carpeta de datos y
-//! acciones de recuperacion (hoy se configuran con
-//! `sc.exe failure LogMaster reset= 86400 actions= restart/5000/restart/5000//`).
+//! `NT SERVICE\LogMaster` y permisos NTFS de la carpeta de datos.
+//! La recuperación (reinicio a los 5 s en el 1.º y 2.º fallo) ya la
+//! configura `install` en la fase 6.
 
 use anyhow::Result;
 
@@ -35,6 +35,33 @@ pub enum ServiceAction {
 #[cfg(windows)]
 pub fn run_action(action: ServiceAction) -> Result<()> {
     imp::run_action(action)
+}
+
+/// Estado del servicio para la bandeja (`en ejecución`, `detenido`
+/// o el motivo si no está instalado). Solo Windows.
+#[cfg(windows)]
+pub fn service_state() -> String {
+    imp::service_state()
+}
+
+/// Reinicia el servicio (lo usa la bandeja). Solo Windows.
+#[cfg(windows)]
+pub fn restart_service() -> Result<()> {
+    imp::run_action(ServiceAction::Restart)
+}
+
+/// Solo las usa la bandeja (Windows); en otros sistemas quedan
+/// como vía documentada sin uso.
+#[cfg(not(windows))]
+#[allow(dead_code)]
+pub fn service_state() -> String {
+    "no disponible fuera de Windows".to_string()
+}
+
+#[cfg(not(windows))]
+#[allow(dead_code)]
+pub fn restart_service() -> Result<()> {
+    anyhow::bail!("el servicio de Windows solo existe en Windows")
 }
 
 #[cfg(not(windows))]
@@ -117,8 +144,54 @@ mod imp {
         service
             .set_delayed_auto_start(true)
             .context("activar arranque automatico retrasado")?;
+        // Recuperación (documento §13, fase 6): reinicio a los 5 s
+        // en el 1.º y 2.º fallo; el contador se reinicia tras un día
+        // sin fallos.
+        service
+            .update_failure_actions(windows_service::service::ServiceFailureActions {
+                reset_period: windows_service::service::ServiceFailureResetPeriod::After(
+                    Duration::from_secs(86400),
+                ),
+                reboot_msg: None,
+                command: None,
+                actions: Some(vec![
+                    windows_service::service::ServiceAction {
+                        action_type: windows_service::service::ServiceActionType::Restart,
+                        delay: Duration::from_millis(5000),
+                    },
+                    windows_service::service::ServiceAction {
+                        action_type: windows_service::service::ServiceActionType::Restart,
+                        delay: Duration::from_millis(5000),
+                    },
+                ]),
+            })
+            .context("configurar recuperación del servicio (reinicio a los 5 s)")?;
         tracing::info!("servicio LogMaster instalado (arranque automatico retrasado)");
         Ok(())
+    }
+
+    /// Estado del servicio para la bandeja. Si no está instalado,
+    /// devuelve el motivo en vez de fallar.
+    pub fn service_state() -> String {
+        let manager = match manager() {
+            Ok(manager) => manager,
+            Err(e) => return format!("SCM no disponible: {e:#}"),
+        };
+        let service = match manager.open_service(SERVICE_NAME, ServiceAccess::QUERY_STATUS) {
+            Ok(service) => service,
+            Err(_) => return "no instalado".to_string(),
+        };
+        match service.query_status() {
+            Ok(status) => match status.current_state {
+                ServiceState::Running => "en ejecución".to_string(),
+                ServiceState::Stopped => "detenido".to_string(),
+                ServiceState::StartPending => "arrancando".to_string(),
+                ServiceState::StopPending => "deteniéndose".to_string(),
+                ServiceState::Paused => "en pausa".to_string(),
+                _ => "en transición".to_string(),
+            },
+            Err(e) => format!("estado desconocido: {e:#}"),
+        }
     }
 
     fn uninstall() -> Result<()> {

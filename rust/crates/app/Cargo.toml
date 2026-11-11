@@ -45,6 +45,8 @@ tracing-subscriber.workspace = true
 logmaster-store = { path = "../store" }
 
 [target.'cfg(windows)'.dependencies]
+open = "5"
+tray-icon = "0.26"
 windows-service = "0.7"
 windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
