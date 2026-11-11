@@ -838,11 +838,10 @@ pub fn run_convert(from: &str, to: &Path) -> Result<ConvertReport> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
+    use crate::config::ENV_LOCK;
 
     // Las pruebas de variables de entorno comparten el proceso: se
-    // serializan con este candado.
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    // serializan con el candado compartido de `config.rs`.
 
     fn with_env(vars: &[(&str, Option<&str>)], f: impl FnOnce()) {
         let _guard = ENV_LOCK.lock().unwrap();

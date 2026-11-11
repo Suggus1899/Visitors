@@ -20,6 +20,7 @@
 //! (el cliente de PostgreSQL es síncrono): corren en un hilo de
 //! bloqueo para no detener el runtime de Tokio.
 
+mod client_ip;
 mod config;
 mod convert;
 mod error;
