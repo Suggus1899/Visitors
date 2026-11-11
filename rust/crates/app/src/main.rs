@@ -169,6 +169,10 @@ async fn main() -> Result<()> {
             .try_init();
     }
 
+    // Proveedor cripto de rustls (fase 6): sin él, `serve` con TLS
+    // entra en pánico porque hay dos habilitados (aws-lc-rs y ring).
+    tls::install_default_crypto_provider();
+
     let cli = Cli::parse();
     match cli.command {
         Some(Command::Tray) => tray::run_tray(),

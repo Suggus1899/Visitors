@@ -28,6 +28,22 @@ pub struct TlsMaterial {
     pub generated: bool,
 }
 
+/// Proveedor cripto por defecto de rustls. En este árbol hay dos
+/// habilitados (`aws-lc-rs` por los defectos de rustls y `ring` por
+/// rustls-webpki) y `CryptoProvider::get_default()` entra en pánico
+/// sin uno instalado (lo hacía `serve` al construir el
+/// `RustlsConfig`). Se instala `ring`: su build script es el que
+/// pasa el check de Windows con el shim; `aws-lc-sys` exige
+/// `cl.exe` de MSVC. Idempotente.
+pub fn install_default_crypto_provider() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let _ = rustls::crypto::CryptoProvider::install_default(
+            rustls::crypto::ring::default_provider(),
+        );
+    });
+}
+
 /// Estado TLS sin generar nada (para `check`): `None` si está
 /// desactivado o si aún no hay certificado (se genera al arrancar).
 pub fn status(config: &crate::config::Config) -> Result<Option<TlsMaterial>> {
@@ -140,5 +156,28 @@ mod tests {
         let mut config = Config::fixture();
         config.tls_enabled = false;
         assert!(load_or_generate(&config).unwrap().is_none());
+    }
+
+    /// Regresión (fase 6): sin proveedor instalado, construir el
+    /// `RustlsConfig` del servidor entraba en pánico porque hay dos
+    /// proveedores habilitados (aws-lc-rs y ring).
+    #[tokio::test]
+    async fn rustls_config_builds_with_installed_provider() {
+        install_default_crypto_provider();
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("tls-tests-provider");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let mut config = Config::fixture();
+        config.tls_enabled = true;
+        config.tls_dir = dir.clone();
+        let material = load_or_generate(&config).unwrap().unwrap();
+        let rustls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(
+            material.cert_path,
+            material.key_path,
+        )
+        .await;
+        assert!(rustls_config.is_ok(), "{rustls_config:?}");
     }
 }

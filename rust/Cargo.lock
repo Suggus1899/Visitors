@@ -3329,6 +3329,7 @@ dependencies = [
  "rcgen",
  "rusqlite",
  "rust_xlsxwriter",
+ "rustls",
  "rustls-pemfile",
  "serde",
  "serde_json",

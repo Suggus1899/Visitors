@@ -1,3 +1,4 @@
 # Artefactos de compilacion de Rust (nunca se suben binarios ni target/).
 /target/
+/crates/app/target/
 *.pdb
