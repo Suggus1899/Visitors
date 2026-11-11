@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/app", "crates/store"]
+members = ["crates/app", "crates/crypto", "crates/store"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -7,15 +7,19 @@ aes = "0.8"
 aes-gcm = "0.10"
 anyhow = "1"
 axum = { version = "0.8", features = ["multipart"] }
+bcrypt = "0.17"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 fallible-iterator = "0.2"
 hex = "0.4"
+hmac = "0.13"
 postgres = { version = "0.19", features = ["with-chrono-0_4"] }
+rand = "0.8"
 rusqlite = { version = "0.32", features = ["bundled"] }
 rusqlite_migration = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.11"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6", features = ["trace", "limit"] }
 tracing = "0.1"

@@ -6,10 +6,8 @@ description = "Acceso a datos de LogMaster: SQLite embebido en modo WAL y migrac
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-aes-gcm.workspace = true
-aes.workspace = true
 anyhow.workspace = true
-hex.workspace = true
+logmaster-crypto = { path = "../crypto" }
 rusqlite.workspace = true
 rusqlite_migration.workspace = true
 tracing.workspace = true
