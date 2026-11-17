@@ -422,7 +422,7 @@ mod tests {
         let created_name = body["data"]["filePath"]
             .as_str()
             .unwrap()
-            .rsplit('/')
+            .rsplit(['/', '\\'])
             .next()
             .unwrap()
             .to_string();

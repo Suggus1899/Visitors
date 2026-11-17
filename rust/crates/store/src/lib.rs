@@ -224,7 +224,7 @@ impl Store {
 
     /// Sustituye el archivo de base vivo por otro ya verificado
     /// (`staged`, en la misma carpeta: el rename es atómico) y
-    /// reabre la conexión sobre él. Es el intercambio en vivo de
+    /// reabre la conexión sobre el archivo vivo. Es el intercambio en vivo de
     /// la restauración por HTTP (fase 6): todos los clones de este
     /// `Store` comparten la misma conexión, así que ven la base
     /// restaurada sin reiniciar. El archivo viejo queda sustituido;
@@ -236,24 +236,24 @@ impl Store {
             staged.display()
         );
         let live = self.path.clone();
-        let new_conn = Self::open_connection(staged)?;
-        {
-            let mut guard = self.conn.lock().expect("lock de la base");
-            let old = std::mem::replace(&mut *guard, new_conn);
-            drop(old); // cierra la conexión vieja: libera el archivo vivo
-        }
-        // El -wal/-shm del archivo vivo pertenecen a la conexión
-        // vieja; el nuevo archivo ya trae los datos consolidados.
+        // Todo bajo el candado: nadie usa la base durante el cambio.
+        // El archivo vivo se cierra antes del rename y el nuevo se
+        // abre después, porque Windows no deja renombrar un archivo
+        // abierto (ni sustituir uno que lo esté).
+        let mut guard = self.conn.lock().expect("lock de la base");
+        let old = std::mem::replace(&mut *guard, Connection::open_in_memory()?);
+        drop(old); // cierra la conexión vieja: libera el archivo vivo
         for suffix in ["-wal", "-shm"] {
             let _ = std::fs::remove_file(format!("{}{suffix}", live.display()));
         }
-        std::fs::rename(staged, &live).with_context(|| {
+        let swapped = std::fs::rename(staged, &live);
+        // Se reabre siempre: la base restaurada si el rename salió
+        // bien, la original si falló.
+        *guard = Self::open_connection(&live)?;
+        drop(guard);
+        swapped.with_context(|| {
             format!("sustituir base {} por {}", live.display(), staged.display())
         })?;
-        // El -shm del archivo preparado quedó con el nombre viejo.
-        for suffix in ["-wal", "-shm"] {
-            let _ = std::fs::remove_file(format!("{}{suffix}", staged.display()));
-        }
         self.verify()
     }
 

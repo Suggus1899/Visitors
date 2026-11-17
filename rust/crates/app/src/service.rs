@@ -272,9 +272,7 @@ mod imp {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .map_err(|e| {
-                windows_service::Error::Winapi(std::io::Error::new(std::io::ErrorKind::Other, e))
-            })?;
+            .map_err(|e| windows_service::Error::Winapi(std::io::Error::other(e)))?;
 
         status_handle.set_service_status(mk_status(
             ServiceState::Running,
@@ -289,9 +287,7 @@ mod imp {
             ServiceControlAccept::empty(),
         ))?;
 
-        result.map_err(|e| {
-            windows_service::Error::Winapi(std::io::Error::new(std::io::ErrorKind::Other, e))
-        })
+        result.map_err(|e| windows_service::Error::Winapi(std::io::Error::other(e)))
     }
 
     fn mk_status(state: ServiceState, accepted: ServiceControlAccept) -> ServiceStatus {

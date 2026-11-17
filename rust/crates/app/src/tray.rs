@@ -24,8 +24,9 @@ pub fn run_tray() -> Result<()> {
 #[cfg(windows)]
 mod imp {
     use super::*;
-    use std::time::Duration;
-    use tray_icon::{Icon, Menu, MenuEvent, MenuItem, TrayIconBuilder};
+    use std::time::{Duration, Instant};
+    use tray_icon::menu::{Menu, MenuEvent, MenuItem};
+    use tray_icon::{Icon, TrayIconBuilder};
 
     /// Icono 32x32 generado en código: cuadro verde con una `L`
     /// blanca (sin archivos externos, el ejecutable es único).
@@ -89,6 +90,19 @@ mod imp {
             })
     }
 
+    fn pump_messages() {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE,
+        };
+        let mut msg: MSG = unsafe { std::mem::zeroed() };
+        unsafe {
+            while PeekMessageW(&mut msg, 0, 0, 0, PM_REMOVE) != 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        }
+    }
+
     pub fn run_tray() -> Result<()> {
         let open_item = MenuItem::new("Abrir interfaz", true, None);
         let restart = MenuItem::new("Reiniciar servicio", true, None);
@@ -104,36 +118,31 @@ mod imp {
             .build()?;
         tracing::info!("bandeja de LogMaster activa");
         let receiver = MenuEvent::receiver();
-        let mut ticks: u32 = 0;
-        loop {
-            match receiver.recv_timeout(Duration::from_secs(5)) {
-                Ok(event) => {
-                    if event.id == open_item.id() {
-                        if let Err(e) = open::that(app_url()) {
-                            tracing::error!(error = %e, "no se pudo abrir la interfaz");
-                        }
-                    } else if event.id == restart.id() {
-                        match crate::service::restart_service() {
-                            Ok(()) => {
-                                tracing::info!("servicio reiniciado desde la bandeja")
-                            }
-                            Err(e) => {
-                                tracing::error!(error = %e, "reinicio del servicio fallido")
-                            }
-                        }
-                    } else if event.id == quit.id() {
-                        break;
+        let mut last_refresh = Instant::now();
+        'tray: loop {
+            // En Windows el icono solo responde si este hilo despacha
+            // sus mensajes de ventana.
+            pump_messages();
+            while let Ok(event) = receiver.try_recv() {
+                if event.id == open_item.id() {
+                    if let Err(e) = open::that(app_url()) {
+                        tracing::error!(error = %e, "no se pudo abrir la interfaz");
                     }
-                }
-                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    // Refrescar el estado del servicio cada ~30 s.
-                    ticks += 1;
-                    if ticks % 6 == 0 {
-                        tray.set_tooltip(Some(tooltip()))?;
+                } else if event.id == restart.id() {
+                    match crate::service::restart_service() {
+                        Ok(()) => tracing::info!("servicio reiniciado desde la bandeja"),
+                        Err(e) => tracing::error!(error = %e, "reinicio del servicio fallido"),
                     }
+                } else if event.id == quit.id() {
+                    break 'tray;
                 }
-                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
             }
+            // Refrescar el estado del servicio cada ~30 s.
+            if last_refresh.elapsed() >= Duration::from_secs(30) {
+                tray.set_tooltip(Some(tooltip()))?;
+                last_refresh = Instant::now();
+            }
+            std::thread::sleep(Duration::from_millis(50));
         }
         Ok(())
     }

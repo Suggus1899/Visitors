@@ -168,13 +168,13 @@ mod protect {
     pub fn protect(value: &str) -> Result<String> {
         use windows_sys::Win32::Foundation::LocalFree;
         use windows_sys::Win32::Security::Cryptography::{
-            CryptProtectData, CRYPTPROTECT_UI_FORBIDDEN, DATA_BLOB,
+            CryptProtectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB,
         };
-        let input = DATA_BLOB {
+        let input = CRYPT_INTEGER_BLOB {
             cbData: value.len() as u32,
             pbData: value.as_ptr() as *mut u8,
         };
-        let mut output = DATA_BLOB {
+        let mut output = CRYPT_INTEGER_BLOB {
             cbData: 0,
             pbData: std::ptr::null_mut(),
         };
@@ -195,7 +195,7 @@ mod protect {
         let bytes = unsafe { std::slice::from_raw_parts(output.pbData, output.cbData as usize) };
         let encoded = BASE64.encode(bytes);
         unsafe {
-            LocalFree(output.pbData as isize);
+            LocalFree(output.pbData as _);
         }
         Ok(encoded)
     }
@@ -204,16 +204,16 @@ mod protect {
     pub fn unprotect(encoded: &str) -> Result<String> {
         use windows_sys::Win32::Foundation::LocalFree;
         use windows_sys::Win32::Security::Cryptography::{
-            CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, DATA_BLOB,
+            CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB,
         };
         let bytes = BASE64
             .decode(encoded)
             .context("secreto con base64 inválido")?;
-        let input = DATA_BLOB {
+        let input = CRYPT_INTEGER_BLOB {
             cbData: bytes.len() as u32,
             pbData: bytes.as_ptr() as *mut u8,
         };
-        let mut output = DATA_BLOB {
+        let mut output = CRYPT_INTEGER_BLOB {
             cbData: 0,
             pbData: std::ptr::null_mut(),
         };
@@ -235,7 +235,7 @@ mod protect {
         let value =
             String::from_utf8(bytes.to_vec()).context("secreto descifrado con UTF-8 inválido")?;
         unsafe {
-            LocalFree(output.pbData as isize);
+            LocalFree(output.pbData as _);
         }
         Ok(value)
     }

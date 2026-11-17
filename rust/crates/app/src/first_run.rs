@@ -357,7 +357,7 @@ mod tests {
             PathBuf::from(DEFAULT_INSTALL_FOLDER)
         );
         std::fs::write(
-            &exe.with_file_name("config.toml"),
+            exe.with_file_name("config.toml"),
             "[install]\nfolder = \"D:\\\\Apps\"\n",
         )
         .unwrap();

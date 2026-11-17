@@ -52,6 +52,7 @@ windows-service = "0.7"
 windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
     "Win32_Security_Cryptography",
+    "Win32_UI_WindowsAndMessaging",
 ] }
 mslnk = "0.1"
 
