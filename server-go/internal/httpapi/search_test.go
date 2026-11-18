@@ -13,7 +13,7 @@ import (
 
 func TestProtectedSearchAndCalendarIntegration(t *testing.T) {
 	a, h := integrationApp(t)
-	_, username, password := fixtureUser(t, a, "root", false)
+	rootID, username, password := fixtureUser(t, a, "root", false)
 	token := loginFixture(t, h, username, password)["accessToken"].(string)
 	ctx := context.Background()
 	cedula := "V-98989701"
@@ -91,6 +91,8 @@ func TestProtectedSearchAndCalendarIntegration(t *testing.T) {
 		t.Fatal("wrong key fingerprint")
 	}
 	t.Cleanup(func() {
+		// The cancellation leaves a completed ARCO request; it would break the next identity rebuild.
+		a.Pool.Exec(context.Background(), `DELETE FROM "ArcoRequests" WHERE "requestedByUserId"=$1`, rootID)
 		a.Pool.Exec(context.Background(), `DELETE FROM "Visits" WHERE visitor_id=$1`, visitor.ID)
 		a.Pool.Exec(context.Background(), `DELETE FROM "Visitors" WHERE id=$1`, visitor.ID)
 	})
