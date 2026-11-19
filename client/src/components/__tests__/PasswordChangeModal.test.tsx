@@ -129,8 +129,9 @@ describe('PasswordChangeModal', () => {
         await user.type(newPasswordInput, 'StrongPassword123!');
         
         // Check if password requirements are marked as valid
-        expect(screen.getByText('Mínimo 12 caracteres')).toHaveClass('text-green-400');
-        expect(screen.getByText('Al menos un carácter especial')).toHaveClass('text-green-400');
+        expect(screen.getByText('Mínimo 12 caracteres')).toHaveAttribute('data-met', 'true');
+        expect(screen.getByText('Al menos un carácter especial')).toHaveAttribute('data-met', 'true');
+        expect(screen.getByRole('progressbar', { name: 'Requisitos cumplidos' })).toHaveAttribute('aria-valuenow', '6');
     });
 
     it('toggles password visibility', async () => {
@@ -138,7 +139,7 @@ describe('PasswordChangeModal', () => {
         render(<PasswordChangeModal {...defaultProps} />);
         
         const currentPasswordInput = screen.getByLabelText('Contraseña Actual') as HTMLInputElement;
-        const toggleButton = currentPasswordInput.nextElementSibling as HTMLButtonElement;
+        const toggleButton = screen.getByRole('button', { name: 'Mostrar contraseña actual' });
         
         expect(currentPasswordInput.type).toBe('password');
         
