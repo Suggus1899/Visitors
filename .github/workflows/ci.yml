@@ -50,6 +50,9 @@ jobs:
           sudo apt-get install -y postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-16
+          # pg_wrapper would pick the newest installed client; backups must use 16.
+          echo "PG_BIN_PATH=/usr/lib/postgresql/16/bin" >> "$GITHUB_ENV"
+          /usr/lib/postgresql/16/bin/pg_dump --version
           for suffix in go_test restore_test; do
             psql -h 127.0.0.1 -p 55432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE logmaster_$suffix LOGIN PASSWORD 'ci-$suffix-password';"
             createdb -h 127.0.0.1 -p 55432 -U postgres -O "logmaster_$suffix" "logmaster_$suffix"
