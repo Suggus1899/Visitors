@@ -181,7 +181,7 @@ func (a *App) arcoStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback(r.Context())
-	rows, e := tx.Query(r.Context(), `UPDATE "ArcoRequests" SET status=$2,"resolutionNotes"=CASE WHEN "subjectCedulaEncrypted" IS NULL THEN NULL ELSE $3 END,"resolvedAt"=CASE WHEN $2 IN ('completed','rejected') THEN now() ELSE NULL END,"updatedAt"=now() WHERE id=$1 RETURNING *`, id, b.Status, b.ResolutionNotes)
+	rows, e := tx.Query(r.Context(), `UPDATE "ArcoRequests" SET status=$2::"enum_ArcoRequests_status","resolutionNotes"=CASE WHEN "subjectCedulaEncrypted" IS NULL THEN NULL ELSE $3 END,"resolvedAt"=CASE WHEN $2::"enum_ArcoRequests_status" IN ('completed','rejected') THEN now() ELSE NULL END,"updatedAt"=now() WHERE id=$1 RETURNING *`, id, b.Status, b.ResolutionNotes)
 	if e != nil {
 		a.serverError(w, e)
 		return
