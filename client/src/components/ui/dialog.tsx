@@ -27,7 +27,8 @@ export function DialogContent({ className, children, showCloseButton = true, onE
   const preventDismiss = Boolean(onEscapeKeyDown || onPointerDownOutside);
   return (
     <Modal.Backdrop isDismissable={!preventDismiss} isKeyboardDismissDisabled={preventDismiss} variant="opaque" className="z-50">
-      <Modal.Container placement="center" scroll="inside" size="lg" className="fixed inset-0 flex items-center justify-center p-4">
+      {/* HeroUI centers the container from the backdrop; positioning it here pins it to the left edge. */}
+      <Modal.Container placement="center" scroll="inside" size="lg" className="p-4">
         <Modal.Dialog className={cn('relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[color:var(--border-1)] bg-[color:var(--surface-1)] p-6 text-[color:var(--text-1)] shadow-xl', className)} {...props}>
           {children}
           {showCloseButton && <Modal.CloseTrigger aria-label="Cerrar" className="absolute right-3 top-3 rounded-md p-2 text-[color:var(--text-3)] hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-1)]"><X size={16} /></Modal.CloseTrigger>}
